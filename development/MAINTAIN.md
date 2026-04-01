@@ -1,0 +1,117 @@
+# Phase 4: Maintain
+
+Audit, update, and evolve the project over time. Run periodically and after major changes.
+
+## Feature Tree Audit
+
+Run after major changes or periodically (every 2-4 weeks).
+
+### What the Audit Checks
+
+1. Features in code but not in feature-tree.md (missing from tree)
+2. Features in tree but not in code (stale entries)
+3. Features without docs/features/{name}.md (undocumented)
+4. Systems documentation that doesn't match current code (stale system docs)
+5. References.md paths that no longer exist (broken references)
+
+### Audit Prompt
+
+Use this prompt with your AI assistant:
+
+---
+
+Audit the project against its documentation:
+
+1. Scan the feature directories and compare against feature-tree.md
+   - Report features in code but missing from the tree
+   - Report tree entries that no longer exist in code
+   - Report features without a doc in docs/features/
+
+2. Scan foundational system locations in References.md
+   - Verify each path still exists
+   - Verify docs/systems/ matches actual systems
+
+3. Check for convention violations:
+   - Hardcoded values that should use the theme/config system
+   - Direct third-party imports bypassing wrappers
+   - Scattered error handling outside the error system
+   - Ad-hoc API calls outside the API layer
+
+4. Update feature-tree.md with findings
+5. Update the audit log in feature-tree.md with date and findings
+
+---
+
+### Audit Script
+
+Run to get a quick automated check:
+
+```bash
+#!/bin/bash
+echo "=== Feature Tree Audit ==="
+
+FEATURES_DIR="src/features"
+TREE_FILE="feature-tree.md"
+
+# Features in code but not in tree
+for dir in "$FEATURES_DIR"/*/; do
+  feature=$(basename "$dir")
+  if ! grep -q "$feature" "$TREE_FILE" 2>/dev/null; then
+    echo "MISSING from tree: $feature"
+  fi
+  if [ ! -f "docs/features/$feature.md" ]; then
+    echo "UNDOCUMENTED: $feature"
+  fi
+done
+
+# Check References.md paths
+echo ""
+echo "=== References.md Path Check ==="
+grep -oP 'src/[^\s\]]+' References.md 2>/dev/null | while read path; do
+  if [ ! -e "$path" ]; then
+    echo "BROKEN PATH in References.md: $path"
+  fi
+done
+
+echo ""
+echo "=== Audit Complete ==="
+```
+
+## Documentation Maintenance
+
+### When to Update Documentation
+
+- After implementing a feature → create docs/features/{name}.md
+- After modifying a feature → update its doc
+- After modifying a foundational system → update docs/systems/{name}.md
+- After changing project structure → update References.md
+- After any of the above → update feature-tree.md
+
+### Hooks Handle This Automatically
+
+Hooks (configured during bootstrap) remind the AI to:
+- Update feature docs after file changes in a feature directory
+- Update feature-tree.md after creating new features
+- Run verification before marking tasks complete
+
+## Convention Evolution
+
+### Adding a New Convention
+
+1. Create the convention doc in conventions/ following templates/convention-template.md
+2. Add entry to Conventions.md
+3. Update References.md with how the convention applies to this project
+4. If the convention produces a foundational system, build it and document in docs/systems/
+
+### Updating a Convention
+
+1. Update the convention doc
+2. Check if the project's implementation still matches
+3. If not, plan the migration and update References.md
+
+### When New Techniques Emerge
+
+1. Evaluate against existing conventions
+2. If the technique improves a convention, update the convention doc
+3. If it's entirely new, consider adding a new convention
+4. Document the decision in References.md under "Convention Overrides"

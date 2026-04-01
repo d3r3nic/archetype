@@ -1,6 +1,6 @@
 # Phase 2: Scaffold
 
-This phase builds the foundational systems described in References.md. Run after bootstrap. Each system is built following convention #0 (Reusability) - built once, configured for context, used by every feature.
+Build the foundational systems described in References.md. Run after bootstrap. Each system is built following convention #0 (Reusability) - built once, configured for context, used by every feature.
 
 ## Prerequisites
 
@@ -18,69 +18,92 @@ Read CLAUDE.md, Conventions.md, and References.md.
 
 Build the foundational systems in this order. After each system:
 1. Create the code
-2. Write docs/systems/{system-name}.md documenting: what it is, where it lives, how features use it
-3. Update feature-tree.md marking the system as implemented
+2. Write docs/systems/{system-name}.md using the template below
+3. Update feature-tree.md marking the system as implemented with paths
 4. Verify it works (run build/tests)
+5. Commit (save point)
 
 Systems to build (order matters - later systems depend on earlier ones):
 
-1. PROJECT STRUCTURE (#1)
-   - Folder structure per References.md
-   - Path aliases configured
-   - Barrel exports pattern established
-   - Linting and formatting configured
+### 0. GIT & PROJECT INIT (#2)
+- Initialize git if not done in bootstrap
+- .gitignore configured for tech stack
+- Pre-commit hooks (lint, format, type-check)
+- Branch protection rules documented
 
-2. THEME SYSTEM (#6)
-   - Design tokens (colors, spacing, typography, shadows, z-index, breakpoints)
-   - Theme object as single source of truth
-   - UI library wrappers (never import directly)
-   - Dark mode support if needed
+### 1. PROJECT STRUCTURE & TYPES (#1, #7)
+- Folder structure per References.md
+- Path aliases configured
+- TypeScript strict mode configured (if applicable)
+- Shared types directory created
+- Validation library installed and configured (Zod/Valibot)
+- Barrel exports pattern established
+- Linting and formatting configured
 
-3. ERROR SYSTEM (#8)
-   - Error classes (NetworkError, ValidationError, NotFoundError, AuthError)
-   - Error service (catch, classify, log, report)
-   - Error boundary components (app, route, feature level)
-   - Error UI components (fallback, empty state, offline, loading)
-   - Unified loading components (full screen, inline, skeleton)
+### 2. THEME SYSTEM (#6) [frontend]
+- Design tokens (colors, spacing, typography, shadows, z-index, breakpoints)
+- Theme object as single source of truth
+- UI library wrappers (never import directly)
+- Dark mode support if needed
 
-4. API LAYER (#9)
-   - Configured client instance (base URL, interceptors)
-   - Auth token attachment
-   - Request/response transformation
-   - Data fetching library integration
-   - Cache strategy configured
+### 3. ERROR SYSTEM (#8)
+- Error classes (NetworkError, ValidationError, NotFoundError, AuthError)
+- Error service (catch, classify, log, report)
+- Error boundary components [frontend] or error middleware [backend]
+- Error UI components [frontend]: fallback, empty state, offline, loading
+- Unified loading components [frontend]: full screen, inline, skeleton
 
-5. AUTH SYSTEM (#11)
-   - Auth service (token storage, refresh, logout cleanup)
-   - Auth context/provider
-   - Route guard component
-   - Auth utility function
+### 4. API LAYER (#9, #10)
+- Configured client instance (base URL, interceptors)
+- Auth token attachment
+- Request/response transformation
+- Data fetching library integration [frontend] or route/handler setup [backend]
+- Cache strategy configured
+- Response envelope/format standardized
+- API contract setup if applicable (OpenAPI, tRPC, shared schemas)
 
-6. STATE MANAGEMENT (#5)
-   - Store configuration
-   - Slice pattern template
-   - Server state integration with API layer
+### 5. AUTH SYSTEM (#11)
+- Auth service (token storage, refresh, logout cleanup)
+- Auth context/provider [frontend] or auth middleware [backend]
+- Route guard component [frontend] or auth utility [backend]
+- Auth utility function (get authenticated user)
 
-7. COMPONENT FOUNDATION (#4)
-   - Base wrapper components for UI library
-   - Layout components (Stack, Grid, Page containers)
-   - Consistent component API patterns documented
+### 6. ROUTING & LAYOUTS (#21) [frontend]
+- Route definitions
+- Layout components (persistent shells)
+- Route guard integration with auth system
+- Loading and error states per route
 
-8. FORM SYSTEM (#20) (if project uses forms)
-   - Form library configured
-   - Validation schema pattern
-   - Form field components with error display
-   - Multi-step wizard if needed
+### 7. STATE MANAGEMENT (#5) [frontend]
+- Store configuration
+- Slice pattern template
+- Server state integration with API layer
 
-9. TESTING SETUP (#12)
-   - Test runner configured
-   - Custom render wrapper with providers
-   - MSW setup for API mocking
-   - Test data factories
+### 8. COMPONENT FOUNDATION (#4, #14, #22) [frontend]
+- Base wrapper components for UI library
+- Layout components (Stack, Grid, Page containers)
+- Accessible base components (Modal, Dialog, Dropdown with proper ARIA)
+- Consistent component API patterns documented
+- Storybook or component catalog setup if applicable
 
-10. CI/CD (#15)
-    - Lint + typecheck + test + build pipeline
-    - Pre-commit hooks
+### 9. FORM SYSTEM (#20) [if project uses forms]
+- Form library configured
+- Validation schema pattern (one schema = types + validation)
+- Form field components with error display
+- Multi-step wizard if needed
+
+### 10. TESTING SETUP (#12, #18)
+- Test runner configured
+- Custom render wrapper with providers [frontend]
+- MSW setup for API mocking
+- Test data factories
+- Verification command documented in References.md
+
+### 11. CI/CD & PERFORMANCE (#15, #13)
+- Lint + typecheck + test + build pipeline
+- Code splitting configured (route-based) [frontend]
+- Bundle budget set [frontend]
+- Preview deployments per PR if applicable
 
 ---
 
@@ -118,13 +141,14 @@ After scaffolding, verify:
 - [ ] Linting passes
 - [ ] Type checking passes
 - [ ] Base test suite passes
+- [ ] Initial commit with all scaffolding
 
 ## What Scaffolding Produces
 
-A working, empty project with all foundational systems in place. No features yet. But any feature can be built immediately by plugging into these systems.
+A working, empty project with all foundational systems in place. No features yet. Any feature can be built immediately by plugging into these systems.
 
 This scaffolding is REUSABLE. Projects with the same tech stack can start from this base. Store it as a template repo.
 
 ## Scaffolding Documentation
 
-The scaffolding phase itself should be documented as it happens. Every decision made during scaffolding that deviates from the conventions or makes a stack-specific choice should be recorded in References.md under "Convention Overrides."
+Every decision made during scaffolding that deviates from the conventions or makes a stack-specific choice is recorded in References.md under "Convention Overrides."

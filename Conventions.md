@@ -1,5 +1,7 @@
 # Conventions
 
+This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFOLD.md) → Develop (DEVELOP.md) → Maintain (MAINTAIN.md). Each phase produces artifacts the next phase builds on.
+
 ## #0 Reusability & Composition (META)
 Everything built once, configured for context. Governs how all other conventions are implemented. → conventions/00-reusability.md
 
