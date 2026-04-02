@@ -2,86 +2,47 @@
 
 ## Principle
 
-State lives as close to where it's used as possible. Local state is the default. Server state (API data) uses a dedicated library with automatic caching. Global state is reserved for truly app-wide concerns (auth, theme, locale). Data flows in one direction: down through props, up through callbacks.
+State lives as close to where it's used as possible. Local component state is the default. Server data (anything from an API) uses a dedicated data fetching layer that handles caching, deduplication, and revalidation automatically. Global state is reserved for truly app-wide concerns only. Data flows in one direction.
 
 ## Reusable System
 
-- Store configuration: centralized store setup with feature slice registration
-- Server state library: configured data fetching with cache management
-- State slice pattern: template for how features create and register state
+Create a state management setup that establishes:
+- A configured store for global state with a clear pattern for how features register their own state slices
+- Integration with a server-state layer that manages API data with automatic caching, background refetching, and deduplication. Features declare what data they need, the layer handles how to get it, cache it, and keep it fresh.
+- A clear rule for which state goes where: local state for UI-only concerns, server state for API data, global state only for auth/theme/locale
 
 ## Rules
 
-- Default to local state (useState). Lift only when genuinely needed.
-- Server state (API data) uses the data fetching library, not client state.
-- Global state only for: auth, theme, locale, and truly app-wide concerns.
-- State tree is flat. Component tree can be hierarchical.
-- One state slice per feature.
-- Data flows down via props. Events flow up via callbacks.
-- If props pass through more than 2-3 intermediary components, use context or state management.
-- URL is state for navigation, filters, and pagination.
-- Derived state is computed through selectors, not stored separately.
+- Default to local state. Only lift state when genuinely needed by multiple components.
+- Server data always goes through the data fetching layer. Never store API responses in the global client state. The data fetching layer handles caching, deduplication, and revalidation automatically.
+- Global state only for truly app-wide concerns: authentication status, theme preference, locale. Nothing else.
+- State tree is flat. Each feature registers one slice at the top level, not nested inside other slices.
+- Data flows in one direction: down through props, up through callbacks.
+- Never store derived state separately. If filteredItems can be computed from items + filterCriteria, compute it, don't store it as a separate piece of state.
+- Filters, pagination, sort order, and view state belong in the URL, not component state. They must survive page refresh and be shareable via URL.
 
 ## Violations
 
-- Storing API response in Redux/Zustand instead of using the server-state library
-- Global state for feature-specific data (modal open/close, tooltip, form inputs in global store)
-- Props drilling through 5+ levels instead of using context
-- Storing derived state separately (filteredItems, sortedItems as separate state) instead of computing
-- Mutable state updates instead of immutable patterns
-- Filters and pagination in component state instead of URL params (lost on refresh)
+- Storing API response data in the global store instead of using the data fetching layer
+- Putting everything in global state (modal open/close, tooltip visibility, form input values)
+- Storing derived values (filteredItems, sortedItems) as separate state and keeping them in sync with effects
+- Props drilling through 5+ intermediary components without introducing context or state management
+- Filters and pagination in component state instead of URL parameters (lost on refresh, not shareable)
 
-## Right vs Wrong
+## Wrong vs Right
 
-Examples are illustrative.
+- WRONG: a Redux slice that stores users list, loading boolean, and error string, with a thunk that manually fetches, sets loading, stores data, catches errors. Manual cache management.
+- RIGHT: a server-state hook that declares "I need the users list." The data fetching layer handles loading state, error state, caching, deduplication, and background revalidation automatically.
+- WRONG: three separate pieces of state - items, filteredItems, sortedItems - with effects to keep them synchronized. When items changes, filteredItems updates, then sortedItems updates. Complex, fragile chain.
+- RIGHT: one piece of state (items) and two computed values derived from it. filteredItems and sortedItems are calculated on the fly, not stored.
+- WRONG: user applies a search filter. It's stored in component state. User copies the URL and sends it to a colleague. Colleague opens it, sees no filter applied.
+- RIGHT: search filter is in the URL query parameters. User copies the URL, colleague sees the same filtered view.
 
-```
-WRONG (server data in client state):
-const userSlice = createSlice({
-  name: 'users',
-  initialState: { users: [], loading: false, error: null },
-  reducers: { setUsers, setLoading, setError }
-});
-// Manual loading/error/cache management in a thunk...
+## Research Notes
 
-RIGHT (server state in server-state library):
-function useUsers() {
-  return useQuery({
-    queryKey: ['users'],
-    queryFn: () => api.users.list(),
-  });
-}
-// Caching, dedup, refetch, loading, error - all handled
-```
-
-```
-WRONG (storing derived state):
-const [items, setItems] = useState([]);
-const [filteredItems, setFilteredItems] = useState([]);
-const [sortedItems, setSortedItems] = useState([]);
-// Three useEffects keeping them in sync...
-
-RIGHT (compute derived values):
-const [items, setItems] = useState([]);
-const filteredItems = useMemo(() => items.filter(i => i.active), [items]);
-const sortedItems = useMemo(() => [...filteredItems].sort(byName), [filteredItems]);
-```
-
-```
-WRONG (filters in component state - lost on refresh):
-const [search, setSearch] = useState('');
-const [page, setPage] = useState(1);
-
-RIGHT (filters in URL params - survives refresh and sharing):
-const [searchParams, setSearchParams] = useSearchParams();
-const search = searchParams.get('q') ?? '';
-const page = Number(searchParams.get('page') ?? '1');
-```
-
-## References.md Section
-
-- State library: which one (Redux, Zustand, Context, etc.)
-- Store location: path to store configuration
-- Slice pattern: how features create and register slices
-- Server state: which library (React Query, RTK Query, SWR)
-- Cache strategy: Network-First, SWR, etc.
+When bootstrapping this convention:
+- Research the framework's latest state management options. Find the recommended server-state library for the framework (handles API data caching and revalidation). Find the recommended client-state library if global state is needed.
+- Research the framework's patterns for computing derived state without storing it separately
+- Research URL state management patterns for the framework (how to sync filters, pagination, sort with URL parameters)
+- Research the framework's data flow patterns (one-way data flow, props, callbacks, context)
+- Document the state management choices, patterns, and conventions in References.md

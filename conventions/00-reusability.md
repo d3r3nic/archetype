@@ -1,76 +1,45 @@
-# Convention #0: Reusability & Composition
+# Convention #0: Reusability & Composition (META)
 
 ## Principle
 
-Everything is built once and configured for context. This is the meta-convention that governs how every other convention is implemented. When any convention is applied to a project, it produces ONE reusable foundational system. Features never build ad-hoc solutions - they plug into existing systems.
-
-This applies at every level: one theme system, one error system, one API layer, one auth system, one component foundation. The same thinking that makes a Button reusable also makes error handling reusable, makes theming reusable, makes validation reusable.
-
-AI-era reasoning: AI agents duplicate logic across sessions because they lose context. A single reusable system is the map that prevents the AI from drawing a new one every time. Context engineering IS DRY enforcement.
+Everything is built once and configured for context. This governs how every other convention is implemented. When any convention is applied, it produces one reusable foundational system. Features plug into systems, never build ad-hoc. AI duplicates more than humans - one reusable source prevents drift.
 
 ## Reusable System
 
-This convention doesn't produce a single system. It governs HOW all other systems are built:
-
-- Every convention produces a foundational system at project creation
-- Every system is config-driven (accepts configuration, not hardcoded values)
-- Every system has one location (single source of truth)
-- Every feature uses the system, never builds around it
+This convention doesn't produce a single system. It governs HOW all systems are built. Every other convention in this framework produces a foundational system following these rules:
+- Every system is config-driven. It accepts configuration objects, not hardcoded values.
+- Every system has one location in the codebase. Single source of truth.
+- Every system is usable by any feature through simple imports and configuration.
+- When the same logic appears in two places, that's a signal a reusable system is missing.
 
 ## Rules
 
-- Before building anything, ask: does a system for this already exist?
-- If yes: use it. Configure it for your context.
-- If no: build it as a reusable system, not a one-off.
-- One component handles many contexts via configuration, not code forks.
-- Same pattern at every level: UI components, services, utilities, infrastructure.
-- Duplication is the signal that a reusable system is missing.
+- Before building anything, read feature-tree.md to see what systems and features already exist.
+- If a system exists for what you need, use it. Configure it for your context.
+- If no system exists, build it as a reusable service, not a one-off solution.
+- One component or service handles many contexts via configuration. Never fork code for different use cases - configure the same code differently.
+- Duplication between features means a shared system should be extracted.
 
 ## Violations
 
-- Creating a custom error handler in a feature instead of using the centralized error system
-- Building a feature-specific loading spinner instead of using the unified loading component
-- Writing ad-hoc fetch calls instead of using the API layer
-- Hardcoding values that should come from configuration
-- Creating a new table component when the existing one accepts config for different data types
-- Building one-off form validation instead of using the form system
+- Creating a custom error handler in a feature instead of using the centralized error service.
+- Building a feature-specific loading spinner instead of using the unified loading components.
+- Writing direct API calls in a feature instead of going through the API layer.
+- Hardcoding values that should come from a configuration object.
+- Building separate table components for each data type when one configurable table would serve all.
+- Building anything without first checking what already exists.
 
-## Right vs Wrong
+## Wrong vs Right
 
-Examples are illustrative. See References.md for this project's specific implementation.
+- WRONG: each feature has its own error handling, its own API calls, its own loading spinner, its own validation logic. Five features means five different implementations of the same thing.
+- RIGHT: one error system, one API layer, one set of loading components, one validation pattern. Five features all plug into the same systems with different configurations.
+- WRONG: PharmacyTable, InsuranceTable, PhysicianTable as three separate components with 90% duplicate code.
+- RIGHT: VendorTable configured with pharmacyConfig, insuranceConfig, physicianConfig. One component, three configurations.
 
-```
-WRONG (one-off, scattered, duplicated):
-// Feature A
-try { const data = await fetch('/api/users') } catch(e) { alert('Error') }
+## Research Notes
 
-// Feature B
-try { const data = await fetch('/api/orders') } catch(e) { console.log(e) }
-
-// Feature C
-try { const data = await fetch('/api/products') } catch(e) { toast.error('Failed') }
-
-RIGHT (one system, configured per context):
-// Shared error system handles all errors consistently
-// Shared API layer handles all requests consistently
-// Features just use them:
-const { data } = useQuery('users', getUsers)  // API layer handles fetch, cache, errors
-```
-
-```
-WRONG (one-off component):
-<PharmacyTable />    // only works for pharmacies
-<InsuranceTable />   // duplicates 90% of PharmacyTable
-<PhysicianTable />   // duplicates again
-
-RIGHT (one component, configured):
-<VendorTable config={pharmacyConfig} />
-<VendorTable config={insuranceConfig} />
-<VendorTable config={physicianConfig} />
-```
-
-## References.md Section
-
-- Existing reusable systems: list of all foundational systems with locations
-- Reference implementations: 2-3 features that demonstrate the pattern well
-- Factory examples: config-driven components to study before building new ones
+When bootstrapping, for each convention in this framework, the bootstrapper should:
+- Design the foundational system as a reusable service with a configuration API
+- Research the framework's recommended patterns for building reusable, config-driven services
+- Research factory patterns and dependency injection patterns specific to the chosen framework
+- Ensure every system can be imported and used by any feature with minimal setup

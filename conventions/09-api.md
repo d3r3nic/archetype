@@ -2,80 +2,51 @@
 
 ## Principle
 
-All communication with backends goes through one centralized API layer. Features never make direct HTTP calls. The layer handles authentication headers, request/response transformation, caching, deduplication, error normalization, and retry logic. Data fetching uses a server-state library that manages cache lifecycle automatically.
-
-AI-era reasoning: AI scatters fetch calls across features with inconsistent headers, error handling, and caching. A single API layer forces consistency and prevents duplicate implementations.
+All communication with external services goes through one centralized API layer. Features never make direct HTTP calls. The layer handles authentication headers, request and response transformation, caching, deduplication, error normalization, and retry logic. Features declare what data they need, the layer handles everything else.
 
 ## Reusable System
 
-- API client: configured instance with base URL, interceptors, auth headers
-- Request interceptors: attach tokens, transform outgoing data
-- Response interceptors: normalize errors, transform incoming data
-- Data fetching hooks: server-state library integration (cache, dedup, revalidation)
-- Optimistic update utilities: immediate UI update with rollback on failure
-- Pagination utilities: offset, cursor, and infinite scroll patterns
+Create an API layer that establishes:
+- A configured HTTP client with base URL, authentication header injection, and request/response interceptors. Configured once, used everywhere.
+- Automatic data transformation at the boundary. If the API uses different naming conventions than the project (snake_case vs camelCase), the transformation happens in the layer, not in features.
+- Automatic date parsing at the boundary. Features receive date objects, not strings.
+- Integration with the server-state library for caching, deduplication, and revalidation (see convention #5)
+- A consistent response format across all endpoints. Every API call returns data in the same structure.
+- Retry logic for transient failures built into the layer
+- Real-time data handling (websockets, server-sent events) through the same centralized layer if the project needs it
 
 ## Rules
 
-- Never use raw fetch() or axios() in feature code. Use the API layer.
-- All API functions live in a dedicated API directory or feature API file.
-- Name API functions by domain action: getUser(), createOrder(), not fetchData().
-- Transform data at the API boundary. Convert snake_case to camelCase at the layer, not in features.
-- Parse dates at the API boundary. Features receive Date objects, not strings.
-- Cache strategy is configured once in the API layer, not per feature.
-- Invalidate cache only when the user stays on the same page and expects instant updates. If user navigates after mutation, the next mount auto-refetches.
+- Never make direct HTTP calls in feature code. Always go through the API layer.
+- All API functions live in a dedicated API directory or in the feature's API file. Not scattered in components.
+- Name API functions by domain action: getUser, createOrder, updateProfile. Not generic names like fetchData or makeRequest.
+- Transform data at the boundary. If the API returns snake_case and the project uses camelCase, the API layer converts it. Features never see the raw API format.
 - Type every request and response. No untyped API calls.
+- Cache strategy is configured once in the layer. Only invalidate cache manually when the user stays on the same page and expects an instant update. If the user navigates after a change, the next page load auto-refetches.
 
 ## Violations
 
-- `fetch('/api/users')` directly in a component
-- Different base URLs or auth header logic in different features
-- Transforming API response format inside feature components
-- Manual cache management (localStorage, useState) instead of using the server-state library
-- Untyped API responses (`any` or missing types)
+- Direct HTTP calls in feature components (fetch or axios called directly)
+- Different authentication header logic in different features
+- Raw API response format leaking into feature code (features parsing nested API structures)
+- Manual cache management (storing API data in local state or global store) instead of using the server-state library
+- Untyped API responses
+- API functions with generic names that don't describe what they do
 
-## Right vs Wrong
+## Wrong vs Right
 
-Examples are illustrative. See References.md for this project's specific implementation.
+- WRONG: a feature component directly calls the HTTP library with manually constructed headers, manually handles errors, and manually caches the result in component state. Ten features doing this means ten slightly different implementations.
+- RIGHT: the API layer is configured once with authentication, error handling, and caching. A feature just declares "I need the users list" and gets back typed data with loading, error, and refresh states handled automatically.
+- WRONG: the API returns data in a deeply nested format. Feature components traverse the nesting (response.data.attributes.profile.displayName) throughout their code. The API shape is embedded everywhere.
+- RIGHT: the API layer transforms the response into a clean, flat shape at the boundary. Feature components receive simple objects (user.name). If the API format changes, only the transformation layer changes.
+- WRONG: after creating a user, the feature manually invalidates the cache, refetches the user list, updates the store, and navigates away. Complex manual orchestration.
+- RIGHT: after creating a user, the feature navigates to the user list page. The server-state library automatically refetches fresh data on mount. No manual invalidation needed.
 
-```
-WRONG (direct calls scattered - any framework):
-// Feature code directly calls HTTP with auth headers, error handling, caching
-fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } })
-  .then(r => r.json())
-  .then(d => setData(d))
-  .catch(e => console.log(e))
+## Research Notes
 
-RIGHT (centralized API layer - the principle):
-// API client configured once with base URL, auth interceptor, error handling
-// Features define typed endpoints. Layer handles everything else.
-apiLayer.define('getUsers', { path: '/users', method: 'GET', returns: User[] })
-// Feature code uses it
-data = apiLayer.query('getUsers')
-```
-
-```
-Example (React + RTK Query):
-// api/users.ts - define endpoint
-export const userApi = api.injectEndpoints({
-  endpoints: (build) => ({
-    getUsers: build.query<User[], void>({ query: () => '/users' }),
-  }),
-})
-// Component - use it
-const { data, isLoading, error } = useGetUsersQuery()
-
-Example (Node.js backend):
-// Configured express router with middleware chain
-// Auth, validation, error handling all in middleware - not in handlers
-router.get('/users', authenticate, validate(schema), userHandler.getAll)
-```
-
-## References.md Section
-
-- API client: path to configured instance
-- Base URL: how it's configured (env var)
-- Auth: how tokens are attached (interceptor)
-- Cache strategy: which strategy and configuration
-- API file pattern: where feature API definitions live
-- Data transformation: where snake_case/camelCase conversion happens
+When bootstrapping this convention:
+- Research the framework's recommended HTTP client and how to configure it with interceptors for auth tokens and data transformation
+- Research the framework's recommended server-state and data fetching library. Find how it handles caching, deduplication, background refetching, and optimistic updates.
+- Research real-time data patterns for the framework if the project needs live updates (websockets, server-sent events, reconnection strategies)
+- Research the framework's patterns for data transformation at the API boundary (snake_case to camelCase, date string parsing)
+- Document the API layer location, client configuration, data fetching patterns, and cache strategy in References.md

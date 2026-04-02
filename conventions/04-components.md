@@ -2,95 +2,49 @@
 
 ## Principle
 
-Components expose consistent, predictable APIs. Size, variant, and state props follow project-wide conventions. Components are composable - complex UIs are built from small pieces, not monolithic blocks. The component foundation (base components, wrappers) is built once and used everywhere.
+UI components expose consistent, predictable APIs across the entire project. Every component follows the same conventions for sizing, variants, and state props. Components are composable - complex UIs are built from small focused pieces, not monolithic blocks. The component foundation (base components, wrappers around the UI library) is built once at scaffolding and used everywhere.
 
 ## Reusable System
 
-- Base components: wrappers around UI library with theme enforcement
-- Component API conventions: consistent size/variant/state prop patterns
-- Compound components: related components sharing implicit state
-- Layout components: spatial arrangement primitives (Stack, Grid, Flex)
+Create a component foundation that establishes:
+- Base wrapper components around the UI library. Features never import from the UI library directly - they import from the project's wrapper layer. This ensures consistent styling and makes it possible to switch UI libraries without touching feature code.
+- A consistent component API convention: all components use the same prop names for the same concepts. Size uses the same scale everywhere. Variant uses the same vocabulary everywhere. State props use the same naming pattern everywhere.
+- Layout components for common spatial arrangements (stacks, grids, page containers) so features don't reinvent layout patterns.
 
 ## Rules
 
-- Never import directly from the UI library. Use project wrappers.
-- Consistent sizing: size prop uses xs, sm, md, lg, xl across all components.
-- Consistent variants: variant prop uses primary, secondary, outline, ghost.
-- Consistent state: isDisabled, isLoading, isReadOnly, isRequired, isInvalid.
-- Components accept and merge className and style for customization.
-- Forward refs on all reusable components.
-- Props are minimal. Expose only what consumers need. Derive internally when possible.
-- Components render UI. They do not contain business logic.
+- Never import directly from the UI library. Always use project wrappers. If a wrapper doesn't exist, create it first.
+- Consistent sizing across all components. Every component that accepts size uses the same scale (for example xs, sm, md, lg, xl).
+- Consistent variants across all components. Every component that accepts variant uses the same vocabulary (for example primary, secondary, outline, ghost).
+- Consistent state props. Every component uses the same names for disabled, loading, read-only, required, and invalid states.
+- Components render UI. They do not fetch data, compute business logic, or manage complex state. That belongs in hooks or services.
+- Forward refs on all reusable components so parent components can access the underlying element for focus management and library interop.
+- Keep components focused. If a component grows beyond 200 lines, it's doing too much. Break it into composed smaller components.
+- Before building a new component, check feature-tree.md and the shared component directory. The component may already exist.
 
 ## Violations
 
-- Importing Button from @mui/material instead of from project wrappers
-- Inconsistent sizing (one component uses small/medium/large, another uses xs/sm/md)
-- Components that fetch data, compute business logic, AND render UI
-- Props that accept string | number | ReactNode | Function for one value
-- God components: 500+ lines doing everything in one file
-- Missing forwardRef on reusable components (breaks focus management)
-- Building a new component without checking feature-tree.md for existing ones
+- Importing directly from the UI library instead of project wrappers
+- Inconsistent sizing: one component uses small/medium/large, another uses xs/sm/md, another uses compact/regular
+- God components: a single 500+ line component that fetches data, manages state, handles events, and renders everything
+- Missing ref forwarding on reusable components
+- Building a new component without checking if one already exists in the project
+- Props that accept wildly different types for one value (a prop that takes string or number or function or element)
 
-## Right vs Wrong
+## Wrong vs Right
 
-Examples are illustrative.
+- WRONG: Button uses size="small", Input uses size="sm", Card uses sizing="compact". Three components, three different APIs for the same concept.
+- RIGHT: Button, Input, and Card all accept size with the same values. Learn one API, use everywhere.
+- WRONG: UserDashboard is a 500-line component with 15 state variables, 8 effects, 10 event handlers, and a massive render function.
+- RIGHT: UserDashboard composes UserProfile, RecentOrders, and NotificationFeed. Each focused component handles one concern. The dashboard just arranges them.
+- WRONG: AI builds a ConfirmDialog component in a feature without checking shared components. The project already has a ConfirmDialog.
+- RIGHT: AI reads feature-tree.md, sees ConfirmDialog already exists in shared, uses it with appropriate configuration.
 
-```
-WRONG (inconsistent APIs across components):
-<Button size="small" />
-<Input size="sm" />
-<Card sizing="compact" />
-<Badge variant="info" />
-<Alert type="info" />
+## Research Notes
 
-RIGHT (consistent vocabulary):
-<Button size="sm" />
-<Input size="sm" />
-<Card size="sm" />
-<Badge variant="info" />
-<Alert variant="info" />
-```
-
-```
-WRONG (god component - 500+ lines):
-function UserDashboard() {
-  // 50 lines of state
-  // 100 lines of useEffect and fetch calls
-  // 80 lines of event handlers
-  // 200 lines of JSX
-}
-
-RIGHT (composed from focused components):
-function UserDashboard() {
-  return (
-    <DashboardLayout>
-      <UserProfile />
-      <RecentOrders />
-      <NotificationFeed />
-    </DashboardLayout>
-  );
-}
-```
-
-```
-WRONG (no ref forwarding):
-function TextInput({ label, ...props }) {
-  return <div><label>{label}</label><input {...props} /></div>;
-}
-
-RIGHT (forwarded ref):
-const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
-  ({ label, ...props }, ref) => (
-    <div><label>{label}</label><input ref={ref} {...props} /></div>
-  )
-);
-```
-
-## References.md Section
-
-- Component foundation: path to base/wrapper components
-- Import rule: exact import path (e.g., @/shared/ui/mui)
-- UI library: which one and version
-- Icon exception: if icons can be imported directly
-- Existing components: where to find what already exists
+When bootstrapping this convention:
+- Research the UI library's component wrapping patterns. Understand how to create thin wrappers that enforce theme usage while passing through all original props.
+- Research the framework's ref forwarding pattern for reusable components
+- Research compound component patterns for the framework (components that share implicit state, like tabs, accordions, selects)
+- Research the framework's recommended approach for component composition vs configuration
+- Document the wrapper location, import rules, and API conventions in References.md

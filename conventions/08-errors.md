@@ -2,93 +2,66 @@
 
 ## Principle
 
-Errors are handled through one centralized system. Features never implement their own error catching, display, or recovery. The system handles classification, logging, user-facing messages, retry logic, and reporting. Async operations follow a consistent pattern with explicit loading, error, and success states.
-
-AI-era reasoning: AI scatters try/catch blocks across features with inconsistent error messages and handling. A centralized system eliminates this by giving AI one place to route errors.
+All errors flow through one centralized system. Features never catch, display, or recover from errors on their own. The system classifies errors, logs them, reports them, shows user-friendly messages, and provides retry capability. Async operations always have explicit loading, error, and success states.
 
 ## Reusable System
 
-- Error service: catches, classifies, logs, reports, and optionally retries
-- Error classes: typed errors (NetworkError, ValidationError, NotFoundError, AuthError)
-- Error boundaries: at app, route, and feature levels
-- Error UI components: fallback, empty state, offline state, 404
-- Loading components: unified loading states (full screen, inline, skeleton)
-- Retry utility: exponential backoff for transient failures
+Create a reusable error service that:
+- Catches all errors from any source (API calls, runtime exceptions, user input validation)
+- Classifies errors by type: network errors, validation errors, authentication errors, not-found errors, server errors
+- Logs errors with context: what operation was happening, what data was involved, who was affected
+- Reports errors to a monitoring service for tracking and alerting
+- Displays user-friendly messages to the user. Never show stack traces or technical details in the UI. Technical details go to logs only.
+- Provides automatic retry with exponential backoff for transient failures (network errors, server errors). Never retries client errors except rate limiting.
+- Cancels pending operations when the user navigates away or the component unmounts
+
+Create unified state components that all features share:
+- A loading component for full-screen loading (app initialization, page loads)
+- A loading component for inline loading (data fetching within a page, form submissions)
+- A skeleton component for content-shaped placeholders while data loads
+- An error state component that shows a friendly message and a retry button
+- An empty state component that shows when data loads successfully but there are no results
+- An offline state component for when the network is unavailable
+
+Features declare what data they need. The data layer and error system handle everything else.
 
 ## Rules
 
-- Never scatter try/catch across features. Use the centralized error system.
-- Never create custom loading spinners per feature. Use unified loading components.
-- Every async operation has three states: loading, error, success.
-- Empty state is not error state. Distinguish "no data" from "failed to load."
-- User-facing error messages are friendly and actionable. No stack traces in UI.
-- Technical details go to logs and error reporting, not to the user.
-- Retry transient errors (5xx, network) with exponential backoff. Never retry 4xx (except 429).
-- Use AbortController to cancel async operations on unmount or navigation.
-- Never swallow errors. Every catch must log, re-throw, or handle meaningfully.
-- No floating promises. Every promise is awaited, returned, or explicitly voided.
+- Create one error service. Always use it. Never handle errors per feature.
+- Create unified loading, error, empty, and offline components. Reuse them everywhere. Never build a custom spinner or error message for a single feature.
+- User-facing error messages must be friendly and actionable. Tell the user what happened and what they can do. "We couldn't load your data. Please try again." not "Error: ECONNREFUSED."
+- Every async operation must handle three states: loading, error, and success. No operation should leave the user staring at a blank screen.
+- Empty state is different from error state. "No results found" is not an error.
+- Retry transient errors automatically with exponential backoff. Stop after a reasonable limit and show the error state with a manual retry option.
+- Never swallow errors. Every error must be logged, reported, or handled meaningfully. A catch block with only a console.log is a violation.
+- Cancel pending operations when the user navigates away. Stale responses arriving after navigation cause bugs.
 
 ## Violations
 
-- try/catch in feature code when the framework already wraps handlers
-- Custom error UI in a single feature instead of using the shared error components
-- `catch(e) { console.log(e) }` with no user feedback or reporting
-- `catch(e) {}` empty catch blocks
-- Showing `Error: ECONNREFUSED` to the user instead of a friendly message
-- Different loading spinner in every feature
-- Missing loading or error state on async operations
+- try/catch scattered across features with different error handling in each
+- A feature with its own custom loading spinner instead of the shared one
+- catch blocks that only contain console.log (silently swallowed errors)
+- Technical error messages shown to users (stack traces, error codes, connection strings)
+- Async operations with no loading state (blank screen while fetching)
+- No distinction between empty state and error state
+- Missing retry capability on transient failures
+- Pending operations not cancelled on navigation (stale data arriving late)
 
-## Right vs Wrong
+## Wrong vs Right
 
-Examples are illustrative. See References.md for this project's specific implementation.
+- WRONG: Feature A catches errors with an alert, Feature B logs to console, Feature C sets a boolean. Three features, three different approaches.
+- RIGHT: All features use the same error system. The system decides how to classify, log, display, and retry. Features don't think about errors at all.
+- WRONG: a generic spinner for every loading state across the app, or worse, each feature builds its own spinner.
+- RIGHT: content-shaped skeleton placeholders that match the layout of the data being loaded. One set of unified loading components, configured per context.
+- WRONG: server returns a validation error, feature shows a generic "Something went wrong" toast.
+- RIGHT: server returns field-specific validation errors, the error system maps them back to the specific form fields that caused them.
 
-```
-WRONG (scattered - any language/framework):
-// Feature A
-try { await fetchUsers() } catch(e) { alert('Error!') }
-// Feature B
-try { await fetchOrders() } catch(e) { console.log(e) }
-// Feature C
-try { await fetchProducts() } catch(e) { setError(true) }
+## Research Notes
 
-RIGHT (centralized - the principle):
-// Features don't handle errors. The data layer does.
-// The system handles loading, error, empty states consistently.
-data = dataLayer.fetch('users')
-if loading → show unified loading component
-if error → show unified error component with retry
-if empty → show unified empty state
-if data → render
-```
-
-```
-Example (React + data fetching library):
-const { data, isLoading, error } = useQuery('users', getUsers)
-if (isLoading) return <LoadingSpinner />
-if (error) return <ErrorState error={error} retry={refetch} />
-if (!data.length) return <EmptyState message="No users found" />
-
-Example (Node.js/Express backend):
-// Centralized error middleware handles all errors
-// Handlers throw typed errors, middleware catches and responds
-throw new ValidationError('Email is required')
-// → middleware returns { status: 400, error: { code: 'VALIDATION', message: '...' } }
-```
-
-```
-WRONG (custom error UI/handler per feature):
-FeatureA/ErrorMessage
-FeatureB/ErrorDisplay
-FeatureC/FailureNotice
-
-RIGHT (shared error components/handlers):
-import { ErrorState, EmptyState, LoadingSpinner } from 'shared/errors'
-```
-
-## References.md Section
-
-- Error service: path and usage pattern
-- Error classes: available error types and when to use each
-- Error boundaries: where they are placed (app/route/feature)
-- Error UI components: path to fallback, empty, offline, loading components
-- Error reporting: which service (Sentry, etc.) and configuration
+When bootstrapping this convention:
+- Research the framework's latest error handling patterns and error boundary equivalents. Understand how the framework recommends catching errors at different levels (app-wide, per-route, per-feature).
+- Research the framework's async state management. Find how the framework handles loading, error, and success states for data fetching operations. Look for patterns where the framework manages these states automatically rather than manually.
+- Research cancellation patterns for the framework. How do you cancel pending operations when a user navigates away?
+- Research error reporting and monitoring services that integrate well with the framework. Find the recommended way to capture errors with context and send them to a monitoring dashboard.
+- Research retry patterns. Find the framework's recommended approach for automatic retry with exponential backoff on transient failures.
+- Document the error service, error types, unified components, and usage pattern in References.md.

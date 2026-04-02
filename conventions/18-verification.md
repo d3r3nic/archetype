@@ -2,74 +2,46 @@
 
 ## Principle
 
-Code is not done until it is verified. Every change is followed by a verification step - running tests, building, type-checking, or visually confirming UI. Tests are written before implementation, serving as executable specifications that the AI implements against. Verification is the bottleneck in AI development, not generation.
-
-AI-era reasoning: this is the single highest-leverage practice for AI-assisted development. Without verification loops, AI produces plausible-looking code that is fundamentally wrong. TDD prevents the failure mode where AI writes tests that confirm broken behavior - when tests exist before code, AI cannot cheat.
+Code is not done until it is verified. Every change is followed by running tests, building, and type-checking. Tests are written before implementation, serving as executable specifications that define what success looks like. The AI implements against these specifications. Verification is the bottleneck in AI development, not code generation. This is the single highest-leverage practice for AI-assisted development.
 
 ## Reusable System
 
-- Test utilities: custom render wrappers, mock factories, test data builders
-- MSW handlers: mock API responses for consistent test environments
-- Build gate: hook or script that blocks completion until verification passes
-- Visual verification: screenshot comparison setup for UI changes
+The test infrastructure from convention #12 serves this convention. Additionally:
+- Verification commands documented in References.md so the AI knows exactly what to run
+- Build gates (hooks or scripts) that block marking work complete until all checks pass
+- A visual verification step for UI changes: describe or capture what the result looks like and compare to the expected outcome
 
 ## Rules
 
-- Write failing tests BEFORE asking AI to implement.
-- Run tests after every significant change. Not at the end. After every change.
-- Build verification is a hard gate. Work is not complete until the build passes.
-- Type-check is part of verification. `tsc --noEmit` must pass.
-- For UI changes, describe or screenshot what the result looks like.
-- Test behavior, not implementation. Assert what the user sees, not internal state.
-- Mock at boundaries only (API, timers, browser APIs). Let real code run.
-- If no test exists for the code being changed, write one first.
+- Write failing tests BEFORE asking the AI to implement. The test defines what correct behavior looks like. Then the AI implements until the test passes. This prevents AI from writing tests that confirm broken behavior.
+- Run tests after every significant change. Not at the end of the session. After every change.
+- Type-check after every change. Type errors caught early prevent cascading issues.
+- Build after every change. Import errors, missing dependencies, and configuration issues show up in the build.
+- For UI changes, verify the visual output. Describe what the screen looks like or compare to a design. The code compiling doesn't mean the UI looks right.
+- Work is not done until all verification passes. If tests fail, fix them. If the build fails, fix it. Do not move on with failing checks.
+- If no test exists for the code being changed, write one before making the change.
 
 ## Violations
 
-- Implementing a feature without any tests
-- Writing tests after implementation (tests may just confirm broken behavior)
-- Skipping test run after changes ("I'll test at the end")
+- Implementing a feature and writing tests after (or not at all)
+- Making multiple changes without running verification between them
 - Calling work done without running the build
-- Tests that test implementation details (internal state, function calls) instead of behavior
-- Mocking everything instead of testing real logic
+- A change that compiles and passes tests but looks wrong visually (UI regression)
+- Moving on to the next task while tests or build are failing
+- Tests written after implementation that simply confirm whatever the implementation does (even if it's wrong)
 
-## Right vs Wrong
+## Wrong vs Right
 
-Examples are illustrative. See References.md for this project's specific implementation.
+- WRONG: AI writes the feature code. It looks reasonable. Developer ships it. Bugs found in production because nobody verified.
+- RIGHT: developer writes a failing test that defines the expected behavior. AI implements code. Test runs. If it fails, AI adjusts. If it passes, move to the next test. Every piece of behavior is verified before moving on.
+- WRONG: AI makes 10 changes across 5 files. At the end, runs the tests. 3 tests fail. Now debugging is hard because any of the 10 changes could have caused the failures.
+- RIGHT: AI makes 1 change, runs verification. Pass. Makes the next change, runs verification. Pass. If a test fails, the cause is obvious - it's the change that was just made.
+- WRONG: tests exist, but they were written by AI after the implementation. The test checks that the function returns exactly what the implementation returns. If the implementation is wrong, the test passes anyway.
+- RIGHT: tests written first define what SHOULD happen. The implementation must match the test, not the other way around.
 
-```
-WRONG (implement first, test maybe later):
-1. AI writes feature code
-2. "Looks good"
-3. Ship it
-4. (bugs found in production)
+## Research Notes
 
-RIGHT (verify at every step):
-1. Write failing test for the expected behavior
-2. AI implements code
-3. Run test → fails? Fix. Passes? Next test.
-4. Run full build + type-check
-5. For UI: verify visual output
-6. All green → done
-```
-
-```
-WRONG (testing implementation):
-test('calls setUsers with API response', () => {
-  expect(setUsers).toHaveBeenCalledWith(mockData)
-})
-
-RIGHT (testing behavior):
-test('displays user list after loading', async () => {
-  render(<UserList />)
-  expect(await screen.findByText('John Doe')).toBeInTheDocument()
-})
-```
-
-## References.md Section
-
-- Test command: exact command to run tests
-- Type-check command: exact command to run type checker
-- Build command: exact command to verify build
-- Test utilities: path to custom render, factories, MSW setup
-- Coverage: thresholds and which paths are critical
+This convention is about development workflow, not framework-specific implementation. The test infrastructure details are in convention #12 and its research notes. For this convention, ensure:
+- Verification commands are documented clearly in References.md (exact command to run tests, type-check, build)
+- Build gates are configured (hooks or CI that blocks incomplete work)
+- The team agrees on test-first workflow for AI-assisted development

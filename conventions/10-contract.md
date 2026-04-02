@@ -2,79 +2,45 @@
 
 ## Principle
 
-Frontend and backend agree on data shapes through a single source of truth. This contract is enforced through generated clients, shared schemas, or type-safe RPC. Changes to the contract are detected automatically in CI before they break production.
+Frontend and backend agree on data shapes through a single source of truth. This contract is enforced through generated clients, shared schemas, or type-safe communication. Changes to the contract are detected automatically before they reach production. Types are never manually duplicated between frontend and backend.
 
 ## Reusable System
 
-- Contract definition: OpenAPI spec, GraphQL schema, tRPC router, or shared Zod schemas
-- Generated client: TypeScript client auto-generated from contract
-- Contract tests: automated verification that both sides conform
-- Response envelope: consistent response format across all endpoints
+Create a contract system that establishes:
+- A single source of truth for API data shapes (API specification, shared schema package, or type-safe RPC layer)
+- Generated type definitions from the contract so frontend types always match backend types without manual synchronization
+- A consistent response format across all endpoints (same envelope structure for data, metadata, and errors)
+- Breaking change detection that catches contract violations in CI before they ship
 
 ## Rules
 
-- One source of truth for API types. Never manually duplicate types between frontend and backend.
-- Generate TypeScript clients from the contract when possible.
-- Breaking changes to the contract are detected in CI.
-- Response format is consistent across all endpoints (envelope pattern).
-- Transform data at the boundary, not in feature code.
+- One source of truth for API types. Never manually write the same type in both frontend and backend.
+- Generate type definitions from the contract whenever possible. Manual type synchronization always drifts.
+- Response format is consistent across all endpoints. Same structure for data, metadata, and errors everywhere.
+- Transform data at the API boundary. Components never traverse raw API response structures. The API layer provides clean, flat shapes.
+- Breaking changes to the contract must be detected before deployment. Set up schema diffing or contract testing in CI.
 
 ## Violations
 
-- Manually writing the same interface in both frontend and backend
-- No detection mechanism for breaking API changes
-- Different response formats across different endpoints (data/error on one, result/message on another)
-- Frontend making assumptions about response shape without types
-- Raw API shape leaking into components instead of transforming at boundary
+- Manually writing the same type definition in both frontend and backend code
+- No mechanism for detecting breaking API changes before deployment
+- Different response formats across different endpoints (one returns {data, error}, another returns {result, message})
+- Raw API response shape leaking through to UI components
+- API contract changes deployed without frontend awareness
 
-## Right vs Wrong
+## Wrong vs Right
 
-Examples are illustrative.
+- WRONG: a User type defined in the backend and separately defined in the frontend with the same fields. A field is added on the backend. The frontend type is not updated. Data arrives that the frontend doesn't expect.
+- RIGHT: one schema definition (API spec, shared package, or type-safe RPC). Types are generated or shared automatically. Backend adds a field, frontend types update through the generation pipeline.
+- WRONG: one endpoint returns {users, total}, another returns {data, count}, another returns {results, pagination}. Every feature parses a different format.
+- RIGHT: every endpoint returns {data, meta}. One parsing pattern across the entire project.
+- WRONG: a component accesses response.data.attributes.profile.displayName deep in its render logic. The API restructures the response. The component breaks.
+- RIGHT: the API layer transforms the response at the boundary. The component receives a flat user.name. API changes only affect the transformation layer.
 
-```
-WRONG (manually duplicated types that will drift):
-// backend/types.ts
-interface User { id: string; name: string; role: 'admin' | 'user'; }
+## Research Notes
 
-// frontend/types.ts (manually copied)
-interface User { id: string; name: string; role: 'admin' | 'user'; }
-
-RIGHT (generated from contract):
-// openapi.yaml or shared Zod schema is the source of truth
-// Types are auto-generated, always in sync
-```
-
-```
-WRONG (inconsistent response shapes):
-GET /users    → { users: User[], total: number }
-GET /orders   → { data: Order[], count: number }
-GET /products → { results: Product[], pagination: {...} }
-
-RIGHT (consistent envelope):
-GET /users    → { data: User[], meta: { total: 50, page: 1 } }
-GET /orders   → { data: Order[], meta: { total: 12, page: 1 } }
-GET /products → { data: Product[], meta: { total: 200, page: 1 } }
-```
-
-```
-WRONG (raw API shape leaks into components):
-function UserCard({ user }) {
-  return <h2>{user.data.attributes.profile.displayName}</h2>;
-}
-
-RIGHT (transform at boundary, components get clean shapes):
-// api/transforms.ts
-function toUser(raw: ApiUser): User {
-  return { id: raw.data.id, name: raw.data.attributes.profile.displayName };
-}
-function UserCard({ user }: { user: User }) {
-  return <h2>{user.name}</h2>;
-}
-```
-
-## References.md Section
-
-- Contract type: OpenAPI, GraphQL, tRPC, shared Zod, or manual
-- Generated client: how it's generated and where it lives
-- Response format: the project's response envelope structure
-- Breaking change detection: how it works in CI
+When bootstrapping this convention:
+- Research contract definition options for the project's stack: API specification formats, shared schema packages, type-safe RPC layers, or code generation tools that produce typed clients from API definitions
+- Research breaking change detection tools that can be integrated into the CI pipeline
+- Research the framework's patterns for generating TypeScript (or equivalent) types from API contracts
+- Establish the response envelope format and document it in References.md

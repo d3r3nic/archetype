@@ -2,74 +2,47 @@
 
 ## Principle
 
-A shared component library is the single source of truth for UI. Components are built on top of the UI library through wrappers that enforce theming. Features never interact with the UI library directly. The design system is token-first: visual decisions are encoded in tokens before component implementation begins.
+A shared component library is the single source of truth for UI. Features never interact with the underlying UI library directly. All interaction goes through project wrappers that enforce theming and provide a consistent API. The design system is token-first: visual decisions are encoded in tokens before component implementation begins. If the project ever switches UI libraries, only the wrappers change - features don't.
 
 ## Reusable System
 
-- UI library wrappers: components that wrap MUI/Chakra/Radix with theme enforcement
-- Token system: design tokens as the foundation for all visual values
-- Component catalog: Storybook or equivalent showing all components and variants
-- Contribution process: how new components are proposed, built, and added
+Create a design system foundation that establishes:
+- Wrapper components around the UI library that enforce theme token usage, provide a consistent API, and can be swapped without changing feature code
+- A token system as the foundation for all visual values (colors, spacing, typography, shadows, borders) that feeds into the wrapper components
+- A component catalog (documentation site or tool) showing all available components with their variants, sizes, and states so developers and AI can see what already exists before building
+- A deprecation process: when a component is being replaced, mark it deprecated with a migration path and a removal date
 
 ## Rules
 
-- Never import directly from the UI library. Always use project wrappers.
-- Exception: icons can often be imported directly (project-specific).
-- If a wrapper doesn't exist for a UI library component, create it first.
-- Token-first: define tokens before building components.
-- Every component in the design system has documentation showing all variants.
-- Deprecation: announce, mark @deprecated, provide migration path, then remove.
+- Never import directly from the UI library in feature code. Always use the project's wrapper components. If a wrapper doesn't exist for something you need, create the wrapper first, then use it.
+- Before building any new component, check feature-tree.md and the shared component directory. The component may already exist. AI builds duplicate components at a very high rate because it doesn't check what exists.
+- Token-first: all visual values come from the token system. No hardcoded colors, spacing, or typography in wrapper components.
+- Never install a second UI library for a single widget. If you need a date picker, find one that integrates with the existing UI library or build a wrapper around a standalone one that uses the project's token system. Mixing UI libraries creates visual inconsistency and bundle bloat.
+- When a component is deprecated, announce it, mark it with the language's deprecation annotation, provide a migration path, and remove it after the migration period.
 
 ## Violations
 
-- `import { Button } from '@mui/material'` instead of `import { Button } from '@/shared/ui'`
-- Building a new component without checking feature-tree.md for existing ones
-- UI library updates breaking the app because features import directly
-- Components with no documentation or variant examples
-- Library-specific APIs (sx prop, Chakra style props) leaking into feature code
-- Installing a different UI library for one widget (visual inconsistency, bundle bloat)
+- Importing components directly from the UI library in feature code
+- Building a new component without checking if one already exists in the project
+- UI library-specific API patterns leaking into feature code (features should use wrapper APIs, not library-specific APIs)
+- Installing a different UI library for a single component
+- Hardcoded visual values in wrapper components instead of tokens
+- Components in the design system with no documentation showing their variants and usage
 
-## Right vs Wrong
+## Wrong vs Right
 
-Examples are illustrative.
+- WRONG: feature code imports Button directly from the UI library. 50 features import directly. The project wants to switch UI libraries. 50 features need rewriting.
+- RIGHT: feature code imports Button from the project's wrapper layer. The wrapper imports from the UI library internally. Switching libraries means updating the wrappers only. Zero feature code changes.
+- WRONG: AI is asked to build a feature with a modal. It creates a new Modal component in the feature directory without checking. The project already has a Modal in the shared component library.
+- RIGHT: AI reads feature-tree.md, sees Modal exists in the shared components. Uses the existing Modal with appropriate configuration.
+- WRONG: the project uses one UI library for everything, but a developer installs a different library for a date picker. Now the date picker looks slightly different from everything else, and the bundle is bigger.
+- RIGHT: the developer finds a date picker that works with the existing UI library, or wraps a standalone date picker in the project's token system so it matches visually.
 
-```
-WRONG (direct UI library import):
-import { Button, TextField, Dialog } from '@mui/material';
+## Research Notes
 
-RIGHT (project wrapper imports):
-import { Button, TextField, Dialog } from '@/shared/ui';
-// If wrapper doesn't exist, create it first
-```
-
-```
-WRONG (library-specific API leaking into features):
-<Box sx={{ display: 'flex', gap: 2, bgcolor: 'primary.main', p: 3 }}>
-  <Button variant="contained" sx={{ borderRadius: '8px' }}>Save</Button>
-</Box>
-
-RIGHT (wrapper abstracts the library):
-<Stack direction="row" gap="md" bg="primary" padding="lg">
-  <Button variant="primary">Save</Button>
-</Stack>
-// If you switch from MUI to Radix, only wrapper internals change
-```
-
-```
-WRONG (not checking what exists - building redundant component):
-// Creates ConfirmDialog.tsx without checking feature-tree.md
-// Project already has a ConfirmDialog in shared/ui
-
-RIGHT (check first):
-// 1. Read feature-tree.md
-// 2. Search shared/ui for existing components
-// 3. If exists: use it. If not: build it in shared/ui as reusable.
-```
-
-## References.md Section
-
-- UI library: which one and version
-- Wrapper location: path to project wrappers
-- Import rule: exact import path to use
-- Icon exception: whether icons can be imported directly
-- Storybook: URL or command to access component catalog
+When bootstrapping this convention:
+- Research the UI library's wrapping patterns. How do you create thin wrappers that pass through all props while enforcing theme tokens?
+- Research component catalog tools for the framework (tools that display all components with their variants for browsing and testing)
+- Research the UI library's token/theming integration for building token-first wrappers
+- Research the framework's approach to tree-shaking UI library components (importing only what's used)
+- Document the wrapper location, import conventions, available components, and catalog URL in References.md

@@ -2,82 +2,50 @@
 
 ## Principle
 
-Code is organized in layers with clear boundaries. Each layer has one job. Handlers/controllers are thin entry points. Services contain business logic. Data access is abstracted. Features are self-contained and never import from each other. When code needs to be shared, it moves to a shared layer explicitly.
+Code is organized in layers with clear boundaries. Each layer has one job. Entry points (handlers, controllers, routes) are thin - they parse input, delegate to services, and return output. Business logic lives in services. Data access is abstracted behind its own layer. Features are self-contained and never import from each other.
 
 ## Reusable System
 
-- Service layer: business logic services that features use
-- Data access layer: ORM/query abstractions
-- Shared utilities: cross-feature helpers in a dedicated location
-- Module boundaries: barrel exports that define each module's public API
+Create a layered architecture that establishes:
+- A service layer where all business logic lives. Services are reusable across different entry points (API route, background job, CLI command can all use the same service).
+- A data access layer that abstracts database operations. Features use the data layer, never raw queries.
+- A shared directory for cross-feature code. When logic needs to be used by multiple features, it moves here.
+- Module boundaries enforced through barrel exports. Each module's index file defines what's public. Everything else is private.
 
 ## Rules
 
-- Handlers/controllers are thin. They parse input, call services, return responses.
-- Business logic lives in services, not in handlers or components.
-- Features are self-contained. They never import from other features.
-- If code needs sharing across features, move it to shared/ (ask first).
-- Duplication between features is better than coupling between features.
-- Each module exports a public API through its index file. Internals are private.
-- No circular dependencies. If A imports B, B must not import A.
+- Entry points are thin. They parse input, call a service, return the response. No business logic in handlers or controllers.
+- Business logic lives in services. Services are testable, reusable, and independent of the entry point.
+- Features are self-contained. They never import from other features. If code needs sharing, move it to shared (ask first).
+- Duplication between features is better than coupling between features. Coupling creates hidden dependencies.
+- No circular dependencies. If module A imports from module B, module B must not import from module A.
+- Build only what the spec says. Never add phantom requirements like batch mode, dry-run, or legacy format that nobody asked for. AI does this at a rate of 80-90%.
+- Never call functions or modules that don't exist in the project. Verify imports exist before using them.
 
 ## Violations
 
-- Business logic in a handler/controller/component
+- Business logic in a handler, controller, or UI component
 - Feature A importing from Feature B's internals
-- Circular dependency between modules
-- Utility functions scattered across random locations
-- No clear boundary between layers (everything mixed in one file)
-- Over-specification: adding phantom requirements nobody asked for (batch mode, dry-run, legacy format)
-- Hallucinated helpers: calling functions or modules that don't exist in the project
-- Never refactoring: adding new code without consolidating existing code
+- Circular dependencies between modules
+- Utility functions scattered across random locations with no clear home
+- Everything mixed in one file with no layer separation
+- Over-specification: adding hypothetical code paths nobody asked for (batch mode, dry-run flags, legacy format support)
+- Calling hallucinated helper functions or modules that don't exist in the project
+- Never refactoring: adding new code without consolidating duplicate or similar logic
 
-## Right vs Wrong
+## Wrong vs Right
 
-Examples are illustrative.
+- WRONG: a handler fetches data from the database, filters it, calculates totals, formats the response, and sends an email. 200 lines of mixed concerns.
+- RIGHT: the handler calls orderService.getActiveOrders(). The service handles filtering and calculation. The data layer handles the query. The email service handles notification. Each layer does one thing.
+- WRONG: Feature A needs address validation. It imports validateAddress from Feature B's utils directory. Now Feature A breaks if Feature B changes.
+- RIGHT: address validation moves to the shared directory. Both features import from shared. No coupling.
+- WRONG: AI is asked to create a user. It also adds batch user creation, dry-run mode, and CSV import support that nobody requested.
+- RIGHT: AI creates exactly what was asked. One user creation endpoint. Nothing more.
 
-```
-WRONG (business logic in component):
-function OrderPage() {
-  useEffect(() => {
-    fetch('/api/orders').then(data => {
-      const filtered = data.filter(o => o.status !== 'cancelled');
-      const sorted = filtered.sort((a, b) => b.date - a.date);
-      const withTotals = sorted.map(o => ({
-        ...o, total: o.items.reduce((sum, i) => sum + i.price * i.qty, 0)
-      }));
-      setOrders(withTotals);
-    });
-  }, []);
-}
+## Research Notes
 
-RIGHT (thin component, logic in service):
-function OrderPage() {
-  const { data: orders } = useOrders(); // hook uses service layer
-  return <OrderList orders={orders} />;
-}
-// services/orderService.ts handles filtering, sorting, totals
-```
-
-```
-WRONG (AI over-specifies with phantom requirements):
-function createUser(data) {
-  if (Array.isArray(data)) return data.map(createSingle); // nobody asked for batch
-  if (data.dryRun) return simulate(data);                 // nobody asked for dry-run
-  if (data.legacyFormat) return createLegacy(data);       // nobody asked for legacy
-  return createSingle(data);
-}
-
-RIGHT (build what the spec says):
-function createUser(data: UserInput): User {
-  const validated = UserSchema.parse(data);
-  return db.user.create({ data: validated });
-}
-```
-
-## References.md Section
-
-- Layer pattern: the project's specific layering (e.g., handler → service → db)
-- Feature location: where feature code lives
-- Shared location: where shared code lives
-- Import rules: what can import from what
+When bootstrapping this convention:
+- Research the framework's recommended architecture patterns for separating entry points, business logic, and data access
+- Research module boundary patterns for the framework (how to define public APIs per module, how to prevent internal imports)
+- Research the framework's dependency injection or service pattern for making services reusable across different entry points
+- Document the layer structure, import rules, and shared directory in References.md

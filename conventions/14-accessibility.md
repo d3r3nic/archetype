@@ -2,74 +2,55 @@
 
 ## Principle
 
-The app works for everyone. Semantic HTML is the foundation. Interactive elements are keyboard-navigable. Screen readers can interpret the UI. Focus is managed intentionally. Color is never the only way to communicate information. Accessibility is built into components at the foundation level, not added after.
+The application works for everyone. Semantic markup is the foundation. Interactive elements are keyboard-navigable. Screen readers can interpret the UI. Focus is managed intentionally. Color is never the only way to communicate information. Accessibility is built into the component foundation during scaffolding, not added after features are complete.
 
 ## Reusable System
 
-- Accessible base components: Modal, Dialog, Dropdown built with proper ARIA from day one
-- Focus management utilities: trap, return, announce
-- Skip link component: first focusable element on every page
-- Screen reader utilities: visually hidden text, live regions
+Create accessible base components during scaffolding that all features use:
+- Modal and dialog components with proper focus trapping (focus stays inside the modal until it's closed) and focus return (when the modal closes, focus returns to the element that opened it)
+- Dropdown and menu components with proper keyboard navigation (arrow keys to navigate items, escape to close, enter to select)
+- Form components with built-in label association, error message linking, and required field indication that work with screen readers
+- A skip navigation link as the first focusable element on every page
+- Screen reader utility for visually hidden text that is read by screen readers but not visible on screen
 
 ## Rules
 
-- Use semantic HTML. button for actions, a for navigation. Never div onClick.
-- Every interactive element is keyboard accessible.
-- Every form input has a visible label.
-- Focus is trapped in modals and returned to trigger on close.
-- Heading hierarchy is logical (h1→h6, no skipping).
-- Color contrast meets 4.5:1 for normal text, 3:1 for large text.
-- No color-only communication. Pair with icons, patterns, or text.
-- Visible focus indicators on all interactive elements.
-- prefers-reduced-motion is respected.
+- Use semantic markup for interactive elements. Buttons for actions, links for navigation. Never use generic elements with click handlers to simulate buttons or links.
+- Every form input must have a visible label associated with it programmatically. Placeholder text is not a label.
+- Every image must have descriptive alt text that explains the purpose of the image, or be explicitly marked as decorative. Never use placeholder alt text like "image" or "photo."
+- Heading hierarchy must be logical and sequential. Never skip heading levels for styling purposes.
+- Focus must be visible on all interactive elements. Never remove the focus indicator without providing an equally visible replacement.
+- Color must never be the only way to communicate information. Red for error is fine, but it must also have an icon or text label for people who cannot distinguish colors.
+- Modals must trap focus inside them and return focus to the trigger element when closed.
+- Respect the user's reduced motion preference. If the user's system says they prefer reduced motion, disable or simplify all animations.
+- Minimum touch target size for interactive elements on touchscreen devices.
 
 ## Violations
 
-- `<div onClick>` instead of `<button>`
-- Input without a label (or only placeholder as label)
-- Modal that doesn't trap focus or return it on close
-- Skipping heading levels (h1 → h3)
-- Removing focus outline without replacement
-- Color as the only indicator of state (red = error, with no icon or text)
-- Placeholder alt text never replaced: alt="image" or alt="placeholder"
-- Images without alt attribute at all
+- Using a generic element with a click handler instead of a semantic button or link element
+- Input fields without labels (or using only placeholder text as a label)
+- Images without alt text, or with placeholder alt text like "image" that was never replaced with a real description
+- Skipping heading levels (jumping from level 1 to level 3 for visual styling)
+- Removing the focus outline without providing a visible replacement
+- Color as the only way to indicate state (red for error with no icon or text)
+- Modals that don't trap focus or don't return focus to the trigger on close
+- Ignoring the user's reduced motion preference
 
-## Right vs Wrong
+## Wrong vs Right
 
-Examples are illustrative.
+- WRONG: a clickable div styled to look like a button. It looks right visually but screen readers don't announce it as interactive, keyboard users can't tab to it, and it doesn't respond to keyboard activation.
+- RIGHT: a semantic button element. Screen readers announce it as a button, keyboard users can tab to it and press enter or space to activate it. Built-in behavior, no extra code needed.
+- WRONG: a form input with placeholder text "Email" and no label. When the user starts typing, the placeholder disappears and they can't remember what the field is for. Screen readers may not announce what the field is.
+- RIGHT: a visible label "Email" associated with the input. Always visible, always announced by screen readers, always linked to the field for click-to-focus.
+- WRONG: an image with alt="image" that was generated by AI and never replaced. Screen readers announce "image" which gives the user zero information.
+- RIGHT: an image with alt="Revenue chart showing 32% growth from Q1 to Q2" that describes what the user needs to know from the image.
 
-```
-WRONG (div as button):
-<div onClick={handleSubmit} className="btn">Submit</div>
+## Research Notes
 
-RIGHT (semantic HTML):
-<button onClick={handleSubmit} type="submit">Submit</button>
-```
-
-```
-WRONG (input without proper label):
-<input placeholder="Email" value={email} onChange={setEmail} />
-
-RIGHT (visible label associated with input):
-<label htmlFor="email">Email</label>
-<input id="email" type="email" value={email} onChange={setEmail}
-       aria-describedby={error ? 'email-error' : undefined} />
-{error && <span id="email-error" role="alert">{error}</span>}
-```
-
-```
-WRONG (placeholder alt text):
-<img src="/hero.jpg" />
-<img src="/chart.png" alt="image" />
-
-RIGHT (meaningful alt text + dimensions):
-<img src="/hero.webp" alt="Team collaboration in the new office"
-     width={1200} height={600} loading="lazy" />
-<img src="/chart.png" alt="Revenue grew 32% from Q1 to Q2" />
-```
-
-## References.md Section
-
-- A11y testing: which tools (jest-axe, axe-core, keyboard testing)
-- WCAG target: which level (AA or AAA)
-- Base components: which accessible components exist in shared/ui
+When bootstrapping this convention:
+- Research the framework's accessibility patterns. What accessible component libraries are recommended? Do they handle focus trapping, keyboard navigation, and ARIA automatically?
+- Research the framework's focus management utilities. How do you trap focus in modals, return focus on close, and move focus on route changes?
+- Research accessibility testing tools that integrate with the framework's test runner
+- Research automated accessibility auditing tools that can run in CI to catch common violations
+- Target WCAG 2.2 Level AA as the minimum standard
+- Document the accessible base components, testing tools, and audit configuration in References.md
