@@ -36,46 +36,76 @@ logs:      [command to view logs]
 
 ## Foundational Systems
 
-Each system is built once following convention #0 (Reusability). Features plug into these, never build ad-hoc.
+Each system is built once following convention #0 (Reusability). Features plug into these, never build ad-hoc. Sections ordered by scaffold build sequence.
 
-### Handler Pattern (#3)
+### Git & Project Init (#2)
+Commit convention: [e.g., conventional commits]
+Branch strategy: [e.g., trunk-based]
+Pre-commit hooks: [what runs - lint, format, typecheck]
+
+### Project Structure & Types (#1, #7)
+Folder structure: [see Folder Structure section below]
+Path alias: [if applicable]
+Type checking: [e.g., strict mode, mypy, etc.]
+Validation library: [e.g., Zod, Joi, pydantic]
+Shared types: [path to shared type definitions]
+
+### Handler Pattern & Architecture (#3)
 Pattern: [e.g., "Handler (thin) → Service (logic) → Data Access (ORM)"]
 Handler location: [e.g., src/handlers/{feature}/]
 Service location: [e.g., src/handlers/{feature}/services/]
+Import rules: [features never import from other features]
 Usage: [how new endpoints are structured]
 
 ### Error System (#8)
 Location: [e.g., src/shared/errors/]
 Error classes: [path to custom error definitions]
 Error handling: [e.g., "framework wraps handlers, no try/catch needed"]
-Usage: [how features throw errors, e.g., "throw new ValidationError(message)"]
+Usage: [how features throw errors]
 
-### API Layer (#9)
+### API Layer & Contract (#9, #10)
 Response format: [e.g., "{ data, meta, errors } via responses.success()"]
 Response utility: [path to response helpers]
+Contract: [how types are shared with frontend - OpenAPI, tRPC, shared schemas]
 Usage: [how handlers return responses]
 
 ### Auth System (#11)
-Auth utility: [path, e.g., "getAuthenticatedUser(event)"]
-Returns: [what it returns, e.g., "{ cognitoSub, userId } where userId is DB UUID"]
-Authorization: [where auth checks happen, e.g., "service layer, not handler"]
-CRITICAL: [any production-learned auth rules]
+Auth utility: [path]
+Returns: [what it returns - database ID, not provider ID]
+Authorization: [where auth checks happen - service layer, not handler]
+CRITICAL: [production-learned auth rules]
+
+### Database (#3)
+ORM/Driver: [which one]
+Schema: [path to schema]
+Query builders: [path if any]
+Migration commands: [how to run migrations]
+Migration rules: [e.g., "never run destructive migrations without user approval"]
+Usage: [how features access data]
 
 ### Validation (#7)
 Schema location: [e.g., "handlers/{feature}/schemas.ts"]
-Shared primitives: [path, e.g., "shared/validation/ (safeString, emailSchema)"]
-Usage: [e.g., "const data = validateRequest(event.body, schema)"]
-
-### Database (#3)
-Schema: [path to schema, e.g., "prisma/schema.prisma"]
-Query builders: [path if any]
-Migration rules: [e.g., "never run migrations without user approval"]
-Usage: [how features access data]
+Shared primitives: [path to common validators]
+Usage: [how handlers validate input]
 
 ### File Storage (#11)
 Pattern: [e.g., "presigned URLs, 3-step: initiate → upload to S3 → verify"]
 Location: [path to file service]
 Usage: [how features handle file uploads]
+
+### Testing Setup (#12, #18)
+Test runner: [which one and command]
+Test utilities: [path to shared factories, fixtures, mocks]
+API mocking: [how API tests mock external services]
+Verification commands: [exact commands - test, typecheck, build]
+Coverage: [thresholds and enforcement]
+
+### CI/CD (#15)
+CI platform: [which one]
+Pipeline: [sequence - lint → typecheck → test → build → deploy]
+Deploy command: [how to deploy]
+Rollback: [how to rollback]
+Lint rules: [AI-targeted rules - no any, no console.log]
 
 ## Folder Structure
 

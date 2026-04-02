@@ -62,44 +62,52 @@ Systems to build (order matters - later systems depend on earlier ones):
 - Response envelope/format standardized
 - API contract setup if applicable (OpenAPI, tRPC, shared schemas)
 
-### 5. AUTH SYSTEM (#11)
+### 5. DATABASE (#3) [backend]
+- ORM/driver configured and connected
+- Schema defined (models, relations, indexes)
+- Initial migration created
+- Query patterns established (query builders or repository pattern if applicable)
+- Seed data script if needed for development
+- Migration commands documented in References.md
+
+### 6. AUTH SYSTEM (#11)
 - Auth service (token storage, refresh, logout cleanup)
 - Auth context/provider [frontend] or auth middleware [backend]
 - Route guard component [frontend] or auth utility [backend]
 - Auth utility function (get authenticated user)
 
-### 6. ROUTING & LAYOUTS (#21) [frontend]
+### 7. ROUTING & LAYOUTS (#21) [frontend]
 - Route definitions
 - Layout components (persistent shells)
 - Route guard integration with auth system
 - Loading and error states per route
 
-### 7. STATE MANAGEMENT (#5) [frontend]
+### 8. STATE MANAGEMENT (#5) [frontend]
 - Store configuration
 - Slice pattern template
 - Server state integration with API layer
 
-### 8. COMPONENT FOUNDATION (#4, #14, #22) [frontend]
+### 9. COMPONENT FOUNDATION (#4, #14, #22) [frontend]
 - Base wrapper components for UI library
 - Layout components (Stack, Grid, Page containers)
 - Accessible base components (Modal, Dialog, Dropdown with proper ARIA)
 - Consistent component API patterns documented
 - Storybook or component catalog setup if applicable
 
-### 9. FORM SYSTEM (#20) [if project uses forms]
+### 10. FORM SYSTEM (#20) [if project uses forms]
 - Form library configured
 - Validation schema pattern (one schema = types + validation)
 - Form field components with error display
 - Multi-step wizard if needed
 
-### 10. TESTING SETUP (#12, #18)
+### 11. TESTING SETUP (#12, #18)
 - Test runner configured
 - Custom render wrapper with providers [frontend]
 - MSW setup for API mocking
 - Test data factories
 - Verification command documented in References.md
 
-### 11. CI/CD & PERFORMANCE (#15, #13)
+### 12. CI/CD & PERFORMANCE (#15, #13)
 - Lint + typecheck + test + build pipeline
 - Code splitting configured (route-based) [frontend]
 - Bundle budget set [frontend]

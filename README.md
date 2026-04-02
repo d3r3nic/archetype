@@ -35,6 +35,7 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 └── templates/                # Reusable templates
     ├── references-frontend.md  # References.md for frontend projects
     ├── references-backend.md   # References.md for backend projects
+    ├── references-mobile.md    # References.md for mobile projects
     ├── feature-tree.md         # Feature tree template
     ├── feature-doc-template.md # Feature documentation template
     ├── hooks-spec.md           # Hook specifications

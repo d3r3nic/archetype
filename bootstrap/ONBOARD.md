@@ -44,7 +44,11 @@ Based on my answers, generate:
 - .gitignore appropriate for the tech stack
 - Initialize git with an initial commit
 
-For each foundational system section in References.md, describe HOW the system will be implemented in this tech stack. Leave the Location fields as [to be created in scaffolding].
+For each foundational system section in References.md:
+1. Read the corresponding convention doc's Research Notes section
+2. Research the current best practices for that convention in the chosen tech stack (do not rely on training data alone - search for the latest patterns)
+3. Describe HOW the system will be implemented based on your research findings
+4. Leave the Location fields as [to be created in scaffolding]
 
 ---
 
@@ -55,6 +59,14 @@ Use this prompt with your AI assistant:
 ---
 
 Read Conventions.md and all convention docs in conventions/. Then scan this codebase to understand what already exists.
+
+How to scan:
+1. Read package.json (or equivalent) to identify the tech stack, dependencies, and available commands
+2. Read the project's folder structure at the top two levels to understand organization
+3. Look at the shared/ or common/ directory for existing foundational systems
+4. Look at the features/ or pages/ directory to map existing features
+5. Check for existing documentation, config files, and instruction files
+6. If a libraries/ directory exists in the framework, check for framework-specific guidance
 
 For each convention (#0-#22), determine:
 1. Does a foundational system for this convention already exist?
@@ -100,3 +112,7 @@ After bootstrap, verify:
 - Does not set up CI/CD (part of scaffolding)
 
 Bootstrap generates the map. Scaffolding builds what the map describes.
+
+## Next Step
+
+Proceed to scaffolding/SCAFFOLD.md to build the foundational systems.

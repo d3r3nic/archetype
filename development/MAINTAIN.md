@@ -67,7 +67,7 @@ done
 # Check References.md paths
 echo ""
 echo "=== References.md Path Check ==="
-grep -oP 'src/[^\s\]]+' References.md 2>/dev/null | while read path; do
+grep -o 'src/[^ ]*' References.md 2>/dev/null | while read path; do
   if [ ! -e "$path" ]; then
     echo "BROKEN PATH in References.md: $path"
   fi
