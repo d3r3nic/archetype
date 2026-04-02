@@ -31,6 +31,50 @@ AI-era reasoning: AI over-comments 90-100% of generated code with obvious descri
 - Magic strings or numbers without explanation
 - Domain abbreviations that only insiders understand
 - Feature with no README explaining why it exists
+- Magic numbers with no reasoning (TIMEOUT = 3000 - why 3000?)
+
+## Right vs Wrong
+
+Examples are illustrative.
+
+```
+WRONG (commenting the obvious - 90-100% of AI code does this):
+// Initialize the user array
+const users: User[] = [];
+// Loop through each order
+for (const order of orders) {
+  // Get the order total
+  const total = order.getTotal();
+  // Check if total is greater than 100
+  if (total > 100) {
+    order.applyDiscount(0.1);
+  }
+}
+
+RIGHT (comment only the WHY):
+for (const order of orders) {
+  const total = order.getTotal();
+  // Business rule: orders over $100 qualify for loyalty discount (JIRA-1234)
+  if (total > 100) {
+    order.applyDiscount(0.1);
+  }
+}
+```
+
+```
+WRONG (magic numbers with no explanation):
+const TIMEOUT = 3000;
+const MAX_RETRIES = 5;
+const BATCH_SIZE = 50;
+
+RIGHT (explain the reasoning):
+// Payment gateway SLA requires response within 3s; timeout triggers fallback
+const PAYMENT_TIMEOUT_MS = 3000;
+// 5 retries with exponential backoff covers typical network blips (p99 recovery)
+const MAX_RETRIES = 5;
+// DynamoDB batch write limit is 25; we use 50 items chunked into 2 batches
+const BATCH_SIZE = 50;
+```
 
 ## References.md Section
 

@@ -39,6 +39,8 @@ AI-era reasoning: folder structure is how AI scopes its context window. Inconsis
 
 ## Right vs Wrong
 
+Examples are illustrative. See References.md for this project's specific implementation.
+
 ```
 WRONG (grouped by type):
 src/

@@ -35,6 +35,8 @@ AI-era reasoning: this is the single highest-leverage practice for AI-assisted d
 
 ## Right vs Wrong
 
+Examples are illustrative. See References.md for this project's specific implementation.
+
 ```
 WRONG (implement first, test maybe later):
 1. AI writes feature code

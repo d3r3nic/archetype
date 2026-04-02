@@ -23,9 +23,48 @@ A shared component library is the single source of truth for UI. Components are 
 ## Violations
 
 - `import { Button } from '@mui/material'` instead of `import { Button } from '@/shared/ui'`
-- Building a component without checking if it exists in the design system
+- Building a new component without checking feature-tree.md for existing ones
 - UI library updates breaking the app because features import directly
 - Components with no documentation or variant examples
+- Library-specific APIs (sx prop, Chakra style props) leaking into feature code
+- Installing a different UI library for one widget (visual inconsistency, bundle bloat)
+
+## Right vs Wrong
+
+Examples are illustrative.
+
+```
+WRONG (direct UI library import):
+import { Button, TextField, Dialog } from '@mui/material';
+
+RIGHT (project wrapper imports):
+import { Button, TextField, Dialog } from '@/shared/ui';
+// If wrapper doesn't exist, create it first
+```
+
+```
+WRONG (library-specific API leaking into features):
+<Box sx={{ display: 'flex', gap: 2, bgcolor: 'primary.main', p: 3 }}>
+  <Button variant="contained" sx={{ borderRadius: '8px' }}>Save</Button>
+</Box>
+
+RIGHT (wrapper abstracts the library):
+<Stack direction="row" gap="md" bg="primary" padding="lg">
+  <Button variant="primary">Save</Button>
+</Stack>
+// If you switch from MUI to Radix, only wrapper internals change
+```
+
+```
+WRONG (not checking what exists - building redundant component):
+// Creates ConfirmDialog.tsx without checking feature-tree.md
+// Project already has a ConfirmDialog in shared/ui
+
+RIGHT (check first):
+// 1. Read feature-tree.md
+// 2. Search shared/ui for existing components
+// 3. If exists: use it. If not: build it in shared/ui as reusable.
+```
 
 ## References.md Section
 

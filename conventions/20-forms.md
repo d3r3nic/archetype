@@ -28,6 +28,49 @@ Forms are handled through one form system. Validation schemas define both types 
 - Error messages not associated with their fields (accessibility)
 - No unsaved changes warning on forms with user input
 - Server errors shown as a generic toast instead of mapped to fields
+- Missing default values on controlled forms (causes React warnings)
+
+## Right vs Wrong
+
+Examples are illustrative.
+
+```
+WRONG (manual validation):
+function handleSubmit() {
+  const errors = {};
+  if (!data.email) errors.email = 'Required';
+  if (!data.email.includes('@')) errors.email = 'Invalid';
+  if (data.password.length < 8) errors.password = 'Min 8 chars';
+  if (Object.keys(errors).length) { setErrors(errors); return; }
+}
+
+RIGHT (schema-based - one schema = types + validation):
+const Schema = z.object({
+  email: z.string().email('Invalid email'),
+  password: z.string().min(8, 'Minimum 8 characters'),
+});
+type FormData = z.infer<typeof Schema>; // types derived automatically
+
+const { register, handleSubmit } = useForm<FormData>({
+  resolver: zodResolver(Schema),
+  defaultValues: { email: '', password: '' },
+});
+```
+
+```
+WRONG (server errors as generic toast):
+catch (error) { toast.error('Something went wrong'); }
+
+RIGHT (server errors mapped to specific fields):
+catch (error) {
+  if (error.response?.status === 422) {
+    const fieldErrors = error.response.data.errors;
+    Object.entries(fieldErrors).forEach(([field, message]) => {
+      setError(field, { message });
+    });
+  }
+}
+```
 
 ## References.md Section
 

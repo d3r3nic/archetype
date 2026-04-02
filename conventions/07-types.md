@@ -29,8 +29,56 @@ AI-era reasoning: types are executable documentation for AI. Strong type systems
 - `any` anywhere in production code
 - API response used without validation (trusting external data)
 - Separate type definition AND validation schema for the same data (they should be one)
-- Type assertion to silence a real type error instead of fixing it
+- Type assertion (`as`) to silence a real type error instead of fixing it
+- Non-null assertion (`!`) to bypass null checks instead of handling null
 - Missing return type on exported function
+
+## Right vs Wrong
+
+Examples are illustrative.
+
+```
+WRONG (any to silence errors):
+function processData(data: any) {
+  return data.items.map((item: any) => item.value);
+}
+
+RIGHT (unknown + runtime validation):
+function processData(data: unknown): number[] {
+  const parsed = DataSchema.parse(data);
+  return parsed.items.map(item => item.value);
+}
+```
+
+```
+WRONG (duplicate type + schema):
+interface User { id: string; name: string; email: string; }
+
+const UserSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string(),
+});
+
+RIGHT (single source of truth):
+const UserSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  email: z.string().email(),
+});
+type User = z.infer<typeof UserSchema>; // derived automatically
+```
+
+```
+WRONG (assertion to bypass real error):
+const user = apiResponse as User;          // trusting external data
+const el = document.getElementById('x')!;  // assuming it exists
+
+RIGHT (validate and narrow):
+const user = UserSchema.parse(apiResponse);         // throws if invalid
+const el = document.getElementById('x');
+if (!el) throw new Error('Element not found');
+```
 
 ## References.md Section
 

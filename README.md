@@ -36,7 +36,9 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
     ├── references-frontend.md  # References.md for frontend projects
     ├── references-backend.md   # References.md for backend projects
     ├── feature-tree.md         # Feature tree template
+    ├── feature-doc-template.md # Feature documentation template
     ├── hooks-spec.md           # Hook specifications
+    ├── global-claude.md        # Behavioral rules for ~/.claude/CLAUDE.md
     └── convention-template.md  # Template for new conventions
 ```
 

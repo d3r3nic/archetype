@@ -37,6 +37,8 @@ This convention doesn't produce a single system. It governs HOW all other system
 
 ## Right vs Wrong
 
+Examples are illustrative. See References.md for this project's specific implementation.
+
 ```
 WRONG (one-off, scattered, duplicated):
 // Feature A

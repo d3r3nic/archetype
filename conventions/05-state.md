@@ -25,10 +25,58 @@ State lives as close to where it's used as possible. Local state is the default.
 ## Violations
 
 - Storing API response in Redux/Zustand instead of using the server-state library
-- Global state for feature-specific data
+- Global state for feature-specific data (modal open/close, tooltip, form inputs in global store)
 - Props drilling through 5+ levels instead of using context
-- Storing derived values when they could be computed from existing state
+- Storing derived state separately (filteredItems, sortedItems as separate state) instead of computing
 - Mutable state updates instead of immutable patterns
+- Filters and pagination in component state instead of URL params (lost on refresh)
+
+## Right vs Wrong
+
+Examples are illustrative.
+
+```
+WRONG (server data in client state):
+const userSlice = createSlice({
+  name: 'users',
+  initialState: { users: [], loading: false, error: null },
+  reducers: { setUsers, setLoading, setError }
+});
+// Manual loading/error/cache management in a thunk...
+
+RIGHT (server state in server-state library):
+function useUsers() {
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: () => api.users.list(),
+  });
+}
+// Caching, dedup, refetch, loading, error - all handled
+```
+
+```
+WRONG (storing derived state):
+const [items, setItems] = useState([]);
+const [filteredItems, setFilteredItems] = useState([]);
+const [sortedItems, setSortedItems] = useState([]);
+// Three useEffects keeping them in sync...
+
+RIGHT (compute derived values):
+const [items, setItems] = useState([]);
+const filteredItems = useMemo(() => items.filter(i => i.active), [items]);
+const sortedItems = useMemo(() => [...filteredItems].sort(byName), [filteredItems]);
+```
+
+```
+WRONG (filters in component state - lost on refresh):
+const [search, setSearch] = useState('');
+const [page, setPage] = useState(1);
+
+RIGHT (filters in URL params - survives refresh and sharing):
+const [searchParams, setSearchParams] = useSearchParams();
+const search = searchParams.get('q') ?? '';
+const page = Number(searchParams.get('page') ?? '1');
+```
 
 ## References.md Section
 

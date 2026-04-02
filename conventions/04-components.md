@@ -28,6 +28,64 @@ Components expose consistent, predictable APIs. Size, variant, and state props f
 - Inconsistent sizing (one component uses small/medium/large, another uses xs/sm/md)
 - Components that fetch data, compute business logic, AND render UI
 - Props that accept string | number | ReactNode | Function for one value
+- God components: 500+ lines doing everything in one file
+- Missing forwardRef on reusable components (breaks focus management)
+- Building a new component without checking feature-tree.md for existing ones
+
+## Right vs Wrong
+
+Examples are illustrative.
+
+```
+WRONG (inconsistent APIs across components):
+<Button size="small" />
+<Input size="sm" />
+<Card sizing="compact" />
+<Badge variant="info" />
+<Alert type="info" />
+
+RIGHT (consistent vocabulary):
+<Button size="sm" />
+<Input size="sm" />
+<Card size="sm" />
+<Badge variant="info" />
+<Alert variant="info" />
+```
+
+```
+WRONG (god component - 500+ lines):
+function UserDashboard() {
+  // 50 lines of state
+  // 100 lines of useEffect and fetch calls
+  // 80 lines of event handlers
+  // 200 lines of JSX
+}
+
+RIGHT (composed from focused components):
+function UserDashboard() {
+  return (
+    <DashboardLayout>
+      <UserProfile />
+      <RecentOrders />
+      <NotificationFeed />
+    </DashboardLayout>
+  );
+}
+```
+
+```
+WRONG (no ref forwarding):
+function TextInput({ label, ...props }) {
+  return <div><label>{label}</label><input {...props} /></div>;
+}
+
+RIGHT (forwarded ref):
+const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
+  ({ label, ...props }, ref) => (
+    <div><label>{label}</label><input ref={ref} {...props} /></div>
+  )
+);
+```
 
 ## References.md Section
 

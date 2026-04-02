@@ -28,8 +28,58 @@ Performance is designed in, not optimized after. Code splitting, lazy loading, a
 - Entire app in one bundle (no code splitting)
 - Spinners instead of skeleton screens
 - Images without width/height causing layout shift
-- Premature optimization without profiling data
+- Premature memoization without profiling data
 - Bundle growing unchecked with no budget
+- N+1 queries: looping with a database query per item instead of batch/join
+- Raw img tags with no modern format, no responsive sizing, no lazy loading
+
+## Right vs Wrong
+
+Examples are illustrative.
+
+```
+WRONG (everything in one bundle):
+import { Dashboard } from './pages/Dashboard';
+import { Settings } from './pages/Settings';
+import { Reports } from './pages/Reports';
+
+RIGHT (route-based code splitting):
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Reports = lazy(() => import('./pages/Reports'));
+```
+
+```
+WRONG (N+1 queries - AI's most common DB mistake):
+async function getOrdersWithProducts(ids) {
+  const orders = await db.order.findMany({ where: { id: { in: ids } } });
+  for (const order of orders) {
+    order.products = await db.product.findMany({  // N separate queries!
+      where: { orderId: order.id }
+    });
+  }
+}
+
+RIGHT (single query with include/join):
+async function getOrdersWithProducts(ids) {
+  return db.order.findMany({
+    where: { id: { in: ids } },
+    include: { products: true },  // 1 query
+  });
+}
+```
+
+```
+WRONG (generic spinner):
+{isLoading && <Spinner />}
+
+RIGHT (content-shaped skeleton):
+{isLoading && (
+  <Skeleton width="48" height="8" />
+  <Skeleton width="full" height="4" />
+  <Skeleton width="75%" height="4" />
+)}
+```
 
 ## References.md Section
 

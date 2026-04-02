@@ -26,6 +26,44 @@ Commits are save points. Each commit represents one verified change that passes 
 - Committing without running verification
 - Committing .env files or API keys
 - Long-lived branches that drift far from main
+- Creating variant files (utils-v2.ts, helper-new.ts) instead of fixing the original
+- Using --no-verify to skip failing hooks instead of fixing the issue
+
+## Right vs Wrong
+
+Examples are illustrative.
+
+```
+WRONG (AI mega-commit):
+git commit -m "AI changes"
+git commit -m "update code"
+git commit -m "fix everything"
+
+RIGHT (granular save points):
+git commit -m "feat(auth): add JWT token refresh on 401"
+git commit -m "test(auth): add token refresh integration tests"
+git commit -m "fix(auth): handle concurrent refresh race condition"
+```
+
+```
+WRONG (variant files when stuck):
+utils.ts → utils-v2.ts → utils-new.ts → helpers-fixed.ts
+
+RIGHT (fix in place):
+# Fix the existing file, test, commit
+git diff utils.ts   # understand what changed
+# fix, test, commit
+```
+
+```
+WRONG (skip hooks):
+git commit --no-verify -m "fix lint later"
+
+RIGHT (fix the issue):
+npm run lint -- --fix
+git add .
+git commit -m "fix(auth): resolve ESLint import order"
+```
 
 ## References.md Section
 

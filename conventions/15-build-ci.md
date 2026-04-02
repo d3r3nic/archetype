@@ -29,6 +29,39 @@ Quality is enforced automatically, not by convention alone. Linters catch style 
 - Stale feature flags left in code after rollout
 - No rollback capability
 - Manual formatting instead of automated
+- catch blocks with only console.log (silent error swallowing)
+- No AI-targeted lint rules (any, console.log, direct library imports)
+
+## Right vs Wrong
+
+Examples are illustrative.
+
+```
+WRONG (minimal CI):
+jobs:
+  test:
+    run: npm test
+
+RIGHT (full pipeline with AI-era gates):
+jobs:
+  quality:
+    - npm run lint          # catches console.log, any, direct imports
+    - npm run typecheck     # catches type assertions
+    - npm run test          # catches logic errors
+    - npm run build         # catches import errors
+    - npx bundlesize        # catches bundle bloat
+```
+
+```
+WRONG (no AI-targeted linting):
+// Default ESLint only
+
+RIGHT (rules that catch AI mistakes):
+"no-console": "error",
+"@typescript-eslint/no-explicit-any": "error",
+"@typescript-eslint/no-non-null-assertion": "warn",
+"no-restricted-imports": ["error", { "patterns": ["@mui/*"] }]
+```
 
 ## References.md Section
 

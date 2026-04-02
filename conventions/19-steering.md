@@ -37,6 +37,8 @@ AI-era reasoning: context exhaustion causes AI to forget earlier decisions. Vagu
 
 ## Right vs Wrong
 
+Examples are illustrative.
+
 ```
 WRONG (no plan, immediate implementation):
 User: "Add user roles"

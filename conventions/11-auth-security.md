@@ -41,6 +41,8 @@ AI-era reasoning: AI generates 2.74x more security vulnerabilities than human co
 
 ## Right vs Wrong
 
+Examples are illustrative. See References.md for this project's specific implementation.
+
 ```
 WRONG (extracting from JWT directly):
 const claims = requireAuth(event)

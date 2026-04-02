@@ -31,6 +31,42 @@ The app works for everyone. Semantic HTML is the foundation. Interactive element
 - Skipping heading levels (h1 → h3)
 - Removing focus outline without replacement
 - Color as the only indicator of state (red = error, with no icon or text)
+- Placeholder alt text never replaced: alt="image" or alt="placeholder"
+- Images without alt attribute at all
+
+## Right vs Wrong
+
+Examples are illustrative.
+
+```
+WRONG (div as button):
+<div onClick={handleSubmit} className="btn">Submit</div>
+
+RIGHT (semantic HTML):
+<button onClick={handleSubmit} type="submit">Submit</button>
+```
+
+```
+WRONG (input without proper label):
+<input placeholder="Email" value={email} onChange={setEmail} />
+
+RIGHT (visible label associated with input):
+<label htmlFor="email">Email</label>
+<input id="email" type="email" value={email} onChange={setEmail}
+       aria-describedby={error ? 'email-error' : undefined} />
+{error && <span id="email-error" role="alert">{error}</span>}
+```
+
+```
+WRONG (placeholder alt text):
+<img src="/hero.jpg" />
+<img src="/chart.png" alt="image" />
+
+RIGHT (meaningful alt text + dimensions):
+<img src="/hero.webp" alt="Team collaboration in the new office"
+     width={1200} height={600} loading="lazy" />
+<img src="/chart.png" alt="Revenue grew 32% from Q1 to Q2" />
+```
 
 ## References.md Section
 
