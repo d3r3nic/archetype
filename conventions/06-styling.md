@@ -41,38 +41,45 @@ AI-era reasoning: AI hardcodes colors and dimensions constantly. This is one of 
 
 ## Right vs Wrong
 
-```
-WRONG:
-<Box sx={{ color: '#333', padding: '16px', marginTop: '24px' }}>
-<Box sx={{ backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
-
-RIGHT:
-<Box sx={{ color: colors.textPrimary, p: 2, mt: 3 }}>
-<Box sx={{ bgcolor: colors.bgDefault, borderRadius: 1 }}>
-```
+Examples are illustrative. See References.md for this project's specific implementation.
 
 ```
-WRONG (magic numbers):
-<Drawer sx={{ width: 320, maxHeight: '80vh' }}>
+WRONG (hardcoded - any framework):
+color: '#333'
+padding: 16px
+background-color: #f5f5f5
+
+RIGHT (CSS custom properties):
+color: var(--color-text-primary)
+padding: var(--spacing-4)
+background-color: var(--color-bg-default)
+```
+
+```
+Example (React/MUI):
+WRONG: <Box sx={{ color: '#333', padding: '16px' }}>
+RIGHT: <Box sx={{ color: colors.textPrimary, p: 2 }}>
+
+Example (Tailwind):
+WRONG: <div style="color: #333; padding: 16px">
+RIGHT: <div className="text-primary p-4">
+
+Example (CSS Modules):
+WRONG: .card { color: #333; padding: 16px; }
+RIGHT: .card { color: var(--color-text-primary); padding: var(--spacing-4); }
+```
+
+```
+WRONG (magic numbers - any framework):
+width: 320
+maxHeight: '80vh'
+z-index: 9999
 
 RIGHT (named config):
-const DRAWER_CONFIG = {
-  width: { xs: '90%', md: 320 },
-  maxHeight: { xs: '45vh', md: '80vh' },
-}
-<Drawer sx={DRAWER_CONFIG}>
-```
-
-```
-WRONG (z-index chaos):
-z-index: 9999
-z-index: 10000
-z-index: 99999
-
-RIGHT (z-index scale):
+const DRAWER_CONFIG = { width: { mobile: '90%', desktop: 320 } }
 z-index: zIndex.dropdown   // 100
 z-index: zIndex.modal      // 400
-z-index: zIndex.toast       // 600
+z-index: zIndex.toast      // 600
 ```
 
 ## References.md Section

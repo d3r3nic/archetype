@@ -40,35 +40,49 @@ AI-era reasoning: AI scatters try/catch blocks across features with inconsistent
 
 ## Right vs Wrong
 
+Examples are illustrative. See References.md for this project's specific implementation.
+
 ```
-WRONG (scattered, inconsistent):
+WRONG (scattered - any language/framework):
 // Feature A
 try { await fetchUsers() } catch(e) { alert('Error!') }
-
 // Feature B
 try { await fetchOrders() } catch(e) { console.log(e) }
-
 // Feature C
 try { await fetchProducts() } catch(e) { setError(true) }
 
-RIGHT (centralized system):
-// Features don't handle errors. The system does.
-const { data, isLoading, error } = useQuery('users', getUsers)
+RIGHT (centralized - the principle):
+// Features don't handle errors. The data layer does.
+// The system handles loading, error, empty states consistently.
+data = dataLayer.fetch('users')
+if loading → show unified loading component
+if error → show unified error component with retry
+if empty → show unified empty state
+if data → render
+```
 
+```
+Example (React + data fetching library):
+const { data, isLoading, error } = useQuery('users', getUsers)
 if (isLoading) return <LoadingSpinner />
 if (error) return <ErrorState error={error} retry={refetch} />
 if (!data.length) return <EmptyState message="No users found" />
-return <UserList data={data} />
+
+Example (Node.js/Express backend):
+// Centralized error middleware handles all errors
+// Handlers throw typed errors, middleware catches and responds
+throw new ValidationError('Email is required')
+// → middleware returns { status: 400, error: { code: 'VALIDATION', message: '...' } }
 ```
 
 ```
-WRONG (custom error UI per feature):
-// FeatureA/ErrorMessage.tsx
-// FeatureB/ErrorDisplay.tsx
-// FeatureC/FailureNotice.tsx
+WRONG (custom error UI/handler per feature):
+FeatureA/ErrorMessage
+FeatureB/ErrorDisplay
+FeatureC/FailureNotice
 
-RIGHT (shared error components):
-import { ErrorState, EmptyState, LoadingSpinner } from '@/shared/ui'
+RIGHT (shared error components/handlers):
+import { ErrorState, EmptyState, LoadingSpinner } from 'shared/errors'
 ```
 
 ## References.md Section

@@ -36,32 +36,39 @@ AI-era reasoning: AI scatters fetch calls across features with inconsistent head
 
 ## Right vs Wrong
 
-```
-WRONG (direct fetch in component):
-const Component = () => {
-  const [data, setData] = useState(null)
-  useEffect(() => {
-    fetch('/api/users', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(r => r.json())
-      .then(d => setData(d))
-      .catch(e => console.log(e))
-  }, [])
-}
+Examples are illustrative. See References.md for this project's specific implementation.
 
-RIGHT (API layer + server-state library):
-// api/users.ts
+```
+WRONG (direct calls scattered - any framework):
+// Feature code directly calls HTTP with auth headers, error handling, caching
+fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } })
+  .then(r => r.json())
+  .then(d => setData(d))
+  .catch(e => console.log(e))
+
+RIGHT (centralized API layer - the principle):
+// API client configured once with base URL, auth interceptor, error handling
+// Features define typed endpoints. Layer handles everything else.
+apiLayer.define('getUsers', { path: '/users', method: 'GET', returns: User[] })
+// Feature code uses it
+data = apiLayer.query('getUsers')
+```
+
+```
+Example (React + RTK Query):
+// api/users.ts - define endpoint
 export const userApi = api.injectEndpoints({
   endpoints: (build) => ({
-    getUsers: build.query<User[], void>({
-      query: () => '/users',
-    }),
+    getUsers: build.query<User[], void>({ query: () => '/users' }),
   }),
 })
-
-// Feature component
+// Component - use it
 const { data, isLoading, error } = useGetUsersQuery()
+
+Example (Node.js backend):
+// Configured express router with middleware chain
+// Auth, validation, error handling all in middleware - not in handlers
+router.get('/users', authenticate, validate(schema), userHandler.getAll)
 ```
 
 ## References.md Section
