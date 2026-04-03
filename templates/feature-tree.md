@@ -15,6 +15,8 @@ Built during scaffolding. Every feature plugs into these.
 | Theme | #6 | [path] | not started | docs/systems/theme.md |
 | Errors & Loading | #8 | [path] | not started | docs/systems/errors.md |
 | API Layer & Contract | #9, #10 | [path] | not started | docs/systems/api.md |
+| Database | #3 | [path] | not started | docs/systems/database.md |
+| File Storage | #9, #11 | [path] | not started | docs/systems/files.md |
 | Auth & Security | #11 | [path] | not started | docs/systems/auth.md |
 | Routing & Layouts | #21 | [path] | not started | docs/systems/routing.md |
 | State Management | #5 | [path] | not started | docs/systems/state.md |

@@ -70,6 +70,14 @@ Systems to build (order matters - later systems depend on earlier ones):
 - Seed data script if needed for development
 - Migration commands documented in References.md
 
+### 5b. FILE STORAGE (#9, #11) [if project handles file uploads]
+- File upload service configured (presigned URLs or platform equivalent)
+- File validation (type, size) on client and server
+- Upload progress tracking
+- Background upload (non-blocking UI)
+- File viewing/download service
+- Storage paths and naming convention documented
+
 ### 6. AUTH SYSTEM (#11)
 - Auth service (token storage, refresh, logout cleanup)
 - Auth context/provider [frontend] or auth middleware [backend]
