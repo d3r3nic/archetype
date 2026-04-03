@@ -156,20 +156,45 @@ Convention: #{number} ({convention name})
 [Exact file paths]
 
 ## How Features Use It
-[Import pattern and usage example]
+[Exact import statement using the project's path alias, e.g.:]
+import { NotFoundError } from '@/shared/errors'
+import { apiClient } from '@/shared/api'
+import { Button, Input } from '@/shared/ui'
+
+[Usage example showing the most common pattern]
 
 ## Configuration
 [How to extend or configure for different contexts]
 ```
+
+## Additional Documentation Required After Scaffolding
+
+The scaffolding agent must also produce:
+
+1. **.env.example** in the project root listing every required environment variable with a description but no real values. A new developer or AI agent cloning the project must know what env vars to set.
+
+2. **"How to Add a New Feature" section in References.md** - a project-specific step-by-step showing: what folder to create, what files to include, which shared systems to import, which template feature to copy from.
+
+3. **Database schema overview in References.md** (backend) - list the current models and their key fields so a new agent doesn't have to read the raw schema file to understand what data exists.
+
+4. **API endpoint summary in References.md** (backend) - list all endpoints with method, path, request shape, and response shape. A new agent building a frontend or adding a feature needs to know the API without reading handler code.
+
+5. **All shared UI components must use other shared components internally.** The error display component must use the shared Button. The form must use the shared Input. Shared components never use raw HTML when a shared equivalent exists.
 
 ## Checklist
 
 After scaffolding, verify:
 
 - [ ] All foundational systems created and working
-- [ ] docs/systems/ has a doc for each system
+- [ ] docs/systems/ has a doc for each system with exact import paths
 - [ ] feature-tree.md shows all systems as implemented with paths
-- [ ] References.md updated with actual paths (if they changed from plan)
+- [ ] References.md updated with actual paths
+- [ ] References.md has "How to Add a New Feature" section
+- [ ] References.md has database schema overview (backend)
+- [ ] References.md has API endpoint summary (backend)
+- [ ] .env.example exists with all required variables documented
+- [ ] Theme supports light AND dark mode
+- [ ] Shared UI components use other shared components internally (no raw HTML when a shared equivalent exists)
 - [ ] Build passes
 - [ ] Linting passes
 - [ ] Type checking passes
