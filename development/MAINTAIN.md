@@ -94,6 +94,27 @@ Hooks (configured during bootstrap) remind the AI to:
 - Update feature-tree.md after creating new features
 - Run verification before marking tasks complete
 
+## Technical Debt Tracking
+
+Maintain a TECHNICAL-DEBT.md file in the project root. This is a living document that tracks known issues, type shortcuts, and convention violations that were deferred rather than fixed immediately.
+
+### What Goes in Technical Debt
+
+- Type assertions (`as any`, `as unknown`) that should be properly typed
+- Convention violations discovered during feature work that weren't fixed because they were out of scope
+- Missing error handling, loading states, or accessibility on existing features
+- Direct third-party imports that should use wrappers
+- Hardcoded values that should be config-driven
+- Components that should be reusable but were built as one-offs
+
+### Rules
+
+- When you encounter tech debt while working on a feature, fix it if it's in the same feature you're touching. If it's in a different feature, log it in TECHNICAL-DEBT.md instead.
+- Each entry has: what the issue is, where it is (file path), which convention it violates, and severity (high/medium/low).
+- When starting work on a feature, check TECHNICAL-DEBT.md first. If the feature you're about to work on has logged debt, fix it as part of your work.
+- Review and reduce technical debt periodically. Do not let it accumulate indefinitely.
+- When you fix a debt item, remove it from TECHNICAL-DEBT.md.
+
 ## Convention Evolution
 
 ### Adding a New Convention

@@ -42,6 +42,24 @@ Create an API layer that establishes:
 - WRONG: after creating a user, the feature manually invalidates the cache, refetches the user list, updates the store, and navigates away. Complex manual orchestration.
 - RIGHT: after creating a user, the feature navigates to the user list page. The server-state library automatically refetches fresh data on mount. No manual invalidation needed.
 
+## File Upload & Download
+
+File operations follow the same reusability principle as everything else. One file management service handles all uploads and downloads across the entire project. Features never implement their own file handling.
+
+Create a reusable file management service that:
+- Uploads files using presigned URLs or the platform's equivalent. Files go directly from the client to storage, never proxied through the application server.
+- Tracks upload progress and displays it in a unified progress indicator (not per-feature custom progress bars).
+- Validates files on the client side before uploading (type, size, dimensions). Re-validates on the server side after upload (never trust client-side validation alone).
+- Handles uploads in the background. The UI that initiated the upload closes immediately. The user sees upload progress in a global indicator. Upload does not block the user.
+- Limits concurrent uploads to prevent overwhelming the server.
+- Provides a reusable file viewing component that any feature can use to display files for any entity type.
+
+Rules:
+- Never proxy file content through application servers. Use presigned URLs or direct storage upload.
+- Never block the UI waiting for an upload to complete. Upload in background, close the form.
+- Never create a custom file uploader per feature. Use the shared file management service.
+- Validate file type and size on client AND server.
+
 ## Research Notes
 
 When bootstrapping this convention:
@@ -49,4 +67,6 @@ When bootstrapping this convention:
 - Research the framework's recommended server-state and data fetching library. Find how it handles caching, deduplication, background refetching, and optimistic updates.
 - Research real-time data patterns for the framework if the project needs live updates (websockets, server-sent events, reconnection strategies)
 - Research the framework's patterns for data transformation at the API boundary (snake_case to camelCase, date string parsing)
-- Document the API layer location, client configuration, data fetching patterns, and cache strategy in References.md
+- Research the platform's file upload patterns: presigned URLs, direct storage upload, progress tracking, background upload
+- Research the framework's patterns for file viewing and download (previews, galleries, document viewers)
+- Document the API layer location, client configuration, data fetching patterns, cache strategy, and file management service in References.md

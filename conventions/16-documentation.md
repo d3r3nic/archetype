@@ -41,6 +41,18 @@ Create a documentation system that establishes:
 - WRONG: a 15-line JSDoc comment on a function called getUserById that documents every parameter and the return type. The function name and types already communicate everything the JSDoc says.
 - RIGHT: no comment needed. The function name, parameter types, and return type are the documentation.
 
+## Documentation Formatting
+
+AI-generated documentation wastes tokens on visual formatting that adds no value for AI consumption. Documentation should be optimized for content, not presentation.
+
+Rules:
+- No emojis in documentation or code comments. They consume tokens and add no information.
+- Minimal markdown formatting. Use plain text headings (Heading: not # Heading) in feature docs where heavy formatting adds overhead. Convention docs and framework docs use markdown for structure.
+- No bold or italic for emphasis in feature documentation. If something is important, say it is important in words.
+- Focus documentation on content density. Every line should deliver information the reader (human or AI) cannot get from the code itself.
+
+This reduces AI token consumption by 30-40% on documentation files and speeds up parsing.
+
 ## Research Notes
 
 When bootstrapping this convention:
@@ -48,4 +60,4 @@ When bootstrapping this convention:
 - Research the framework's documentation tooling (component catalogs, API documentation generators)
 - Research naming conventions specific to the framework and language
 - Set up feature documentation templates and link them to the feature development workflow (convention #19 steering, DEVELOP.md)
-- Document the ADR location, documentation templates, and naming conventions in References.md
+- Document the ADR location, documentation templates, naming conventions, and formatting rules in References.md

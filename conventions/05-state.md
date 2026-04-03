@@ -38,6 +38,22 @@ Create a state management setup that establishes:
 - WRONG: user applies a search filter. It's stored in component state. User copies the URL and sends it to a colleague. Colleague opens it, sees no filter applied.
 - RIGHT: search filter is in the URL query parameters. User copies the URL, colleague sees the same filtered view.
 
+## Offline Support
+
+If the project needs to work without network connectivity (mobile apps, field-use applications, progressive web apps), offline support is a state management concern. Build one reusable offline system, not per-feature offline handling.
+
+Create a reusable offline system that:
+- Detects network status and exposes it as state the entire app can read
+- Queues mutations (form submissions, data changes) made while offline and replays them when connectivity returns
+- Persists critical data locally so the app can display cached content without a network connection
+- Handles conflict resolution when offline changes conflict with server-side changes made by other users
+- Shows clear UI indicators for offline status, pending sync, and sync failures
+
+Rules:
+- One offline system, not per-feature. Features declare what data should be available offline and what mutations should be queued.
+- Forms that need offline support integrate with the offline queue through configuration, not custom code per form.
+- Always show the user what's pending sync and whether sync succeeded or failed.
+
 ## Research Notes
 
 When bootstrapping this convention:
@@ -45,4 +61,5 @@ When bootstrapping this convention:
 - Research the framework's patterns for computing derived state without storing it separately
 - Research URL state management patterns for the framework (how to sync filters, pagination, sort with URL parameters)
 - Research the framework's data flow patterns (one-way data flow, props, callbacks, context)
-- Document the state management choices, patterns, and conventions in References.md
+- If the project needs offline support: research the framework's offline data persistence patterns, background sync APIs, and queue-based mutation replay strategies
+- Document the state management choices, patterns, offline approach (if applicable), and conventions in References.md
