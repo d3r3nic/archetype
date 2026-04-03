@@ -86,9 +86,46 @@ Before choosing any technology or generating any files, interview the user with 
 - How many users do you expect? (just you, tens, hundreds, thousands, millions)
 - Do you have any tech preferences? (if yes, which ones; if no, that's fine)
 
-### How to translate answers into technical decisions:
+**Group 5 - Infrastructure and sensitivity**
+- Does this app handle sensitive data that has legal requirements? (health records, financial data, personal information with privacy laws)
+- Do you or your team have experience managing servers and cloud infrastructure? Or would you prefer something that handles that for you?
+- How important is it that you own and control all the infrastructure vs getting something live quickly?
 
-Based on the answers, the AI determines:
+### How the AI decides (read the user's knowledge level):
+
+The AI should gauge the user's technical experience from how they talk. Adjust choices accordingly:
+
+**Non-technical user** (says things like "I don't know how apps work", "I heard AI can help"):
+- Choose managed services that require zero DevOps knowledge
+- Database: Supabase (managed PostgreSQL with auth and storage built in) or SQLite for simple apps
+- Hosting: Vercel (frontend), Railway or Render (backend)
+- Auth: Supabase Auth or Clerk (fully managed, drop-in)
+- These ARE production-level services. They just don't require server management knowledge.
+
+**Developer with some experience** (knows frameworks, doesn't know DevOps):
+- Choose cloud platforms with simple deployment
+- Database: Managed PostgreSQL (Supabase, Neon, PlanetScale)
+- Hosting: Vercel/Netlify (frontend), Railway/Render/Fly.io (backend)
+- Auth: Auth0, Clerk, or framework-native auth
+- Can migrate to AWS/GCP later as needs grow
+
+**Experienced developer / team with DevOps knowledge** (mentions AWS, cloud, infrastructure):
+- Choose cloud providers with full control. AWS preferred for production.
+- Database: AWS RDS (PostgreSQL), or self-managed on cloud
+- Hosting: AWS (Lambda/ECS/EC2), GCP, or Azure
+- Auth: AWS Cognito, or self-managed JWT with proper security
+- CI/CD: GitHub Actions deploying to cloud provider
+- Full monitoring, logging, alerting
+
+**Enterprise / compliance requirements** (HIPAA, SOC2, financial regulations):
+- Must use cloud providers with compliance certifications. AWS preferred.
+- Database: AWS RDS with encryption at rest and in transit
+- Auth: AWS Cognito or enterprise identity provider
+- Infrastructure as code (SST, CDK, Terraform)
+- Audit trails, encryption, access controls are mandatory
+- Monitoring: CloudWatch, Datadog, or equivalent with alerting
+
+### How to translate answers into technical decisions:
 
 | Answer | Technical Decision |
 |--------|-------------------|
@@ -100,12 +137,15 @@ Based on the answers, the AI determines:
 | Users upload files | File storage system needed |
 | Real-time updates | WebSocket/SSE needed |
 | Works offline | Offline support needed |
-| Just me / personal | Simple stack, SQLite OK, no scaling concerns |
-| Startup MVP | Modern stack, PostgreSQL, deploy to cloud |
-| Enterprise | Full stack with CI/CD, monitoring, accessibility |
-| Millions of users | Performance and scalability are critical |
-| No tech preferences | AI picks a modern, well-documented stack |
+| Just me / personal | Simple stack, SQLite OK, managed hosting |
+| Startup MVP | Modern stack, managed PostgreSQL, cloud hosting |
+| Enterprise / compliance | AWS/GCP, infrastructure as code, full monitoring |
+| Millions of users | Performance, CDN, caching, horizontal scaling |
+| No tech preferences | AI picks based on experience level (see above) |
 | Has preferences | AI respects them and fills in the gaps |
+| Sensitive data (health, finance) | Compliance-grade infrastructure, encryption, audit trails |
+| No DevOps knowledge | Managed services (Supabase, Vercel, Railway) |
+| Knows AWS/cloud | AWS with proper architecture (preferred for production) |
 
 ### Common proven stacks (for reference):
 
