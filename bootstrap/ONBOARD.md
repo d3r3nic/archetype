@@ -43,51 +43,104 @@ your-project/
 
 For fullstack: each endpoint (frontend/, backend/) is a separate project with its own copy of the framework, its own References.md, feature-tree.md, and docs/. They are separate git repos. If you prefer a monorepo, put both folders under one git repo and manage them together.
 
-## Step 2: Choose Tech Stack (if you don't have one yet)
+## Step 2: Discovery (AI interviews you)
 
-If you already know your tech stack, skip to Step 3.
+Do NOT jump straight to building. The AI needs to understand what you're building first. Tell the AI to read this section and follow the discovery process.
 
-If you're unsure, here are common proven stacks to choose from:
+### Discovery Prompt:
 
-Frontend web app:
-- React + TypeScript + Vite + Tailwind + TanStack Query + Zod
-
-Backend API:
-- Node.js + TypeScript + Express/Fastify + Prisma + PostgreSQL + Zod
-- Python + FastAPI + SQLAlchemy + PostgreSQL + Pydantic
-- C# + ASP.NET + Entity Framework + SQL Server + FluentValidation
-
-Mobile app:
-- React Native + TypeScript + Expo
-- Flutter + Dart + Riverpod
-
-Tell your AI assistant what you want to build. It can help you pick a stack if you're not sure. Example: "I want to build a todo app with a web frontend and a backend API. What tech stack do you recommend?"
-
-## Step 3: Generate Project Context
-
-### For a fullstack project (frontend + backend):
-
-Run the bootstrap prompt TWICE - once in the frontend/ folder using templates/references-frontend.md, and once in the backend/ folder using templates/references-backend.md. Each endpoint gets its own References.md and feature-tree.md.
-
-### For a single endpoint (frontend only, backend only, or mobile):
-
-Run the bootstrap prompt once in the project folder, using the matching template.
-
-### Bootstrap Prompt:
-
-Use this prompt with your AI assistant. Example answers are shown below the prompt.
+Give this to your AI assistant:
 
 ---
 
-Read Conventions.md to understand the convention index. Do NOT read all 23 convention docs upfront. You will read each one as needed during References.md generation.
+Read bootstrap/ONBOARD.md Step 2: Discovery. Follow the discovery process before generating anything.
 
-I'm building [describe your project in plain English - what it does, who uses it].
+I want to build: [describe your idea in plain English, even one sentence is fine]
 
-My tech stack is: [list your tech stack, or say "help me choose" and describe what you want to build]
+---
 
-Based on my project, generate:
+### Discovery Process (for the AI assistant):
+
+Before choosing any technology or generating any files, interview the user with these questions. Ask them one group at a time. These are designed for people who may not know technical terms.
+
+**Group 1 - What is it?**
+- What does your app do? Describe it like you're explaining to a friend.
+- Who uses it? Just you? Your team? The public?
+- Can you name an existing app that's similar to what you want? (even loosely)
+
+**Group 2 - Where does it run?**
+- Should this work in a web browser? (like Gmail, Twitter)
+- Should this be a phone app? (like Instagram, Uber)
+- Should this be a desktop application? (like Photoshop, Slack desktop)
+- Or some combination?
+
+**Group 3 - What do users do?**
+- Do users need to create accounts and log in?
+- Do users fill out forms or submit data?
+- Do users upload files or images?
+- Do users need to see updates in real time? (like chat, live notifications)
+- Does the app need to work without internet? (offline mode)
+
+**Group 4 - Scale and stage**
+- Is this a personal project, a startup MVP, or an enterprise product?
+- How many users do you expect? (just you, tens, hundreds, thousands, millions)
+- Do you have any tech preferences? (if yes, which ones; if no, that's fine)
+
+### How to translate answers into technical decisions:
+
+Based on the answers, the AI determines:
+
+| Answer | Technical Decision |
+|--------|-------------------|
+| Web browser app | Frontend: web framework (React, Vue, Svelte, etc.) |
+| Phone app | Mobile: React Native, Flutter, or native |
+| Desktop app | Desktop: Electron, Tauri, .NET WPF, or native |
+| Users log in | Auth system needed |
+| Users submit forms | Form system needed |
+| Users upload files | File storage system needed |
+| Real-time updates | WebSocket/SSE needed |
+| Works offline | Offline support needed |
+| Just me / personal | Simple stack, SQLite OK, no scaling concerns |
+| Startup MVP | Modern stack, PostgreSQL, deploy to cloud |
+| Enterprise | Full stack with CI/CD, monitoring, accessibility |
+| Millions of users | Performance and scalability are critical |
+| No tech preferences | AI picks a modern, well-documented stack |
+| Has preferences | AI respects them and fills in the gaps |
+
+### Common proven stacks (for reference):
+
+Web frontend: React + TypeScript + Vite + Tailwind
+Backend API (Node): Node.js + TypeScript + Express + Prisma + PostgreSQL
+Backend API (Python): Python + FastAPI + SQLAlchemy + PostgreSQL
+Backend API (C#): ASP.NET + Entity Framework + SQL Server
+Mobile: React Native + Expo OR Flutter + Dart
+Desktop: Electron + React OR Tauri + Svelte
+
+After discovery, the AI knows: what kind of app, what platforms, what features, what scale. Now it can choose the right stack and proceed to generate References.md.
+
+## Step 3: Generate Project Context
+
+After discovery, the AI generates the project files.
+
+### For a fullstack project (web frontend + backend API):
+
+The AI runs the generation process TWICE - once for the frontend folder using templates/references-frontend.md, and once for the backend folder using templates/references-backend.md. Each endpoint gets its own References.md and feature-tree.md.
+
+### For a single endpoint:
+
+The AI runs once in the project folder, using the matching template (frontend, backend, or mobile).
+
+### Generation Process (for the AI assistant):
+
+---
+
+Read Conventions.md to understand the convention index. Do NOT read all 23 convention docs upfront.
+
+Based on the discovery answers, you now know: what platforms, what features, what scale, and what tech stack.
+
+Generate these files:
 - References.md using the appropriate template from templates/ (references-frontend.md, references-backend.md, or references-mobile.md)
-- feature-tree.md using templates/feature-tree.md (systems listed as "not started", remove systems that don't apply to this project)
+- feature-tree.md using templates/feature-tree.md (systems listed as "not started", remove systems the project doesn't need based on discovery answers)
 - docs/systems/ directory (empty)
 - docs/features/ directory (empty)
 - .gitignore appropriate for the tech stack
@@ -98,21 +151,33 @@ For each foundational system section in References.md:
 2. Read its Research Notes section
 3. Research the current best practices for that convention in the chosen tech stack. If you can do web searches, search for the latest patterns. If not, use your best knowledge and note what should be verified.
 4. Describe HOW the system will be implemented
-5. Report what you found so I can verify
+5. Report what you found so the user can verify
 6. Leave Location fields empty (scaffolding fills them in)
+7. If a system is not needed (based on discovery), remove it from References.md and feature-tree.md
 
 ---
 
-### Example bootstrap conversation:
+### Example bootstrap conversations:
 
-User: "I'm building a todo app. Users can add, complete, and delete todos. React frontend, Node.js backend with a database."
+**Vibe coder with a vague idea:**
 
-AI: "Got it. Let me suggest a tech stack and generate your References.md..."
-(AI reads Conventions.md, reads convention docs one at a time, generates References.md)
+User: "I want to build an app for my restaurant"
 
-User: "Looks good, but we don't need auth for now."
+AI: "Great! Let me ask a few questions to understand what you need..."
+- "What should the app do? Take orders? Show the menu? Let people book tables?"
+- "Should customers use it in a browser or as a phone app?"
+- "Do customers need to create accounts?"
+- ...
 
-AI: "I'll remove the Auth System from feature-tree.md and mark it as not applicable in References.md."
+User: "I just want people to see our menu and book a table online"
+
+AI: "Got it. This is a web app with a frontend for customers and a backend to store menu items and bookings. Users don't need accounts for viewing the menu, but bookings need a simple form. No file uploads, no real-time, no offline needed. I'd recommend React + Node.js. Let me set it up..."
+
+**Developer who knows what they want:**
+
+User: "I'm building a healthcare SaaS. React frontend, SST backend on AWS, Prisma with PostgreSQL, Cognito auth. I know the stack."
+
+AI: "Perfect. Let me generate your References.md with that stack. I'll read through the conventions and set everything up..."
 
 ---
 
