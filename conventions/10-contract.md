@@ -42,5 +42,5 @@ Create a contract system that establishes:
 When bootstrapping this convention:
 - Research contract definition options for the project's stack: API specification formats, shared schema packages, type-safe RPC layers, or code generation tools that produce typed clients from API definitions
 - Research breaking change detection tools that can be integrated into the CI pipeline
-- Research the framework's patterns for generating TypeScript (or equivalent) types from API contracts
+- Research the framework's patterns for generating typed API clients from contracts (code generation from OpenAPI, GraphQL codegen, or equivalent for the language)
 - Establish the response envelope format and document it in References.md

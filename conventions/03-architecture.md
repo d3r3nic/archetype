@@ -10,7 +10,7 @@ Create a layered architecture that establishes:
 - A service layer where all business logic lives. Services are reusable across different entry points (API route, background job, CLI command can all use the same service).
 - A data access layer that abstracts database operations. Features use the data layer, never raw queries.
 - A shared directory for cross-feature code. When logic needs to be used by multiple features, it moves here.
-- Module boundaries enforced through barrel exports. Each module's index file defines what's public. Everything else is private.
+- Module boundaries enforced through public API definitions. Each module exposes a public interface (index file, __init__.py, or language equivalent). Everything else is private.
 
 ## Rules
 

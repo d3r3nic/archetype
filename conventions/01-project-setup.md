@@ -52,5 +52,5 @@ When bootstrapping this convention:
 - Research the framework's recommended project structure. Look for feature-based organization patterns specific to the framework.
 - Research path alias configuration for the framework's build tool. Set up short import paths from the start.
 - Research environment variable validation libraries or patterns for the framework. Find a way to validate all variables at startup with type safety.
-- Research the framework's module system and barrel export patterns. Understand how to define public APIs per module.
+- Research the framework's module system and how to define public APIs per module (barrel exports, __init__.py, namespace files, or language equivalent).
 - Document the folder structure, path aliases, and environment setup in References.md.

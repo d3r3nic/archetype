@@ -31,7 +31,7 @@ Create a state management setup that establishes:
 
 ## Wrong vs Right
 
-- WRONG: a Redux slice that stores users list, loading boolean, and error string, with a thunk that manually fetches, sets loading, stores data, catches errors. Manual cache management.
+- WRONG: a global state store that manually tracks a users list, loading boolean, and error string, with manual fetching logic that sets loading, stores data, and catches errors. Full manual cache management.
 - RIGHT: a server-state hook that declares "I need the users list." The data fetching layer handles loading state, error state, caching, deduplication, and background revalidation automatically.
 - WRONG: three separate pieces of state - items, filteredItems, sortedItems - with effects to keep them synchronized. When items changes, filteredItems updates, then sortedItems updates. Complex, fragile chain.
 - RIGHT: one piece of state (items) and two computed values derived from it. filteredItems and sortedItems are calculated on the fly, not stored.

@@ -34,9 +34,9 @@ Systems to build (order matters - later systems depend on earlier ones):
 ### 1. PROJECT STRUCTURE & TYPES (#1, #7)
 - Folder structure per References.md
 - Path aliases configured
-- TypeScript strict mode configured (if applicable)
+- Strict type checking configured for the language (TypeScript strict, mypy strict, nullable reference types, etc.)
 - Shared types directory created
-- Validation library installed and configured (Zod/Valibot)
+- Validation library installed and configured (Zod, Pydantic, FluentValidation, or language equivalent)
 - Barrel exports pattern established
 - Linting and formatting configured
 
@@ -111,7 +111,7 @@ Systems to build (order matters - later systems depend on earlier ones):
 ### 11. TESTING SETUP (#12, #18)
 - Test runner configured
 - Custom render wrapper with providers [frontend]
-- MSW setup for API mocking
+- Network-level API mocking configured (MSW, WireMock, responses, httptest, or language equivalent)
 - Test data factories
 - Verification command documented in References.md
 

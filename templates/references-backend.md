@@ -10,15 +10,15 @@ API URL: [base URL]
 ## Tech Stack
 
 Runtime: [Node.js / Python / Go / C# / Java / etc.]
-Framework: [Express / Fastify / SST / Serverless / Django / etc.]
-Language: [TypeScript / Python / Go / etc.]
-ORM/DB: [Prisma / TypeORM / Drizzle / SQLAlchemy / etc.]
-Database: [PostgreSQL / MySQL / MongoDB / etc.]
-Validation: [Zod / Joi / etc.]
-Cloud: [AWS / GCP / Azure / etc.]
-Auth: [Cognito / Auth0 / Firebase / custom JWT / etc.]
-Testing: [Vitest / Jest / pytest / etc.]
-Package Manager: [npm / pnpm / pip / go mod / etc.]
+Framework: [Express / Fastify / SST / Django / FastAPI / ASP.NET / Spring Boot / Gin / Rails / etc.]
+Language: [TypeScript / Python / Go / C# / Java / Ruby / Rust / etc.]
+ORM/DB: [Prisma / SQLAlchemy / Django ORM / Entity Framework / GORM / ActiveRecord / Diesel / etc.]
+Database: [PostgreSQL / MySQL / MongoDB / SQLite / SQL Server / etc.]
+Validation: [Zod / Pydantic / FluentValidation / go-playground/validator / Bean Validation / etc.]
+Cloud: [AWS / GCP / Azure / self-hosted / etc.]
+Auth: [Cognito / Auth0 / ASP.NET Identity / Django auth / Firebase / custom JWT / etc.]
+Testing: [Vitest / Jest / pytest / xUnit / go test / RSpec / etc.]
+Package Manager: [npm / pnpm / pip / dotnet / go mod / bundler / cargo / etc.]
 
 ## Commands
 
@@ -46,8 +46,8 @@ Pre-commit hooks: [what runs - lint, format, typecheck]
 ### Project Structure & Types (#1, #7)
 Folder structure: [see Folder Structure section below]
 Path alias: [if applicable]
-Type checking: [e.g., strict mode, mypy, etc.]
-Validation library: [e.g., Zod, Joi, pydantic]
+Type checking: [e.g., TypeScript strict, mypy strict, nullable reference types, etc.]
+Validation library: [e.g., Zod, Pydantic, FluentValidation, go-playground/validator, etc.]
 Shared types: [path to shared type definitions]
 
 ### Handler Pattern & Architecture (#3)
@@ -84,7 +84,7 @@ Migration rules: [e.g., "never run destructive migrations without user approval"
 Usage: [how features access data]
 
 ### Validation (#7)
-Schema location: [e.g., "handlers/{feature}/schemas.ts"]
+Schema location: [e.g., "handlers/{feature}/schemas"]
 Shared primitives: [path to common validators]
 Usage: [how handlers validate input]
 
@@ -116,9 +116,9 @@ Example:
 src/
 ├── handlers/           # Feature code (self-contained)
 │   └── [feature]/
-│       ├── [handler].ts    # Lambda/endpoint handler
-│       ├── schemas.ts      # Zod validation schemas
-│       ├── types.ts        # Feature types
+│       ├── [handler]       # Endpoint handler (thin entry point)
+│       ├── schemas         # Validation schemas
+│       ├── types           # Feature types
 │       ├── services/       # Business logic
 │       └── README.md       # Feature documentation
 │

@@ -35,7 +35,7 @@ Create a type safety foundation that establishes:
 
 - WRONG: a function accepts "any" and accesses properties without checking. Works in development, crashes in production when the API returns a different shape.
 - RIGHT: a function accepts "unknown" and validates it against a schema at the boundary. If the data doesn't match, the error is caught immediately with a clear message.
-- WRONG: a User type defined as a TypeScript interface, and separately a UserSchema defined as a Zod/validation schema, with the same fields listed twice. When a field is added to one, the other is forgotten.
+- WRONG: a User type defined as a type definition, and separately a UserSchema defined as a validation schema, with the same fields listed twice. When a field is added to one, the other is forgotten.
 - RIGHT: a UserSchema defined once in the validation library. The User type is derived from the schema automatically. One source of truth.
 - WRONG: a type error appears. AI adds "as SomeType" to make it go away. The underlying issue remains. It breaks at runtime.
 - RIGHT: a type error appears. The developer investigates why the types don't match, fixes the root cause. The types accurately represent the data.

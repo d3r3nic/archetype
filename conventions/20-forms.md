@@ -8,7 +8,7 @@ Forms are handled through one reusable form system. Validation is schema-based: 
 
 Create a form system that establishes:
 - Integration with a form handling library configured with project defaults
-- Schema-based validation where one schema definition produces both the TypeScript type (or equivalent) and the runtime validation. Never maintain a separate type and a separate validation schema for the same form data.
+- Schema-based validation where one schema definition produces both the type and the runtime validation. Never maintain a separate type definition and a separate validation schema for the same form data.
 - Form field components with built-in error message display, label association, and accessibility. Every field shows its error inline, associated with the field for screen readers.
 - A multi-step wizard pattern with per-step validation for complex forms that would be overwhelming as a single page
 - Unsaved changes detection that warns users when navigating away from a form with modified data
