@@ -10,18 +10,35 @@ Build the foundational systems described in References.md. Run after bootstrap. 
 
 ## Scaffolding Prompt
 
-Use this prompt with your AI assistant:
+## How to Run Scaffolding
+
+The scaffold has 13 steps. Do NOT run all 13 in one AI session. Break into 3 sessions to keep context fresh:
+
+**Session 1: Foundation (steps 0-4)**
+Infrastructure, types, theme, errors, API layer
+
+**Session 2: Core systems (steps 5-9)**
+Database, auth, routing, state, components
+
+**Session 3: Quality & delivery (steps 10-12)**
+Forms, testing, CI/CD
+
+Start each session with: "Read CLAUDE.md, Conventions.md, References.md, and feature-tree.md. Continue scaffolding from step [N]."
+
+## Scaffolding Prompt (start of each session)
 
 ---
 
-Read CLAUDE.md, Conventions.md, and References.md.
+Read CLAUDE.md, Conventions.md, and References.md. Read feature-tree.md to see what's already built.
 
-Build the foundational systems in this order. After each system:
-1. Create the code
-2. Write docs/systems/{system-name}.md using the template below
-3. Update feature-tree.md marking the system as implemented with paths
-4. Verify it works (run build/tests)
-5. Commit (save point)
+Build the foundational systems in order. For each system:
+1. Read the corresponding convention doc
+2. Create the code
+3. Write docs/systems/{system-name}.md using the template below
+4. Update feature-tree.md marking the system as implemented with paths
+5. Update References.md with actual paths (if they differ from the bootstrap plan)
+6. Verify it works (run build/tests)
+7. Commit (save point)
 
 Systems to build (order matters - later systems depend on earlier ones):
 
