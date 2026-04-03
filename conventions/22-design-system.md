@@ -2,47 +2,52 @@
 
 ## Principle
 
-A shared component library is the single source of truth for UI. Features never interact with the underlying UI library directly. All interaction goes through project wrappers that enforce theming and provide a consistent API. The design system is token-first: visual decisions are encoded in tokens before component implementation begins. If the project ever switches UI libraries, only the wrappers change - features don't.
+Do not reinvent the wheel. Use an established, production-grade UI component library as the foundation (MUI, Chakra, Radix, Ant Design, FluentUI, or the framework's equivalent). Configure it with the project's theme (light + dark mode, design tokens, spacing scale). Wrap the components and export them. Features import from the project's wrapper layer, never directly from the UI library.
+
+The design system is not built from scratch with raw HTML and CSS classes. It's an established library, configured per project, wrapped for consistency, and exported as the project's component foundation.
 
 ## Reusable System
 
 Create a design system foundation that establishes:
-- Wrapper components around the UI library that enforce theme token usage, provide a consistent API, and can be swapped without changing feature code
-- A token system as the foundation for all visual values (colors, spacing, typography, shadows, borders) that feeds into the wrapper components
-- A component catalog (documentation site or tool) showing all available components with their variants, sizes, and states so developers and AI can see what already exists before building
-- A deprecation process: when a component is being replaced, mark it deprecated with a migration path and a removal date
+- An established UI component library installed and configured with the project's theme (light and dark mode, design tokens, spacing, typography)
+- Wrapper components around the UI library. The wrappers import from the library, apply theme configuration, enforce consistent API, and re-export. Features only import from the wrappers.
+- The wrapper layer is thin. It configures and re-exports. It does not rebuild components from scratch. The UI library already handles accessibility, keyboard navigation, focus management, responsive behavior, and visual consistency.
+- A component catalog showing all available wrapped components so developers and AI can see what exists before building anything new
+- A deprecation process for components being replaced
 
 ## Rules
 
-- Never import directly from the UI library in feature code. Always use the project's wrapper components. If a wrapper doesn't exist for something you need, create the wrapper first, then use it.
-- Before building any new component, check feature-tree.md and the shared component directory. The component may already exist. AI builds duplicate components at a very high rate because it doesn't check what exists.
-- Token-first: all visual values come from the token system. No hardcoded colors, spacing, or typography in wrapper components.
-- Never install a second UI library for a single widget. If you need a date picker, find one that integrates with the existing UI library or build a wrapper around a standalone one that uses the project's token system. Mixing UI libraries creates visual inconsistency and bundle bloat.
-- When a component is deprecated, announce it, mark it with the language's deprecation annotation, provide a migration path, and remove it after the migration period.
+- Start with an established UI library. Do not build buttons, inputs, modals, dropdowns, tables, or other standard UI components from scratch. These libraries have years of accessibility work, browser testing, and edge case handling built in.
+- Configure the library's theme with the project's design tokens: light mode colors, dark mode colors, spacing scale, typography scale, shadows, border radius. Both themes must work.
+- Wrap every component the project uses. The wrapper imports from the UI library, applies any project-specific defaults, and re-exports. Features import from the wrapper, never from the library directly.
+- The wrapper layer is where theme enforcement happens. If a component needs project-specific styling or defaults, that goes in the wrapper. Features get a clean, consistent API.
+- Before building any new component, check feature-tree.md and the shared component directory. AI builds duplicate components at a very high rate because it doesn't check what exists.
+- Never install a second UI library for a single widget. Find a component within the existing library or find a standalone one that integrates with the project's theme.
 
 ## Violations
 
-- Importing components directly from the UI library in feature code
-- Building a new component without checking if one already exists in the project
-- UI library-specific API patterns leaking into feature code (features should use wrapper APIs, not library-specific APIs)
-- Installing a different UI library for a single component
-- Hardcoded visual values in wrapper components instead of tokens
-- Components in the design system with no documentation showing their variants and usage
+- Building buttons, inputs, modals, or other standard components from scratch with raw HTML and CSS when an established library is available
+- Importing components directly from the UI library in feature code instead of from project wrappers
+- Building a new component without checking if one already exists
+- UI library-specific API patterns leaking into feature code
+- No dark mode support in the UI library configuration
+- Components using hardcoded colors instead of the configured theme
 
 ## Wrong vs Right
 
-- WRONG: feature code imports Button directly from the UI library. 50 features import directly. The project wants to switch UI libraries. 50 features need rewriting.
-- RIGHT: feature code imports Button from the project's wrapper layer. The wrapper imports from the UI library internally. Switching libraries means updating the wrappers only. Zero feature code changes.
-- WRONG: AI is asked to build a feature with a modal. It creates a new Modal component in the feature directory without checking. The project already has a Modal in the shared component library.
-- RIGHT: AI reads feature-tree.md, sees Modal exists in the shared components. Uses the existing Modal with appropriate configuration.
-- WRONG: the project uses one UI library for everything, but a developer installs a different library for a date picker. Now the date picker looks slightly different from everything else, and the bundle is bigger.
-- RIGHT: the developer finds a date picker that works with the existing UI library, or wraps a standalone date picker in the project's token system so it matches visually.
+- WRONG: building a Button component from scratch with Tailwind classes, manually handling focus states, hover states, disabled states, keyboard interaction. Reinventing what MUI/Chakra already provides.
+- RIGHT: installing MUI (or equivalent), configuring its theme with the project's design tokens (light + dark), wrapping MUI Button with project defaults, exporting it. One line of config vs 50 lines of custom code.
+- WRONG: feature code imports Button directly from the UI library. 50 features import directly. Switching libraries means rewriting 50 features.
+- RIGHT: feature code imports Button from the project's wrapper layer. Switching libraries means updating the wrappers only. Zero feature code changes.
+- WRONG: the UI library is configured with light mode only. Someone asks for dark mode later. Every component needs manual dark mode colors added.
+- RIGHT: the UI library is configured with light AND dark themes from day one. The theme system handles switching. Components adapt automatically.
 
 ## Research Notes
 
 When bootstrapping this convention:
-- Research the UI library's wrapping patterns. How do you create thin wrappers that pass through all props while enforcing theme tokens?
-- Research component catalog tools for the framework (tools that display all components with their variants for browsing and testing)
-- Research the UI library's token/theming integration for building token-first wrappers
-- Research the framework's approach to tree-shaking UI library components (importing only what's used)
-- Document the wrapper location, import conventions, available components, and catalog URL in References.md
+- Research the most established, production-grade UI component library for the chosen framework. Pick one with: built-in accessibility, theme customization (light + dark), comprehensive component set, active maintenance, large community.
+- Research how to configure the library's theme system with custom design tokens. Set up both light and dark themes.
+- Research the library's recommended wrapping patterns. How do you create thin wrappers that pass through all props while applying project defaults?
+- Research the library's tree-shaking support so only used components are included in the bundle.
+- Configure both light and dark themes before wrapping any components. The theme must work end-to-end before features start.
+- Document the UI library choice, wrapper location, import conventions, available components, and theme configuration in References.md.

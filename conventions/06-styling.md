@@ -4,23 +4,26 @@
 
 All visual values flow from a single theme system. No color, spacing, shadow, typography, or dimension value is ever written directly in code. A design token hierarchy ensures consistency and enables theming, dark mode, and responsive behavior from one source of truth. AI hardcodes visual values constantly - this convention prevents it.
 
+The theme ALWAYS supports light and dark mode. This is not optional. Dark mode is a production requirement, not a nice-to-have. The theme system detects the user's system preference and allows manual override.
+
 ## Reusable System
 
-Create a theme system that establishes:
-- Design tokens organized in layers: primitive tokens (raw values like specific hex colors), semantic tokens (role-based names like "text-primary" that reference primitives), and component tokens (scoped to specific components)
-- A theme object or token file as the single source of truth for all visual values: colors, spacing scale, typography scale, shadow scale, z-index scale, breakpoint scale
-- Wrapper components or utilities that enforce theme usage so features cannot bypass the theme
-- Dark mode support through semantic tokens that swap values based on theme, not through duplicated color definitions
+Create a production-grade theme system that establishes:
+- Design tokens organized in layers: primitive tokens (raw values like specific hex colors), semantic tokens (role-based names like "text-primary" that reference primitives), and component tokens (scoped to specific components). Semantic tokens swap between light and dark mode automatically.
+- A theme object as the single source of truth: colors (with light and dark variants), spacing scale, typography scale, shadow scale, z-index scale, breakpoint scale
+- Light and dark themes defined through semantic token swapping. Components never reference light or dark values directly. They reference semantic tokens ("text-primary", "bg-surface") that resolve differently based on the active theme.
+- System preference detection for initial theme (prefers-color-scheme) with user override stored persistently
 - A consistent spacing scale based on a base unit (typically 4px: 4, 8, 12, 16, 24, 32, 48, 64)
 - A consistent typography scale with paired line heights for each size
-- A z-index scale with named levels (dropdown, sticky, overlay, modal, popover, toast, tooltip) so z-index values are never arbitrary numbers
+- A z-index scale with named levels (dropdown, sticky, overlay, modal, popover, toast, tooltip)
 
 ## Rules
 
-- Never hardcode colors anywhere. Always reference theme tokens.
-- Never hardcode spacing or dimensions in component code. Extract to named constants or use the theme's spacing scale.
-- Never use arbitrary z-index values. Always use the named z-index scale.
+- Never hardcode colors anywhere. Always reference semantic theme tokens.
+- Never hardcode spacing or dimensions in component code. Use the theme's spacing scale.
+- Never use arbitrary z-index values. Use the named z-index scale.
 - Name tokens by role, not by value. "text-primary" not "gray-900." Roles stay the same across themes, values change.
+- Dark mode is always implemented. Not optional. Detect system preference, allow user override, persist the choice.
 - Mobile-first responsive design: base styles for small screens, progressively enhance for larger screens.
 - Respect user preferences: honor system dark mode preference and reduced motion preference.
 - All interactive elements must have adequate touch target size for mobile (minimum 44x44 points).
@@ -28,27 +31,27 @@ Create a theme system that establishes:
 ## Violations
 
 - Any hardcoded color value (hex, rgb, rgba, hsl) anywhere in component or style code
-- Hardcoded pixel values for spacing (padding: 16px) instead of using the spacing scale
-- Arbitrary z-index values (z-index: 9999) instead of using the named scale
-- Different spacing values used inconsistently across components (12px here, 14px there, 15px elsewhere)
+- Hardcoded pixel values for spacing instead of using the spacing scale
+- Arbitrary z-index values instead of using the named scale
+- No dark mode support (light-only theme)
 - Dark mode implemented by duplicating color values instead of swapping semantic tokens
-- Fixed breakpoint values scattered across files instead of using the breakpoint scale
+- Components referencing "gray-50" or "red-600" directly instead of semantic tokens like "bg-surface" or "color-error"
 
 ## Wrong vs Right
 
-- WRONG: a component with color "#333", padding "16px", z-index "9999" hardcoded directly in it. Change the theme and this component doesn't update.
-- RIGHT: the component references "text-primary" for color, spacing scale value "4" for padding, and "modal" from the z-index scale. Change the theme and everything updates.
-- WRONG: dark mode implemented by adding separate dark color values throughout the codebase. Every new component needs both light and dark colors manually added.
-- RIGHT: dark mode implemented by swapping semantic token values. "text-primary" maps to dark gray in light mode and light gray in dark mode. Components don't know or care which mode is active.
-- WRONG: z-index chaos. A dropdown uses 100, then a modal needs 9999, then a toast needs 99999. Numbers keep escalating.
-- RIGHT: a defined z-index scale. Dropdown is level "dropdown" (100), modal is level "modal" (400), toast is level "toast" (600). Clear hierarchy, no escalation.
+- WRONG: a component with color "#333", padding "16px", z-index "9999" hardcoded. Change the theme and this component doesn't update.
+- RIGHT: the component references "text-primary" for color, spacing scale for padding, "modal" from z-index scale. Change the theme and everything updates. Switch to dark mode and the component adapts automatically.
+- WRONG: dark mode implemented by adding separate dark color values throughout the codebase. Every new component needs both light and dark colors manually.
+- RIGHT: dark mode implemented by swapping semantic token values at the theme level. "text-primary" maps to dark gray in light mode and light gray in dark mode. Components don't know or care which mode is active.
+- WRONG: components use Tailwind defaults (gray-50, red-600) or raw color values. These don't change when the theme changes.
+- RIGHT: components use semantic tokens (bg-surface, text-primary, color-error) that are defined in the theme and resolve to different values in light vs dark mode.
 
 ## Research Notes
 
 When bootstrapping this convention:
 - Research the framework's recommended theming approach. How does the framework handle design tokens, theme objects, and dynamic theming?
-- Research CSS methodology options that work with the framework (utility-first, CSS-in-JS, CSS modules, CSS custom properties). Pick one that integrates well with the framework's component model.
-- Research the framework's responsive design patterns. How are breakpoints defined and used? What is the recommended approach for mobile-first styles?
-- Research dark mode implementation patterns for the framework. How do you switch themes without duplicating values?
-- Research the framework's approach to spacing and typography scales
-- Document the theme system location, token structure, wrapper components, and usage patterns in References.md
+- Research the latest and most production-grade approach to theming. Do not reinvent the wheel - use an established UI library's theme system as the foundation.
+- Research dark mode implementation. The theme must support light and dark mode from day one. Detect system preference (prefers-color-scheme), allow manual toggle, persist user choice.
+- Research the framework's responsive design patterns. Mobile-first.
+- Research the latest loading indicator patterns (skeleton screens, shimmer effects, or current best practice - not just spinners)
+- Document the theme system location, token structure, light/dark setup, and usage patterns in References.md

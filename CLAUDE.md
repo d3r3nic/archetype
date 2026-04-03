@@ -9,6 +9,7 @@ Everything is built once, configured for context. → conventions/00-reusability
 - Never build one-off. Use existing systems or build reusable. → conventions/00-reusability.md
 - Never hardcode values that should come from configuration (colors, URLs, timeouts, dimensions, limits). → conventions/06-styling.md, conventions/01-project-setup.md
 - Never import directly from third-party libraries without project wrappers. → conventions/22-design-system.md, conventions/03-architecture.md
+- Never build standard UI components from scratch. Use the established UI library, configured and wrapped. → conventions/22-design-system.md
 - Never scatter error handling. Use the centralized error system. → conventions/08-errors.md
 - Never create ad-hoc API calls. Use the API layer. → conventions/09-api.md
 - Never extract auth from JWT directly. Use the auth utility. → conventions/11-auth-security.md
