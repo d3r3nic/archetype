@@ -1,67 +1,100 @@
 # Archetype - AI Development Framework
 
-A layered knowledge system for AI-assisted software development. Applies to any language, framework, or AI assistant.
+A layered knowledge system for AI-assisted software development. Works with any language, framework, or AI assistant. From vibe coders to production teams.
+
+## Quick Start
+
+```bash
+# Single project (frontend, backend, or mobile):
+git clone https://github.com/d3r3nic/archetype.git my-project
+cd my-project && rm -rf .git libraries/
+
+# Fullstack (separate frontend + backend):
+mkdir my-project && cd my-project
+git clone https://github.com/d3r3nic/archetype.git frontend
+git clone https://github.com/d3r3nic/archetype.git backend
+rm -rf frontend/.git frontend/libraries/ backend/.git backend/libraries/
+```
+
+Then tell your AI assistant:
+
+> Read bootstrap/ONBOARD.md and help me set up this project. I want to build [describe your idea].
+
+The AI will interview you about what you're building, pick the right tech stack for your experience level, and generate your project's References.md and feature-tree.md.
 
 ## How It Works
 
-4 phases. Each phase produces artifacts that the next phase builds on.
+4 phases. Each builds on the previous.
 
 ```
-Phase 1: BOOTSTRAP → onboard a project (tech stack, architecture decisions)
-Phase 2: SCAFFOLD  → build foundational systems (error, theme, API, auth, etc.)
+Phase 1: BOOTSTRAP → AI interviews you, picks tech stack, generates project context
+Phase 2: SCAFFOLD  → builds foundational systems (error, theme, API, auth, DB, etc.)
 Phase 3: DEVELOP   → build features on top of scaffolding
 Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 ```
 
-## Structure
+**You don't need to be a developer.** The discovery process asks plain-English questions ("What does your app do? Who uses it? Should it work in a browser or as a phone app?") and translates your answers into technical decisions.
+
+**The AI adjusts to your experience level.** A bakery owner gets Supabase + Vercel (zero server management). A developer gets managed cloud. An enterprise team gets AWS with full infrastructure control.
+
+## What's Inside
 
 ```
-├── CLAUDE.md                # The enforcer. Rules with redirects to conventions.
-├── Conventions.md            # Index of all conventions with links.
-├── conventions/              # Convention docs (framework-agnostic principles)
-│   ├── 00-reusability.md     # Meta-convention: everything built once
-│   └── 01-22.md              # 22 core conventions
+├── CLAUDE.md                 # 16 enforcement rules with redirects to conventions
+├── Conventions.md             # Index of 23 conventions
+├── conventions/               # 23 framework-agnostic convention docs
+│   ├── 00-reusability.md      # Meta: everything built once, configured for context
+│   ├── 01-22.md               # Project setup, git, architecture, components, state,
+│   │                          # styling, types, errors, API, contract, auth, testing,
+│   │                          # performance, accessibility, CI/CD, documentation,
+│   │                          # context management, verification, steering,
+│   │                          # forms, routing, design system
+│   └── (see Conventions.md)
 │
-├── bootstrap/                # Phase 1: project onboarding
-│   └── ONBOARD.md            # New project + existing project paths
+├── bootstrap/ONBOARD.md       # Phase 1: discovery interview + project setup
+├── scaffolding/SCAFFOLD.md    # Phase 2: build foundational systems in order
+├── development/
+│   ├── DEVELOP.md             # Phase 3: feature development workflow
+│   └── MAINTAIN.md            # Phase 4: audit, tech debt, convention evolution
 │
-├── scaffolding/              # Phase 2: foundational systems
-│   └── SCAFFOLD.md           # Ordered build with verification at each step
+├── libraries/                 # Optional framework-specific references (React, etc.)
 │
-├── development/              # Phase 3 & 4: ongoing work
-│   ├── DEVELOP.md            # Feature development workflow
-│   └── MAINTAIN.md           # Audit, documentation, convention evolution
-│
-└── templates/                # Reusable templates
-    ├── references-frontend.md  # References.md for frontend projects
-    ├── references-backend.md   # References.md for backend projects
-    ├── references-mobile.md    # References.md for mobile projects
-    ├── feature-tree.md         # Feature tree template
+└── templates/
+    ├── references-frontend.md  # Project context template (frontend)
+    ├── references-backend.md   # Project context template (backend)
+    ├── references-mobile.md    # Project context template (mobile)
+    ├── feature-tree.md         # Living project map template
     ├── feature-doc-template.md # Feature documentation template
-    ├── hooks-spec.md           # Hook specifications
-    ├── global-claude.md        # Behavioral rules for ~/.claude/CLAUDE.md
-    └── convention-template.md  # Template for new conventions
+    ├── hooks-spec.md           # Auto-documentation hooks
+    ├── global-claude.md        # Personal behavioral rules (~/.claude/CLAUDE.md)
+    └── convention-template.md  # Template for adding new conventions
 ```
 
-## Per-Project Output
+## What Your Project Gets
+
+After bootstrap and scaffolding, your project has:
 
 ```
 your-project/
-├── CLAUDE.md                # Copied from framework
-├── Conventions.md            # Copied from framework
-├── conventions/              # Copied from framework
-├── References.md             # Generated at bootstrap (project-specific)
-├── feature-tree.md           # Living map, auto-maintained by hooks
+├── CLAUDE.md                 # Enforcer (from framework)
+├── Conventions.md             # Convention index (from framework)
+├── conventions/               # Convention docs (from framework)
+├── References.md              # YOUR project's tech stack, systems, commands
+├── feature-tree.md            # Living map of YOUR systems and features
+├── .env.example               # Required environment variables documented
 ├── docs/
-│   ├── systems/              # Generated at scaffolding (one per foundational system)
-│   └── features/             # Generated during development (one per feature)
-└── src/                      # Your code
+│   ├── systems/               # One doc per foundational system (how to use it)
+│   └── features/              # One doc per feature (what, why, how)
+└── src/
+    ├── shared/                # Foundational systems (error, API, auth, theme, etc.)
+    └── features/              # Feature code (self-contained, plugs into shared)
 ```
 
-## Usage
+## Key Principles
 
-1. Copy framework files into your project (see bootstrap/ONBOARD.md)
-2. Bootstrap (Phase 1) → generates References.md and feature-tree.md
-3. Scaffold (Phase 2) → builds foundational systems with docs
-4. Develop (Phase 3) → build features, maintain feature tree
-5. Maintain (Phase 4) → audit periodically, evolve as needed
+- **Everything built once, configured for context.** One error system, one API layer, one theme, one auth system. Features plug in.
+- **Use established UI libraries.** Don't reinvent buttons and modals. Configure MUI/Chakra/Radix with your theme (light + dark), wrap, export.
+- **Dark mode always.** The theme supports light and dark from day one.
+- **Conventions describe WHAT, not HOW.** The bootstrapping AI researches the latest patterns for your specific tech stack.
+- **Feature tree as living map.** Every system and feature tracked. New AI agents read it to understand the project instantly.
+- **Documentation flows with code.** Not after. System docs, feature docs, and feature tree updated as you build.
