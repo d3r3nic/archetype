@@ -11,6 +11,8 @@ Onboard a project into the framework. Run once at project creation or when adopt
 
 Tell your AI assistant to set up the project. Alternatively, run these commands yourself:
 
+### For a NEW project (full clone):
+
 ```bash
 # Option A: Clone from GitHub
 git clone https://github.com/d3r3nic/archetype.git my-project-name
@@ -28,6 +30,24 @@ git clone https://github.com/d3r3nic/archetype.git frontend
 git clone https://github.com/d3r3nic/archetype.git backend
 rm -rf frontend/.git frontend/libraries/ backend/.git backend/libraries/
 ```
+
+### For an EXISTING project (inject as subfolder):
+
+Use the inject script. It copies the framework into your project as a subfolder without touching any existing files. This is the safe migration path.
+
+```bash
+# Clone the framework somewhere if you don't have it locally
+git clone https://github.com/d3r3nic/archetype.git /tmp/archetype-framework
+
+# Inject into your existing project
+cd /tmp/archetype-framework
+./inject.sh /path/to/your/existing-project
+
+# Default subfolder name is "archetype". To customize:
+./inject.sh /path/to/your/existing-project archetype-migration
+```
+
+After injection, your existing project has a new subfolder (default `archetype/`) containing the framework. Nothing existing was modified. From here, follow the "For an EXISTING project" path in Step 3.
 
 After setup, each project folder has:
 ```

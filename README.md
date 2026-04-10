@@ -4,6 +4,8 @@ A layered knowledge system for AI-assisted software development. Works with any 
 
 ## Quick Start
 
+### New project
+
 ```bash
 # Single project (frontend, backend, or mobile):
 git clone https://github.com/d3r3nic/archetype.git my-project
@@ -15,6 +17,21 @@ git clone https://github.com/d3r3nic/archetype.git frontend
 git clone https://github.com/d3r3nic/archetype.git backend
 rm -rf frontend/.git frontend/libraries/ backend/.git backend/libraries/
 ```
+
+### Existing project (safe migration)
+
+Use the inject script. It copies the framework into a subfolder of your existing project without modifying any existing files.
+
+```bash
+git clone https://github.com/d3r3nic/archetype.git /tmp/archetype
+cd /tmp/archetype
+./inject.sh /path/to/your/existing-project
+
+# Custom subfolder name:
+./inject.sh /path/to/your/existing-project archetype-migration
+```
+
+The framework lands in `your-project/archetype/`. Run the existing-project bootstrap from there.
 
 Then tell your AI assistant:
 
