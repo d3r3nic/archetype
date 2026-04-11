@@ -333,6 +333,9 @@ Examples:
 - Theme helper catalog (available colors, borders, spacings)
 - Quick reference Q&A
 - Topic-based documentation map (which doc to read for which task)
+- External docs index (catalog of every existing /docs/ folder and standalone doc with a one-line description so an AI knows what's in each)
+
+If the existing project has a /docs/ folder with substantial content, ALWAYS create catalogs/external-docs.md cataloging every subfolder and standalone file with a one-line description. The framework's docs/systems/ and docs/features/ are for NEW framework-specific docs - they do not replace the existing /docs/. The catalog makes the existing /docs/ discoverable to a new AI agent.
 
 CATEGORY 4 - Framework-level enforcement rules:
 Rules that should appear in the project's CLAUDE.md enforcer (not just in convention docs). These are direct "never do X" rules. Add them to:
