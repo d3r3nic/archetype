@@ -337,14 +337,64 @@ Examples:
 
 If the existing project has a /docs/ folder with substantial content, ALWAYS create catalogs/external-docs.md cataloging every subfolder and standalone file with a one-line description. The framework's docs/systems/ and docs/features/ are for NEW framework-specific docs - they do not replace the existing /docs/. The catalog makes the existing /docs/ discoverable to a new AI agent.
 
-PART D: Documentation migration and audit (when existing project has /docs/)
+PART D: Documentation discovery, migration, and audit
 
-If the existing project has a /docs/ folder, also COPY (not move, not edit) the existing docs into archetype/docs/ in the framework's structure, and audit each one against the conventions.
+Existing projects often have documentation in many places, not just /docs/. Find ALL of it.
 
-Steps:
-1. For each existing doc in /docs/, COPY it (read original, write copy) into archetype/docs/migrated/ preserving the original folder structure under a /migrated/ subfolder. Original files at /docs/ stay UNTOUCHED.
+Step 1: Discover all documentation in the project. Search for:
+- /docs/ at project root (most common)
+- /documentation/, /doc/, /wiki/, /guides/, /handbook/ (alternative names)
+- README.md files anywhere in the project (not just root)
+- /notes/, /knowledge/, /reference/ (less common)
+- Any *.md files in src/ subdirectories (feature docs)
+- /architecture/, /decisions/, /adr/ (architecture decision records)
+- /docs1/, /docs2/, /old-docs/ (sometimes projects have multiple)
+- Confluence/Notion/external doc URLs referenced from CLAUDE.md or README
+- /HANDOFF.md, /MIGRATION_*.md, /REFACTORING_*.md, /IMPLEMENTATION-*.md at root (these are docs even if not in a folder)
 
-2. Map each migrated doc to a framework convention. For example:
+Use grep or find to locate all .md files in the project (excluding node_modules, .git, dist, build).
+
+Step 2: Categorize what was found:
+- TIER 1 - Architectural/standards docs (folder structures, patterns, conventions): definitely migrate
+- TIER 2 - Feature/system docs (how-to guides, integration guides): definitely migrate
+- TIER 3 - Project history (handoff notes, migration summaries, refactoring proposals): migrate but mark as historical
+- TIER 4 - Outdated/stale docs (clearly references removed code, dated more than a year ago): migrate but flag as stale
+- TIER 5 - Generated/temporary (test reports, build outputs, agent reports): SKIP, do not migrate
+- AMBIGUOUS - Cannot tell if it's relevant: STOP and ASK the user before deciding
+
+Step 3: Present findings to the user BEFORE migrating.
+
+Output a summary:
+```
+Documentation discovery results:
+
+Found in {project root}:
+- /docs/ (12 files, 4 folders) - architectural and standards docs - TIER 1
+- /docs1/ (8 files) - older docs that look like duplicates - AMBIGUOUS
+- /HANDOFF.md - project history - TIER 3
+- /TECHNICAL-DEBT.md - active tracking doc - already extracted in PART B
+- /src/features/patients/docs/ - feature-specific docs - TIER 2
+- /src/shared/offline-mode/integration-docs/ - subsystem docs - TIER 2
+- /MIGRATION_SUMMARY.md - completed migration history - TIER 3
+- /OPTIMISTIC-FOLDER-CREATION.md - feature notes at root - AMBIGUOUS
+
+Plan:
+- Migrate 25 TIER 1-2 docs into archetype/docs/migrated/
+- Migrate 4 TIER 3 docs into archetype/docs/migrated/history/ marked as historical
+- Skip 0 TIER 5 docs
+
+Ambiguous items requiring your decision:
+1. /docs1/ - is this actively used or replaced by /docs/?
+2. /OPTIMISTIC-FOLDER-CREATION.md - is this a current spec or historical notes?
+
+Should I proceed with the plan above? Please answer the ambiguous questions.
+```
+
+Wait for user response before proceeding to step 4.
+
+Step 4: For each doc to migrate, COPY it (read original, write copy) into archetype/docs/migrated/ preserving the original folder structure. Original files stay UNTOUCHED.
+
+Step 5: Map each migrated doc to a framework convention. For example:
    - /docs/01-fundamentals/architecture-overview.md → maps to convention #3 (Architecture)
    - /docs/02-structure/folder-structure.md → maps to convention #1 (Project Setup)
    - /docs/03-state-management/redux-hierarchical-structure.md → maps to convention #5 (State Management)
@@ -352,14 +402,14 @@ Steps:
    - /docs/07-error-handling/* → maps to convention #8 (Errors)
    - /docs/00-factory-pattern/* → maps to convention #0 (Reusability)
 
-3. For each migrated doc, audit it against its convention. Look for:
+Step 6: For each migrated doc, audit it against its convention. Look for:
    - Content that aligns with the convention (good)
    - Content that violates the convention (flag it)
    - Content that doesn't fit any convention (note it)
    - Stale content (refers to removed code, old patterns, deprecated libraries)
    - Conflicts with the project's existing rules (from PART B extraction)
 
-4. Create archetype/docs/audit/{doc-name}.audit.md for each migrated doc with:
+Step 7: Create archetype/docs/audit/{doc-name}.audit.md for each migrated doc with:
    - Source path (where it was copied from)
    - Maps to convention: #N
    - Alignment summary: which parts follow the convention
@@ -367,9 +417,9 @@ Steps:
    - Staleness check: does the doc still match current code?
    - Recommended action: keep as-is, update, deprecate, or merge into another doc
 
-5. Create archetype/docs/audit/SUMMARY.md listing every audited doc with one-line status (clean / minor issues / major issues / stale / orphaned).
+Step 8: Create archetype/docs/audit/SUMMARY.md listing every audited doc with one-line status (clean / minor issues / major issues / stale / orphaned).
 
-6. Update INDEX.md and References.md with the migrated docs and audit results.
+Step 9: Update INDEX.md and References.md with the migrated docs and audit results.
 
 CRITICAL:
 - COPY, do not edit. Original /docs/ stays untouched.
