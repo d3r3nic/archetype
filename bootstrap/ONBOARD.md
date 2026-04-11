@@ -337,6 +337,47 @@ Examples:
 
 If the existing project has a /docs/ folder with substantial content, ALWAYS create catalogs/external-docs.md cataloging every subfolder and standalone file with a one-line description. The framework's docs/systems/ and docs/features/ are for NEW framework-specific docs - they do not replace the existing /docs/. The catalog makes the existing /docs/ discoverable to a new AI agent.
 
+PART D: Documentation migration and audit (when existing project has /docs/)
+
+If the existing project has a /docs/ folder, also COPY (not move, not edit) the existing docs into archetype/docs/ in the framework's structure, and audit each one against the conventions.
+
+Steps:
+1. For each existing doc in /docs/, COPY it (read original, write copy) into archetype/docs/migrated/ preserving the original folder structure under a /migrated/ subfolder. Original files at /docs/ stay UNTOUCHED.
+
+2. Map each migrated doc to a framework convention. For example:
+   - /docs/01-fundamentals/architecture-overview.md → maps to convention #3 (Architecture)
+   - /docs/02-structure/folder-structure.md → maps to convention #1 (Project Setup)
+   - /docs/03-state-management/redux-hierarchical-structure.md → maps to convention #5 (State Management)
+   - /docs/06-styling/* → maps to convention #6 (Styling)
+   - /docs/07-error-handling/* → maps to convention #8 (Errors)
+   - /docs/00-factory-pattern/* → maps to convention #0 (Reusability)
+
+3. For each migrated doc, audit it against its convention. Look for:
+   - Content that aligns with the convention (good)
+   - Content that violates the convention (flag it)
+   - Content that doesn't fit any convention (note it)
+   - Stale content (refers to removed code, old patterns, deprecated libraries)
+   - Conflicts with the project's existing rules (from PART B extraction)
+
+4. Create archetype/docs/audit/{doc-name}.audit.md for each migrated doc with:
+   - Source path (where it was copied from)
+   - Maps to convention: #N
+   - Alignment summary: which parts follow the convention
+   - Violations found: parts that conflict with the convention
+   - Staleness check: does the doc still match current code?
+   - Recommended action: keep as-is, update, deprecate, or merge into another doc
+
+5. Create archetype/docs/audit/SUMMARY.md listing every audited doc with one-line status (clean / minor issues / major issues / stale / orphaned).
+
+6. Update INDEX.md and References.md with the migrated docs and audit results.
+
+CRITICAL:
+- COPY, do not edit. Original /docs/ stays untouched.
+- COPY, do not move. The originals must remain in place.
+- The migrated copies in archetype/docs/migrated/ are the audit targets, not the originals.
+- The audit findings live in archetype/docs/audit/ separately from the migrated copies.
+- A future cleanup phase (not part of bootstrap) will use the audit findings to decide what to fix in the migrated copies.
+
 CATEGORY 4 - Framework-level enforcement rules:
 Rules that should appear in the project's CLAUDE.md enforcer (not just in convention docs). These are direct "never do X" rules. Add them to:
 archetype/CLAUDE.md.additions
