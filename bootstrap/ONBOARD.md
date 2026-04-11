@@ -243,11 +243,15 @@ AI: "Perfect. Let me generate your References.md with that stack. I'll read thro
 
 ### For an EXISTING project:
 
+Existing projects already have rules, protocols, and conventions accumulated over time. The migration must preserve EVERY rule. Nothing gets lost. The bootstrap has TWO parts: (1) scan the codebase, (2) extract every rule from existing instruction files.
+
 Use this prompt with your AI assistant:
 
 ---
 
-Read Conventions.md and all convention docs in conventions/. Then scan this codebase to understand what already exists.
+Read Conventions.md and all convention docs in conventions/. Then scan this codebase to understand what already exists AND extract every rule from the existing instruction files.
+
+PART A: Scan the codebase
 
 How to scan:
 1. Read package.json (or equivalent) to identify the tech stack, dependencies, and available commands
@@ -263,11 +267,91 @@ For each convention (#0-#22), determine:
 3. If partially: what exists and what's missing? Note gaps.
 4. If no: mark as "not started" in feature-tree.md.
 
+PART B: Rule Extraction (CRITICAL - do not skip)
+
+Read EVERY existing instruction file in full:
+- /CLAUDE.md or /Claude.md (the main project rules)
+- Any /docs/ directory with project-specific guides
+- Any /TECHNICAL-DEBT.md, /HANDOFF.md, /MIGRATION_*.md, /REFACTORING_*.md
+- Any .claude/ directory with rules, agents, or commands
+- Any external instruction files referenced from the main CLAUDE.md (follow the pointers)
+
+Extract every rule, protocol, and pattern. Categorize each one:
+
+CATEGORY 1 - Maps to a framework convention (#0-#22):
+For each rule that maps to an existing framework convention, create an override file at:
+archetype/conventions/overrides/{convention-number}-{convention-name}.md
+
+This file documents project-specific deviations or additions to that convention. Format:
+```
+# Convention #N: {Name} - PROJECT OVERRIDES
+
+This file extends conventions/{N}-{name}.md with project-specific rules
+extracted from the existing instruction files. The base convention still
+applies. These are additional project-specific rules.
+
+## Source
+Extracted from: {file paths of original rule sources}
+Migration date: {date}
+
+## Project-Specific Rules
+{Full text of every project-specific rule, with the original wording preserved}
+
+## Code Examples (if any)
+{Original code examples from the source files}
+
+## Critical Production Lessons
+{Bugs that broke production and the rules that prevent them}
+```
+
+CATEGORY 2 - Workflow protocols (audit, breaking change, technical debt, feature development):
+These don't map to a single convention - they are project-wide protocols. Create a file at:
+archetype/protocols/{protocol-name}.md
+
+For each protocol, capture:
+- When it applies
+- Step-by-step process
+- Templates and checklists
+- Examples
+- Reporting format
+
+Common protocols to look for:
+- Feature Audit Protocol
+- Breaking Change Protocol
+- Technical Debt Tracking
+- Critical Workflow for complex tasks
+- Pre-commit checklist
+- Code review process
+
+CATEGORY 3 - Reference catalogs (feature directory, pattern catalog, helper APIs):
+These are reference materials, not rules. Create files at:
+archetype/catalogs/{catalog-name}.md
+
+Examples:
+- Feature directory (every feature with its purpose)
+- Factory pattern reference implementations
+- Theme helper catalog (available colors, borders, spacings)
+- Quick reference Q&A
+- Topic-based documentation map (which doc to read for which task)
+
+CATEGORY 4 - Framework-level enforcement rules:
+Rules that should appear in the project's CLAUDE.md enforcer (not just in convention docs). These are direct "never do X" rules. Add them to:
+archetype/CLAUDE.md.additions
+
+This file contains additional enforcement rules that should be appended to the framework's CLAUDE.md when the user is ready to promote it.
+
 Generate:
-- References.md using the template at templates/references-frontend.md (or references-backend.md), filling in actual paths for systems that already exist
-- feature-tree.md with actual status of each system and all existing features mapped
-- docs/systems/ with a doc for each system that already exists
+- References.md (project context + tech stack + Critical Lessons + Convention Overrides summary)
+- feature-tree.md (all systems and features mapped with status)
+- docs/systems/ with a doc for each foundational system that already exists
 - docs/features/ with a doc for each feature that already exists
+- archetype/conventions/overrides/ with one file per convention that has project-specific rules
+- archetype/protocols/ with one file per workflow protocol found
+- archetype/catalogs/ with one file per reference catalog found
+- archetype/CLAUDE.md.additions with extra enforcement rules
+- MIGRATION-NOTES.md explaining everything that was extracted, where it lives, and how to merge it
+
+CRITICAL: do not summarize. EXTRACT IN FULL. The original wording and detail must be preserved. A developer reading the override files should get the same information as reading the original CLAUDE.md, just organized differently. If the original has 200 lines on the audit protocol, the protocol file has 200 lines. Lossy summarization defeats the purpose.
 
 For existing systems that don't fully match the convention, note the gap under "Convention Overrides" in References.md. Do not change any existing code during bootstrap.
 
@@ -281,14 +365,22 @@ Hooks automatically remind the AI to update documentation and run verification. 
 
 After bootstrap, verify:
 
-- [ ] CLAUDE.md in project root
-- [ ] Conventions.md in project root
-- [ ] conventions/ directory with all convention docs
+- [ ] CLAUDE.md in project root (or in archetype/ subfolder if existing project)
+- [ ] Conventions.md in project root (or in archetype/)
+- [ ] conventions/ directory with all 23 framework convention docs (unmodified)
 - [ ] References.md generated with relevant sections filled (irrelevant systems removed)
 - [ ] feature-tree.md initialized (irrelevant systems removed)
 - [ ] docs/systems/ directory created
 - [ ] docs/features/ directory created
-- [ ] Git initialized with .gitignore
+- [ ] Git initialized with .gitignore (new project only)
+
+For existing projects, additional verification:
+- [ ] conventions/overrides/ directory with project-specific rules per convention
+- [ ] protocols/ directory with workflow protocols extracted from existing files
+- [ ] catalogs/ directory with reference catalogs extracted
+- [ ] CLAUDE.md.additions with extra enforcement rules to merge later
+- [ ] Every rule from the original CLAUDE.md is captured somewhere (not lost in summarization)
+- [ ] MIGRATION-NOTES.md explains where each piece of the original lives now
 
 ## What Bootstrap Does NOT Do
 
