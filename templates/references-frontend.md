@@ -164,3 +164,22 @@ Production bugs and hard-won rules specific to this project:
 Any project-specific deviations from standard conventions:
 
 - [convention #]: [what's different and why]
+
+## Project-Specific Documentation
+
+For existing projects migrated to the framework, additional documentation locations:
+
+### Convention Overrides (per-convention project rules)
+- conventions/overrides/{N}-{name}.md - project-specific rules extending the base conventions
+- (List each override file that exists with a one-line description)
+
+### Workflow Protocols
+- protocols/{name}.md - workflow protocols beyond the base framework
+- (List each protocol with a one-line description, e.g., "feature-audit-protocol.md - mandatory audit before feature work")
+
+### Reference Catalogs
+- catalogs/{name}.md - reference materials for quick lookup
+- (List each catalog, e.g., "feature-directory.md - every feature with its purpose and location")
+
+### Project-Specific Docs
+- (List any links to existing project /docs/ that contain critical information)

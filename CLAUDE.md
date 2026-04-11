@@ -24,3 +24,9 @@ Everything is built once, configured for context. → conventions/00-reusability
 - If uncertain, ask. → conventions/19-steering.md
 
 For project context, commands, and system locations → References.md
+
+If these directories exist (existing projects migrated to the framework), read them too:
+- conventions/overrides/ → project-specific rules that extend the base conventions
+- protocols/ → workflow protocols (audit, breaking change, technical debt, etc.)
+- catalogs/ → reference catalogs (feature directory, pattern library, helper APIs)
+- INDEX.md → map of all project documentation

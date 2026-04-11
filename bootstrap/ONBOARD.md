@@ -353,6 +353,17 @@ Generate:
 
 CRITICAL: do not summarize. EXTRACT IN FULL. The original wording and detail must be preserved. A developer reading the override files should get the same information as reading the original CLAUDE.md, just organized differently. If the original has 200 lines on the audit protocol, the protocol file has 200 lines. Lossy summarization defeats the purpose.
 
+PART C: Cross-reference everything
+
+After extraction, update References.md to LIST every file you created. The "Project-Specific Documentation" section in References.md must enumerate:
+- Every file in conventions/overrides/ with a one-line description
+- Every file in protocols/ with a one-line description
+- Every file in catalogs/ with a one-line description
+
+Also create archetype/INDEX.md as a master map of every file in the archetype/ subfolder, organized by category. A new AI agent reading INDEX.md should be able to find ANY rule, protocol, or pattern in 2 hops.
+
+Verification: walk through the original CLAUDE.md from top to bottom. For each section, identify which extracted file it lives in now. If any section has no destination, that's a bug - go back and extract it.
+
 For existing systems that don't fully match the convention, note the gap under "Convention Overrides" in References.md. Do not change any existing code during bootstrap.
 
 ---

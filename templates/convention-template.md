@@ -31,3 +31,7 @@ When bootstrapping this convention, research:
 - [What to look for in the chosen framework]
 - [What questions the agent should answer]
 - [What to document in References.md]
+
+## Project Overrides
+
+If a file exists at conventions/overrides/{N}-{name}.md, read it. It contains project-specific rules that extend or refine this base convention. The base convention always applies. The override file adds project-specific detail.
