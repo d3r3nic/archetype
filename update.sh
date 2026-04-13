@@ -193,6 +193,35 @@ All convention docs, templates, and phase guides live in this subfolder.
 References.md and feature-tree.md are project-specific and never overwritten by updates.
 EOF
 
+# Step 8: Append to VERSION-LOG.md
+VERSION_LOG="$ARCHETYPE_DIR/VERSION-LOG.md"
+if [ ! -f "$VERSION_LOG" ]; then
+  cat > "$VERSION_LOG" << VEOF
+# Version Log
+
+Records which framework version was used and when updates were applied.
+This file is managed by update.sh. Do not edit manually.
+
+## Bootstrap
+
+Date: unknown (pre-versioning)
+Source: $FRAMEWORK_REPO
+
+## Updates
+VEOF
+fi
+
+# Get the latest commit hash from the cloned repo
+LATEST_HASH=$(git -C "$TEMP_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+# Append update entry
+echo "" >> "$VERSION_LOG"
+echo "### $(date +%Y-%m-%d)" >> "$VERSION_LOG"
+echo "Commit: $LATEST_HASH" >> "$VERSION_LOG"
+echo "Source: $FRAMEWORK_REPO" >> "$VERSION_LOG"
+echo "Updated by: update.sh" >> "$VERSION_LOG"
+echo "  updated: VERSION-LOG.md"
+
 # Cleanup
 rm -rf "$TEMP_DIR"
 

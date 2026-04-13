@@ -62,8 +62,31 @@ for item in Conventions.md README.md conventions bootstrap scaffolding developme
   fi
 done
 
-# Copy inject.sh itself so the project can re-inject updates later
+# Copy inject.sh and update.sh so the project can update later
 cp "$FRAMEWORK_DIR/inject.sh" "$DEST/inject.sh" 2>/dev/null || true
+cp "$FRAMEWORK_DIR/update.sh" "$DEST/update.sh" 2>/dev/null || true
+chmod +x "$DEST/inject.sh" "$DEST/update.sh" 2>/dev/null || true
+
+# Create VERSION-LOG.md
+LATEST_HASH=$(git -C "$FRAMEWORK_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+cat > "$DEST/VERSION-LOG.md" << VEOF
+# Version Log
+
+Records which framework version was used and when updates were applied.
+This file is managed by update.sh. Do not edit manually.
+
+## Bootstrap
+
+Date: $(date +%Y-%m-%d)
+Source: https://github.com/d3r3nic/archetype
+Commit: $LATEST_HASH
+Method: inject.sh
+
+## Updates
+
+(none yet - run ./update.sh to pull latest framework)
+VEOF
+echo "  created: $SUBFOLDER_NAME/VERSION-LOG.md"
 
 # Create empty docs directories the project will populate
 mkdir -p "$DEST/docs/systems" "$DEST/docs/features"
