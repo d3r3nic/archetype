@@ -90,3 +90,17 @@ Implementation concept:
 - Blocking hooks: only for verification (build/test must pass before completion)
 - Advisory hooks: documentation updates, feature tree updates, audit reminders
 - Hooks are configured in .claude/settings.json (for Claude Code) or equivalent for other AI tools
+
+## How to Set Up Hooks
+
+Hooks are tool-specific. The AI assistant can help you set them up if you ask.
+
+For Claude Code: tell the AI "Set up the hooks from archetype/templates/hooks-spec.md. Create .claude/settings.json with the hook configuration." The AI will create the settings file and any hook scripts needed.
+
+For Cursor: tell the AI "Set up automated checks based on archetype/templates/hooks-spec.md using Cursor's hook system."
+
+For other tools: tell the AI "I want automated reminders after code changes to update docs and feature-tree. What does my AI tool support?"
+
+If your AI tool doesn't support hooks, skip this step. The conventions still work through the CLAUDE.md enforcer (~80% compliance). Hooks add deterministic enforcement but are not required.
+
+Setting up hooks is optional during bootstrap. You can add them at any time by asking the AI to read this spec and wire it up.

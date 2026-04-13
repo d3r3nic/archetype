@@ -1,7 +1,9 @@
 #!/bin/bash
 # Archetype Framework Injection Script
-# Copies the framework into a target project as a subfolder.
-# Does not modify any existing project files.
+# Injects the framework into a target project.
+# CLAUDE.md goes to project root (Claude Code auto-reads it).
+# Everything else goes in a subfolder.
+# Does not overwrite existing files without asking.
 
 set -e
 
@@ -36,36 +38,67 @@ fi
 echo "Archetype Framework Injection"
 echo "============================="
 echo "Source: $FRAMEWORK_DIR"
-echo "Target: $DEST"
+echo "Target: $TARGET_DIR"
+echo "Subfolder: $SUBFOLDER_NAME/"
 echo ""
 
+# Step 1: CLAUDE.md goes to PROJECT ROOT (Claude Code auto-reads it from here)
+if [ -f "$TARGET_DIR/CLAUDE.md" ] || [ -f "$TARGET_DIR/Claude.md" ]; then
+  echo "  CLAUDE.md already exists at project root."
+  echo "  Archiving existing as CLAUDE.md.pre-archetype"
+  cp "$TARGET_DIR/CLAUDE.md" "$TARGET_DIR/CLAUDE.md.pre-archetype" 2>/dev/null || \
+  cp "$TARGET_DIR/Claude.md" "$TARGET_DIR/CLAUDE.md.pre-archetype" 2>/dev/null
+fi
+cp "$FRAMEWORK_DIR/CLAUDE.md" "$TARGET_DIR/CLAUDE.md"
+echo "  copied: CLAUDE.md → project root (auto-loaded by Claude Code)"
+
+# Step 2: Everything else goes in the subfolder
 mkdir -p "$DEST"
 
-# Copy framework files (skip git, node_modules, libraries, the inject script itself)
-for item in CLAUDE.md Conventions.md README.md conventions bootstrap scaffolding development templates; do
+for item in Conventions.md README.md conventions bootstrap scaffolding development templates; do
   if [ -e "$FRAMEWORK_DIR/$item" ]; then
     cp -R "$FRAMEWORK_DIR/$item" "$DEST/"
-    echo "  copied: $item"
+    echo "  copied: $item → $SUBFOLDER_NAME/"
   fi
 done
 
+# Copy inject.sh itself so the project can re-inject updates later
+cp "$FRAMEWORK_DIR/inject.sh" "$DEST/inject.sh" 2>/dev/null || true
+
 # Create empty docs directories the project will populate
 mkdir -p "$DEST/docs/systems" "$DEST/docs/features"
-echo "  created: docs/systems/"
-echo "  created: docs/features/"
+echo "  created: $SUBFOLDER_NAME/docs/systems/"
+echo "  created: $SUBFOLDER_NAME/docs/features/"
+
+# Create a pointer file so the project knows where the framework came from
+cat > "$DEST/FRAMEWORK-SOURCE.md" << EOF
+# Framework Source
+
+This archetype/ folder was injected from the Archetype AI Development Framework.
+
+Source repo: https://github.com/d3r3nic/archetype
+Injected on: $(date +%Y-%m-%d)
+
+To update the framework files, re-run the inject script:
+  cd /path/to/archetype-repo
+  ./inject.sh "$TARGET_DIR" $SUBFOLDER_NAME
+
+The CLAUDE.md at the project root is the enforcer.
+All convention docs, templates, and phase guides live in this subfolder.
+References.md and feature-tree.md are generated during bootstrap.
+EOF
+echo "  created: $SUBFOLDER_NAME/FRAMEWORK-SOURCE.md"
 
 echo ""
-echo "Framework injected at: $DEST"
+echo "Done. CLAUDE.md is at the project root. Framework files are in $SUBFOLDER_NAME/."
 echo ""
 echo "Next steps:"
 echo "  1. cd $TARGET_DIR"
 echo "  2. Tell your AI assistant:"
 echo ""
-echo "     Read $SUBFOLDER_NAME/bootstrap/ONBOARD.md and follow the existing"
-echo "     project path. Scan this codebase, generate References.md and"
-echo "     feature-tree.md inside $SUBFOLDER_NAME/. Do not modify any existing"
-echo "     project files."
+echo "     Read CLAUDE.md, then read $SUBFOLDER_NAME/bootstrap/ONBOARD.md."
+echo "     Follow the bootstrap process for this project."
 echo ""
-echo "  3. Once the AI generates the framework files inside $SUBFOLDER_NAME/,"
-echo "     review them. When ready to promote them to the project root,"
-echo "     archive your old CLAUDE.md and copy the new framework files up."
+echo "  3. The AI will generate References.md and feature-tree.md."
+echo "     For existing projects it will also extract rules from any"
+echo "     existing instruction files."
