@@ -210,3 +210,22 @@ This scaffolding is REUSABLE. Projects with the same tech stack can start from t
 ## Scaffolding Documentation
 
 Every decision made during scaffolding that deviates from the conventions or makes a stack-specific choice is recorded in References.md under "Convention Overrides."
+
+## Log the Scaffold
+
+After scaffolding completes, append to VERSION-LOG.md:
+
+```
+## Scaffold
+
+Date: [today's date]
+Session(s): [how many sessions it took]
+Systems built:
+- [system name] → [location] (convention #N)
+- [system name] → [location] (convention #N)
+- ...
+Systems skipped: [which ones and why]
+Dependencies installed: [key packages added]
+Conventions read: [which convention docs were read during scaffolding]
+Verification: [build passes / tests pass / typecheck passes]
+```

@@ -487,6 +487,33 @@ For existing projects, additional verification:
 - [ ] Every rule from the original CLAUDE.md is captured somewhere (not lost in summarization)
 - [ ] MIGRATION-NOTES.md explains where each piece of the original lives now
 
+## Step 5: Log the Bootstrap
+
+After bootstrap completes, update VERSION-LOG.md (in the archetype/ folder) to record what was done. If VERSION-LOG.md doesn't exist, create it.
+
+Append a bootstrap entry:
+
+```
+## Bootstrap
+
+Date: [today's date]
+Type: [new project / existing project migration]
+Tech stack: [the tech stack chosen]
+Files generated:
+- References.md ([word count] words)
+- feature-tree.md ([number of systems] systems, [number of features] features)
+- [for existing projects] conventions/overrides/ ([number] files)
+- [for existing projects] protocols/ ([number] files)
+- [for existing projects] catalogs/ ([number] files)
+- [for existing projects] docs/migrated/ ([number] files copied)
+- [for existing projects] docs/audit/ ([number] audits, [summary: clean/minor/major/stale])
+Conventions read during bootstrap: [list which convention docs were read]
+Discovery questions asked: [list questions asked and answers received]
+Key decisions made: [any tech stack choices, systems included/excluded, overrides noted]
+```
+
+This log ensures a future AI or developer can see exactly what happened during bootstrap, what was generated, and what decisions were made.
+
 ## What Bootstrap Does NOT Do
 
 - Does not create code or foundational systems (Phase 2: Scaffold)
