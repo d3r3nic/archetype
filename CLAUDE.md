@@ -45,3 +45,6 @@ Everything is built once, configured for context. Before building anything, chec
 - Update docs when changing features. → conventions/16-documentation.md
 
 For project context, commands, and system locations → References.md
+
+If this is a backend project, also read backend/CLAUDE.md and scan backend/Conventions.md.
+If this is a frontend project, also read frontend/CLAUDE.md and scan frontend/Conventions.md (when available).
