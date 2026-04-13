@@ -1,10 +1,22 @@
 # Rules
 
-Before any work: read Conventions.md then References.md
+Do not assume you remember conventions from a previous session. Re-read what's relevant every time.
 
-Everything is built once, configured for context. → conventions/00-reusability.md
+## Before Any Work
+
+1. Read References.md and feature-tree.md (always — these are project context)
+2. Scan Conventions.md to identify which conventions apply to the current task (it's a lookup index, not a reading list — read ONLY the relevant convention docs, not all 23)
+3. If conventions/overrides/, protocols/, or catalogs/ directories exist, check for project-specific rules relevant to the task
+
+## Before Writing Code
+
+Identify which conventions apply to your task. Read those specific convention docs. If the task touches UI, read #4, #6, #14, #22. If it touches API, read #9, #10, #8. If it touches auth, read #11. Convention #0 (reusability) and #3 (architecture) apply to every task.
+
+Do not skip this step. Do not write code based on the enforcement rules alone — they catch mistakes but don't explain how the systems work. The convention docs do.
 
 ## Enforcement
+
+Everything is built once, configured for context. → conventions/00-reusability.md
 
 - Never build one-off. Use existing systems or build reusable. → conventions/00-reusability.md
 - Never hardcode values that should come from configuration (colors, URLs, timeouts, dimensions, limits). → conventions/06-styling.md, conventions/01-project-setup.md
@@ -24,9 +36,3 @@ Everything is built once, configured for context. → conventions/00-reusability
 - If uncertain, ask. → conventions/19-steering.md
 
 For project context, commands, and system locations → References.md
-
-If these directories exist (existing projects migrated to the framework), read them too:
-- conventions/overrides/ → project-specific rules that extend the base conventions
-- protocols/ → workflow protocols (audit, breaking change, technical debt, etc.)
-- catalogs/ → reference catalogs (feature directory, pattern library, helper APIs)
-- INDEX.md → map of all project documentation
