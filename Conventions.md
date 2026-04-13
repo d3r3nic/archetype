@@ -12,6 +12,7 @@ This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFO
 | UI component work | #4, #6, #22 | #14 (accessibility) |
 | Forms | #20, #4, #6 | #7 (validation schemas) |
 | API / data fetching | #9, #10, #8 | #7 (response types) |
+| Database / migrations | #3, #1 | #7 (model types), #2 (migration commits) |
 | Auth / security | #11 | #21 (route guards) |
 | State management | #5 | #9 (server state) |
 | Styling / theming | #6, #22 | #14 (color contrast) |

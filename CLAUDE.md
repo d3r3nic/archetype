@@ -22,8 +22,9 @@ Do not skip this step. Do not write code based on the enforcement rules alone �
 
 ## Enforcement
 
-Everything is built once, configured for context. → conventions/00-reusability.md
+Everything is built once, configured for context. Before building anything, check what exists. If a system exists, use it and configure it for your context. If not, build it as a reusable service, not a one-off. → conventions/00-reusability.md
 
+- If uncertain, ask. Do not guess, do not assume. → conventions/19-steering.md
 - Never build one-off. Use existing systems or build reusable. → conventions/00-reusability.md
 - Never hardcode values that should come from configuration (colors, URLs, timeouts, dimensions, limits). → conventions/06-styling.md, conventions/01-project-setup.md
 - Never import directly from third-party libraries without project wrappers. → conventions/22-design-system.md, conventions/03-architecture.md
@@ -34,11 +35,13 @@ Everything is built once, configured for context. → conventions/00-reusability
 - Never use `any` type. Use unknown and narrow. → conventions/07-types.md
 - Never hardcode secrets or environment-specific values. → conventions/01-project-setup.md
 - Never skip verification after changes. Run tests/build. → conventions/18-verification.md
+- Commit after every verified change. Each commit is a rollback point. → conventions/02-git.md
 - Never start multi-file changes without a plan. → conventions/19-steering.md
 - Never modify existing systems without permission. → conventions/19-steering.md
+- Never modify CLAUDE.md, Conventions.md, or convention docs without explicit permission.
 - Read feature-tree.md before building anything new. Check what already exists.
+- Search the codebase for existing implementations before building. feature-tree.md may be stale — the code is the source of truth.
 - Update feature-tree.md when adding or modifying features.
 - Update docs when changing features. → conventions/16-documentation.md
-- If uncertain, ask. → conventions/19-steering.md
 
 For project context, commands, and system locations → References.md
