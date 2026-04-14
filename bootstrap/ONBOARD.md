@@ -54,7 +54,7 @@ After setup, each project folder has:
 your-project/
 ├── CLAUDE.md          # the enforcer
 ├── Conventions.md     # convention index
-├── conventions/       # 23 convention docs
+├── conventions/       # 25 convention docs
 ├── bootstrap/         # this file
 ├── scaffolding/       # scaffold guide
 ├── development/       # develop + maintain guides
@@ -194,7 +194,7 @@ The AI runs once in the project folder, using the matching template (frontend, b
 
 ---
 
-Read Conventions.md to understand the convention index. Do NOT read all 23 convention docs upfront.
+Read Conventions.md to understand the convention index. Do NOT read all 25 convention docs upfront.
 
 Based on the discovery answers, you now know: what platforms, what features, what scale, and what tech stack.
 
@@ -472,7 +472,7 @@ After bootstrap, verify:
 
 - [ ] CLAUDE.md in project root (or in archetype/ subfolder if existing project)
 - [ ] Conventions.md in project root (or in archetype/)
-- [ ] conventions/ directory with all 23 framework convention docs (unmodified)
+- [ ] conventions/ directory with all 25 framework convention docs (unmodified)
 - [ ] References.md generated with relevant sections filled (irrelevant systems removed)
 - [ ] feature-tree.md initialized (irrelevant systems removed)
 - [ ] docs/systems/ directory created

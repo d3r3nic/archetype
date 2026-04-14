@@ -1,6 +1,6 @@
 # Conventions
 
-This is a LOOKUP INDEX. Do not read all 23 convention docs. Scan this list, identify the 2-4 conventions relevant to your current task, and read only those.
+This is a LOOKUP INDEX. Do not read all 25 convention docs. Scan this list, identify the 2-4 conventions relevant to your current task, and read only those.
 
 This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFOLD.md) → Develop (DEVELOP.md) → Maintain (MAINTAIN.md).
 

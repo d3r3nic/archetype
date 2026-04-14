@@ -57,15 +57,15 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 ## What's Inside
 
 ```
-├── CLAUDE.md                 # 16 enforcement rules with redirects to conventions
-├── Conventions.md             # Index of 23 conventions
-├── conventions/               # 23 framework-agnostic convention docs
+├── CLAUDE.md                 # 21 enforcement rules with redirects to conventions
+├── Conventions.md             # Index of 25 conventions
+├── conventions/               # 25 framework-agnostic convention docs
 │   ├── 00-reusability.md      # Meta: everything built once, configured for context
-│   ├── 01-22.md               # Project setup, git, architecture, components, state,
-│   │                          # styling, types, errors, API, contract, auth, testing,
-│   │                          # performance, accessibility, CI/CD, documentation,
+│   ├── 01-24.md               # Project setup, git, architecture, components, state,
+│   │                          # styling, types, errors, API, contract, authentication,
+│   │                          # testing, performance, accessibility, CI/CD, documentation,
 │   │                          # context management, verification, steering,
-│   │                          # forms, routing, design system
+│   │                          # forms, routing, design system, app security, authorization
 │   └── (see Conventions.md)
 │
 ├── bootstrap/ONBOARD.md       # Phase 1: discovery interview + project setup
