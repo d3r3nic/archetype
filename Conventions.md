@@ -13,7 +13,10 @@ This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFO
 | Forms | #20, #4, #6 | #7 (validation schemas) |
 | API / data fetching | #9, #10, #8 | #7 (response types) |
 | Database / migrations | #3, #1 | #7 (model types), #2 (migration commits) |
-| Auth / security | #11 | #21 (route guards) |
+| Auth (identity) | #11 | #21 (route guards) |
+| Permissions / access control | #24, #11 | #3 (architecture) |
+| Input validation / security | #23, #7 | #10 (contracts) |
+| Security review | #23, #24, #11 | #15 (deps scanning) |
 | State management | #5 | #9 (server state) |
 | Styling / theming | #6, #22 | #14 (color contrast) |
 | Testing | #12, #18 | |
@@ -45,7 +48,11 @@ Everything built once, configured for context. Governs how all other conventions
 ### Data
 - #9 API Integration — centralized API layer, caching, data fetching → conventions/09-api.md
 - #10 Frontend-Backend Contract — shared types, generated clients, contract testing → conventions/10-contract.md
-- #11 Auth & Security — centralized auth, token management, security rules → conventions/11-auth-security.md
+- #11 Authentication — centralized auth identity, token management, provider wrapping → conventions/11-auth-security.md
+
+### Security
+- #23 Application Security — OWASP, input validation, CORS/CSRF, headers, encryption, audit logging → conventions/23-app-security.md
+- #24 Authorization — RBAC/ABAC, service-layer enforcement, object access checks → conventions/24-authorization.md
 
 ### Quality
 - #12 Testing — TDD, behavior testing, shared test utilities → conventions/12-testing.md

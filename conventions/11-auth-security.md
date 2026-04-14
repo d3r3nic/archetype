@@ -1,8 +1,11 @@
-# Convention #11: Auth & Security
+# Convention #11: Authentication
+
+For authorization (permissions, RBAC, access checks), see convention #24.
+For application security (OWASP, CORS, encryption, headers), see convention #23.
 
 ## Principle
 
-Authentication and security are handled through one centralized system. Features never implement their own auth logic, token management, or security checks. The auth system handles identity, the authorization layer handles permissions, and security rules are enforced at the infrastructure level, not scattered across features. AI generates 2.74x more security vulnerabilities than human code - security rules must be explicit.
+Authentication is handled through one centralized system. Features never implement their own auth logic or token management. The auth system handles identity: who is this user? A single auth utility is the ONLY way to get the authenticated user. Features call this utility, never parse tokens or read cookies directly.
 
 ## Reusable System
 
@@ -45,12 +48,25 @@ Create an auth and security system that establishes:
 - WRONG: tokens stored in localStorage. A third-party script (analytics, ad tracker) on the page can read them.
 - RIGHT: tokens stored in httpOnly cookies that JavaScript cannot access. The browser sends them automatically on requests.
 
+## Common Auth Providers
+
+The framework doesn't prescribe a specific provider. Bootstrap picks based on your context:
+
+- Supabase Auth: bundled with Supabase DB, drop-in for small teams, generous free tier
+- Clerk: best React developer experience, fast setup, usage-based pricing
+- Auth0: mature, enterprise features, expensive at scale
+- AWS Cognito: AWS-native, cheap at scale, rougher developer experience, HIPAA eligible
+- Firebase Auth: Google ecosystem, good for mobile
+- ASP.NET Identity / Django auth: framework-native, no external dependency
+- Custom JWT: only if you truly know why. Most teams should not build their own auth.
+
+Whatever you choose, wrap it in a project auth utility per this convention's Rules section. Features never import the provider's SDK directly.
+
 ## Research Notes
 
 When bootstrapping this convention:
-- Research the framework's recommended authentication patterns. How should tokens be stored securely? How should silent refresh work?
-- Research the framework's authorization patterns. Where should permission checks happen? How do you protect routes or endpoints?
-- Research security header configuration for the framework's deployment target (content security policy, strict transport security, CORS)
-- Research input validation and sanitization libraries for the framework
-- Research file handling security patterns (presigned URLs, upload verification)
-- Document the auth utility, token strategy, route protection, and authorization patterns in References.md. Include any production lessons about identity (provider ID vs database ID).
+- Research auth providers suitable for the project's scale, compliance needs, and team experience
+- Research the framework's recommended token storage patterns (httpOnly cookies vs in-memory)
+- Research silent token refresh patterns for the framework
+- Research the provider's SDK and how to wrap it behind a project auth utility
+- Document the auth utility, token strategy, route protection, and provider choice in References.md. Include any production lessons about identity (provider ID vs database ID).
