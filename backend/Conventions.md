@@ -2,7 +2,7 @@
 
 This is a LOOKUP INDEX for backend-specific conventions. These supplement the universal conventions — read both.
 
-Universal conventions: ../Conventions.md (23 conventions for any project)
+Universal conventions: ../Conventions.md (25 conventions for any project)
 Backend conventions: this file (7 conventions for backend projects)
 
 ## Quick Lookup: Which backend conventions to read per task type
@@ -11,10 +11,10 @@ Backend conventions: this file (7 conventions for backend projects)
 |-----------|-----------|----------------------|
 | Database / models / queries | B1 | #3 (architecture), #7 (types) |
 | New API endpoint | B2, B3 | #3 (architecture), #7 (types), #8 (errors) |
-| Auth / middleware | B3 | #11 (auth/security) |
+| Auth / middleware | B3 | #11 (authentication) |
 | Logging / monitoring | B4 | #8 (errors) |
 | Background jobs / queues | B5 | #0 (reusability) |
-| File upload / storage | B6 | #11 (security) |
+| File upload / storage | B6 | #23 (security) |
 | Caching | B7 | |
 | Migrations | B1 | #2 (git - commit each migration) |
 
