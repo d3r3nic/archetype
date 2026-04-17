@@ -170,17 +170,91 @@ The AI should gauge the user's technical experience from how they talk. Adjust c
 ### Common proven stacks (for reference):
 
 Web frontend: React + TypeScript + Vite + Tailwind
+Content sites / blogs / docs: Astro + Starlight (zero JS by default, fast)
 Backend API (Node): Node.js + TypeScript + Express + Prisma + PostgreSQL
 Backend API (Python): Python + FastAPI + SQLAlchemy + PostgreSQL
 Backend API (C#): ASP.NET + Entity Framework + SQL Server
 Mobile: React Native + Expo OR Flutter + Dart
 Desktop: Electron + React OR Tauri + Svelte
 
-After discovery, the AI knows: what kind of app, what platforms, what features, what scale. Now it can choose the right stack and proceed to generate References.md.
+## Step 3: Research Before Deciding (DO NOT SKIP)
 
-## Step 3: Generate Project Context
+After discovery, the AI has the answers. But DO NOT pick a tech stack yet. First, research whether a custom build is even the right approach.
 
-After discovery, the AI generates the project files.
+### The AI must consider: does the user actually need a custom app?
+
+Many projects are better served by existing platforms than custom code. The AI must be honest about this, even though the framework exists to scaffold custom projects. Over-engineering is a violation of convention #0 (reusability — don't build what already exists).
+
+Research and present these options to the user BEFORE committing:
+
+**Option 1: Existing platform (no custom code needed)**
+
+| User wants | Consider instead of custom code |
+|---|---|
+| Blog / content site | WordPress, Ghost, Astro + headless CMS |
+| Online store | Shopify, WooCommerce, BigCommerce |
+| Portfolio / brochure site | Squarespace, Wix, Webflow, Astro |
+| Landing pages | Carrd, Webflow, Framer |
+| Internal forms / workflows | Notion, Airtable, Retool, Google Forms |
+| Booking / appointments | Calendly, Acuity, Square Appointments |
+| Documentation site | Astro Starlight, Docusaurus, GitBook |
+
+If an existing platform covers 80%+ of what the user needs, recommend it. Custom code should only be chosen when the user has requirements that platforms genuinely cannot meet.
+
+**Option 2: Hybrid (platform + custom pieces)**
+
+Sometimes the right answer is a platform for the core + custom code for specific features:
+- WordPress for content + custom React frontend (headless WordPress)
+- Shopify for e-commerce + custom dashboard for analytics
+- Supabase for backend + custom frontend
+
+**Option 3: Full custom build (what this framework scaffolds)**
+
+Custom code is the right choice when:
+- The app has complex business logic that platforms can't handle
+- The app needs custom auth flows, HIPAA compliance, or specific security requirements
+- The app is a SaaS product, dashboard, or tool with unique workflows
+- The user has technical skills or a development team
+- No existing platform covers even 50% of the requirements
+
+### How to present the decision:
+
+Research online (if capable) for the latest platform options that match the user's use case. Then present:
+
+```
+Based on what you described, here are your options:
+
+Option A: [Platform name]
+- What it does: [covers X, Y, Z of your requirements]
+- What it doesn't do: [missing A, B]
+- Cost: [pricing]
+- Effort: [timeline]
+- Best if: [use case fit]
+
+Option B: [Different platform or hybrid approach]
+- ...
+
+Option C: Custom build with [tech stack]
+- What it does: exactly what you need, fully customizable
+- What it doesn't do: nothing - but you have to build and maintain everything
+- Cost: development time + hosting
+- Effort: [timeline estimate]
+- Best if: you need full control, have complex requirements, or this is a product
+
+My recommendation: [which option and why, based on the discovery answers]
+
+Which direction would you like to go?
+```
+
+Wait for the user to decide. Do NOT proceed to file generation until the user confirms they want a custom build.
+
+If the user chooses a platform (Option A or B), help them set it up. The Archetype framework's scaffolding phase doesn't apply — but the conventions around security (#23), documentation (#16), and git (#2) still do.
+
+If the user confirms custom build (Option C), proceed to Step 4.
+
+## Step 4: Generate Project Context
+
+After the user confirms the custom build approach, the AI generates the project files.
 
 ### For a fullstack project (web frontend + backend API):
 
@@ -462,7 +536,7 @@ For existing systems that don't fully match the convention, note the gap under "
 
 ---
 
-## Step 4: Set Up Hooks (optional - can be done later)
+## Step 5: Set Up Hooks (optional - can be done later)
 
 Hooks automatically remind the AI to update documentation and run verification. See templates/hooks-spec.md for what hooks to create. This step can be deferred to scaffolding if you want to get started faster.
 
@@ -487,7 +561,7 @@ For existing projects, additional verification:
 - [ ] Every rule from the original CLAUDE.md is captured somewhere (not lost in summarization)
 - [ ] MIGRATION-NOTES.md explains where each piece of the original lives now
 
-## Step 5: Log the Bootstrap
+## Step 6: Log the Bootstrap
 
 After bootstrap completes, update VERSION-LOG.md (in the archetype/ folder) to record what was done. If VERSION-LOG.md doesn't exist, create it.
 
