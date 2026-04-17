@@ -59,7 +59,10 @@ NEW_FILES=0
 SKIPPED=0
 
 # Files that get OVERWRITTEN (universal, framework-owned)
-UNIVERSAL_FILES="CLAUDE.md Conventions.md README.md inject.sh update.sh"
+# NOTE: update.sh is NOT in this list — it replaces itself atomically at the
+# end of the script (see Step 9). Putting it in the main loop caused the
+# running bash to read corrupted data from its own rewritten file.
+UNIVERSAL_FILES="CLAUDE.md Conventions.md README.md inject.sh"
 UNIVERSAL_DIRS="conventions backend frontend bootstrap scaffolding development templates scripts"
 
 echo "--- Universal files (will be updated) ---"
@@ -76,6 +79,14 @@ for file in $UNIVERSAL_FILES; do
     fi
   fi
 done
+
+# update.sh is handled separately (atomic self-replace at end)
+if [ -f "$TEMP_DIR/update.sh" ] && [ -f "$ARCHETYPE_DIR/update.sh" ]; then
+  if ! diff -q "$TEMP_DIR/update.sh" "$ARCHETYPE_DIR/update.sh" > /dev/null 2>&1; then
+    echo "  CHANGED: update.sh (self-replace at end)"
+    CHANGES=$((CHANGES + 1))
+  fi
+fi
 
 for dir in $UNIVERSAL_DIRS; do
   if [ -d "$TEMP_DIR/$dir" ]; then
@@ -221,6 +232,19 @@ echo "Commit: $LATEST_HASH" >> "$VERSION_LOG"
 echo "Source: $FRAMEWORK_REPO" >> "$VERSION_LOG"
 echo "Updated by: update.sh" >> "$VERSION_LOG"
 echo "  updated: VERSION-LOG.md"
+
+# Step 9: Atomic self-replace of update.sh (LAST, after all other work)
+# cp + mv keeps the running bash safe: mv is a rename, so the old inode stays
+# alive as long as bash holds it open. Plain cp would truncate-and-write,
+# which corrupts bash's read position mid-execution.
+if [ -f "$TEMP_DIR/update.sh" ]; then
+  if ! diff -q "$TEMP_DIR/update.sh" "$ARCHETYPE_DIR/update.sh" > /dev/null 2>&1; then
+    cp "$TEMP_DIR/update.sh" "$ARCHETYPE_DIR/update.sh.new"
+    chmod +x "$ARCHETYPE_DIR/update.sh.new"
+    mv -f "$ARCHETYPE_DIR/update.sh.new" "$ARCHETYPE_DIR/update.sh"
+    echo "  updated: archetype/update.sh (self, atomic replace)"
+  fi
+fi
 
 # Cleanup
 rm -rf "$TEMP_DIR"
