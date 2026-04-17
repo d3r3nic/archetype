@@ -55,7 +55,7 @@ echo "  copied: CLAUDE.md → project root (auto-loaded by Claude Code)"
 # Step 2: Everything else goes in the subfolder
 mkdir -p "$DEST"
 
-for item in Conventions.md README.md conventions bootstrap scaffolding development templates; do
+for item in Conventions.md README.md conventions backend bootstrap scaffolding development templates scripts; do
   if [ -e "$FRAMEWORK_DIR/$item" ]; then
     cp -R "$FRAMEWORK_DIR/$item" "$DEST/"
     echo "  copied: $item → $SUBFOLDER_NAME/"

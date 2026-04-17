@@ -60,7 +60,7 @@ SKIPPED=0
 
 # Files that get OVERWRITTEN (universal, framework-owned)
 UNIVERSAL_FILES="CLAUDE.md Conventions.md README.md inject.sh update.sh"
-UNIVERSAL_DIRS="conventions backend frontend bootstrap scaffolding development templates"
+UNIVERSAL_DIRS="conventions backend frontend bootstrap scaffolding development templates scripts"
 
 echo "--- Universal files (will be updated) ---"
 for file in $UNIVERSAL_FILES; do

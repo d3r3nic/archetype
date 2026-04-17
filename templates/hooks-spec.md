@@ -1,106 +1,80 @@
 # Hooks Specification
 
-Hooks enforce rules that must be followed 100% of the time. CLAUDE.md rules are ~80% compliance. Hooks are deterministic.
+Hooks enforce rules that must be followed every time. CLAUDE.md rules achieve ~80% compliance. Hooks are deterministic — they run on every trigger.
 
-## Recommended Hooks
+## What ships with the framework
 
-### PostToolUse: After File Write/Edit
+Two working hook scripts live at `bootstrap/hooks/`:
 
-Purpose: verify documentation stays current after code changes.
+- `pre-destructive-warn.sh` — blocks destructive Bash commands (PreToolUse)
+- `post-task-verify.sh` — prints a verification checklist after Claude finishes (Stop)
 
-Trigger: after any Write, Edit, or MultiEdit tool use.
+A ready-to-copy Claude Code config is at `templates/claude-settings.json`. See `bootstrap/hooks/README.md` for install instructions.
 
-Actions:
-1. Check if the changed file belongs to a feature
-2. If yes: verify the feature's README/doc exists
-3. If the feature doc doesn't exist: remind to create it
-4. If a new feature directory was created: remind to add it to feature-tree.md
+The rest of this file is the conceptual spec — additional hooks you may want to add. The framework ships only two by design: each new hook is noise until it fires on something high-value.
 
-### PostToolUse: After Task Completion
+## Claude Code hook contract (2026)
 
-Purpose: verify work before marking complete.
+- Claude Code exposes 21 lifecycle events. Most-used: `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, `SessionEnd`.
+- Event data arrives as JSON on stdin. Parse with `jq` if available.
+- `PreToolUse` is the only hook that can block. Exit 2 with a message on stderr to block; Claude sees the stderr and reasons about it.
+- Advisory hooks write stderr and exit 0. Claude sees the reminder, does not get blocked.
+- Keep scripts fast (sub-second). Hooks run on every trigger.
 
-Trigger: after TaskComplete.
+## Additional hook ideas (not shipped)
 
-Actions:
-1. Remind to run build/typecheck/tests
-2. Check if feature-tree.md needs updating
-3. Check if References.md needs updating (new system or path change)
+These were considered and not shipped. They can be added per project if the signal-to-noise ratio holds.
 
-### PreToolUse: Before Bash (destructive)
+### PostToolUse: after file edit — feature doc freshness
 
-Purpose: catch destructive commands.
+Trigger: after Write/Edit in a feature directory.
+Action: if the feature's `docs/features/{name}.md` wasn't modified in the same session, remind.
+Risk of noise: fires constantly during feature work where doc updates come at the end. Better to run as part of a Stop hook or a session-end sweep.
 
-Trigger: before Bash commands matching rm -rf, git reset --hard, DROP TABLE, etc.
+### PostToolUse: after create of feature directory
 
-Actions:
-1. Warn about the destructive operation
-2. Suggest safer alternative if one exists
+Trigger: after creating `src/features/{name}/`.
+Action: remind to add the feature to `feature-tree.md`.
+Risk of noise: low, but rare trigger. Consider rolling into Stop hook.
 
-## Feature Tree Audit Hook
+### Feature tree audit (standalone)
 
-Purpose: periodic audit of feature tree accuracy.
+Not a Claude Code hook — run manually or on a schedule (e.g., weekly CI job).
 
-When to run: manually after major changes, or on a schedule.
-
-Implementation (bash):
 ```bash
 #!/bin/bash
-# Scan src/features/ for directories
-# Compare against feature-tree.md entries
-# Report: features in code but not in tree (missing)
-# Report: features in tree but not in code (stale)
-# Report: features without docs/features/{name}.md (undocumented)
-
+# Compare src/features/ directories against feature-tree.md and docs/features/
 echo "=== Feature Tree Audit ==="
-
 FEATURES_DIR="src/features"
 TREE_FILE="feature-tree.md"
-
-# Find all feature directories
 for dir in "$FEATURES_DIR"/*/; do
   feature=$(basename "$dir")
-
-  # Check if in feature tree
   if ! grep -q "$feature" "$TREE_FILE" 2>/dev/null; then
     echo "MISSING from tree: $feature"
   fi
-
-  # Check if documented
   if [ ! -f "docs/features/$feature.md" ]; then
     echo "UNDOCUMENTED: $feature"
   fi
 done
-
 echo "=== Audit Complete ==="
 ```
 
-## Documentation Freshness Hook
+### SessionStart: bootstrap gate
 
-Purpose: flag stale documentation.
+Trigger: Claude Code session start.
+Action: if `References.md` doesn't exist, print a reminder to run bootstrap.
+Redundant with the bootstrap gate already in CLAUDE.md, but removes a class of failure where Claude starts coding before reading the enforcer. Consider adding if bootstrap gate violations appear in session reviews.
 
-Implementation concept:
-- After modifying files in a feature directory
-- Check if the feature's doc was also modified in the same session
-- If not: remind "Feature [name] was modified but docs/features/[name].md was not updated"
+## Principles for adding new hooks
 
-## Notes
+- Every hook costs attention. Before adding, ask: what failure does this actually prevent? How often would it fire?
+- Blocking hooks only where the cost of proceeding wrong is high (destructive shell, production deploys, credential exposure).
+- Advisory hooks should fire rarely. A hook that fires every turn becomes background noise and is ignored.
+- Every hook must be testable: have a small input that makes it fire, and verify.
+- Record new hooks in `bootstrap/hooks/README.md` with the trigger, action, and rationale.
 
-- Hooks should be advisory (echo reminders), not blocking, unless the rule is absolutely critical
-- Blocking hooks: only for verification (build/test must pass before completion)
-- Advisory hooks: documentation updates, feature tree updates, audit reminders
-- Hooks are configured in .claude/settings.json (for Claude Code) or equivalent for other AI tools
+## Install
 
-## How to Set Up Hooks
+See `bootstrap/hooks/README.md` for install on Claude Code, Cursor, and other tools.
 
-Hooks are tool-specific. The AI assistant can help you set them up if you ask.
-
-For Claude Code: tell the AI "Set up the hooks from archetype/templates/hooks-spec.md. Create .claude/settings.json with the hook configuration." The AI will create the settings file and any hook scripts needed.
-
-For Cursor: tell the AI "Set up automated checks based on archetype/templates/hooks-spec.md using Cursor's hook system."
-
-For other tools: tell the AI "I want automated reminders after code changes to update docs and feature-tree. What does my AI tool support?"
-
-If your AI tool doesn't support hooks, skip this step. The conventions still work through the CLAUDE.md enforcer (~80% compliance). Hooks add deterministic enforcement but are not required.
-
-Setting up hooks is optional during bootstrap. You can add them at any time by asking the AI to read this spec and wire it up.
+Setting up hooks is optional during bootstrap — they can be added at any time. Without hooks, CLAUDE.md enforcement carries the load (~80% compliance).

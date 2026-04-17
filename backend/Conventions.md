@@ -2,7 +2,7 @@
 
 This is a LOOKUP INDEX for backend-specific conventions. These supplement the universal conventions — read both.
 
-Universal conventions: ../Conventions.md (25 conventions for any project)
+Universal conventions: ../Conventions.md (26 conventions for any project)
 Backend conventions: this file (7 conventions for backend projects)
 
 ## Quick Lookup: Which backend conventions to read per task type

@@ -136,3 +136,42 @@ Maintain a TECHNICAL-DEBT.md file in the project root. This is a living document
 2. If the technique improves a convention, update the convention doc
 3. If it's entirely new, consider adding a new convention
 4. Document the decision in References.md under "Convention Overrides"
+
+## Session Reviews
+
+Periodic audit of how well the AI followed the framework. Run after every 3-5 AI coding sessions, or after any session where something went notably wrong or right.
+
+### When to run
+
+- Every 3-5 sessions on an active project
+- After a session with visible drift (AI skipped conventions, modified enforcement files, repeated the same mistake)
+- After a session with an unexpectedly good result worth understanding
+- Before a convention revision — gather evidence from recent reviews
+
+### How to run
+
+1. Open `templates/session-review.md`
+2. Copy it to `docs/reviews/YYYY-MM-DD-topic.md` (create `docs/reviews/` if needed)
+3. Fill in the 5 review questions and the Drift section
+4. Capture any action items as concrete framework changes: convention wording, lookup table rows, new CLAUDE.md rules, new hooks
+
+### How findings feed back
+
+- Convention wording problems → update the convention doc (record in CHANGELOG.md)
+- Missing task-type routing → add a row to Conventions.md lookup table
+- Recurring drift on a specific pattern → consider a new CLAUDE.md rule or an automated hook
+- Accumulating suggestions → batch into a framework revision step
+
+Reviews are an evidence stream, not a bureaucratic step. Skip them on lightweight sessions; run them when the outcome surprised you.
+
+## Framework Self-Test
+
+Run the framework's own validator periodically:
+
+```bash
+./archetype/scripts/validate-framework.sh
+```
+
+Checks that file paths in CLAUDE.md resolve, the convention count in intro text matches actual files, every `#N` reference resolves, every convention doc has its required sections, and no duplicate convention numbers exist.
+
+Run it after any change to the framework (update.sh, manual edits to conventions, adding a new convention). A failing self-test means the framework is internally inconsistent and the AI will produce confused output.
