@@ -28,6 +28,7 @@ Everything is built once, configured for context. Before building anything, chec
 - Never build one-off. Use existing systems or build reusable. → conventions/00-reusability.md
 - Never hardcode values that should come from configuration (colors, URLs, timeouts, dimensions, limits). → conventions/06-styling.md, conventions/01-project-setup.md
 - Never import directly from third-party libraries without project wrappers. → conventions/22-design-system.md, conventions/03-architecture.md
+- Never instantiate a shared getter's underlying class (e.g., `new PrismaClient()` when `getDb()` exists in src/shared/db/). Use the getter. Type imports and namespace imports from the library are OK. → conventions/00-reusability.md
 - Never build standard UI components from scratch. Use the established UI library, configured and wrapped. → conventions/22-design-system.md
 - Never scatter error handling. Use the centralized error system. → conventions/08-errors.md
 - Never create ad-hoc API calls. Use the API layer. → conventions/09-api.md

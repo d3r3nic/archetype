@@ -11,7 +11,8 @@ This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFO
 | Any new feature | #0, #3, #19 | #1 if new folders needed |
 | UI component work | #4, #6, #22 | #14 (accessibility) |
 | Forms | #20, #4, #6 | #7 (validation schemas) |
-| API / data fetching | #9, #10, #8 | #7 (response types) |
+| API consumption (client-side — fetching from an external API) | #9, #10, #8 | #7 (response types) |
+| New API endpoint (server-side — building an API) | backend/B2, #7, #8 | #11 (auth), #23 (input validation); also read backend/Conventions.md for full backend routing |
 | Database / migrations | #3, #1 | #7 (model types), #2 (migration commits) |
 | Auth (identity) | #11 | #21 (route guards) |
 | Permissions / access control | #24, #11 | #3 (architecture) |
