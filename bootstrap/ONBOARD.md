@@ -137,13 +137,18 @@ The AI should gauge the user's technical experience from how they talk. Adjust c
 - CI/CD: GitHub Actions deploying to cloud provider
 - Full monitoring, logging, alerting
 
-**Enterprise / compliance requirements** (HIPAA, SOC2, financial regulations):
-- Must use cloud providers with compliance certifications. AWS preferred.
-- Database: AWS RDS with encryption at rest and in transit
-- Auth: AWS Cognito or enterprise identity provider
+**Regulated data** (HIPAA, SOC2, PCI, financial, privacy laws):
+
+FIRST: run Step 3 platform research. A HIPAA/SOC2/PCI-compliant vertical SaaS almost always exists — Blueprint, Healthie, or SimplePractice for therapy; Datica or Particle Health for health data; Stripe for payments; AWS Observability with compliance for logging. Platforms with signed BAAs/certifications solve 80%+ of compliance use cases without custom engineering. Custom should be the last resort for regulated data.
+
+ONLY IF a custom build is genuinely required (product logic no platform offers, scale exceeds platform tier, multi-system integration):
+- Cloud provider with compliance certifications AND a signed BAA/equivalent (AWS, GCP, Azure)
+- Database: managed, encrypted at rest and in transit (AWS RDS, Cloud SQL)
+- Auth: compliance-certified managed auth (AWS Cognito, Auth0 enterprise, WorkOS)
 - Infrastructure as code (SST, CDK, Terraform)
-- Audit trails, encryption, access controls are mandatory
+- Audit trails, access controls, incident response — mandatory
 - Monitoring: CloudWatch, Datadog, or equivalent with alerting
+- Budget reality: compliance-grade infrastructure costs ~$100/month minimum BEFORE engineering time. If the user cannot absorb this, a platform is the only correct answer — surface this explicitly, do not scaffold custom.
 
 ### How to translate answers into technical decisions:
 
@@ -162,7 +167,7 @@ The AI should gauge the user's technical experience from how they talk. Adjust c
 | Enterprise / compliance | AWS/GCP, infrastructure as code, full monitoring |
 | Millions of users | Performance, CDN, caching, horizontal scaling |
 | No tech preferences | AI picks based on experience level (see above) |
-| Has preferences | AI respects them and fills in the gaps |
+| Has preferences | AI respects preferences AND still runs Step 3 research. If a platform covers the use case, or scale/compliance/cost is mismatched to the preference, surface the alternatives before agreeing. User can still choose their preference — but must see the tradeoff. |
 | Sensitive data (health, finance) | Compliance-grade infrastructure, encryption, audit trails |
 | No DevOps knowledge | Managed services (Supabase, Vercel, Railway) |
 | Knows AWS/cloud | AWS with proper architecture (preferred for production) |
@@ -177,13 +182,41 @@ Backend API (C#): ASP.NET + Entity Framework + SQL Server
 Mobile: React Native + Expo OR Flutter + Dart
 Desktop: Electron + React OR Tauri + Svelte
 
+### Handling scope changes mid-discovery
+
+Users often add requirements as they think out loud. If the user introduces a new requirement during discovery (multi-user after answering "just for me", SSO after "personal project", mobile after "web only", compliance after "nothing sensitive"), STOP the linear flow and:
+
+1. **Acknowledge the change explicitly.** "That changes things — multi-user means we need auth, permissions, and a shared data model. Earlier I was thinking solo-only." Do not silently merge the new requirement into the old plan.
+2. **Re-ask the affected discovery groups.** Group 3 (users/auth/forms) if user count changed. Group 4 (scale) if scope or audience grew. Group 5 (sensitive data) if the data model changed.
+3. **Re-run Step 3 research.** The previous platform/stack recommendation is invalid. Research fresh given the new scope.
+4. **If the user resists re-interviewing** ("I told you already"): explain why — the earlier answer was for a different scope, and proceeding without re-asking will generate the wrong stack. Show them the specific question being re-asked and why.
+
+Do not proceed to Step 4 (file generation) until discovery is coherent with the current scope.
+
+### Red flag combinations — surface before Step 3
+
+Some requirement combinations are incompatible, anti-pattern, or signal hidden complexity. If the user's answers hit any of these, surface the conflict BEFORE moving to Step 3. Do not silently proceed.
+
+| Combination | Why it's a red flag | What to do |
+|-------------|---------------------|------------|
+| Free to run + regulated data (HIPAA, PCI, financial) | Compliance-grade hosting is not free. BAAs, compliant storage, encryption, audit logging — none ship on free tiers. | Step 3 Option A is the only correct answer. Present the cheapest compliant platform. Custom for $0 is not possible. |
+| Offline + regulated data (PHI, PII, financial) | Offline means data on the device. Device loss, encryption failure, sync integrity, remote wipe — all compliance risks. | Challenge the requirement. Ask: "Do you need truly offline, or fast access while online? Offline with regulated data is a significant compliance burden." |
+| Solo user + enterprise infra (Kubernetes, multi-region, service mesh, Kafka) | Operational burden will exceed feature work. User will bounce off the infra before shipping the product. | Surface the scale mismatch explicitly. Offer a simpler stack and quantify the complexity cost (hours of ops/week, baseline $/month). |
+| Real-time + static hosting (Cloudflare Pages, GitHub Pages, S3) | Real-time (WebSocket, SSE) needs a long-lived server. Static hosts can't. | Add a managed real-time service (Pusher, Ably, Supabase Realtime) OR a stateful backend. Confirm the cost. |
+| Multi-user team + "just me" stack (SQLite-only, no auth, local files) | Team features need auth, shared persistence, concurrency. Solo stacks can't handle this. | Re-run discovery Groups 3 and 4; escalate the stack. |
+| "All equally important" priorities + tight deadline | If everything is top priority, nothing is. Deadlines force tradeoffs. | Force a ranking conversation before Step 3: "If you had to ship in half the time, which feature would go first?" |
+| Enterprise SSO (Okta, Azure AD, SAML) + consumer auth stack (Supabase Auth, Firebase Auth default) | Enterprise SSO usually needs Auth0 enterprise, WorkOS, or Cognito — not consumer auth. | Flag the stack change before Step 3. Route to enterprise-auth research. |
+| Compliance claim (HIPAA, SOC2) + no BAA / vendor-agreement discussion | Saying "HIPAA-compliant" without signed BAAs with every vendor touching the data is a common user error. | Ask about BAA plans; route to compliance-aware platforms or enterprise cloud paths. |
+
+Multiple red flags = strong signal that platform Option A is correct. Do not proceed to Step 4 custom build when the scale, compliance, or budget fundamentally doesn't fit a custom path.
+
 ## Step 3: Research Before Deciding (DO NOT SKIP)
 
 After discovery, the AI has the answers. But DO NOT pick a tech stack yet. First, research whether a custom build is even the right approach.
 
 ### The AI must consider: does the user actually need a custom app?
 
-Many projects are better served by existing platforms than custom code. The AI must be honest about this, even though the framework exists to scaffold custom projects. Over-engineering is a violation of convention #0 (reusability — don't build what already exists).
+Many projects are better served by existing platforms than custom code. The AI must be honest about this, even though the framework exists to scaffold custom projects. Over-engineering is a violation of convention #0 (reusability — don't build what already exists, whether inside the project OR as a market-available platform).
 
 Research and present these options to the user BEFORE committing:
 
@@ -311,7 +344,13 @@ AI: "Got it. This is a web app with a frontend for customers and a backend to st
 
 User: "I'm building a healthcare SaaS. React frontend, SST backend on AWS, Prisma with PostgreSQL, Cognito auth. I know the stack."
 
-AI: "Perfect. Let me generate your References.md with that stack. I'll read through the conventions and set everything up..."
+AI: "Stack noted. Before I generate files, Step 3 still applies — even with a declared stack. For healthcare SaaS specifically, HIPAA-compliant vertical platforms like Healthie, Mend, or Bridge Patient Portal cover 80%+ of typical use cases with BAAs included. Is the core of your product something those platforms already do (patient portals, intake, scheduling, notes), or is it unique logic on top of that (AI analysis, custom workflows, proprietary algorithms)? If it's the latter, your stack is a reasonable fit and I'll proceed. If it's the former, we should start from the platform and build only the unique layer."
+
+User: "Custom — the core is our AI analysis pipeline, no platform does that."
+
+AI: "Confirmed custom build is correct. Generating References.md with React + SST + Prisma + Postgres + Cognito, and I'll flag HIPAA-specific requirements inline (BAA with AWS, RDS encryption at rest, Cognito MFA, audit logging, log-scrubbing)."
+
+**Key takeaway:** even for a confident user with a declared stack, Step 3 still runs. A 30-second confirmation ("is this custom logic or platform-served?") prevents scaffolding weeks of infra for a use case a platform already solves.
 
 ---
 
