@@ -2,7 +2,14 @@
 
 ## Principle
 
-Logs, metrics, and health checks are how you know your backend is working. Structured logging (JSON, not free text) enables querying and alerting. Log levels distinguish severity. Sensitive data is never logged. Correlation IDs connect logs across a request's lifecycle. Health checks tell orchestrators whether the service can accept traffic. AI defaults to console.log for everything — this convention replaces that with a production-grade observability system.
+Logs, metrics, and health checks are how you know your backend is working. Structured logging (JSON, not free text) enables querying and alerting. Log levels distinguish severity. Sensitive data is never logged. Correlation IDs connect logs across a request's lifecycle. Health checks tell orchestrators whether the service can accept traffic. AI defaults to console-level output for everything — this convention replaces that with a production-grade observability system.
+
+**Two distinct logging systems — do not conflate them.** Most backends need both:
+
+- **App logging** (this convention, default scope) — operational logs for debugging and alerting. Short retention (typically 2 weeks to 90 days). Mutable by log processors. PII-redacted. Queried by engineers.
+- **Audit logging** — compliance evidence for "who did what when from where." Long retention (typically 1-7 years depending on regime). Append-only and tamper-evident. Separate access control. Queried by auditors, not engineers.
+
+If the project handles regulated data (HIPAA, SOC 2, PCI, GDPR right-to-audit, financial), an audit log is REQUIRED. See `conventions/23-app-security.md` and the project's compliance regime requirements. The two systems often look similar in code but have fundamentally different storage, retention, and access-control requirements — treating them as one log causes compliance failures.
 
 ## Reusable System
 
@@ -43,9 +50,10 @@ Create an observability foundation that establishes:
 ## Research Notes
 
 When bootstrapping this convention:
-- Research structured logging libraries for the framework (pino for Node, Serilog for .NET, loguru for Python, zerolog for Go).
+- Research structured logging libraries for the language (pino/winston for Node, Serilog for .NET, loguru/structlog for Python, zerolog/slog for Go, log4rs for Rust, etc.).
 - Research the framework's recommended approach for request-scoped context (correlation IDs).
 - Research health check patterns for the deployment platform (Kubernetes probes, ECS health checks, etc.).
-- Research metrics libraries for the framework (Prometheus client, OpenTelemetry).
-- Research sensitive data redaction middleware or logging interceptors.
-- Document the logging library, log format, health check URLs, and metrics endpoints in References.md.
+- Research metrics libraries for the framework (OpenTelemetry is the current language-agnostic standard; Prometheus clients exist for most languages).
+- Research sensitive-data redaction middleware or logging interceptors.
+- **If regulated data:** research audit-log tooling. For SOC 2 / HIPAA: append-only stores, tamper-evident options (hash-chained logs, WORM storage, managed audit-log platforms), and long-retention storage patterns. Audit logs are usually a SEPARATE system from app logs, not a log level within the same system.
+- Document BOTH the app-logging system (library, format, health checks, metrics) AND the audit-logging system (storage, retention, access, what events are recorded) in References.md when applicable.

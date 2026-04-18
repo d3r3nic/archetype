@@ -14,7 +14,7 @@ Create a security foundation that establishes:
 - CSRF protection on state-mutating requests (SameSite cookies, CSRF tokens)
 - Rate limiting on public endpoints and authentication endpoints
 - Secret management: all secrets from environment variables or a vault, never in code
-- Audit logging service: who did what, when, from where (for compliance and incident response)
+- Audit logging service (SEPARATE from app logging): who did what, when, from where. Different retention, mutability, and access controls than app logs. Required for regulated data (HIPAA, SOC 2, PCI, GDPR audit-trail, financial). See `backend/conventions/B4-logging.md` for the app-log vs audit-log distinction.
 
 ## Rules
 

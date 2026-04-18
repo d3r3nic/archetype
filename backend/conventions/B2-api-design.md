@@ -1,8 +1,10 @@
 # Convention B2: API Design (Building APIs)
 
+**Scope:** server-side API design. For client-side API consumption see universal convention #9. This convention covers REST; for GraphQL see the "GraphQL" subsection below — the core principles (consistent contract, validation at boundary, versioning discipline) still apply, but the mechanics differ significantly.
+
 ## Principle
 
-APIs are the contract between your backend and its consumers. Every endpoint follows the same URL conventions, uses the correct HTTP methods, returns consistent status codes, and wraps responses in a standard envelope. Inconsistency forces every consumer to handle each endpoint differently. See also universal convention #10 for the contract between frontend and backend.
+APIs are the contract between your backend and its consumers. Every endpoint follows the same conventions, returns consistent shapes, validates input at the boundary, versions deliberately. Inconsistency forces every consumer to handle each endpoint differently. See also universal convention #10 for the contract between frontend and backend.
 
 ## Reusable System
 
@@ -43,6 +45,21 @@ Create an API design foundation that establishes:
 - WRONG: endpoint accepts any JSON body and passes it directly to the database. SQL injection, data corruption.
 - RIGHT: endpoint validates against a schema, strips unknown fields, then passes typed, clean data to the service.
 
+## GraphQL
+
+If the server uses GraphQL instead of REST, the REST rules above do NOT translate directly. Research current GraphQL server patterns for the chosen language. Key concerns the framework expects you to handle:
+- **Schema design** — types, queries, mutations, subscriptions. Schema IS the contract; evolve via deprecation, not breaking changes.
+- **Input validation at the boundary** — input types + schema-level constraints + runtime validation library. Same principle as REST, different mechanism.
+- **Response shape** — GraphQL's own response format is the envelope. The REST `{ data, meta, errors }` rule maps to GraphQL's built-in `data` and `errors` fields. Do not layer an additional envelope inside.
+- **Pagination** — Relay-style cursor pagination with `pageInfo` is the established pattern; research the current library for the language.
+- **Query complexity limits** — depth limiting, cost analysis, max-timeout. Without these, a malicious or naive query can take down the server.
+- **Persisted queries** — for production mobile/public APIs, persisted queries prevent arbitrary query execution.
+- **Field-level authorization** — auth at the resolver/field level, not just the HTTP layer. Research scope-auth / directive-based auth patterns for the chosen GraphQL library.
+- **Batched data loading (DataLoader pattern)** — prevents N+1 during resolution. Almost always needed; research the language's DataLoader equivalent.
+- **Versioning** — GraphQL evolves via deprecation + schema directives, not URL versioning. Contract testing via schema-diff tooling in CI.
+
+Mutation-level idempotency (client retry on flaky networks) applies to both REST and GraphQL mutations. Research idempotency-key patterns for the transport layer.
+
 ## Research Notes
 
 When bootstrapping this convention:
@@ -50,4 +67,5 @@ When bootstrapping this convention:
 - Research pagination libraries or patterns for the framework (offset and cursor).
 - Research validation middleware for the framework that integrates with the schema library.
 - Research API versioning approaches for the framework.
-- Document the URL conventions, response envelope, pagination format, and status code mapping in References.md.
+- **If GraphQL:** research the chosen GraphQL server library, schema-design tooling, query-complexity analysis, persisted-query patterns, field-level authorization, DataLoader equivalent, and schema-diff CI tooling for the language.
+- Document the URL conventions (or GraphQL schema conventions), response shape, pagination format, status code mapping (or error envelope), and idempotency-key mechanism in References.md.

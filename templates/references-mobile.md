@@ -122,17 +122,48 @@ Code signing: [how certificates/keys are managed]
 [paste actual folder structure here]
 ```
 
+## Backend
+
+Mobile apps almost always talk to a backend. Document which stack serves this mobile app:
+- Backend approach: [Custom backend (separate folder with its own References.md) / Platform backend (BaaS — uses references-platform.md) / None (offline-only, no backend)]
+- Backend location: [path to backend folder if custom, or platform name + admin URL if BaaS]
+- API contract: [REST base URL / GraphQL endpoint / SDK name]
+- Offline sync: [strategy for reconnecting after offline use]
+- Auth flow: [how mobile obtains and refreshes tokens — deep-link OAuth, embedded SDK, etc.]
+
+If backend is a separate custom folder, it has its own `References.md` using `references-backend.md`. If it's a BaaS platform, it has its own folder (e.g., `backend-<platform>/`) using `references-platform.md`. Cross-reference here.
+
+## Native-Module Wrapping
+
+Mobile projects need native-module wrappers for the same reason convention #22 requires UI-library wrappers: features should not import the native-capability library directly. Features that need a native capability (camera, HealthKit/Google Fit, haptics, biometrics, secure storage, geolocation, push notifications, BLE) import from a project-local wrapper that:
+- Configures the native library with the project's defaults
+- Handles permission request UX consistently
+- Falls back gracefully when permission denied
+- Provides a stable API the rest of the project uses
+
+This applies to React Native, Flutter, and native iOS/Android. Research the current native-module approach for the chosen mobile framework (managed workflow vs bare workflow for React Native, platform channels for Flutter, etc.) at bootstrap time.
+
+List the wrappers in use:
+- [native capability]: [wrapper path] — [what native library it wraps, why]
+
 ## Platform-Specific Notes
 
 ### iOS
-- [minimum iOS version]
-- [specific iOS permissions needed]
-- [any iOS-specific considerations]
+- Minimum iOS version: [e.g., iOS 16+]
+- Required Info.plist permission strings: [NSCameraUsageDescription, NSHealthShareUsageDescription, etc. Missing entries cause App Store rejection.]
+- Code signing / provisioning: [how certificates and profiles are managed]
+- TestFlight / App Store: [submission timeline and costs — Apple Developer $99/yr, typical review 24-48h]
 
 ### Android
-- [minimum Android API level]
-- [specific Android permissions needed]
-- [any Android-specific considerations]
+- Minimum API level: [e.g., API 26+]
+- Required manifest permissions: [CAMERA, ACCESS_FINE_LOCATION, etc.]
+- Signing config: [how release keystore is managed]
+- Play Console: [submission timeline and costs — Google Play $25 one-time, typical review 24-72h]
+
+### Expo managed vs bare (React Native only)
+- **Managed workflow:** Expo handles native config, build, OTA updates. Faster to start. Limited to SDK-supported native modules unless you eject.
+- **Bare workflow:** full native project; can use any native module. Requires Xcode and Android Studio toolchain.
+- Choice depends on which native capabilities you need and whether the user owns the toolchain. Decide at bootstrap time.
 
 ## Existing Patterns to Study
 

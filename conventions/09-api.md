@@ -1,8 +1,12 @@
 # Convention #9: API Integration & Data Fetching
 
+**Scope:** this convention covers CLIENT-SIDE API consumption — the project calls external APIs and needs a reusable layer for that. For server-side API design (the project IS the API — REST endpoints, GraphQL schemas, response shapes, pagination, versioning), see `backend/conventions/B2-api-design.md`. For GraphQL server specifically, B2 includes routing to GraphQL patterns (schema design, query-complexity limits, field-level authorization, DataLoader) — research current GraphQL tooling for the chosen language at bootstrap time.
+
+If the project is backend-only (no client), this convention mostly does not apply — mark it as "not needed" in feature-tree.md and focus on B2.
+
 ## Principle
 
-All communication with external services goes through one centralized API layer. Features never make direct HTTP calls. The layer handles authentication headers, request and response transformation, caching, deduplication, error normalization, and retry logic. Features declare what data they need, the layer handles everything else.
+All client-side communication with external services goes through one centralized API layer. Features never make direct HTTP calls. The layer handles authentication headers, request and response transformation, caching, deduplication, error normalization, and retry logic. Features declare what data they need, the layer handles everything else.
 
 ## Reusable System
 
