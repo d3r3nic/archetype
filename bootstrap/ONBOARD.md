@@ -89,6 +89,8 @@ Before choosing any technology or generating any files, interview the user with 
 - Can you name an existing app that's similar to what you want? (even loosely)
 - Is this a product you want to ship, or a project to learn a specific technology? (If learning a technology, that's a legitimate reason to use that stack even when a platform would be simpler — but note it explicitly so Step 3 can handle it correctly.)
 
+**Proactive learning-intent detection:** If the user's OPENING message declares enterprise or complex infrastructure (Kubernetes, Redis, Kafka, service mesh, multi-region, microservices, self-managed clusters) for a personal-scale or small-scale project (one user, a blog, a single-person tool, a portfolio), ask the ship-vs-learn question in your FIRST reply, not after red flags fire in later turns. Pattern: solo + enterprise-infra = learning intent >80% of the time. Surface it early so the rest of discovery proceeds with the right frame.
+
 **Group 2 - Where does it run?**
 - Should this work in a web browser? (like Gmail, Twitter)
 - Should this be a phone app? (like Instagram, Uber)
@@ -98,7 +100,12 @@ Before choosing any technology or generating any files, interview the user with 
 If the user says "phone app" or "works on my phone," do NOT silently pick a stack. Follow up:
 > "When you say phone, do you mean: (a) installed from the App Store / Play Store like Instagram (a native app), (b) added to the home screen from a browser like a PWA, or (c) just works well when they open your site on their phone (responsive web)? The three are very different in cost and time to build."
 
-Responsive web is almost always the cheapest starting point. Native is the most expensive and takes the longest. Do not assume; ask.
+These three are genuinely distinct decisions — do not merge them. PWA ≠ responsive + PWA manifest as one default; they are separate choices:
+- **Responsive web (c)** — site works on phone browsers. No install. Cheapest and fastest. The default for "I don't know."
+- **PWA (b)** — responsive web PLUS an installable home-screen icon via manifest.json and service worker. Adds offline caching and push notifications. More work than (c), meaningfully less than (a).
+- **Native (a)** — React Native, Flutter, or native iOS/Android. App Store presence, native device APIs, different deployment process. Most work.
+
+If the user says "I don't know what that means" or deflects, pick responsive (c). Do NOT silently pick native or bundle PWA on top by default.
 
 **Group 3 - What do users do?**
 - Do users need to create accounts and log in?
@@ -121,6 +128,12 @@ If the user answers the sensitive-data question vaguely ("I dunno", "not sure", 
 > "To be safe, I'll assume yes — are any of these involved: health info (doctor notes, therapy, wellness tracking with medical intent)? payments (credit card numbers you store)? identity info (SSN, driver's license, passport)? employment/HR data? minors' data? If none of these apply and the data is not governed by any specific law you're aware of, say 'no regulated data.' Otherwise I'll route you toward a compliance-aware stack."
 
 The safe default is yes-regulated. A wrong "no" here leads to generating a non-compliant stack that the user won't catch until audit. A wrong "yes" leads to a compliance-grade stack that is overkill but not unsafe.
+
+**Deploy gate — hard block on unresolved regulated-data assumption:** If the regulated-data question is in "default-assumed yes, not explicitly answered" state at the end of bootstrap, record it in `VERSION-LOG.md` as an open pre-production gate. Scaffolding and deploy steps (Phase 2 onward) must halt until the user affirmatively answers with either "yes, it is regulated — here's the regime (HIPAA/PCI/GDPR/etc.)" or "no, it is not regulated." Deflections like "go with defaults" or "whatever you recommend" do NOT resolve this gate. The user must pick.
+
+**Budget-vague handling (parallels regulated-vague):** If the user answers budget-related questions vaguely ("small I guess", "cheap", "I dunno"):
+- If regulated-data is YES (confirmed or default-assumed), surface the $100/mo minimum compliance floor before scaffolding. If user cannot absorb this, platform Option A is the only correct answer (re-route to Step 3).
+- If regulated-data is NO, assume $0 budget. Flag any non-free component (paid hosting tier, paid auth provider, paid monitoring) before committing to it. Get affirmative consent per component.
 
 ### How the AI decides (read the user's knowledge level):
 
@@ -220,6 +233,8 @@ Some requirement combinations are incompatible, anti-pattern, or signal hidden c
 | "All equally important" priorities + tight deadline | If everything is top priority, nothing is. Deadlines force tradeoffs. | Force a ranking conversation before Step 3: "If you had to ship in half the time, which feature would go first?" |
 | Enterprise SSO (Okta, Azure AD, SAML) + consumer auth stack (Supabase Auth, Firebase Auth default) | Enterprise SSO usually needs Auth0 enterprise, WorkOS, or Cognito — not consumer auth. | Flag the stack change before Step 3. Route to enterprise-auth research. |
 | Compliance claim (HIPAA, SOC2) + no BAA / vendor-agreement discussion | Saying "HIPAA-compliant" without signed BAAs with every vendor touching the data is a common user error. | Ask about BAA plans; route to compliance-aware platforms or enterprise cloud paths. |
+| Enterprise SSO mentioned (Okta, Azure AD, Google Workspace) + user is not an admin on that tenant | Enterprise SSO provisioning (SAML metadata, SCIM, conditional access) requires admin access to the identity provider. A user who says "my company's Okta" without controlling the tenant cannot provision the integration. | Before scaffolding enterprise auth, verify: "Are you an admin on that Okta/Azure AD tenant, or will you need IT to provision the SSO integration?" If not admin, document the dependency and scaffold a fallback (consumer auth with SAML-ready adapter) until IT is engaged. |
+| "All equally important" priorities + user refuses to rank | If user explicitly refuses to rank after one prompt, proceeding without a ranking means AI guesses and may optimize the wrong axis. | Use this default ranking order: (1) compliance and legal safety, (2) data integrity and authentication, (3) core user flow, (4) scale, (5) polish and nice-to-haves. Document the applied order in References.md under "Convention Overrides" so the user can redirect later. |
 
 Multiple red flags = strong signal that platform Option A is correct. Do not proceed to Step 4 custom build when the scale, compliance, or budget fundamentally doesn't fit a custom path.
 
@@ -624,12 +639,14 @@ After bootstrap, verify:
 
 - [ ] CLAUDE.md in project root (or in archetype/ subfolder if existing project)
 - [ ] Conventions.md in project root (or in archetype/)
-- [ ] conventions/ directory with all 25 framework convention docs (unmodified)
-- [ ] References.md generated with relevant sections filled (irrelevant systems removed)
-- [ ] feature-tree.md initialized (irrelevant systems removed)
-- [ ] docs/systems/ directory created
-- [ ] docs/features/ directory created
-- [ ] Git initialized with .gitignore (new project only)
+- [ ] conventions/ directory with all framework convention docs (unmodified)
+- [ ] References.md generated (use `references-platform.md` for platform choice, `references-frontend/backend/mobile.md` for custom)
+- [ ] feature-tree.md initialized (use `feature-tree-platform.md` for platform choice, `feature-tree.md` for custom)
+- [ ] VERSION-LOG.md bootstrap entry written (with `Type: platform / {name}` or `Type: custom`)
+- [ ] **For CUSTOM BUILDS ONLY:** docs/systems/ directory created
+- [ ] **For CUSTOM BUILDS ONLY:** docs/features/ directory created
+- [ ] **For CUSTOM BUILDS ONLY:** Git initialized with .gitignore (new project only)
+- [ ] **For REGULATED DATA (yes or default-assumed):** regulated-data question explicitly answered OR logged in VERSION-LOG as a pre-production gate
 
 For existing projects, additional verification:
 - [ ] conventions/overrides/ directory with project-specific rules per convention

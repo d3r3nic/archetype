@@ -29,6 +29,7 @@ This convention doesn't produce a single system. It governs HOW all systems are 
 - One component or service handles many contexts via configuration. Never fork code for different use cases - configure the same code differently.
 - Duplication between features means a shared system should be extracted.
 - Duplication between what the project does and what a market platform does means the project is building the wrong thing.
+- Learning-project exception: if the user's stated goal is to learn a specific technology (not to ship a product), the external-reuse rule bends — the chosen technology IS the point. Scale-fit still matters (pick the cheapest way to exercise the tech). See `bootstrap/ONBOARD.md` Step 3 for the full flow.
 
 ## Violations
 
@@ -54,6 +55,7 @@ This convention doesn't produce a single system. It governs HOW all systems are 
 - RIGHT: "I want a therapy practice app" → SimplePractice or Jane covers 80%+ of what a solo or small practice needs (patient portal, intake, scheduling, notes, document sharing, telehealth, BAA included); if product-unique logic is needed (AI analysis, novel measurement), build only that layer on top of the platform.
 - WRONG: "I want a blog for my personal site" → Next.js + Redis + PostgreSQL + Kubernetes (5 readers, 20 posts/year).
 - RIGHT: "I want a blog for my personal site" → Astro or Ghost. Deploy anywhere. Done.
+- EXCEPTION: "I want a personal blog AS a project to learn Kubernetes" — the technology choice is the point, not a mistake. Custom K8s stack is correct. But still pick the cheapest way to exercise the target tech (kind/minikube locally, not EKS). See `bootstrap/ONBOARD.md` Step 3's learning-project exception for the full flow.
 
 ## Research Notes
 
