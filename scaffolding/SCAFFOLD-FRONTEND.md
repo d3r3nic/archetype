@@ -23,6 +23,8 @@ Build:
 - `.gitignore`, pre-commit hooks, barrel exports.
 - Environment validation AT STARTUP (`loadEnv()` equivalent on app entry). See `bootstrap/RED-FLAGS.md` "Env validation at runtime."
 - Shared types directory, branded IDs, validation library wired in (one schema = type + validator).
+- **If Vite:** create `src/vite-env.d.ts` with `/// <reference types="vite/client" />`. Without it, `import.meta.env` typechecks fail.
+- **Build script:** for Vite projects, use `"build": "tsc --noEmit && vite build"` — separate typecheck from bundle. Never `tsc -b` alone (emits stray JS into src/ which fails lint).
 
 **Verify:** install succeeds, typechecker + linter run clean, pre-commit fires, deleting a required env var throws on start.
 
@@ -33,8 +35,11 @@ Conventions: #6 (styling), #22 (design system).
 Build:
 - Design tokens (colors, spacing, typography, shadows, breakpoints) as single source of truth.
 - **Dark mode from day 1.** Theme has both light and dark variants wired.
-- UI library selected and CONFIGURED with the theme (never import the UI library directly in features).
-- Theme provider mounted at the app root.
+- UI library selected and CONFIGURED with the theme, OR thin wrappers over HTML primitives if the project chose Tailwind-only (no UI library). Either way, features never import raw UI-library components directly — they import from `src/shared/ui/`. Document the choice in References.md § Convention Overrides.
+- Theme provider mounted at the app root. Concrete shape:
+  - System-preference detection via `matchMedia('(prefers-color-scheme: dark)')`.
+  - User override persisted to `localStorage` under a project-specific key (document it in docs/systems/theme.md).
+  - Tailwind projects: use `darkMode: 'class'` + `<html class="dark">` toggle (not media-query-only — blocks user override). CSS-variable projects: semantic tokens swap via `:root` / `[data-theme="dark"]` selectors.
 
 **Verify:** a test page renders with light tokens by default, switches to dark on toggle, and no component hardcodes a color.
 
@@ -61,7 +66,23 @@ Build:
 - Layout primitives: Stack, Grid, Page container.
 - Component catalog (Storybook or equivalent) if the project is team-sized.
 - Consistent component API across wrappers (consistent prop names, variant system).
-- ESLint rule (or equivalent): direct UI-library imports outside `src/shared/ui/` fail the build.
+- ESLint rule: direct UI-library imports outside `src/shared/ui/` fail the build. Pattern via `no-restricted-imports` — example:
+
+```js
+// .eslintrc.cjs — ban direct UI-lib imports in feature/app code; allow in shared/ui/
+rules: {
+  'no-restricted-imports': ['error', {
+    patterns: [{
+      group: ['@mui/*', '@chakra-ui/*', '@radix-ui/*', /* the chosen UI library */],
+      message: 'Import from @/shared/ui/ instead of the UI library directly.',
+    }],
+  }],
+},
+overrides: [{
+  files: ['src/shared/ui/**/*.{ts,tsx}'],
+  rules: { 'no-restricted-imports': 'off' },
+}],
+```
 
 **Verify:** a test page built from wrappers only (no raw HTML, no direct UI library imports) renders correctly. Running the lint rule against a direct import fails.
 
@@ -110,9 +131,27 @@ Conventions: #21 (routing), #11 (route guards), #14 (accessibility).
 Build:
 - Route definitions.
 - Layout components (persistent shells per route section).
-- Route guards integrated with Step 7 (protected routes redirect when unauthenticated).
+- Route guards integrated with Step 7 (protected routes redirect when unauthenticated). Every route definition EITHER declares `public: true` OR wraps its element in a guard — no implicit-unprotected. See `scaffolding/RED-FLAGS.md` #15.
 - Loading and error states per route (integrated with Step 3).
 - **If PWA:** service worker + manifest. Test install flow on a real mobile browser. See `bootstrap/RED-FLAGS.md` "Mobile Disambiguation."
+
+**Provider composition order at the app root — explicit.** Wrong order silently breaks behavior (see `scaffolding/RED-FLAGS.md` #14). Mount in this order (outermost to innermost):
+
+```
+<ErrorBoundary>                  (catches everything below)
+  <QueryClientProvider>          (Step 6 — must wrap any component using useQuery)
+    <ThemeProvider>              (Step 2 — wraps all styled components)
+      <AuthProvider>             (Step 7 — must be ABOVE Router so guards see auth)
+        <Router>                 (this Step 8)
+          <AppLayout />
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
+  </QueryClientProvider>
+</ErrorBoundary>
+```
+
+The test render wrapper (Step 10) must mirror this order exactly. Drift between production App.tsx and the test wrapper = tests pass with the wrong context, silent-failure.
 
 **Verify:** a protected route redirects unauthenticated users. Navigating between routes shows loading states from Step 3. If PWA, the app is installable on a mobile browser.
 
@@ -134,10 +173,12 @@ Conventions: #12 (testing), #18 (verification).
 
 Build:
 - Test runner configured.
-- Custom render wrapper providing Theme + Store + Router + QueryClient.
+- Custom render wrapper providing Theme + Store + Router + QueryClient + AuthProvider + ErrorBoundary — mirror the production order from Step 8 exactly.
 - Network-level API mocking (current equivalent of MSW).
 - Test data factories.
-- Accessibility testing wired in (axe-core or equivalent) to catch a11y regressions.
+- Accessibility testing wired in (axe-core or equivalent) to catch a11y regressions. At least one test on a wrapped component runs axe.
+- **Test QueryClient has retries disabled.** `new QueryClient({ defaultOptions: { queries: { retry: false }}})` — otherwise failing test fetches retry silently and slow down the suite; real errors get masked.
+- **Do NOT pass `signal` from `queryFn: ({signal}) => fetch(..., {signal})` in test setups.** Under jsdom + MSW, the abort signal can stall success-path handlers. Keep `signal` in production client, drop it in test client. See `scaffolding/RED-FLAGS.md` #16 — related env-inlining trap can also break tests.
 
 **Verify:** render a sample component through the wrapper. A failing a11y test blocks the PR.
 

@@ -67,33 +67,53 @@ If the platform does not expose exportable config:
 
 Conventions: #23 (app security), #24 (authorization).
 
-Apply the Security and Roles sections of the References.md Configuration Checklist:
-- 2FA on every admin.
-- Session timeout and device-trust settings reviewed.
-- Audit log enabled in platform if supported.
-- Role definitions (owner / admin / staff / customer) configured with least privilege.
-- PII export workflow documented (who can export, under what conditions).
-- Incident response plan (who to contact if the platform is breached).
+Apply the Security and Roles sections of the References.md Configuration Checklist. Items tagged by priority:
+
+- **[required]** 2FA on every admin account.
+- **[required]** Role definitions (owner / admin / staff / customer) with least privilege.
+- **[required]** PII export workflow documented (who can export, under what conditions).
+- **[required]** Incident response plan (who to contact if the platform is breached).
+- **[recommended]** Session timeout and device-trust settings reviewed.
+- **[recommended]** Backup admin user configured (or explicitly deferred with revisit trigger if solo owner).
+- **[if available]** Audit log enabled at the platform tier (if the chosen tier supports it; see tier-gap handling below).
+
+**Tier-gap handling:** if the chosen plan/tier does NOT support a `[required]` or `[recommended]` item, do NOT silently skip. Log as explicitly deferred in `References.md § Decisions & Configuration Log`:
+- What the gap is (e.g., "Shopify Basic does not include admin audit log — Plus tier only").
+- Why the current tier was chosen anyway (cost, scale, etc.).
+- Revisit trigger (e.g., "at first staff hire OR at 200+ orders/month, re-evaluate tier upgrade").
+- Compensating control if any (e.g., "manual monthly export of order history as audit-trail substitute").
+
+A gap logged with trigger + rationale is acceptable. A gap silently skipped is red flag #12 from scaffolding/RED-FLAGS.md.
 
 ## Step 6 — Runbook
 
 Conventions: #16 (documentation).
 
-Write `docs/runbook.md` covering the common admin tasks a non-developer will need to perform. Examples by sector:
-- **[COMMERCE]**: how to issue a refund, how to print a shipping label, how to edit a product.
-- **[BOOKING]**: how to cancel an appointment, how to modify service availability.
-- **[HEALTHCARE]**: how to update intake forms, how to export records for a patient request, how to respond to a BAA audit request.
-- **[CONTENT/BLOG]**: how to publish a post, how to schedule, how to moderate comments.
+Write `docs/runbook.md` covering the common admin tasks a non-developer will need to perform. **Use the sector-specific runbook template** where one exists:
 
-## Step 7 — Smoke-test
+- **[COMMERCE]**: `templates/runbook-commerce.md` — scaffolded template covering custom domain, products, orders + fulfillment, refunds, customers + CCPA/GDPR, newsletter, password reset, data exports, launch-day checklist, incident response, escalate-to-developer.
+- **[BOOKING]**: no template yet — structure per Commerce pattern: service catalog, availability, appointment lifecycle, cancellations, reminder workflows, customer data.
+- **[HEALTHCARE]**: no template yet — structure per Commerce pattern: patient onboarding, intake + consent, session notes, document sharing, BAA + compliance, record retention.
+- **[CONTENT/BLOG]**: no template yet — structure per Commerce pattern: post lifecycle, SEO, comment moderation, theme customization, analytics.
 
-Do one full end-to-end flow on the platform:
-- **[COMMERCE]**: a test order placed, paid, fulfilled.
-- **[BOOKING]**: a test appointment booked and confirmed.
-- **[HEALTHCARE]**: a test patient invited, intake form completed, document shared, session note recorded.
-- **[CONTENT/BLOG]**: a test post published and viewable on the custom domain.
+**Required sections in every runbook (regardless of sector):**
+- Each admin task: problem → numbered steps → verification → common gotchas.
+- **"What I can't do from this runbook — escalate to developer"** section. Prevents the owner thrashing on problems they physically cannot solve without dev help (e.g., "platform is down site-wide" is NOT a runbook item — it's a Shopify Support ticket; "custom liquid theme changes" require a dev). Explicit escalation list.
+- Launch-day checklist (matches Step 7 smoke-test script).
+- Incident response (compromised login, fraudulent order, data breach notification).
 
-Log the smoke-test date and outcome in References.md Decisions log.
+## Step 7 — Smoke-test (agent produces script, owner executes)
+
+**Subject-of-action clarification (Step 41):** the AI agent running this scaffold almost never has the ability to execute a smoke-test on the actual platform (requires live account, platform credentials, often a credit card). The agent's responsibility is to PRODUCE the script; the owner EXECUTES it live and logs results.
+
+**Agent output:**
+- A step-by-step smoke-test script inside `docs/runbook.md` (Launch-day checklist section) — sector-specific.
+- **[COMMERCE]**: test order flow — add a cheap test product, place an order via test-mode payment (e.g., Shopify bogus gateway), verify confirmation email + order record, fulfill with test shipping, verify refund.
+- **[BOOKING]**: test appointment — book a test service, verify confirmation email + reminder schedule, test cancellation flow.
+- **[HEALTHCARE]**: test patient flow — invite a test patient (use a staff email), complete intake form, share a test document, record a session note, verify BAA is signed + audit log records the access.
+- **[CONTENT/BLOG]**: test post — publish a draft, verify appearance on custom domain (DNS + SSL working), verify SEO metadata + social preview.
+
+**Owner executes live.** Owner logs the smoke-test date, pass/fail per step, and any issues in `References.md § Decisions & Configuration Log`. Scaffold is NOT complete until the owner confirms at least Launch-milestone smoke-test items passed.
 
 ## Post-scaffold output
 

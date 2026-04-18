@@ -64,8 +64,10 @@ Items the user chose to defer or hasn't decided on. Revisit during maintenance p
 
 - `not started` — no action yet
 - `in progress` — actively configuring
+- `planned` — documented by the scaffold agent, awaiting owner's live execution (platform projects need this — agent can document but not execute)
 - `configured` — set up and working
 - `verified` — tested end-to-end
+- `deferred` — explicit decision to skip with reason in References.md Decisions log
 - `N/A` — does not apply to this project
 
 ---

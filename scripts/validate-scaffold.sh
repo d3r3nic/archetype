@@ -71,23 +71,31 @@ if [ ! -d "$DOCS_SYSTEMS" ]; then
   warn "docs/systems/ directory does not exist — scaffold may be incomplete"
 else
   MISSING=0
-  # Extract system names from feature-tree.md's Foundational Systems table
-  # Pattern: rows with `| N | name | ...` — take the name column
+  # Extract system names from feature-tree.md's Foundational Systems table ONLY.
+  # Stop walking at the next ## header (which is usually ## Features).
+  # This prevents false warnings for feature docs being flagged as missing system docs.
+  in_foundational=0
   while IFS= read -r line; do
-    name=$(echo "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $3); print tolower($3)}' | tr ' ' '-')
-    [ -z "$name" ] && continue
-    # Skip obvious non-system headers
-    case "$name" in system|-*|'') continue ;; esac
-    # Each row should have a matching doc
-    found=0
-    for ext in md markdown; do
-      if [ -f "$DOCS_SYSTEMS/${name}.${ext}" ]; then found=1; break; fi
-    done
-    if [ "$found" -eq 0 ]; then
-      warn "no docs/systems/${name}.md found for feature-tree system '${name}'"
-      MISSING=$((MISSING + 1))
+    # Enter the Foundational Systems section
+    if echo "$line" | grep -qiE '^## (Foundational Systems|Systems)'; then in_foundational=1; continue; fi
+    # Exit on the next ## header
+    if [ "$in_foundational" -eq 1 ] && echo "$line" | grep -qE '^## '; then in_foundational=0; continue; fi
+    [ "$in_foundational" -eq 0 ] && continue
+    # Extract system name from column 3 of markdown table row
+    if echo "$line" | grep -qE '^\|[[:space:]]*[0-9]+[[:space:]]*\|'; then
+      name=$(echo "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $3); print tolower($3)}' | tr ' ' '-')
+      [ -z "$name" ] && continue
+      case "$name" in system|-*|'') continue ;; esac
+      found=0
+      for ext in md markdown; do
+        if [ -f "$DOCS_SYSTEMS/${name}.${ext}" ]; then found=1; break; fi
+      done
+      if [ "$found" -eq 0 ]; then
+        warn "no docs/systems/${name}.md found for feature-tree system '${name}'"
+        MISSING=$((MISSING + 1))
+      fi
     fi
-  done < <(grep -E '^\|[[:space:]]*[0-9]+[[:space:]]*\|' "$TREE")
+  done < "$TREE"
   [ "$MISSING" -eq 0 ] && pass "every foundational system has a docs/systems/ entry"
 fi
 
@@ -120,20 +128,32 @@ if [ -n "$SRC_DIR" ]; then
 fi
 
 # ----------------------------------------------------------------------
-group 3 "No console-level output in source (categorical)"
+group 3 "No console-level output in source (categorical, dev-guarded exempt)"
 # ----------------------------------------------------------------------
 if [ -n "$SRC_DIR" ]; then
-  # JS/TS: console.log, console.error
-  # Python: print( (outside of CLI entrypoints)
-  # Go: fmt.Println, log.Print (should use slog or structured)
-  # Allow in entry-point files (main.ts, index.ts, cli scripts)
+  # Heuristic: flag console.* lines UNLESS the file has a __DEV__ or NODE_ENV===development
+  # guard within 5 lines above, OR the file is a known reporter/fallback that uses guarded
+  # dev-only logging (detectable by an `if (__DEV__)` or `if (process.env.NODE_ENV === 'development')`
+  # block somewhere in the file around the console call).
   HITS=0
   while IFS= read -r file; do
-    # Skip test files
     case "$file" in *.test.* | *_test.* | */tests/* ) continue ;; esac
-    # Skip entry points (these may legitimately print startup messages)
     case "$(basename "$file")" in index.ts|index.js|main.ts|main.py|main.go|cli.* ) continue ;; esac
-    if grep -qE 'console\.(log|error|warn|info|debug)' "$file" 2>/dev/null; then
+    # Skip files that are entirely dev-only reporter fallbacks (common pattern: shared/errors/reporter, dev-only shims)
+    if grep -qE 'if[[:space:]]*\([[:space:]]*__DEV__[[:space:]]*\)|if[[:space:]]*\([[:space:]]*process\.env\.NODE_ENV[[:space:]]*===[[:space:]]*[\x27"]development[\x27"][[:space:]]*\)' "$file" 2>/dev/null; then
+      # File has a dev guard; check if all console.* calls are inside such a block
+      # Simple heuristic: if console line is preceded by an if(__DEV__) { within 3 lines, treat as guarded
+      UNGUARDED=$(awk '
+        /if[[:space:]]*\([[:space:]]*(__DEV__|process\.env\.NODE_ENV[[:space:]]*===[[:space:]]*["\x27]development["\x27])[[:space:]]*\)/ { guard=NR }
+        /console\.(log|error|warn|info|debug)/ {
+          if (guard != "" && NR - guard <= 5) next
+          print FILENAME":"NR": "$0
+        }' "$file")
+      if [ -n "$UNGUARDED" ]; then
+        warn "console-level output (unguarded) in $file"
+        HITS=$((HITS + 1))
+      fi
+    elif grep -qE 'console\.(log|error|warn|info|debug)' "$file" 2>/dev/null; then
       warn "console-level output in $file (use structured logger)"
       HITS=$((HITS + 1))
     fi
@@ -142,14 +162,31 @@ if [ -n "$SRC_DIR" ]; then
       HITS=$((HITS + 1))
     fi
   done < <(find "$SRC_DIR" -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' \) 2>/dev/null)
-  [ "$HITS" -eq 0 ] && pass "no console-level output found in source"
+  [ "$HITS" -eq 0 ] && pass "no ungarded console-level output found in source"
 fi
 
 # ----------------------------------------------------------------------
 group 4 "Audit log if regulated data"
 # ----------------------------------------------------------------------
-if grep -qiE "(HIPAA|SOC ?2|PCI|GDPR|audit log|regulated data)" "$REFS"; then
-  # Look for a dedicated audit-log path
+# Only trigger on affirmative regulated-data declarations, not negative phrasing.
+# Matches: "HIPAA" (standalone regime), "SOC 2 Type 2", "PCI compliance".
+# Does NOT match: "Regulated data: none", "HIPAA: N/A", "no regulated data",
+# "audit log: not applicable", etc.
+REGULATED=0
+# Match regimes + require the line to NOT contain a negation after them
+while IFS= read -r line; do
+  # Skip if the line looks like a negation
+  if echo "$line" | grep -qiE '(none|N/A|not applicable|not required|no regulated|not regulated|skipped|deferred)'; then
+    continue
+  fi
+  # Affirmative match: a regulated-data regime appears without negation on the same line
+  if echo "$line" | grep -qiE '(HIPAA|SOC ?2|PCI( |-)?DSS|PCI compliance|GDPR compliance|regulated data (is|are|yes)|compliance: (yes|required))'; then
+    REGULATED=1
+    break
+  fi
+done < "$REFS"
+
+if [ "$REGULATED" -eq 1 ]; then
   FOUND=0
   for candidate in \
     "$SRC_DIR/shared/audit-log" \
@@ -160,10 +197,10 @@ if grep -qiE "(HIPAA|SOC ?2|PCI|GDPR|audit log|regulated data)" "$REFS"; then
   if [ "$FOUND" -eq 1 ]; then
     pass "audit log path exists (regulated data detected)"
   else
-    fail "References.md mentions regulated data but no audit-log path found (audit log must be SEPARATE from app log — see B4)"
+    fail "References.md declares regulated data but no audit-log path found (audit log must be SEPARATE from app log — see B4)"
   fi
 else
-  pass "no regulated data detected — audit log check skipped"
+  pass "no regulated data declared (or explicitly N/A) — audit log check skipped"
 fi
 
 # ----------------------------------------------------------------------

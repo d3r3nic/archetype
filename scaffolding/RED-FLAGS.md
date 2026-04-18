@@ -92,6 +92,39 @@ Agent pins SDK versions based on training-data knowledge. Versions are stale by 
 
 **Defense:** Every convention's Research Notes says "research current tooling for the chosen language." Agent resolves package versions at scaffold time, not from memory. validate-scaffold.sh can grep for obviously-stale version strings but is best-effort here — the real defense is the research-at-scaffold rule.
 
+## 14. Provider composition order (frontend/mobile)
+
+Frontend/mobile apps mount multiple providers at the root (ErrorBoundary, QueryClient, Theme, Auth, Router, Store). Wrong order silently breaks behavior — no error, no warning, just subtly wrong runtime:
+- Router mounted ABOVE AuthProvider → route guards calling `useAuth()` read undefined context; all guards silently pass.
+- QueryClient mounted BELOW a component that uses `useQuery` → "No QueryClient set" errors at runtime, not catchable by typecheck.
+- ThemeProvider mounted BELOW a component that reads theme tokens → FOUC or undefined tokens.
+
+**Defense:** SCAFFOLD-FRONTEND Step 8 specifies the composition order explicitly (ErrorBoundary → QueryClientProvider → ThemeProvider → AuthProvider → Router). Integration tests with the custom render wrapper catch regressions (the wrapper must match the production order).
+
+## 15. Route guards forgotten on protected routes
+
+Developer adds a new route that should require auth but forgets to wrap it in `<RequireAuth>` or equivalent. No error, no warning — the unauthenticated user sees the page, data may leak, privileged actions may succeed.
+
+**Defense:** SCAFFOLD-FRONTEND Step 8 demands the pattern: every route definition explicitly declares `public: true` or wraps the element in a guard. An ESLint rule or a custom linter check can flag routes without an explicit auth decision. Integration tests for protected features MUST include a 401-when-unauthenticated test.
+
+## 16. Env-inlining breaks runtime env mutation in tests
+
+Mobile-specific (but applicable to any Vite/Babel/webpack project with `define` / DEFINE_PROCESS_ENV substitution): `babel-preset-expo` and Vite's `import.meta.env.VITE_*` rewrite `process.env.EXPO_PUBLIC_*` / `import.meta.env.VITE_*` to LITERAL VALUES at transform time. Tests that set `process.env.VITE_API_BASE_URL = 'mock'` at runtime have NO effect — the code was compiled with the value from the test environment at load time. Tests silently run against the wrong config and pass spuriously.
+
+**Defense:** Bracket-notation access (`process.env['EXPO_PUBLIC_*']` / explicit runtime lookup) for values that must be mutable in tests. Document which env vars are build-time (inlined) vs runtime (mutable) in References.md § Commands / Environment. SCAFFOLD-MOBILE M7 and SCAFFOLD-FRONTEND Step 10 call this out in the testing context.
+
+## 17. Class prototype broken on transpiled Error subclasses
+
+When a TypeScript project's output target is ES5 or lower (common on mobile via babel-preset-expo for Hermes / older Android, or older browsers), the transpiler emits `_this = _super.call(this) || this` for class extension. This breaks the prototype chain for Error subclasses — `instanceof AppError` returns `false` for instances that ARE AppError. Silent: code compiles, errors throw, the catch block in the error middleware never matches, every error falls through to the generic 500 handler.
+
+**Defense:** CLAUDE.md rule (Step 41): "Error subclasses targeting transpiled output must call `Object.setPrototypeOf(this, new.target.prototype)` in the constructor." Convention #8 documents the pattern. Test: assert `new SomeSubclass() instanceof AppError === true`.
+
+## 18. Package peers drift from SDK expectations
+
+Mobile-specific: Expo SDK pins react-native + several peers to specific versions. Running `npm install react-native@X` (or pinning from training data) misses the SDK-intended peer. `expo-doctor` catches it, but `npm install` alone does not. First native build breaks or behaves unpredictably.
+
+**Defense:** SCAFFOLD-MOBILE uses SDK-aware installer — `npx expo install` for Expo SDK packages (reads the SDK's compatibility matrix). Generic `npm install` only for explicitly-non-SDK packages. `expo-doctor` run as part of verify is the safety net.
+
 ---
 
 ## Handling a fired red flag

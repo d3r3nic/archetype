@@ -35,6 +35,7 @@ Everything is built once, configured for context. Before building anything, chec
 - Never extract auth from JWT directly. Use the auth utility. → conventions/11-auth-security.md
 - Never use the language's untyped escape hatch (e.g., TS `any`, Python `Any` without narrowing, unsafe casts). Use the language's narrow/type-check equivalent. → conventions/07-types.md
 - Never escape-hatch a type error with casts, ignore-comments, or re-instantiating a shared class with laxer config. Refactor the call site. → conventions/07-types.md, conventions/00-reusability.md
+- When Error subclasses target transpiled output (mobile via babel-preset-expo, older browsers, ES5 target), the constructor must call `Object.setPrototypeOf(this, new.target.prototype)` or `instanceof` checks silently return false. → conventions/08-errors.md
 - Validate all user input at entry points. Never trust client data. → conventions/23-app-security.md
 - Authorization checks at the service layer, not UI. Verify the user can access the specific resource. → conventions/24-authorization.md
 - Never hardcode secrets or environment-specific values. → conventions/01-project-setup.md
