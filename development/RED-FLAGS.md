@@ -46,6 +46,28 @@ Feature doc describes API shape X; the route handler implements X'. Both "work."
 
 **Defense:** DEVELOP.md feature-doc template now requires API shape (request schema, response schema, errors) to be documented by reference to the source file, not copy-pasted. Cross-link recommendation: a one-line header comment in the route file pointing at the feature doc. Not a validator gate (hard to detect drift automatically) but the convention reduces copy-paste risk.
 
+## 8. Integration tests share state without isolation
+
+Multiple feature test files run against the same DB (typical for SQLite integration testing). Test A leaves rows, Test B runs an unfiltered query and sees Test A's data. Each test passes in isolation; the combined test suite is flaky or wrong.
+
+The common failure mode: a list/aggregate endpoint's test asserts row count or empty result without a feature-scoped filter. Sibling tests seed rows that the assertion doesn't account for. Symptom: `npm test` green on first run after a DB wipe, red on second run.
+
+**Defense:** pick one of these isolation strategies at scaffold time and document it in References.md:
+- **Set-membership with a unique test-scoped prefix** — each test's fixtures use a namespace (e.g., player name prefixed with test ID). Assertions match by prefix, not total counts.
+- **Transaction rollback per test** — each test runs inside a transaction that rolls back in `afterEach`. Requires the test runner and ORM to support nested transactions or rollback.
+- **Separate DATABASE_URL per test file** — each `.test.ts` gets its own ephemeral DB (e.g., `dev.{feature}.db` for SQLite, separate schemas for Postgres). Highest isolation, slowest.
+- **Test containers with reset between suites** — for real-DB-like fidelity with cleaner isolation than a shared file DB.
+
+If none of these is in place, assertions must be isolation-resilient (scoped lookups, not total-count assertions). A list-endpoint test that says "returned rows contain my test's fixtures" rather than "returned rows.length === N" will survive sibling contamination.
+
+## 9. Escape-hatch on type errors (casts, re-instantiation)
+
+When the language's strict type config fights a library's generic signatures (e.g., `exactOptionalPropertyTypes` vs. an ORM's optional-property types), the tempting fix is `as any`, `// @ts-ignore`, or instantiating a fresh client with a laxer config. All three silently violate framework conventions (#7 types, #0 reusability).
+
+**Defense:** refactor the call site, don't escape-hatch the type system. If `where: condition ? {...} : undefined` fights `exactOptionalPropertyTypes`, use a conditional spread (`where: { ...(condition && { ... }) }`) or build the args object imperatively. Never `as any`. Never `new` a fresh client to dodge one call's type friction.
+
+CLAUDE.md rule: *"Never escape-hatch the type system with casts, ignore comments, or re-instantiation to dodge a single call site. Refactor the call site."* Type friction is a signal that the API surface is wrong for the data, not a signal that the type system is wrong.
+
 ---
 
 ## How to use this file

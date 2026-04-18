@@ -83,6 +83,8 @@ These are baselines. Add more for domain-specific risks (race conditions, concur
 
 Tests live co-located with the feature: `src/features/{name}/{name}.test.ts` (adjust extension/format to project language). Follow the existing scaffold pattern — if `src/features/health/health.test.ts` exists, match that style.
 
+**Test isolation:** when multiple integration test files share a database (common for SQLite / ephemeral setups), assertions must be isolation-resilient. Sibling test files leave rows; an unfiltered list-endpoint test asserting `length === N` will flake. See `development/RED-FLAGS.md` #8 for the four isolation strategies — pick one at scaffold time and document it in References.md. Minimum bar: scoped lookups (set-membership assertions) rather than total-count assertions.
+
 ### Step 6 — Verify (run the gates)
 
 Run each of the project's verification commands from `References.md § Commands`. For a typical backend:
