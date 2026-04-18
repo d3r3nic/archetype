@@ -67,11 +67,14 @@ group 2 "feature-tree.md has Audit Log if project has N+ features"
 # ----------------------------------------------------------------------
 FEATURES_DIR="$SRC_DIR/features"
 if [ -d "$FEATURES_DIR" ]; then
-  # Count feature directories (exclude smoke/health)
+  # Count feature directories (exclude smoke-test — status-driven, with name fallback)
   FEATURE_COUNT=0
   for dir in "$FEATURES_DIR"/*/; do
     [ -d "$dir" ] || continue
     base=$(basename "$dir")
+    # Status-driven exemption (preferred — matches validate-develop.sh logic)
+    if grep -qE "^\|[^|]*\|[[:space:]]*${base}[[:space:]]*\|.*smoke-test" "$TREE"; then continue; fi
+    # Name-allowlist fallback (for projects that haven't adopted status=smoke-test yet)
     case "$base" in health|_health|ping|smoke) continue ;; esac
     FEATURE_COUNT=$((FEATURE_COUNT + 1))
   done
@@ -87,6 +90,11 @@ if [ -d "$FEATURES_DIR" ]; then
   fi
 fi
 
+# Feature-count loop above uses name-allowlist fallback. Mirror validate-develop.sh's
+# status-driven approach: a row with Status=smoke-test is exempt regardless of name.
+# This is what the feature-count loop SHOULD do — apply here as well for consistency
+# per MAINTAIN-RED-FLAGS #5 (two audits disagreeing on same concept).
+
 # ----------------------------------------------------------------------
 group 3 "Feature directory == feature-tree Feature column == docs/features filename"
 # ----------------------------------------------------------------------
@@ -99,6 +107,11 @@ if [ -d "$FEATURES_DIR" ] && [ -d "$DOCS_FEATURES" ]; then
     case "$base" in health|_health|ping|smoke) continue ;; esac
 
     # Check if feature-tree.md has a row where Feature column matches base
+    # Status-driven smoke-test exemption (mirror of validate-develop.sh)
+    if grep -qE "^\|[^|]*\|[[:space:]]*${base}[[:space:]]*\|.*smoke-test" "$TREE"; then continue; fi
+    # Name-allowlist fallback
+    case "$base" in health|_health|ping|smoke) continue ;; esac
+
     if ! grep -qE "^\|[[:space:]]*[0-9-]+[[:space:]]*\|[[:space:]]*${base}[[:space:]]*\|" "$TREE"; then
       fail "feature directory '$base' has no matching row in feature-tree.md Feature column"
       MISMATCH=$((MISMATCH + 1))
@@ -115,19 +128,29 @@ if [ -d "$FEATURES_DIR" ] && [ -d "$DOCS_FEATURES" ]; then
 fi
 
 # ----------------------------------------------------------------------
-group 4 "TECHNICAL-DEBT.md entries with open status not over-aged"
+group 4 "TECHNICAL-DEBT.md entries have Status field and open entries not over-aged"
 # ----------------------------------------------------------------------
 if [ -f "$TD" ]; then
-  # Extract entries with Status: open and their Logged dates
-  # Simple approach: count entries marked 'Status:*open' that were logged > 180 days ago
+  # First: detect entries that lack a Status: field entirely. Legacy format often
+  # has "Fix policy:" or no status at all — those silently bypass the stale check.
+  # Per MAINTAIN-RED-FLAGS #2: log grows forever without pruning.
+  MISSING_STATUS=0
+  # Every ## TD-N heading should be followed within the entry block by a Status line
+  TD_ENTRIES=$(grep -cE '^## TD-' "$TD" 2>/dev/null || echo 0)
+  STATUS_COUNT=$(grep -cE '^- \*\*Status:' "$TD" 2>/dev/null || echo 0)
+  if [ "$TD_ENTRIES" -gt 0 ] && [ "$STATUS_COUNT" -lt "$TD_ENTRIES" ]; then
+    MISSING=$((TD_ENTRIES - STATUS_COUNT))
+    fail "$MISSING of $TD_ENTRIES TECHNICAL-DEBT entries lack a 'Status:' field. Without Status, the staleness check silently bypasses them — MAINTAIN-RED-FLAGS.md #2. Retrofit the legacy format."
+    MISSING_STATUS=$MISSING
+  fi
+
+  # Then: count open entries older than threshold
   STALE=0
   THRESHOLD_DAYS=180
   NOW_EPOCH=$(date +%s)
   while IFS= read -r logged_line; do
-    # Extract YYYY-MM-DD
     date_str=$(echo "$logged_line" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1)
     [ -z "$date_str" ] && continue
-    # Convert to epoch (works on macOS and Linux)
     if date -j -f "%Y-%m-%d" "$date_str" "+%s" >/dev/null 2>&1; then
       logged_epoch=$(date -j -f "%Y-%m-%d" "$date_str" "+%s")
     elif date -d "$date_str" "+%s" >/dev/null 2>&1; then
@@ -143,8 +166,8 @@ if [ -f "$TD" ]; then
 
   if [ "$STALE" -gt 0 ]; then
     warn "$STALE TECHNICAL-DEBT entries in open status are older than $THRESHOLD_DAYS days — review for escalation or force-fix"
-  else
-    pass "no stale open tech-debt entries"
+  elif [ "$MISSING_STATUS" -eq 0 ]; then
+    pass "TECHNICAL-DEBT entries have Status field; no stale open entries"
   fi
 fi
 
