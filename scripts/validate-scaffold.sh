@@ -167,6 +167,34 @@ else
 fi
 
 # ----------------------------------------------------------------------
+group 4b "In-memory audit store not shipped to regulated production"
+# ----------------------------------------------------------------------
+# If regulated data is declared AND the project has an audit-log path,
+# check that it's not a test-only in-memory store. FAIL on regulated projects,
+# WARN on unregulated (dev-only pattern is valid early; production-blocker later).
+if grep -qiE '(HIPAA|SOC ?2|PCI|GDPR|regulated data)' "$REFS"; then
+  if [ -n "$SRC_DIR" ]; then
+    AUDIT_DIR=""
+    for candidate in "$SRC_DIR/shared/audit-log" "$SRC_DIR/shared/audit" "$SRC_DIR/audit"; do
+      [ -d "$candidate" ] && AUDIT_DIR="$candidate" && break
+    done
+    if [ -n "$AUDIT_DIR" ]; then
+      # In-memory store pattern: class name or variable names suggesting ephemeral storage
+      if grep -rqE '(InMemoryAuditStore|MemoryAuditStore|inMemoryStore|this\.records[[:space:]]*=[[:space:]]*\[\]|records:[[:space:]]*Array|push\(record\))' "$AUDIT_DIR" 2>/dev/null; then
+        # Check if there's ALSO a real backing store adapter
+        if grep -rqE '(PostgresAuditStore|PrismaAuditStore|DatabaseAuditStore|S3AuditStore|AppendOnlyStore|WORMStore|CloudAuditStore)' "$AUDIT_DIR" 2>/dev/null; then
+          pass "audit log has both in-memory (test) and backing store (production) implementations"
+        else
+          fail "audit log uses in-memory store only but References.md declares regulated data. Ship to production = compliance failure. Add a real backing-store adapter (append-only table, WORM storage, or audit-log platform)."
+        fi
+      else
+        pass "audit log implementation does not rely on in-memory-only storage"
+      fi
+    fi
+  fi
+fi
+
+# ----------------------------------------------------------------------
 group 5 "Smoke-test feature exists"
 # ----------------------------------------------------------------------
 if [ -n "$SRC_DIR" ]; then
@@ -204,9 +232,11 @@ if [ -n "$CI_FILES" ]; then
   for f in $CI_FILES; do
     # Only check files that actually run migrations
     if grep -qE '(prisma migrate deploy|alembic upgrade head|knex migrate:latest|rake db:migrate|flyway migrate|sea-orm-cli migrate|atlas migrate apply)' "$f"; then
-      # SAFE patterns: workflow_dispatch (manual), staging/dev environment gate, branch-protected manual approval
-      if grep -qE 'workflow_dispatch' "$f"; then
-        pass "CI migration in $(basename "$f") is manual (workflow_dispatch) — safe"
+      # SAFE patterns: workflow_dispatch (manual) as actual trigger, staging/dev environment gate.
+      # Anchor workflow_dispatch to YAML trigger position: either "workflow_dispatch:" at logical line start,
+      # or within an "on:" block. A bare "workflow_dispatch" in a comment should NOT match.
+      if grep -qE '^[[:space:]]*workflow_dispatch:' "$f" || awk '/^on:/,/^[a-zA-Z]/' "$f" | grep -qE 'workflow_dispatch'; then
+        pass "CI migration in $(basename "$f") is manual (workflow_dispatch trigger) — safe"
         HITS_OK=$((HITS_OK + 1))
       elif grep -qE '(if:[^)]*(staging|dev|development)|only:[^)]*(staging|dev|development)|environment:[^)]*(staging|dev|development))' "$f"; then
         pass "CI migration in $(basename "$f") gated to non-prod — safe"
