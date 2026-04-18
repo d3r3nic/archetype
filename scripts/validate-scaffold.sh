@@ -195,26 +195,106 @@ if [ -n "$SRC_DIR" ]; then
 fi
 
 # ----------------------------------------------------------------------
-group 6 "CI does not auto-run migrations"
+group 6 "CI does not auto-run migrations on prod deploy"
 # ----------------------------------------------------------------------
 CI_FILES=$(find "$PROJECT_DIR/.github/workflows" "$PROJECT_DIR/.gitlab-ci.yml" "$PROJECT_DIR/.circleci" "$PROJECT_DIR/Jenkinsfile" 2>/dev/null -type f 2>/dev/null)
 if [ -n "$CI_FILES" ]; then
-  HITS=0
+  HITS_FAIL=0
+  HITS_OK=0
   for f in $CI_FILES; do
-    # Check for migrate-in-deploy patterns
-    if grep -qE '(prisma migrate deploy|alembic upgrade head|knex migrate:latest|rake db:migrate|flyway migrate)' "$f"; then
-      # Check whether it's guarded by a staging-only condition
-      if grep -qE '(if:.*(staging|dev)|only:.*(staging|dev))' "$f"; then
-        pass "CI runs migrations but appears gated to non-prod"
+    # Only check files that actually run migrations
+    if grep -qE '(prisma migrate deploy|alembic upgrade head|knex migrate:latest|rake db:migrate|flyway migrate|sea-orm-cli migrate|atlas migrate apply)' "$f"; then
+      # SAFE patterns: workflow_dispatch (manual), staging/dev environment gate, branch-protected manual approval
+      if grep -qE 'workflow_dispatch' "$f"; then
+        pass "CI migration in $(basename "$f") is manual (workflow_dispatch) — safe"
+        HITS_OK=$((HITS_OK + 1))
+      elif grep -qE '(if:[^)]*(staging|dev|development)|only:[^)]*(staging|dev|development)|environment:[^)]*(staging|dev|development))' "$f"; then
+        pass "CI migration in $(basename "$f") gated to non-prod — safe"
+        HITS_OK=$((HITS_OK + 1))
+      # UNSAFE pattern: on push to main/master WITHOUT a gate
+      elif grep -qE 'on:[[:space:]]*$|branches:.*(main|master)' "$f"; then
+        fail "CI file $(basename "$f") auto-runs migrations on push to main/master without a manual gate — violates B1. Move to a separate workflow_dispatch workflow."
+        HITS_FAIL=$((HITS_FAIL + 1))
       else
-        warn "CI file $f may auto-run migrations on deploy — verify B1 safety (staging-only OR separate gated workflow)"
-        HITS=$((HITS + 1))
+        warn "CI file $(basename "$f") runs migrations — verify gating (workflow_dispatch OR environment:staging)"
       fi
     fi
   done
-  [ "$HITS" -eq 0 ] && pass "CI migration behavior OK"
+  [ "$HITS_FAIL" -eq 0 ] && [ "$HITS_OK" -gt 0 ] && pass "all CI migration patterns are safe"
+  [ "$HITS_FAIL" -eq 0 ] && [ "$HITS_OK" -eq 0 ] && pass "no migration execution detected in CI"
 else
   warn "no CI workflow files detected — scaffold may be incomplete"
+fi
+
+# ----------------------------------------------------------------------
+group 6b "Pre-commit hook present"
+# ----------------------------------------------------------------------
+PRECOMMIT_FOUND=0
+for candidate in \
+  "$PROJECT_DIR/.husky/pre-commit" \
+  "$PROJECT_DIR/.pre-commit-config.yaml" \
+  "$PROJECT_DIR/lefthook.yml" \
+  "$PROJECT_DIR/.lefthook.yml" \
+  "$PROJECT_DIR/hooks/pre-commit.sh"; do
+  if [ -f "$candidate" ]; then
+    PRECOMMIT_FOUND=1
+    # Husky hook should be executable
+    if [[ "$candidate" == *.husky/pre-commit ]] || [[ "$candidate" == */hooks/pre-commit.sh ]]; then
+      if [ ! -x "$candidate" ]; then
+        fail "pre-commit hook exists at $candidate but is not executable (run chmod +x)"
+      else
+        pass "pre-commit hook at $candidate (executable)"
+      fi
+    else
+      pass "pre-commit config at $candidate"
+    fi
+    break
+  fi
+done
+if [ "$PRECOMMIT_FOUND" -eq 0 ]; then
+  fail "no pre-commit hook found (.husky/pre-commit, .pre-commit-config.yaml, lefthook.yml, or hooks/pre-commit.sh). Missing pre-commit = silent-shipping-without-discipline."
+fi
+
+# ----------------------------------------------------------------------
+group 6c "Persisted queries for mobile/public GraphQL clients"
+# ----------------------------------------------------------------------
+# Only applies if References.md mentions mobile/public clients AND the project has GraphQL setup
+if grep -qiE '(mobile|public|external clients|third.?party)' "$REFS" && [ -n "$SRC_DIR" ]; then
+  GQL_DIRS=$(find "$SRC_DIR" -type d \( -iname 'graphql' -o -iname 'gql' \) 2>/dev/null)
+  if [ -n "$GQL_DIRS" ]; then
+    PERSISTED_FOUND=0
+    for dir in $GQL_DIRS; do
+      if grep -rqE '(persistedQuer|persistedDocument|usePersistedQueries|APQ)' "$dir" 2>/dev/null; then
+        PERSISTED_FOUND=1
+        break
+      fi
+    done
+    if [ "$PERSISTED_FOUND" -eq 1 ]; then
+      pass "persisted queries configured (mobile/public clients detected)"
+    else
+      fail "References.md mentions mobile/public GraphQL clients but no persisted-queries configuration found. Arbitrary query execution is a production attack surface."
+    fi
+  fi
+fi
+
+# ----------------------------------------------------------------------
+group 6d "OpenTelemetry exporter configured (if OTel in References)"
+# ----------------------------------------------------------------------
+if grep -qiE '(opentelemetry|otel|otlp)' "$REFS" && [ -n "$SRC_DIR" ]; then
+  OTEL_FOUND=0
+  # Look for OTel SDK startup OR OTLP exporter configuration
+  if grep -rqE '(@opentelemetry/sdk|NodeSDK|BatchSpanProcessor|OTLPTraceExporter|OTLPMetricExporter|TracerProvider|MeterProvider|openTelemetry\.trace\.getTracer)' "$SRC_DIR" 2>/dev/null; then
+    OTEL_FOUND=1
+  fi
+  # Python / Go variants
+  if grep -rqE '(opentelemetry\.sdk|OTLPSpanExporter|opentelemetry/contrib|otelhttp|otel\.GetTracerProvider)' "$SRC_DIR" 2>/dev/null; then
+    OTEL_FOUND=1
+  fi
+  if [ "$OTEL_FOUND" -eq 1 ]; then
+    pass "OpenTelemetry exporter configured"
+  else
+    fail "References.md names OpenTelemetry/OTLP but no SDK startup or exporter configuration found in source. OTel env vars defined-but-unused = silent failure."
+  fi
 fi
 
 # ----------------------------------------------------------------------

@@ -2,9 +2,7 @@
 
 Routed from `scaffolding/SCAFFOLD.md` when the project is a backend service (API, worker, service, GraphQL server, gRPC, etc.). The steps below are ordered so each system can be built and verified before the next depends on it.
 
-**Zero-stale rule:** every tooling decision below is research-at-scaffold-time. Linters, frameworks, observability vendors, SAML providers, cloud services — look up the current market leaders for the chosen language/stack when you read the convention doc's Research Notes. Do not treat a specific vendor named here (if any) as THE answer.
-
-**Convention mapping rule:** every step names the conventions it implements. Read those convention docs before building — they contain the principles + research triggers.
+**Read `scaffolding/_preamble.md` first** — it covers the shared scaffold rules (zero-stale, convention-mapping, handoff-check, smoke-test, verification, commits, red-flags, validator gate) that apply to all scaffold playbooks.
 
 ## Step 0 — Handoff check (read before building anything)
 
@@ -179,7 +177,7 @@ Build:
 - GraphQL server (current language server library). Schema-first builder preferred (code-first-with-types is the second choice).
 - Depth limit and cost analysis plugins configured. Defaults: depth 10, cost per request low enough to prevent abuse.
 - Field-level authorization via scope-auth or directive-based plugin. EVERY sensitive field has an auth check.
-- DataLoader equivalent wired in to prevent N+1 during resolution.
+- DataLoader pattern wired in to prevent N+1 during resolution. Build a request-scoped loader per parent→children relationship used in resolvers (users→orders, orders→items, etc.). Research current DataLoader library for the chosen GraphQL server language. The pattern is universal; the library name varies.
 - If mobile/public clients: persisted queries plugin. Arbitrary query execution disabled in production.
 - Schema diff check in CI (contract testing — see B2 versioning section).
 - Idempotency (Step 10) applied to mutations.

@@ -2,7 +2,7 @@
 
 Routed from `scaffolding/SCAFFOLD.md` when the project is native mobile (installable from App Store / Play Store, native device APIs). For responsive-web-on-phone use `SCAFFOLD-FRONTEND.md`. For PWA use `SCAFFOLD-FRONTEND.md` Step 8 (service worker + manifest).
 
-**Zero-stale rule:** mobile tooling churns fast. SDK versions, native-module APIs, submission policies all change. Research at scaffold time for the chosen mobile framework (React Native + Expo, Flutter, native iOS/Android). Do not rely on specific SDK versions named here.
+**Read `scaffolding/_preamble.md` first** — it covers the shared scaffold rules. Mobile tooling churns especially fast (SDK versions, native-module APIs, submission policies), so the zero-stale rule is particularly important here.
 
 Most Step 0-11 of `SCAFFOLD-FRONTEND.md` apply identically to mobile (project setup, types, theme, components, state, API layer, auth, forms, testing, CI). Mobile-specific additions below.
 

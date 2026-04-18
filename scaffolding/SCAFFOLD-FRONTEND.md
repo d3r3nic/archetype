@@ -2,9 +2,7 @@
 
 Routed from `scaffolding/SCAFFOLD.md` when the project is a frontend (web app, SPA, SSR app). Steps ordered so each system can be built and verified before the next depends on it.
 
-**Zero-stale rule:** every tooling choice is research-at-scaffold-time. UI library, state library, form library, data-fetching library all change. Read the convention doc's Research Notes for the chosen framework and look up current options. Do not treat specific vendor names (if any) as THE answer.
-
-**Convention mapping rule:** every step names the conventions it implements. Read those before building.
+**Read `scaffolding/_preamble.md` first** — it covers the shared scaffold rules that apply to all playbooks.
 
 ## Step 0 — Handoff check (read before building)
 

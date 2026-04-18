@@ -2,6 +2,8 @@
 
 Routed from `scaffolding/SCAFFOLD.md` when the project chose a platform (Option A from `bootstrap/ONBOARD.md` Step 3) rather than a custom build.
 
+**Read `scaffolding/_preamble.md` first** — the shared scaffold rules still apply even when there's no code to scaffold, especially the handoff-check and red-flags rules.
+
 **Scaffolding mostly does not apply.** The framework's scaffold phase is for building foundational code systems. Platform projects have no code to scaffold — the platform already owns the systems (auth, database, errors, state, routing, UI, CI, etc.).
 
 What platform projects DO need from scaffold:
