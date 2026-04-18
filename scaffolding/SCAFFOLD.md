@@ -1,231 +1,125 @@
-# Phase 2: Scaffold
+# Phase 2: Scaffold — Router
 
-Build the foundational systems described in References.md. Run after bootstrap. Each system is built following convention #0 (Reusability) - built once, configured for context, used by every feature.
+Build the foundational systems described in `References.md`. Run after bootstrap. Each system is built following convention #0 (Reusability) — built once, configured for context, used by every feature.
+
+**This file is a router.** Most content lives in the shape-specific playbooks below. Read this preamble in full, then jump to the playbook matching your project shape.
 
 ## Prerequisites
 
-- Phase 1 (Bootstrap) complete
-- References.md exists with tech stack and system descriptions
-- feature-tree.md initialized
+- Phase 1 (Bootstrap) complete.
+- `References.md` exists with tech stack, foundational-systems list, compliance section, convention overrides.
+- `feature-tree.md` initialized with systems marked `not started`.
+- `VERSION-LOG.md` has a Bootstrap entry. Any open pre-production gates documented there are resolved OR the scaffold halts per `bootstrap/RED-FLAGS.md`.
 
-## Scaffolding Prompt
+## Route by project shape
 
-## How to Run Scaffolding
+Determine the shape from `References.md`:
 
-The scaffold has 13 steps. Do NOT run all 13 in one AI session. Break into 3 sessions to keep context fresh:
+- **Backend** (API, worker, service, GraphQL server, data pipeline, etc.) → `scaffolding/SCAFFOLD-BACKEND.md`
+- **Frontend** (web app, SPA, SSR app, PWA) → `scaffolding/SCAFFOLD-FRONTEND.md`
+- **Mobile** (native iOS/Android, cross-platform mobile) → `scaffolding/SCAFFOLD-MOBILE.md`
+- **Platform** (user picked Shopify / WordPress / SimplePractice / etc. in Step 3) → `scaffolding/SCAFFOLD-PLATFORM.md`
+- **Fullstack with separate frontend + backend folders** → run SCAFFOLD-FRONTEND in the frontend folder AND SCAFFOLD-BACKEND in the backend folder. Each has its own `References.md` and `feature-tree.md`.
 
-**Session 1: Foundation (steps 0-4)**
-Infrastructure, types, theme, errors, API layer
+Do NOT attempt to build from this router directly. The shape-specific playbooks have the ordered steps and the convention mappings.
 
-**Session 2: Core systems (steps 5-9)**
-Database, auth, routing, state, components
+## Shared rules (apply across all shapes)
 
-**Session 3: Quality & delivery (steps 10-12)**
-Forms, testing, CI/CD
+**Zero-stale rule.** Every tool, SDK, version, linter rule, or vendor named in the framework is a reference — verify current options at scaffold time. Research Notes in each convention list the CATEGORY of tooling (e.g., "a structured logger for the language", "a SAML-capable enterprise auth broker"). Resolve to a specific current choice at scaffold time, not from training-data memory.
 
-Start each session with: "Read CLAUDE.md, Conventions.md, References.md, and feature-tree.md. Continue scaffolding from step [N]."
+**Convention mapping rule.** Every step in the shape-specific playbooks names the conventions it implements (e.g., "build per convention #8 + B3"). Read those convention docs before building the step — they carry the principles, rules, and research triggers. Do not scaffold by enforcement-rule memory alone.
 
-## Scaffolding Prompt (start of each session)
+**Handoff-check rule (Step 0 of every playbook).** Read `References.md` in full before building anything:
+- Compliance section determines which systems are mandatory (audit log, encryption, rate limiting, etc.).
+- Foundational Systems list is your inventory — every entry must map to a playbook step OR be built as a project-specific extension alongside its nearest sibling.
+- Convention Overrides document project-specific deviations.
+- Open pre-production gates in VERSION-LOG.md block further scaffolding until resolved.
 
----
+**Smoke-test rule.** Every shape-specific playbook ends with a minimal feature exercising the full scaffold end-to-end. Scaffold is NOT complete until the smoke-test feature's integration test passes. A scaffold with every system individually built but not wired together is silently broken.
 
-Read CLAUDE.md, Conventions.md, and References.md. Read feature-tree.md to see what's already built.
+**Verification discipline.** Convention #18 says verify after every change. The playbooks translate this into operational gates: each step has a specific command and specific exit criterion. Do not proceed to the next step if verification fails. Do not stub-satisfy verification ("looks like it would work").
 
-Build the foundational systems in order. For each system:
-1. Read the corresponding convention doc
-2. Create the code
-3. Write docs/systems/{system-name}.md using the template below
-4. Update feature-tree.md marking the system as implemented with paths
-5. Update References.md with actual paths (if they differ from the bootstrap plan)
-6. Verify it works (run build/tests)
-7. Commit (save point)
+**Commit discipline.** One commit per foundational system per convention #2. The commit history IS the rollback ladder.
 
-Systems to build (order matters - later systems depend on earlier ones):
+**Red-flags rule.** Before scaffolding, read `scaffolding/RED-FLAGS.md` — 13 known silent-failure patterns. Consult it during each step. If a red flag fires, STOP and resolve before continuing.
 
-### 0. GIT & PROJECT INIT (#2)
-- Initialize git if not done in bootstrap
-- .gitignore configured for tech stack
-- Pre-commit hooks (lint, format, type-check)
-- Branch protection rules documented
-
-### 1. PROJECT STRUCTURE & TYPES (#1, #7)
-- Folder structure per References.md
-- Path aliases configured
-- Strict type checking configured for the language (TypeScript strict, mypy strict, nullable reference types, etc.)
-- Shared types directory created
-- Validation library installed and configured (Zod, Pydantic, FluentValidation, or language equivalent)
-- Barrel exports pattern established
-- Linting and formatting configured
-
-### 2. THEME SYSTEM (#6) [frontend]
-- Design tokens (colors, spacing, typography, shadows, z-index, breakpoints)
-- Theme object as single source of truth
-- UI library wrappers (never import directly)
-- Dark mode support if needed
-
-### 3. ERROR SYSTEM (#8)
-- Error classes (NetworkError, ValidationError, NotFoundError, AuthError)
-- Error service (catch, classify, log, report)
-- Error boundary components [frontend] or error middleware [backend]
-- Error UI components [frontend]: fallback, empty state, offline, loading
-- Unified loading components [frontend]: full screen, inline, skeleton
-
-### 4. API LAYER (#9, #10)
-- Configured client instance (base URL, interceptors)
-- Auth token attachment
-- Request/response transformation
-- Data fetching library integration [frontend] or route/handler setup [backend]
-- Cache strategy configured
-- Response envelope/format standardized
-- API contract setup if applicable (OpenAPI, tRPC, shared schemas)
-
-### 5. DATABASE (#3) [backend]
-- ORM/driver configured and connected
-- Schema defined (models, relations, indexes)
-- Initial migration created
-- Query patterns established (query builders or repository pattern if applicable)
-- Seed data script if needed for development
-- Migration commands documented in References.md
-
-### 5b. FILE STORAGE (#9, #11) [if project handles file uploads]
-- File upload service configured (presigned URLs or platform equivalent)
-- File validation (type, size) on client and server
-- Upload progress tracking
-- Background upload (non-blocking UI)
-- File viewing/download service
-- Storage paths and naming convention documented
-
-### 6. AUTH SYSTEM (#11)
-- Auth service (token storage, refresh, logout cleanup)
-- Auth context/provider [frontend] or auth middleware [backend]
-- Route guard component [frontend] or auth utility [backend]
-- Auth utility function (get authenticated user)
-
-### 7. ROUTING & LAYOUTS (#21) [frontend]
-- Route definitions
-- Layout components (persistent shells)
-- Route guard integration with auth system
-- Loading and error states per route
-
-### 8. STATE MANAGEMENT (#5) [frontend]
-- Store configuration
-- Slice pattern template
-- Server state integration with API layer
-
-### 9. COMPONENT FOUNDATION (#4, #14, #22) [frontend]
-- Base wrapper components for UI library
-- Layout components (Stack, Grid, Page containers)
-- Accessible base components (Modal, Dialog, Dropdown with proper ARIA)
-- Consistent component API patterns documented
-- Storybook or component catalog setup if applicable
-
-### 10. FORM SYSTEM (#20) [if project uses forms]
-- Form library configured
-- Validation schema pattern (one schema = types + validation)
-- Form field components with error display
-- Multi-step wizard if needed
-
-### 11. TESTING SETUP (#12, #18)
-- Test runner configured
-- Custom render wrapper with providers [frontend]
-- Network-level API mocking configured (MSW, WireMock, responses, httptest, or language equivalent)
-- Test data factories
-- Verification command documented in References.md
-
-### 12. CI/CD & PERFORMANCE (#15, #13)
-- Lint + typecheck + test + build pipeline
-- Code splitting configured (route-based) [frontend]
-- Bundle budget set [frontend]
-- Preview deployments per PR if applicable
-
----
+**Machine-verifiable exit gate.** Run `scripts/validate-scaffold.sh` at the end. Do not commit a scaffold that fails the validator. Do not paper over failures. Re-build the broken system; re-run.
 
 ## System Documentation Template
 
-Each system gets a doc at docs/systems/{system-name}.md:
+Every scaffolded system gets a doc at `docs/systems/{system-name}.md`:
 
 ```
 # {System Name}
 
-Convention: #{number} ({convention name})
+Convention: #{number} ({convention name}) [+ #{other} if cross-cutting]
 
 ## What It Is
-[One paragraph explaining the system]
+[One paragraph explaining the system and its responsibility]
 
 ## Where It Lives
-[Exact file paths]
+[Exact file paths — every file the system owns]
 
 ## How Features Use It
 [Exact import statement using the project's path alias, e.g.:]
 import { NotFoundError } from '@/shared/errors'
-import { apiClient } from '@/shared/api'
-import { Button, Input } from '@/shared/ui'
 
 [Usage example showing the most common pattern]
+
+## How to Verify
+[Specific command. Specific expected output.]
 
 ## Configuration
 [How to extend or configure for different contexts]
 ```
 
-## Additional Documentation Required After Scaffolding
+The "How to Verify" subsection is non-optional — it's how the next developer (or agent) confirms the system works.
 
-The scaffolding agent must also produce:
+## Post-scaffold required outputs
 
-1. **.env.example** in the project root listing every required environment variable with a description but no real values. A new developer or AI agent cloning the project must know what env vars to set.
+Every shape-specific playbook ends with:
 
-2. **"How to Add a New Feature" section in References.md** - a project-specific step-by-step showing: what folder to create, what files to include, which shared systems to import, which template feature to copy from.
+1. `docs/systems/{name}.md` for every foundational system.
+2. `feature-tree.md` with each system marked with its real location.
+3. `References.md` updated with actual paths, DB/API summaries where applicable.
+4. `.env.example` at project root with every required env var documented (no real values).
+5. `VERSION-LOG.md` appended with a Scaffold entry — see template at bottom of this file.
+6. Initial "scaffold complete" commit AFTER `scripts/validate-scaffold.sh` passes.
+7. Platform projects use `docs/runbook.md` instead of `docs/systems/` — see SCAFFOLD-PLATFORM.
 
-3. **Database schema overview in References.md** (backend) - list the current models and their key fields so a new agent doesn't have to read the raw schema file to understand what data exists.
+## VERSION-LOG Scaffold entry template
 
-4. **API endpoint summary in References.md** (backend) - list all endpoints with method, path, request shape, and response shape. A new agent building a frontend or adding a feature needs to know the API without reading handler code.
-
-5. **All shared UI components must use other shared components internally.** The error display component must use the shared Button. The form must use the shared Input. Shared components never use raw HTML when a shared equivalent exists.
-
-## Checklist
-
-After scaffolding, verify:
-
-- [ ] All foundational systems created and working
-- [ ] docs/systems/ has a doc for each system with exact import paths
-- [ ] feature-tree.md shows all systems as implemented with paths
-- [ ] References.md updated with actual paths
-- [ ] References.md has "How to Add a New Feature" section
-- [ ] References.md has database schema overview (backend)
-- [ ] References.md has API endpoint summary (backend)
-- [ ] .env.example exists with all required variables documented
-- [ ] Theme supports light AND dark mode
-- [ ] Shared UI components use other shared components internally (no raw HTML when a shared equivalent exists)
-- [ ] Build passes
-- [ ] Linting passes
-- [ ] Type checking passes
-- [ ] Base test suite passes
-- [ ] Initial commit with all scaffolding
-
-## What Scaffolding Produces
-
-A working, empty project with all foundational systems in place. No features yet. Any feature can be built immediately by plugging into these systems.
-
-This scaffolding is REUSABLE. Projects with the same tech stack can start from this base. Store it as a template repo.
-
-## Scaffolding Documentation
-
-Every decision made during scaffolding that deviates from the conventions or makes a stack-specific choice is recorded in References.md under "Convention Overrides."
-
-## Log the Scaffold
-
-After scaffolding completes, append to VERSION-LOG.md:
+Append to `VERSION-LOG.md` after scaffold completes:
 
 ```
 ## Scaffold
 
 Date: [today's date]
-Session(s): [how many sessions it took]
+Type: [custom / platform]
+Shape: [backend / frontend / mobile / platform / fullstack]
+Sessions: [how many discrete AI sessions it took]
 Systems built:
-- [system name] → [location] (convention #N)
-- [system name] → [location] (convention #N)
+- [system name] → [location] (convention #N, verify: `<command>` exit 0)
+- [system name] → [location] (convention #N, verify: ...)
 - ...
-Systems skipped: [which ones and why]
-Dependencies installed: [key packages added]
+Systems deferred: [which ones and why, with References.md implications]
+Smoke-test feature: [path] — integration test status
+Red flags fired: [which RED-FLAGS.md item, how it was resolved]
+validate-scaffold.sh: [pass / fail, with pass required to mark scaffold complete]
+Dependencies installed: [key packages]
 Conventions read: [which convention docs were read during scaffolding]
-Verification: [build passes / tests pass / typecheck passes]
 ```
+
+## What scaffolding produces
+
+A working, empty project with all foundational systems in place plus ONE smoke-test feature that exercises every system. No business features yet. Any feature can be built immediately by plugging into these systems.
+
+The scaffold is REUSABLE. Projects with the same tech stack can start from this base.
+
+## Scaffolding documentation
+
+Every decision made during scaffolding that deviates from the conventions or makes a stack-specific choice is recorded in `References.md` under "Convention Overrides." Research-at-scaffold decisions (e.g., which linter rules were chosen for the stack's AI-prone categories) are also recorded there.
+
+## Next step
+
+Phase 3 (Develop): build business features on top of the scaffolded systems. See `development/DEVELOP.md`.
