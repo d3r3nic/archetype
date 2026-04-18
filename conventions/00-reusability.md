@@ -8,7 +8,7 @@ Reusability operates at two levels:
 
 **Inside a project** — one error system, one API layer, one theme, one auth utility. Features share the systems. Do not fork or duplicate.
 
-**Across the software landscape** — if a platform, library, or service already solves the problem end-to-end, use it. Do not rebuild what already exists as a market-available product. WordPress for content. Shopify for commerce. Blueprint for HIPAA therapy practice. Stripe for payments. Custom code is for the layer those platforms do not cover.
+**Across the software landscape** — if a platform, library, or service already solves the problem end-to-end, use it. Do not rebuild what already exists as a market-available product. WordPress for content. Shopify for commerce. SimplePractice or Jane for HIPAA therapy practice. Stripe for payments. Calendly for booking. Custom code is for the layer those platforms do not cover.
 
 Both levels prevent the same failure: building what already exists, wasting effort, creating drift between the built version and the canonical version. This convention governs decisions in bootstrap (do we need custom code at all?) AND in development (does a system for this exist already?).
 
@@ -40,7 +40,7 @@ This convention doesn't produce a single system. It governs HOW all systems are 
 - Building anything without first checking what already exists.
 - Building a custom CMS when WordPress, Ghost, or Contentful exist.
 - Building a custom commerce platform when Shopify, WooCommerce, or BigCommerce exist.
-- Building a custom HIPAA-compliant patient portal when Blueprint, Healthie, or SimplePractice exist.
+- Building a custom HIPAA-compliant patient portal when SimplePractice, Jane, TherapyNotes, or Healthie exist.
 - Building a custom booking system when Calendly, Acuity, or Square Appointments exist.
 - Scaffolding a greenfield custom app for a use case a vertical SaaS already solves end-to-end.
 
@@ -51,7 +51,7 @@ This convention doesn't produce a single system. It governs HOW all systems are 
 - WRONG: PharmacyTable, InsuranceTable, PhysicianTable as three separate components with 90% duplicate code.
 - RIGHT: VendorTable configured with pharmacyConfig, insuranceConfig, physicianConfig. One component, three configurations.
 - WRONG: "I want a therapy practice app" → scaffold a HIPAA-compliant portal, auth, document storage, BAA, encryption from scratch.
-- RIGHT: "I want a therapy practice app" → Blueprint/SimplePractice/Healthie covers 80%+; if product-unique logic is needed, build only that layer on top of the platform.
+- RIGHT: "I want a therapy practice app" → SimplePractice or Jane covers 80%+ of what a solo or small practice needs (patient portal, intake, scheduling, notes, document sharing, telehealth, BAA included); if product-unique logic is needed (AI analysis, novel measurement), build only that layer on top of the platform.
 - WRONG: "I want a blog for my personal site" → Next.js + Redis + PostgreSQL + Kubernetes (5 readers, 20 posts/year).
 - RIGHT: "I want a blog for my personal site" → Astro or Ghost. Deploy anywhere. Done.
 

@@ -87,12 +87,18 @@ Before choosing any technology or generating any files, interview the user with 
 - What does your app do? Describe it like you're explaining to a friend.
 - Who uses it? Just you? Your team? The public?
 - Can you name an existing app that's similar to what you want? (even loosely)
+- Is this a product you want to ship, or a project to learn a specific technology? (If learning a technology, that's a legitimate reason to use that stack even when a platform would be simpler — but note it explicitly so Step 3 can handle it correctly.)
 
 **Group 2 - Where does it run?**
 - Should this work in a web browser? (like Gmail, Twitter)
 - Should this be a phone app? (like Instagram, Uber)
 - Should this be a desktop application? (like Photoshop, Slack desktop)
 - Or some combination?
+
+If the user says "phone app" or "works on my phone," do NOT silently pick a stack. Follow up:
+> "When you say phone, do you mean: (a) installed from the App Store / Play Store like Instagram (a native app), (b) added to the home screen from a browser like a PWA, or (c) just works well when they open your site on their phone (responsive web)? The three are very different in cost and time to build."
+
+Responsive web is almost always the cheapest starting point. Native is the most expensive and takes the longest. Do not assume; ask.
 
 **Group 3 - What do users do?**
 - Do users need to create accounts and log in?
@@ -110,6 +116,11 @@ Before choosing any technology or generating any files, interview the user with 
 - Does this app handle sensitive data that has legal requirements? (health records, financial data, personal information with privacy laws)
 - Do you or your team have experience managing servers and cloud infrastructure? Or would you prefer something that handles that for you?
 - How important is it that you own and control all the infrastructure vs getting something live quickly?
+
+If the user answers the sensitive-data question vaguely ("I dunno", "not sure", "I guess not"), DEFAULT TO ASSUMING REGULATED DATA. Ask one disambiguating question:
+> "To be safe, I'll assume yes — are any of these involved: health info (doctor notes, therapy, wellness tracking with medical intent)? payments (credit card numbers you store)? identity info (SSN, driver's license, passport)? employment/HR data? minors' data? If none of these apply and the data is not governed by any specific law you're aware of, say 'no regulated data.' Otherwise I'll route you toward a compliance-aware stack."
+
+The safe default is yes-regulated. A wrong "no" here leads to generating a non-compliant stack that the user won't catch until audit. A wrong "yes" leads to a compliance-grade stack that is overkill but not unsafe.
 
 ### How the AI decides (read the user's knowledge level):
 
@@ -155,7 +166,9 @@ ONLY IF a custom build is genuinely required (product logic no platform offers, 
 | Answer | Technical Decision |
 |--------|-------------------|
 | Web browser app | Frontend: web framework (React, Vue, Svelte, etc.) |
-| Phone app | Mobile: React Native, Flutter, or native |
+| Phone app (confirmed native) | Mobile: React Native + Expo OR Flutter OR native iOS/Android |
+| Phone app (PWA, installable from browser) | Web stack (React/Vue/Svelte) + PWA manifest + service worker |
+| Works on phone (responsive web) | Web stack, responsive design, no mobile-specific tooling |
 | Desktop app | Desktop: Electron, Tauri, .NET WPF, or native |
 | Users log in | Auth system needed |
 | Users submit forms | Form system needed |
@@ -217,6 +230,8 @@ After discovery, the AI has the answers. But DO NOT pick a tech stack yet. First
 ### The AI must consider: does the user actually need a custom app?
 
 Many projects are better served by existing platforms than custom code. The AI must be honest about this, even though the framework exists to scaffold custom projects. Over-engineering is a violation of convention #0 (reusability — don't build what already exists, whether inside the project OR as a market-available platform).
+
+**Exception: learning projects.** If Group 1 revealed this is a project to learn a specific technology (not a product to ship), the platform-vs-custom research is bypassed — the technology choice IS the point. But scale-vs-cost still matters: learning Kubernetes on a self-managed EKS cluster costs ~$150/mo baseline; learning it on kind/minikube locally costs $0. Surface the cost of the learning exercise explicitly. Recommend the cheapest way to exercise the target technology, and document the learning intent in References.md so future AI agents don't re-litigate the decision.
 
 Research and present these options to the user BEFORE committing:
 
@@ -287,7 +302,31 @@ If the user confirms custom build (Option C), proceed to Step 4.
 
 ## Step 4: Generate Project Context
 
-After the user confirms the custom build approach, the AI generates the project files.
+After the user confirms their build approach, the AI generates the project files. The generation path depends on whether the user picked a platform (Option A/B from Step 3) or a custom build (Option C).
+
+### If the user picked a PLATFORM (Option A or B from Step 3):
+
+The framework's scaffolding phase does NOT apply. There is no tech stack to document, no foundational systems to build, no folder structure to scaffold. The user's project is configuration and content within a third-party platform.
+
+Generate:
+- `References.md` using `templates/references-platform.md` (NOT the frontend/backend/mobile templates — those are for custom builds)
+- `feature-tree.md` reshaped as a configuration checklist for the chosen platform (not a systems map)
+- `VERSION-LOG.md` with `Type: platform / {platform-name}` in the bootstrap entry
+- No `.gitignore`, no `git init`, no `docs/systems/`, no `docs/features/` — the framework doesn't manage the platform's internals
+
+Conventions that still apply:
+- #2 (Git) — if the user will version-control platform config files (theme customizations, export files)
+- #16 (Documentation) — the References.md IS their documentation
+- #23 (App Security) — admin account, 2FA, PII handling within the platform
+- #24 (Authorization) — role settings within the platform
+
+Conventions that do NOT apply: everything else (architecture, components, state, styling, types, errors, API, testing, build/CI, etc.). Those are owned by the platform.
+
+Stop after generating References.md, feature-tree.md, and VERSION-LOG.md. Help the user sign up for the platform and walk through initial configuration.
+
+### If the user picked a CUSTOM BUILD (Option C from Step 3):
+
+Proceed below. This is the path the framework was originally built around.
 
 ### For a fullstack project (web frontend + backend API):
 

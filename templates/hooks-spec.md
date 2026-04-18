@@ -9,7 +9,7 @@ Two working hook scripts live at `bootstrap/hooks/`:
 - `pre-destructive-warn.sh` — blocks destructive Bash commands (PreToolUse)
 - `post-task-verify.sh` — prints a verification checklist after Claude finishes (Stop)
 
-A ready-to-copy Claude Code config is at `templates/claude-settings.json`. See `bootstrap/hooks/README.md` for install instructions.
+Two ready-to-copy Claude Code configs are shipped: `templates/claude-settings.injected.json` (for the `inject.sh` install path — paths include the `archetype/` subfolder segment) and `templates/claude-settings.root.json` (for the new-project clone install — paths from project root, no `archetype/` prefix). See `bootstrap/hooks/README.md` for which to use.
 
 The rest of this file is the conceptual spec — additional hooks you may want to add. The framework ships only two by design: each new hook is noise until it fires on something high-value.
 

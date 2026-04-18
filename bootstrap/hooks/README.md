@@ -13,12 +13,41 @@ Both scripts read Claude Code's event JSON from stdin (the only way to access ev
 
 ## Install — Claude Code
 
-1. Copy `templates/claude-settings.json` to `.claude/settings.json` at your project root (or merge with existing settings).
-2. Verify the paths in `.claude/settings.json` point to the real scripts. If the framework is in an `archetype/` subfolder, paths should be `$CLAUDE_PROJECT_DIR/archetype/bootstrap/hooks/<script>.sh`. If the framework is at project root, remove the `archetype/` segment.
-3. Make the scripts executable: `chmod +x archetype/bootstrap/hooks/*.sh`
-4. Restart Claude Code so hooks are loaded.
+Two install paths exist depending on how the framework lives in your project. Pick the right settings file — the wrong one will cause Claude Code to silently skip the hooks (no error, just no enforcement).
 
-Test: have Claude run `echo "rm -rf /"` — the destructive hook should block. Have Claude complete a simple task — the verify hook should print the checklist.
+### Path A — framework injected as a subfolder (after running `./inject.sh`)
+
+Your project has an `archetype/` subfolder containing the framework. Use this settings file:
+
+```bash
+mkdir -p .claude
+cp archetype/templates/claude-settings.injected.json .claude/settings.json
+chmod +x archetype/bootstrap/hooks/*.sh
+```
+
+### Path B — framework cloned as the project root (new-project clone)
+
+Your project root IS the framework (no `archetype/` subfolder). Use this settings file:
+
+```bash
+mkdir -p .claude
+cp templates/claude-settings.root.json .claude/settings.json
+chmod +x bootstrap/hooks/*.sh
+```
+
+### Verify the install
+
+Before trusting hooks are running, verify the path resolves:
+
+```bash
+ls $(jq -r '.hooks.PreToolUse[0].hooks[0].command' .claude/settings.json | sed "s|\$CLAUDE_PROJECT_DIR|$PWD|")
+```
+
+This should print the script path. If it errors with "No such file or directory," you picked the wrong settings file — Claude Code will NOT warn you, hooks will silently no-op. Switch to the other variant.
+
+Restart Claude Code so hooks are loaded.
+
+Test: have Claude try to run `echo "rm -rf /"` — the destructive hook should block. Have Claude complete a simple task — the verify hook should print the checklist.
 
 ## Install — Cursor and others
 
@@ -52,6 +81,7 @@ Never disable the hook system globally to push a commit through. If a hook is br
 
 ## See also
 
-- `../../templates/claude-settings.json` — Claude Code configuration template
+- `../../templates/claude-settings.injected.json` — Claude Code config for `inject.sh` installs (paths include `archetype/`)
+- `../../templates/claude-settings.root.json` — Claude Code config for new-project clone installs (paths from root)
 - `../../templates/hooks-spec.md` — conceptual spec, behind these scripts
 - Conventions #18 (verification) and #25 (automated enforcement) — rationale for this directory
