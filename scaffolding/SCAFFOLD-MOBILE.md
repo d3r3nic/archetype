@@ -27,11 +27,11 @@ Build wrappers for every capability listed in References.md:
 - Fall back gracefully when permission denied (simulator, test environments, user-denied, OS feature-unavailable all need graceful handling).
 - Provide a stable API the rest of the project uses.
 
-**Wrapper shape requirements (apply uniformly):**
-- **Error model:** throw a typed subclass of AppError (e.g., `PermissionDeniedError`). Never bubble raw native errors to features.
-- **Type shape:** module-level objects with methods (`export const haptics = { tap, success, warn, error }`) — not classes, not hooks, not singletons. Uniform shape across all wrappers.
-- **Permission timing:** lazy (request on first capability use) unless References.md declares regulated data (then eager at first app launch with disclosure).
-- **Test fallback:** each wrapper has an `isAvailable()` check that returns false in simulator / test environments when the native module is absent. Features guard calls with this.
+**Wrapper shape signals (apply uniformly across all wrappers in the project):**
+- **Error model:** throw a typed AppError subclass (e.g., `PermissionDeniedError`). Never bubble raw native errors to features.
+- **Type shape:** uniform across all wrappers. Pick once (module-level objects, classes, hooks, or singletons) and apply everywhere. Inconsistency is the anti-pattern.
+- **Permission timing:** lazy (on first capability use) unless References.md declares regulated data — then eager at first launch with disclosure.
+- **Test-environment fallback:** each wrapper exposes an availability check that returns false where the native module is absent (simulator, CI, web preview). Features guard calls with it.
 
 ESLint rule (or equivalent): direct native-library imports outside `src/shared/native/` fail the build.
 
@@ -43,25 +43,14 @@ Build:
 - **iOS:** every `Info.plist` usage-description string required by the native-library wrappers. Missing strings = App Store rejection.
 - **Android:** every manifest `<uses-permission>` required. Dangerous permissions (location, camera, mic) have runtime permission requests wired through Step M2 wrappers.
 - Documentation in `docs/systems/permissions.md` listing every permission, why it's needed, which feature uses it.
-- **Expo managed workflow:** edit `app.config.ts` under `ios.infoPlist` and `android.permissions`. Bare workflow: edit `ios/<scheme>/Info.plist` and `android/app/src/main/AndroidManifest.xml` directly.
+- Managed workflows declare permissions in the framework's config file; bare workflows edit native manifest files directly. Research the current pattern for the chosen mobile framework.
 
-**Capability → permission matrix (iOS + Android, common capabilities):**
+**Every native capability requires platform-specific permission strings — three dimensions per capability:**
+- iOS usage-description string (Info.plist — customer-facing rationale text)
+- Android manifest permission + runtime request for dangerous permissions
+- API-level variations (permission names and requirements change between OS versions — e.g., notifications, location-in-background, biometric)
 
-| Capability | iOS Info.plist key | Android manifest permission |
-|-----------|--------------------|-----------------------------|
-| Camera | `NSCameraUsageDescription` | `android.permission.CAMERA` |
-| Microphone | `NSMicrophoneUsageDescription` | `android.permission.RECORD_AUDIO` |
-| Location (when in use) | `NSLocationWhenInUseUsageDescription` | `android.permission.ACCESS_FINE_LOCATION` or `ACCESS_COARSE_LOCATION` |
-| Location (always) | `NSLocationAlwaysAndWhenInUseUsageDescription` | `android.permission.ACCESS_BACKGROUND_LOCATION` |
-| Face ID | `NSFaceIDUsageDescription` | `android.permission.USE_BIOMETRIC` (API 28+), `USE_FINGERPRINT` (API <28) |
-| Photo Library | `NSPhotoLibraryUsageDescription` / `NSPhotoLibraryAddUsageDescription` | `android.permission.READ_EXTERNAL_STORAGE` (depends on API level) |
-| Contacts | `NSContactsUsageDescription` | `android.permission.READ_CONTACTS` |
-| Calendar | `NSCalendarsUsageDescription` | `android.permission.READ_CALENDAR` |
-| HealthKit | `NSHealthShareUsageDescription`, `NSHealthUpdateUsageDescription` | N/A (Android uses Google Fit API, different model) |
-| Bluetooth | `NSBluetoothAlwaysUsageDescription` | `android.permission.BLUETOOTH_CONNECT` (API 31+) |
-| Push notifications | (no Info.plist — handled at runtime via `requestPermissionsAsync()`) | `android.permission.POST_NOTIFICATIONS` (API 33+) |
-
-Verify against current Apple and Google documentation at scaffold time — this matrix drifts as OS versions release new permission models. Have a human review the permission list before first App Store / Play Console submission.
+Research current requirements per capability at scaffold time on Apple Developer Documentation and Android Developers Permission guides. Permission models drift as OS versions release — a stale matrix is worse than no matrix. Have a human review the list against current store submission policies before first build.
 
 **Verify:** build succeeds on both platforms (iOS Xcode build + Android Gradle build). Permission request UX tested on a real device or emulator.
 
@@ -98,15 +87,15 @@ Build:
 - EAS Build (React Native + Expo) config if that's the chosen approach.
 - OTA (over-the-air) update strategy documented (if applicable).
 
-**eas.json structure requirements (Expo managed or bare):**
-- Three build profiles: `development` (internal dev client), `preview` (internal distribution, same bundle as production but side-loadable), `production` (App Store / Play Store).
-- `autoIncrement: true` on production profile (bumps build number automatically).
-- `submit.production` config: iOS `appleId`, `ascAppId`, `appleTeamId`; Android `serviceAccountKeyPath`. **Never commit real values — use EAS secrets or GitHub Actions secrets.** Placeholder values with comments explaining where to fill in.
-- `channel` per profile if using EAS Update (OTA): `development`, `preview`, `production` channels.
+**Build-service config signals:**
+- Separate profiles for internal dev, internal-distribution preview, and store-submission production. Same bundle, different distribution.
+- Build numbers auto-increment on the production profile.
+- Real credentials (Apple IDs, team IDs, service-account keys) are NEVER committed. Use the build service's secret mechanism or the CI platform's secrets.
+- Research the current schema for the chosen build service.
 
-**Package installer rule (Expo):** use `npx expo install <package>` for any package that has Expo SDK peers (react-native, react-native-*, expo-*). Generic `npm install` only for non-SDK packages. See `scaffolding/RED-FLAGS.md` #18.
+**SDK-aware package installation:** use the SDK's package installer (not generic `npm install`) for packages with SDK peers. The SDK knows its compatibility matrix; generic installers don't. See `scaffolding/RED-FLAGS.md` #18.
 
-**Test env-inlining trap:** `babel-preset-expo` rewrites `process.env.EXPO_PUBLIC_*` to literal values at transform time. Runtime env mutation in tests (`process.env.EXPO_PUBLIC_API = 'mock'` in `beforeAll`) has NO effect. Use `process.env['EXPO_PUBLIC_*']` (bracket notation) for env vars that must be mutable in tests, OR set them in the test environment file before Jest loads. See `scaffolding/RED-FLAGS.md` #16.
+**Build-time env-inlining trap:** bundlers and Babel presets rewrite public env variables to literal values at transform time. Runtime env mutation in tests has NO effect on these. Research the current opt-out mechanism for the chosen stack. See `scaffolding/RED-FLAGS.md` #16.
 
 Note: developer-program enrollment costs and review-cycle timing are referenced in `templates/references-mobile.md`. Verify current numbers at enrollment time.
 
