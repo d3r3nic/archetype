@@ -38,7 +38,7 @@ Create a job processing foundation that establishes:
 ## Research Notes
 
 When bootstrapping this convention:
-- Research job queue options for the framework (BullMQ for Node, Celery for Python, Hangfire for .NET, Asynq for Go).
+- Research a job-queue library for the language.
 - Research the queue's retry and dead letter patterns.
 - Research idempotency key patterns for the framework.
 - Research worker process isolation (separate deployment from API, independent scaling).

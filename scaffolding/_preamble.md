@@ -2,9 +2,18 @@
 
 Included by every shape-specific playbook (`SCAFFOLD-BACKEND.md`, `SCAFFOLD-FRONTEND.md`, `SCAFFOLD-MOBILE.md`, `SCAFFOLD-PLATFORM.md`). Single source of truth — do not duplicate these rules inside individual playbooks.
 
-## Zero-stale rule
+## Framework vs project artifacts
 
-Every tool, SDK, version, linter rule, or vendor named in the framework is a reference — verify current options at scaffold time. Research Notes in each convention list the CATEGORY of tooling ("a structured logger for the language", "a SAML-capable enterprise auth broker"). Resolve to a specific current choice at scaffold time, not from training-data memory.
+The framework encodes the developer's CHARACTER (instincts, patterns, judgment) — durable. Project artifacts (References.md, feature-tree.md, conventions/overrides/, docs/features/, docs/systems/, CLAUDE.md.additions) hold SPECIFICS for THIS project — expirable and that's fine.
+
+- **Framework must NOT contain:** specific tool names as THE answer, specific API calls, version numbers, current pricing, vendor product names as prescriptions.
+- **Project artifacts SHOULD contain:** the specific tools THIS project uses, current versions, current pricing, current vendor choices. That's their job.
+
+When you scaffold, populate project artifacts with current specifics you researched. Don't abstract them into generic language — References.md naming "Prisma 6 + PostgreSQL 15 + Vitest" is correct. The framework describing the same stack abstractly is correct. Both are right in their place.
+
+## Zero-stale rule (framework only)
+
+Every tool, SDK, version, linter rule, or vendor named in the FRAMEWORK is a reference — verify current options at scaffold time. Research Notes in each convention list the CATEGORY of tooling ("a structured logger for the language", "a SAML-capable enterprise auth broker"). Resolve to a specific current choice at scaffold time, not from training-data memory. The specifics land in project artifacts, not in framework edits.
 
 ## Convention-mapping rule
 

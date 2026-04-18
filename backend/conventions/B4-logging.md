@@ -50,10 +50,10 @@ Create an observability foundation that establishes:
 ## Research Notes
 
 When bootstrapping this convention:
-- Research structured logging libraries for the language (pino/winston for Node, Serilog for .NET, loguru/structlog for Python, zerolog/slog for Go, log4rs for Rust, etc.).
-- Research the framework's recommended approach for request-scoped context (correlation IDs).
-- Research health check patterns for the deployment platform (Kubernetes probes, ECS health checks, etc.).
-- Research metrics libraries for the framework (OpenTelemetry is the current language-agnostic standard; Prometheus clients exist for most languages).
+- Research a structured-logging library for the language.
+- Research request-scoped-context / correlation-ID patterns for the framework.
+- Research health-check patterns for the deployment platform.
+- Research a metrics pipeline for the framework (language-agnostic standards preferred when available).
 - Research sensitive-data redaction middleware or logging interceptors.
-- **If regulated data:** research audit-log tooling. For SOC 2 / HIPAA: append-only stores, tamper-evident options (hash-chained logs, WORM storage, managed audit-log platforms), and long-retention storage patterns. Audit logs are usually a SEPARATE system from app logs, not a log level within the same system.
-- Document BOTH the app-logging system (library, format, health checks, metrics) AND the audit-logging system (storage, retention, access, what events are recorded) in References.md when applicable.
+- **If regulated data:** research audit-log tooling. Append-only storage, tamper-evident options (hash-chained, WORM, managed audit platforms), and multi-year retention. Audit logs are a SEPARATE system from app logs — different storage, mutability, access controls.
+- Document BOTH systems (app-logging: library, format, health checks, metrics; audit-logging: storage, retention, access, recorded events) in References.md when applicable.

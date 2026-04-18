@@ -42,17 +42,9 @@ Create an authentication foundation that establishes:
 
 ## Common Auth Providers
 
-The framework doesn't prescribe a specific provider. Bootstrap picks based on your context:
+The framework doesn't prescribe a specific provider. Bootstrap researches and picks based on project context. Categories to consider: BaaS-bundled auth (paired with managed DB), drop-in hosted auth (consumer), enterprise SAML/SSO brokers (B2B), cloud-native managed auth, framework-native auth, and — last resort — custom-rolled. Match to project scale, compliance regime, and team experience.
 
-- Supabase Auth: bundled with Supabase DB, drop-in for small teams, generous free tier
-- Clerk: best React developer experience, fast setup, usage-based pricing
-- Auth0: mature, enterprise features, expensive at scale
-- AWS Cognito: AWS-native, cheap at scale, rougher developer experience, HIPAA eligible
-- Firebase Auth: Google ecosystem, good for mobile
-- ASP.NET Identity / Django auth: framework-native, no external dependency
-- Custom JWT: only if you truly know why. Most teams should not build their own auth.
-
-Whatever you choose, wrap it in a project auth utility per this convention's Rules section. Features never import the provider's SDK directly.
+Whatever is chosen, wrap it in a project auth utility per this convention's Rules section. Features never import the provider's SDK directly.
 
 ## Research Notes
 

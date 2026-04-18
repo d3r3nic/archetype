@@ -48,11 +48,8 @@ Create a quality enforcement pipeline that establishes:
 ## Research Notes
 
 When bootstrapping this convention, research current tooling for the chosen language/stack:
-- Native linter for the language. Configure rules for the AI-prone categories: untyped escape hatches, console-level output, direct third-party UI imports, unsafe casts / non-null-assertions, empty catch/except blocks. Specific rule IDs depend on the linter (ESLint for JS/TS, Ruff or Flake8 + Bandit for Python, golangci-lint for Go, Clippy for Rust, Roslyn analyzers for .NET, RuboCop for Ruby, PHP_CodeSniffer/PHPStan for PHP).
-- Native formatter. Configure format-on-save and verify in CI.
-- CI platform setup for the deployment target. Configure the full sequence: lint → type-check → test → build → size check → deploy.
-- Feature-flag tooling that integrates with the language and framework.
-- Bundle/output size analysis and budget enforcement for the build tool.
-- Dead code detection tooling for the language.
+- Native linter + formatter. Configure rules for the AI-prone categories (untyped escape hatches, console-level output, direct third-party UI imports, unsafe casts, empty catch/except). Specific rule IDs are language-specific — research at scaffold time.
+- CI platform for the deployment target. Full sequence: lint → type-check → test → build → size check → deploy.
+- Feature-flag, bundle/output-size budget, and dead-code detection tooling.
 
-Document the pipeline config, lint rules (with rule IDs), size budgets, and deployment process in References.md. Mark which rules are AI-prone-category coverage vs general style so the review intent is clear.
+Document the pipeline config, lint rules (with rule IDs), size budgets, and deployment process in References.md. Mark which rules cover AI-prone categories vs general style so review intent is clear.
