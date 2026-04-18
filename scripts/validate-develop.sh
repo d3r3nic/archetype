@@ -25,6 +25,7 @@ fi
 
 FEATURES_DIR="$SRC_DIR/features"
 TREE="$PROJECT_ROOT/feature-tree.md"
+[ ! -f "$TREE" ] && TREE="$PROJECT_ROOT/archetype/feature-tree.md"
 DOCS_FEATURES="$PROJECT_ROOT/docs/features"
 
 RED='\033[0;31m'
@@ -89,7 +90,8 @@ MISSING=0
 for dir in "$FEATURES_DIR"/*/; do
   [ -d "$dir" ] || continue
   feature=$(basename "$dir")
-  # Skip smoke-test-only features (health, _health, ping)
+  # Skip smoke-test features (marked in feature-tree.md as status: smoke-test, OR by conventional name fallback)
+  if [ -f "$TREE" ] && grep -qE "^\|[^|]*\|[[:space:]]*${feature}[[:space:]]*\|.*smoke-test" "$TREE"; then continue; fi
   case "$feature" in health|_health|ping|smoke) continue ;; esac
   # Find any test file in the feature directory
   if ! find "$dir" -maxdepth 2 -type f \( -name '*.test.*' -o -name '*_test.*' \) 2>/dev/null | grep -q .; then

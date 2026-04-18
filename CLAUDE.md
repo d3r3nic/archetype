@@ -44,6 +44,7 @@ Everything is built once, configured for context. Before building anything, chec
 - Never modify existing systems without permission. → conventions/19-steering.md
 - Never modify CLAUDE.md, Conventions.md, or convention docs without explicit permission.
 - Read feature-tree.md before building anything new. Check what already exists.
+- Feature directory basename, feature-tree.md Feature column, and docs/features filename must match. If business identity differs from directory name, rename so they align. → development/MAINTAIN.md
 - Search the codebase for existing implementations before building. feature-tree.md may be stale — the code is the source of truth.
 - Update feature-tree.md when adding or modifying features.
 - Update docs when changing features. → conventions/16-documentation.md
