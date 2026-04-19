@@ -346,7 +346,7 @@ The AI runs once in the project folder, using the matching template (frontend, b
 
 ---
 
-Read Conventions.md to understand the convention index. Do NOT read all 25 convention docs upfront.
+Read Conventions.md to understand the convention index. Do NOT read all 28 convention docs upfront.
 
 Based on the discovery answers, you now know: what platforms, what features, what scale, and what tech stack.
 

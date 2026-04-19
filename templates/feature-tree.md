@@ -27,6 +27,7 @@ Built during scaffolding. Every feature plugs into these.
 | 13 | Testing | #12, #18 | [path] | not started | docs/systems/testing.md |
 | 14 | CI/CD & Performance | #15, #13 | [path] | not started | docs/systems/ci.md |
 | 15 | Pulse Monitor | #26 | [path] | not started | docs/systems/pulse-monitor.md |
+| 16 | Design Foundation | #27 | [link to artifact] | not started | docs/systems/design-foundation.md |
 
 Notes:
 - Not all systems apply to every project. Backend projects skip Theme, Routing, Components. Remove rows that don't apply.
