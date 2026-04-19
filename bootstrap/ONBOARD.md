@@ -88,8 +88,23 @@ Before choosing any technology or generating any files, interview the user with 
 - Who uses it? Just you? Your team? The public?
 - Can you name an existing app that's similar to what you want? (even loosely)
 - Is this a product you want to ship, or a project to learn a specific technology? (If learning a technology, that's a legitimate reason to use that stack even when a platform would be simpler — but note it explicitly so Step 3 can handle it correctly.)
+- **Is this a TEMPLATE / starter kit / generator, or a PRODUCT / end deliverable?** A template is code that other projects FORK or INSTALL FROM — its audience is developers; it ships structural primitives, neutral defaults, and intentionally has no brand identity. A product is the end thing that real users interact with — it commits to a visual identity, a specific set of features, and a deployed URL. Same framework applies to both, but bootstrap generation diverges: templates defer brand/design-artifact decisions to downstream projects, ship `@scope/*` packages with placeholder tokens, and document the "downstream sites" model. Products complete those decisions at bootstrap.
 
 **Proactive learning-intent detection:** If the user's OPENING message declares enterprise or complex infrastructure (Kubernetes, Redis, Kafka, service mesh, multi-region, microservices, self-managed clusters) for a personal-scale or small-scale project (one user, a blog, a single-person tool, a portfolio), ask the ship-vs-learn question in your FIRST reply, not after red flags fire in later turns. Pattern: solo + enterprise-infra = learning intent >80% of the time. Surface it early so the rest of discovery proceeds with the right frame.
+
+**Template vs product — how generation diverges:** Discovery answer routes Step 4.
+
+| Concern | TEMPLATE | PRODUCT |
+|---|---|---|
+| References.md § Project `Stage` | `template v0.x.y` | `development / staging / production` |
+| References.md § Design Artifact | "Downstream projects decide their own artifact at their own bootstrap. Template ships neutral placeholder tokens — no visual identity invented." | AI researches tooling, documents chosen tool + location (convention #27). |
+| References.md new § | `## Downstream Projects` — how sites FORK or INSTALL from this template, what's shared vs local, upgrade flow. | `## Deployment` (standard). |
+| `@scope/*` packages | Built with neutral tokens (system colors, inherited typography). Convention #27 gate is about STRUCTURE, not VALUES. | Values come from design artifact per #27. |
+| feature-tree.md Design-related rows (e.g. Components, Design System) | "Structural at template level; downstream projects apply brand." | Full-fidelity, artifact-driven. |
+| VERSION-LOG.md bootstrap `Type:` | `Type: template` | `Type: product` |
+| Discovery Groups 2–5 | Still asked — stack/scale answers shape the template's structural choices. | Still asked. |
+
+This distinction is not the same as #22 Design System (which is always about component libraries) or #27 Design Foundation (always about the design-artifact discipline). It's orthogonal: a template or a product can still have both. Templates DEFER the artifact; products COMMIT it.
 
 **Group 2 - Where does it run?**
 - Should this work in a web browser? (like Gmail, Twitter)
@@ -351,8 +366,10 @@ Read Conventions.md to understand the convention index. Do NOT read all 28 conve
 Based on the discovery answers, you now know: what platforms, what features, what scale, and what tech stack.
 
 Generate these files:
-- References.md using the appropriate template from templates/ (references-frontend.md, references-backend.md, or references-mobile.md)
-- feature-tree.md using templates/feature-tree.md (systems listed as "not started", remove systems the project doesn't need based on discovery answers)
+- References.md using the appropriate template from templates/ (references-frontend.md, references-backend.md, or references-mobile.md).
+  - If the project is a **TEMPLATE** (per Group 1), apply the diverging generation rules from the "Template vs product" table: Stage = `template v0.x.y`, add a `## Downstream Projects` section, rewrite `## Design Artifact` to defer to downstream projects, note that any `@scope/*` packages ship with neutral placeholder tokens. Do NOT research design tooling — that decision belongs to downstream projects at their own bootstrap.
+  - If the project is a **PRODUCT**, research the design-artifact tool at bootstrap and document it in References.md § Design Artifact per convention #27.
+- feature-tree.md using templates/feature-tree.md. For TEMPLATE projects, mark design-derived rows (Components, Design System, Styling values, per-feature visual states) as "structural at template level; downstream projects apply brand"; do NOT leave them undefined.
 - docs/systems/ directory (empty)
 - docs/features/ directory (empty)
 - .gitignore appropriate for the tech stack
@@ -436,7 +453,7 @@ For existing projects, additional verification:
 
 ## Step 6: Log the Bootstrap
 
-After bootstrap completes, update VERSION-LOG.md (in the archetype/ folder) to record what was done. If VERSION-LOG.md doesn't exist, create it.
+After bootstrap completes, update VERSION-LOG.md (at the **project root**, not inside archetype/ — per Step 45) to record what was done. If VERSION-LOG.md doesn't exist, create it.
 
 Append a bootstrap entry:
 
@@ -444,7 +461,7 @@ Append a bootstrap entry:
 ## Bootstrap
 
 Date: [today's date]
-Type: [new project / existing project migration]
+Type: [template / product / existing-project-migration]
 Tech stack: [the tech stack chosen]
 Files generated:
 - References.md ([word count] words)
