@@ -72,6 +72,45 @@ function renderFeatures(features) {
   }
 }
 
+function renderDrift(drift) {
+  const section = document.getElementById('drift-section');
+  const container = document.getElementById('drift');
+  const countBadge = document.getElementById('drift-count');
+  if (!section || !container) return;
+  if (!drift) { section.hidden = true; return; }
+  const groups = [
+    { key: 'features', label: 'Features' },
+    { key: 'foundationalSystems', label: 'Foundational Systems' },
+  ];
+  let totalIssues = 0;
+  container.innerHTML = '';
+  groups.forEach(({ key, label }) => {
+    const group = drift[key];
+    if (!group) return;
+    const missing = group.declaredButMissing || [];
+    const undeclared = group.actualButUndeclared || [];
+    if (missing.length === 0 && undeclared.length === 0) return;
+    totalIssues += missing.length + undeclared.length;
+    const div = document.createElement('div');
+    div.className = 'drift-group';
+    let html = `<h3>${label}</h3>`;
+    if (missing.length) {
+      html += `<div class="drift-kind">Declared but missing in code</div><ul>${missing.map(m => `<li><code>${m}</code></li>`).join('')}</ul>`;
+    }
+    if (undeclared.length) {
+      html += `<div class="drift-kind">In code but not declared</div><ul>${undeclared.map(u => `<li><code>${u}</code></li>`).join('')}</ul>`;
+    }
+    div.innerHTML = html;
+    container.appendChild(div);
+  });
+  if (totalIssues > 0) {
+    section.hidden = false;
+    if (countBadge) countBadge.textContent = String(totalIssues);
+  } else {
+    section.hidden = true;
+  }
+}
+
 async function renderDiagram(mermaidText) {
   const container = document.getElementById('diagram');
   if (!container) return;
@@ -105,6 +144,7 @@ async function refresh() {
     renderSystems(data.foundationalSystems);
     renderFeatures(data.features);
     text('architecture', data.architecture || '(no folder structure declared in References.md)');
+    renderDrift(data.drift);
     await renderDiagram(data.architectureDiagram);
     text('generated-at', data.generatedAt || '?');
     text('contract-version', data.dataContractVersion || '?');
