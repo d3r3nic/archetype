@@ -67,9 +67,11 @@ cp "$FRAMEWORK_DIR/inject.sh" "$DEST/inject.sh" 2>/dev/null || true
 cp "$FRAMEWORK_DIR/update.sh" "$DEST/update.sh" 2>/dev/null || true
 chmod +x "$DEST/inject.sh" "$DEST/update.sh" 2>/dev/null || true
 
-# Create VERSION-LOG.md
+# Create VERSION-LOG.md at PROJECT ROOT (not inside archetype/).
+# The framework folder stays read-only; all per-project artifacts live at the project.
 LATEST_HASH=$(git -C "$FRAMEWORK_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-cat > "$DEST/VERSION-LOG.md" << VEOF
+if [ ! -f "$TARGET_DIR/VERSION-LOG.md" ]; then
+  cat > "$TARGET_DIR/VERSION-LOG.md" << VEOF
 # Version Log
 
 Records which framework version was used and when updates were applied.
@@ -84,33 +86,22 @@ Method: inject.sh
 
 ## Updates
 
-(none yet - run ./update.sh to pull latest framework)
+(none yet — run ./$SUBFOLDER_NAME/update.sh to pull the latest framework)
 VEOF
-echo "  created: $SUBFOLDER_NAME/VERSION-LOG.md"
+  echo "  created: VERSION-LOG.md (project root)"
+else
+  echo "  SAFE: VERSION-LOG.md already exists at project root (not overwritten)"
+fi
 
-# Create empty docs directories the project will populate
-mkdir -p "$DEST/docs/systems" "$DEST/docs/features"
-echo "  created: $SUBFOLDER_NAME/docs/systems/"
-echo "  created: $SUBFOLDER_NAME/docs/features/"
-
-# Create a pointer file so the project knows where the framework came from
-cat > "$DEST/FRAMEWORK-SOURCE.md" << EOF
-# Framework Source
-
-This archetype/ folder was injected from the Archetype AI Development Framework.
-
-Source repo: https://github.com/d3r3nic/archetype
-Injected on: $(date +%Y-%m-%d)
-
-To update the framework files, re-run the inject script:
-  cd /path/to/archetype-repo
-  ./inject.sh "$TARGET_DIR" $SUBFOLDER_NAME
-
-The CLAUDE.md at the project root is the enforcer.
-All convention docs, templates, and phase guides live in this subfolder.
-References.md and feature-tree.md are generated during bootstrap.
-EOF
-echo "  created: $SUBFOLDER_NAME/FRAMEWORK-SOURCE.md"
+# Create empty docs directories at PROJECT ROOT (they hold project content, not framework content).
+if [ ! -d "$TARGET_DIR/docs/systems" ]; then
+  mkdir -p "$TARGET_DIR/docs/systems"
+  echo "  created: docs/systems/ (project root)"
+fi
+if [ ! -d "$TARGET_DIR/docs/features" ]; then
+  mkdir -p "$TARGET_DIR/docs/features"
+  echo "  created: docs/features/ (project root)"
+fi
 
 echo ""
 echo "Done. CLAUDE.md is at the project root. Framework files are in $SUBFOLDER_NAME/."

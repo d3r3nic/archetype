@@ -109,7 +109,7 @@ echo ""
 
 # Files that are NEVER touched (project-specific)
 echo "--- Project-specific files (will NOT be touched) ---"
-for skip in References.md feature-tree.md INDEX.md MIGRATION-NOTES.md CLAUDE.md.additions FRAMEWORK-SOURCE.md; do
+for skip in References.md feature-tree.md INDEX.md MIGRATION-NOTES.md CLAUDE.md.additions; do
   if [ -f "$ARCHETYPE_DIR/$skip" ]; then
     echo "  SAFE: $skip"
     SKIPPED=$((SKIPPED + 1))
@@ -189,23 +189,30 @@ if [ -d "$PROJECT_ROOT/conventions" ] && [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]
   echo "  updated: conventions/ (project root, overrides preserved)"
 fi
 
-# Step 7: Update FRAMEWORK-SOURCE.md
-cat > "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md" << EOF
-# Framework Source
+# Step 7: Migrate legacy project artifacts that used to live inside archetype/.
+# Keeps the framework folder read-only. Safe to run repeatedly.
+if [ "$ARCHETYPE_DIR" != "$PROJECT_ROOT" ]; then
+  if [ -f "$ARCHETYPE_DIR/VERSION-LOG.md" ]; then
+    if [ -f "$PROJECT_ROOT/VERSION-LOG.md" ]; then
+      echo "  WARN: both archetype/VERSION-LOG.md and project-root VERSION-LOG.md exist; deleting the archetype/ copy"
+      rm -f "$ARCHETYPE_DIR/VERSION-LOG.md"
+    else
+      mv "$ARCHETYPE_DIR/VERSION-LOG.md" "$PROJECT_ROOT/VERSION-LOG.md"
+      echo "  migrated: VERSION-LOG.md archetype/ → project root"
+    fi
+  fi
+  if [ -f "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md" ]; then
+    rm -f "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md"
+    echo "  removed: archetype/FRAMEWORK-SOURCE.md (redundant with VERSION-LOG.md)"
+  fi
+  if [ -d "$ARCHETYPE_DIR/docs" ]; then
+    rmdir "$ARCHETYPE_DIR/docs/systems" "$ARCHETYPE_DIR/docs/features" "$ARCHETYPE_DIR/docs" 2>/dev/null && \
+      echo "  removed: archetype/docs/ (empty; project docs live at project root)"
+  fi
+fi
 
-This archetype/ folder is powered by the Archetype AI Development Framework.
-
-Source repo: $FRAMEWORK_REPO
-Last updated: $(date +%Y-%m-%d)
-Update command: cd archetype && ./update.sh
-
-The CLAUDE.md at the project root is the enforcer.
-All convention docs, templates, and phase guides live in this subfolder.
-References.md and feature-tree.md are project-specific and never overwritten by updates.
-EOF
-
-# Step 8: Append to VERSION-LOG.md
-VERSION_LOG="$ARCHETYPE_DIR/VERSION-LOG.md"
+# Step 8: Append to VERSION-LOG.md (project root).
+VERSION_LOG="$PROJECT_ROOT/VERSION-LOG.md"
 if [ ! -f "$VERSION_LOG" ]; then
   cat > "$VERSION_LOG" << VEOF
 # Version Log
@@ -231,7 +238,7 @@ echo "### $(date +%Y-%m-%d)" >> "$VERSION_LOG"
 echo "Commit: $LATEST_HASH" >> "$VERSION_LOG"
 echo "Source: $FRAMEWORK_REPO" >> "$VERSION_LOG"
 echo "Updated by: update.sh" >> "$VERSION_LOG"
-echo "  updated: VERSION-LOG.md"
+echo "  updated: VERSION-LOG.md (project root)"
 
 # Step 9: Atomic self-replace of update.sh (LAST, after all other work)
 # cp + mv keeps the running bash safe: mv is a rename, so the old inode stays

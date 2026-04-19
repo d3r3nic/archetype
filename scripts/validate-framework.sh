@@ -163,6 +163,27 @@ for REF in templates/references-frontend.md templates/references-backend.md temp
 done
 
 # ----------------------------------------------------------------------
+group 8 "No project artifacts inside the framework folder"
+# ----------------------------------------------------------------------
+# The framework is read-only from a project's perspective. Per-project
+# artifacts (VERSION-LOG, docs/, References.md, etc.) must live at the
+# project root, not inside archetype/. This check catches accidental
+# writes from old inject.sh / update.sh versions.
+
+LEAKS=0
+for leak_file in VERSION-LOG.md FRAMEWORK-SOURCE.md References.md feature-tree.md; do
+  if [ -f "$leak_file" ]; then
+    fail "framework folder contains project artifact: $leak_file (move to project root)"
+    LEAKS=$((LEAKS + 1))
+  fi
+done
+if [ -d docs ]; then
+  fail "framework folder contains docs/ (move project docs to project root)"
+  LEAKS=$((LEAKS + 1))
+fi
+[ "$LEAKS" -eq 0 ] && pass "framework folder is clean (no project artifacts)"
+
+# ----------------------------------------------------------------------
 echo ""
 echo "==="
 if [ "$ERRORS" -gt 0 ]; then
