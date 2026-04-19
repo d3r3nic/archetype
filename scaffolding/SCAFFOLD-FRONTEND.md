@@ -161,6 +161,20 @@ Build:
 
 **Verify:** a PR that pushes bundle over budget fails CI. Web Vitals collection works on a staging build.
 
+## Step 11b — Pulse Monitor (dev-only project visibility)
+
+Conventions: #26 (pulse monitor).
+
+Copy the framework's base UI into the project's dev-static path. Serve via a dev-only route. Production builds MUST exclude the pulse UI (tree-shaken out or route-guarded).
+
+Build:
+- Dev-only route (e.g., `/dev/pulse`) that serves `templates/pulse-ui/index.html` via the framework's static or dev-middleware path.
+- `.pulse-state.json` served as a sibling static file in the same dev route.
+- Script (npm run or equivalent) that runs `./archetype/scripts/pulse-inspect.sh --out <path>/.pulse-state.json`.
+- Create `docs/systems/pulse-monitor.md` from `archetype/templates/pulse-monitor-spec.md`; fill in the project-specific "Where it's served" section.
+
+**Verify:** `npm run dev`, open `/dev/pulse`, confirm 5 sections render with real data. Verify production build excludes the pulse UI.
+
 ## Step 12 — Smoke-test feature (scaffold exit gate)
 
 Build a minimal feature that exercises EVERY shared system. Typical choice: a `/profile` or `/settings` page that:

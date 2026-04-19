@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Pulse</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header>
+    <h1 id="project-name">Project Pulse</h1>
+    <p id="project-purpose" class="muted"></p>
+    <p id="project-meta" class="meta muted"></p>
+    <button id="refresh-btn" type="button">Refresh</button>
+  </header>
+
+  <main>
+    <section id="tech-stack-section">
+      <h2>Tech Stack</h2>
+      <dl id="tech-stack"></dl>
+    </section>
+
+    <section id="systems-section">
+      <h2>Foundational Systems</h2>
+      <div id="systems"></div>
+    </section>
+
+    <section id="features-section">
+      <h2>Features</h2>
+      <div id="features"></div>
+    </section>
+
+    <section id="architecture-section">
+      <h2>Architecture</h2>
+      <pre id="architecture"></pre>
+    </section>
+  </main>
+
+  <footer>
+    <p class="muted">Read-only snapshot. See <code>docs/systems/pulse-monitor.md</code> for data contract + redesign guidance.</p>
+    <p class="meta muted">Generated <span id="generated-at"></span> · Data contract <span id="contract-version"></span></p>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>

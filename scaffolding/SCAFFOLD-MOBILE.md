@@ -101,6 +101,18 @@ Note: developer-program enrollment costs and review-cycle timing are referenced 
 
 **Verify:** a build uploaded to TestFlight / internal track on Play Console installs on a test device.
 
+## Step M6b — Pulse Monitor (dev-only, host-served)
+
+Conventions: #26 (pulse monitor).
+
+Mobile projects don't bundle the pulse UI into the app. Instead, serve it locally on the developer's host machine:
+- `npx http-server archetype/templates/pulse-ui/ -p 4500` (or equivalent static server).
+- Developer opens `http://localhost:4500` in a browser; the page fetches `.pulse-state.json` from the same host.
+- Run `./archetype/scripts/pulse-inspect.sh --out archetype/templates/pulse-ui/.pulse-state.json` to refresh state.
+- Optionally scaffold a `scripts/pulse.sh` convenience wrapper that does both.
+
+Create `docs/systems/pulse-monitor.md` from `archetype/templates/pulse-monitor-spec.md`; document this host-served pattern in the project-specific "Where it's served" section.
+
 ## Step M7 — Smoke-test feature (scaffold exit gate)
 
 Build a minimal feature exercising the full mobile stack:

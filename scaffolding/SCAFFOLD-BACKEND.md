@@ -260,6 +260,20 @@ Build:
 
 **Verify:** open a PR with a typecheck failure — CI blocks the merge. Open a PR with a test failure — CI blocks. A passing PR produces an artifact / preview.
 
+## Step 17b — Pulse Monitor (dev-only project visibility)
+
+Conventions: #26 (pulse monitor).
+
+Copy the framework's base UI into the project's dev-static path and wire a dev-only route that serves both the UI and `.pulse-state.json`. Production builds MUST exclude the pulse UI.
+
+Build:
+- Dev-only route (guard on `NODE_ENV !== 'production'`): `GET /dev/pulse` serves `templates/pulse-ui/index.html` (+ css/js assets); `GET /dev/pulse/.pulse-state.json` serves the generated state.
+- Copy `archetype/templates/pulse-ui/` into the project (or serve directly from archetype if `archetype/` is inside the project — decide per project layout).
+- Add an npm script (or equivalent) that runs `./archetype/scripts/pulse-inspect.sh --out <path>/.pulse-state.json` before serving.
+- Create `docs/systems/pulse-monitor.md` from `archetype/templates/pulse-monitor-spec.md`; fill in the project-specific "Where it's served" section.
+
+**Verify:** start the dev server, open the pulse route, confirm all 5 sections render with real data from References.md + feature-tree.md. Refresh button re-fetches `.pulse-state.json` (re-run the inspector first for live updates).
+
 ## Step 18 — Smoke-test feature (scaffold exit gate)
 
 Build a minimal feature that exercises EVERY shared system. Typical choice: a `ping` or `health-details` endpoint/query that:

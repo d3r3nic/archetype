@@ -1,6 +1,6 @@
 # Conventions
 
-This is a LOOKUP INDEX. Do not read all 26 convention docs. Scan this list, identify the 2-4 conventions relevant to your current task, and read only those.
+This is a LOOKUP INDEX. Do not read all 27 convention docs. Scan this list, identify the 2-4 conventions relevant to your current task, and read only those.
 
 This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFOLD.md) → Develop (DEVELOP.md) → Maintain (MAINTAIN.md).
 
@@ -23,6 +23,7 @@ This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFO
 | Testing | #12, #18 | |
 | Build / CI / deploy | #15 | #2 (git hooks), #25 (lint gates) |
 | Lint / formatter / enforcement | #25 | #15 (CI gates), #18 (verification) |
+| Dev-time project visibility / pulse monitor | #26 | #18 (verification), #16 (documentation) |
 | Documentation | #16 | |
 | Starting a new AI session | #17, #19 | re-read References.md |
 
@@ -62,6 +63,7 @@ Everything built once, configured for context. Governs how all other conventions
 - #14 Accessibility — semantic HTML, keyboard nav, ARIA, focus management → conventions/14-accessibility.md
 - #15 Build & CI/CD — pipeline, linting, feature flags, deployment → conventions/15-build-ci.md
 - #25 Automated Enforcement — lint rules, formatters, pre-commit hooks, CI gates catch violations at write time → conventions/25-automated-enforcement.md
+- #26 Pulse Monitor — dev-only visibility of scaffolded state (project, stack, systems, features, architecture); UI replaceable, data contract durable → conventions/26-pulse-monitor.md
 
 ### Knowledge
 - #16 Documentation — comments explain WHY, ADRs, machine-parseable specs → conventions/16-documentation.md

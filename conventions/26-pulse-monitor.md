@@ -1,0 +1,69 @@
+# Convention #26: Pulse Monitor
+
+## Principle
+
+The developer's pulse on the project. A dev-only surface that shows the scaffolded state — what framework and stack were chosen, what foundational systems were built, what features exist, what architecture emerged — without context-switching between git, docs, and the filesystem.
+
+Vibecoding creates silent drift. AI agents add deps, create utilities, generate migrations, touch env vars, wire routes — and the developer wakes up not knowing what got built. The pulse monitor closes that blind spot.
+
+Visibility is a first-class concern, not a DevOps afterthought.
+
+## Reusable System
+
+One dev-only surface per project. Read-only. Dev-only (never in production). Structure:
+- A language-agnostic inspector that reads convention-mandated paths (`References.md`, `feature-tree.md`, `package.json` or equivalent) and emits a standard `.pulse-state.json` conforming to the documented data contract.
+- A minimal UI that fetches `.pulse-state.json` and renders the sections. UI is expirable — redesign freely. Data contract is durable — changes break the spec.
+- A `docs/systems/pulse-monitor.md` per project that documents both layers.
+
+## Rules
+
+- The pulse monitor is dev-only. Never exposed in production. No auth leaks, no data leaks.
+- The inspector reads ONLY convention-mandated paths. If a project deviates from conventions, document the deviation in References.md; the inspector should still read from the new location via project-level override.
+- The data contract is documented per the spec template and stable. UI layers consume it. Breaking the contract requires a spec update.
+- The UI layer is explicitly replaceable. Per-project redesign is encouraged. The framework ships a vanilla HTML/CSS/JS starter; projects swap it for their stack if desired.
+- The pulse monitor is a read-only view in v1. Writes (e.g., "promote this feature to prod") are deferred to a later convention or feature.
+
+## v1 scope — scaffolded state visibility
+
+Five sections, all read from declared state:
+
+1. **Project overview** — name, purpose, stage. From References.md § Project.
+2. **Tech stack** — framework, language, database, libraries. From References.md § Tech Stack.
+3. **Foundational systems** — each system with its convention number, location, status. From feature-tree.md § Foundational Systems.
+4. **Features** — each feature with routes, systems used, status, doc path. From feature-tree.md § Features.
+5. **Architecture** — folder structure. From References.md § Folder Structure.
+
+## v2 scope (deferred) — drift detection
+
+Terraform-style declared-vs-actual for: features, foundational systems, dependencies, env vars, routes, migrations. Planner emits drift per section. UI surfaces undeclared actuals and unbuild declareds.
+
+Not in v1. Revisit after v1 adoption.
+
+## Violations
+
+- Exposing the pulse monitor in production (auth leak, internal layout leak).
+- Writing to declared state FROM the pulse monitor (v1 is read-only).
+- Coupling the UI layer to the inspector implementation (breaks the replaceability intent).
+- Building the inspector in a project-specific language that won't run in other projects (inspector is language-agnostic; bash + portable shell tools).
+- Adding data to `.pulse-state.json` without updating the spec contract.
+
+## Wrong vs Right
+
+- WRONG: developer opens 4 tabs (GitHub, deployment dashboard, logs, IDE) to answer "what systems does this project have?"
+- RIGHT: developer opens `/dev/pulse` and sees the project's declared scaffolded state in one place.
+- WRONG: pulse UI is React-specific and can only run in React projects.
+- RIGHT: UI layer is swappable. Data contract is portable. A Python backend's pulse UI can be a Jinja-rendered page; a React frontend's can be a React route; same `.pulse-state.json` feeds both.
+- WRONG: inspector hard-codes paths that only make sense in one project's layout.
+- RIGHT: inspector reads convention-mandated paths + respects References.md deviations.
+
+## Research Notes
+
+When bootstrapping this convention:
+- Decide where the pulse monitor is served in the project's stack — a dev-only route, a static-served path, a separate CLI, or a local companion window. Depends on project shape.
+- Research a simple JSON-reader/renderer for the chosen stack if not using the framework's vanilla HTML starter.
+- Decide the refresh model — on-page-load, on-manual-button, or file-watcher triggers re-inspect. Manual refresh is simplest for v1.
+- Document the chosen serve path, refresh model, and any data-contract extensions in the project's `docs/systems/pulse-monitor.md`.
+
+## Project Overrides
+
+If a file exists at `conventions/overrides/26-pulse-monitor.md`, read it. It contains project-specific rules extending this base.
