@@ -2,22 +2,26 @@
 
 ## Project
 
-Name: [project name]
-Purpose: [one-line description]
-Stage: [development / staging / production]
-Platforms: [iOS / Android / both]
+Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses these bullets; lines without a leading dash are ignored.
+
+- Name: [project name]
+- Purpose: [one-line description]
+- Stage: [development / staging / production]
+- Platforms: [iOS / Android / both]
 
 ## Tech Stack
 
-Framework: [React Native / Flutter / SwiftUI / Kotlin / etc.]
-Language: [TypeScript / Dart / Swift / Kotlin / etc.]
-UI Library: [NativeBase / React Native Paper / Material for Flutter / etc.]
-State: [Redux / Riverpod / Provider / Zustand / etc.]
-Data Fetching: [React Query / Dio / Alamofire / etc.]
-Validation: [Zod / freezed / etc.]
-Navigation: [React Navigation / Go Router / etc.]
-Testing: [Jest / Flutter test / XCTest / etc.]
-Package Manager: [npm / pnpm / pub / CocoaPods / etc.]
+Each line must start with `- ` (dash space); content is `- Key: Value`. Inspector parses every bullet.
+
+- Framework: [React Native / Flutter / SwiftUI / Kotlin / etc.]
+- Language: [TypeScript / Dart / Swift / Kotlin / etc.]
+- UI Library: [NativeBase / React Native Paper / Material for Flutter / etc.]
+- State: [Redux / Riverpod / Provider / Zustand / etc.]
+- Data Fetching: [React Query / Dio / Alamofire / etc.]
+- Validation: [Zod / freezed / etc.]
+- Navigation: [React Navigation / Go Router / etc.]
+- Testing: [Jest / Flutter test / XCTest / etc.]
+- Package Manager: [npm / pnpm / pub / CocoaPods / etc.]
 
 ## Commands
 

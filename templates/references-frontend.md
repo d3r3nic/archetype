@@ -2,22 +2,26 @@
 
 ## Project
 
-Name: [project name]
-Purpose: [one-line description of what the app does]
-Stage: [development / staging / production]
-URL: [deployed URL if any]
+Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses these bullets; lines without a leading dash are ignored.
+
+- Name: [project name]
+- Purpose: [one-line description of what the app does]
+- Stage: [development / staging / production]
+- URL: [deployed URL if any]
 
 ## Tech Stack
 
-Framework: [React / Next.js / Vue / Svelte / etc.]
-Language: [TypeScript / JavaScript]
-UI Library: [MUI / Chakra / Tailwind / Radix / etc.]
-State: [Redux Toolkit / Zustand / Jotai / Context / etc.]
-Data Fetching: [RTK Query / React Query / SWR / Apollo / etc.]
-Validation: [Zod / Yup / Valibot / etc.]
-Bundler: [Vite / Next.js / Webpack / Turbopack / etc.]
-Testing: [Vitest / Jest / Playwright / Cypress / etc.]
-Package Manager: [npm / pnpm / yarn / bun]
+Each line must start with `- ` (dash space); content is `- Key: Value`. Inspector parses every bullet.
+
+- Framework: [React / Next.js / Vue / Svelte / etc.]
+- Language: [TypeScript / JavaScript]
+- UI Library: [MUI / Chakra / Tailwind / Radix / etc.]
+- State: [Redux Toolkit / Zustand / Jotai / Context / etc.]
+- Data Fetching: [RTK Query / React Query / SWR / Apollo / etc.]
+- Validation: [Zod / Yup / Valibot / etc.]
+- Bundler: [Vite / Next.js / Webpack / Turbopack / etc.]
+- Testing: [Vitest / Jest / Playwright / Cypress / etc.]
+- Package Manager: [npm / pnpm / yarn / bun]
 
 ## Commands
 

@@ -100,15 +100,17 @@ if [ -n "$systems_section" ]; then
     [ -z "$row" ] && continue
     case "$row" in
       \|*)
-        # Skip header+separator rows
-        echo "$row" | grep -qE '^\|[[:space:]]*[0-9-]+[[:space:]]*\|' || continue
-        # Skip markdown table separator rows (|---|---|---|)
-        echo "$row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|[[:space:]]*-+' && continue
-        num="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2}')"
-        name="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
-        conv="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $4); print $4}')"
-        loc="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $5); print $5}')"
-        status="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $6); print $6}')"
+        # Strip markdown bold (**) so `| **27** |` is parseable as a number.
+        clean_row="$(printf '%s' "$row" | sed 's/\*\*//g')"
+        # Skip markdown table separator rows (|---|---|---|) — check first since `-` matches the numeric regex.
+        echo "$clean_row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|[[:space:]]*-+' && continue
+        # Skip header rows; row only counts if column 2 is a number.
+        echo "$clean_row" | grep -qE '^\|[[:space:]]*[0-9]+[[:space:]]*\|' || continue
+        num="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2}')"
+        name="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
+        conv="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $4); print $4}')"
+        loc="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $5); print $5}')"
+        status="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $6); print $6}')"
         [ "$first" -eq 0 ] && items="${items},"
         items="${items}{\"num\":\"$(json_escape "$num")\",\"name\":\"$(json_escape "$name")\",\"convention\":\"$(json_escape "$conv")\",\"location\":\"$(json_escape "$loc")\",\"status\":\"$(json_escape "$status")\"}"
         first=0
@@ -129,16 +131,17 @@ if [ -n "$features_section" ]; then
     [ -z "$row" ] && continue
     case "$row" in
       \|*)
+        # Strip bold markers so bold rows parse.
+        clean_row="$(printf '%s' "$row" | sed 's/\*\*//g')"
         # Skip table separators (|---|---|)
-        echo "$row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|' && continue
+        echo "$clean_row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|' && continue
         # Extract columns; tolerate variable column layouts
-        c3="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
-        c4="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $4); print $4}')"
-        c5="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $5); print $5}')"
-        c6="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $6); print $6}')"
-        [ "$c3" = "Feature" ] && continue
-        [ -z "$c3" ] && continue
-        [ "$c3" = "#" ] && continue
+        c3="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
+        c4="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $4); print $4}')"
+        c5="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $5); print $5}')"
+        c6="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $6); print $6}')"
+        # Skip header rows (be tolerant of renames).
+        case "$c3" in ""|"Feature"|"Name"|"#") continue ;; esac
         # c3 = feature name, c4 = location, c5 = routes, c6 = systems used
         [ "$first" -eq 0 ] && items="${items},"
         items="${items}{\"name\":\"$(json_escape "$c3")\",\"location\":\"$(json_escape "$c4")\",\"routes\":\"$(json_escape "$c5")\",\"systemsUsed\":\"$(json_escape "$c6")\"}"
@@ -179,10 +182,10 @@ if [ -n "$systems_section" ]; then
     [ -z "$row" ] && continue
     case "$row" in
       \|*)
-        echo "$row" | grep -qE '^\|[[:space:]]*[0-9-]+[[:space:]]*\|' || continue
-        # Skip markdown table separator rows (|---|---|---|)
-        echo "$row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|[[:space:]]*-+' && continue
-        name="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
+        clean_row="$(printf '%s' "$row" | sed 's/\*\*//g')"
+        echo "$clean_row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|[[:space:]]*-+' && continue
+        echo "$clean_row" | grep -qE '^\|[[:space:]]*[0-9]+[[:space:]]*\|' || continue
+        name="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
         [ -z "$name" ] && continue
         node_id="$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g')"
         diagram="${diagram}    sys_${node_id}[\"${name}\"]"$'\n'
@@ -200,11 +203,10 @@ if [ -n "$features_section" ]; then
     [ -z "$row" ] && continue
     case "$row" in
       \|*)
-        echo "$row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|' && continue
-        c3="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
-        [ -z "$c3" ] && continue
-        [ "$c3" = "Feature" ] && continue
-        [ "$c3" = "#" ] && continue
+        clean_row="$(printf '%s' "$row" | sed 's/\*\*//g')"
+        echo "$clean_row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|' && continue
+        c3="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
+        case "$c3" in ""|"Feature"|"Name"|"#") continue ;; esac
         node_id="$(printf '%s' "$c3" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g')"
         diagram="${diagram}    feat_${node_id}[\"${c3}\"]"$'\n'
         ;;
@@ -231,11 +233,10 @@ if [ -n "$features_section" ]; then
   while IFS= read -r row; do
     case "$row" in
       \|*)
-        echo "$row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|' && continue
-        c3="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
-        [ -z "$c3" ] && continue
-        [ "$c3" = "Feature" ] && continue
-        [ "$c3" = "#" ] && continue
+        clean_row="$(printf '%s' "$row" | sed 's/\*\*//g')"
+        echo "$clean_row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|' && continue
+        c3="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
+        case "$c3" in ""|"Feature"|"Name"|"#") continue ;; esac
         declared_features="${declared_features}${c3}\n"
         ;;
     esac
@@ -245,9 +246,10 @@ if [ -n "$systems_section" ]; then
   while IFS= read -r row; do
     case "$row" in
       \|*)
-        echo "$row" | grep -qE '^\|[[:space:]]*[0-9-]+[[:space:]]*\|' || continue
-        echo "$row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|[[:space:]]*-+' && continue
-        name="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
+        clean_row="$(printf '%s' "$row" | sed 's/\*\*//g')"
+        echo "$clean_row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|[[:space:]]*-+' && continue
+        echo "$clean_row" | grep -qE '^\|[[:space:]]*[0-9]+[[:space:]]*\|' || continue
+        name="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
         [ -n "$name" ] && declared_systems="${declared_systems}${name}\n"
         ;;
     esac

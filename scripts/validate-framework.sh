@@ -121,6 +121,48 @@ if [ -d backend ]; then
 fi
 
 # ----------------------------------------------------------------------
+group 7 "Templates ↔ pulse-inspect parse contract"
+# ----------------------------------------------------------------------
+# Templates teach the AI what to produce; the inspector parses the output.
+# If the columns drift, pulse silently produces garbage. These checks keep
+# the two in lockstep.
+
+FT="templates/feature-tree.md"
+if [ -f "$FT" ]; then
+  # Systems table: must have `| # | Name |` header so inspector's numeric
+  # column-2 check matches.
+  if grep -qE '^\|[[:space:]]*#[[:space:]]*\|[[:space:]]*Name[[:space:]]*\|' "$FT"; then
+    pass "feature-tree.md Systems header starts with '# | Name |'"
+  else
+    fail "feature-tree.md Systems table must start '| # | Name | ...' (pulse-inspect needs numeric col 2)"
+  fi
+  # Features table: must have `| # | Feature | Location | Routes |`.
+  if grep -qE '^\|[[:space:]]*#[[:space:]]*\|[[:space:]]*Feature[[:space:]]*\|[[:space:]]*Location[[:space:]]*\|[[:space:]]*Routes[[:space:]]*\|' "$FT"; then
+    pass "feature-tree.md Features header is '# | Feature | Location | Routes | ...'"
+  else
+    fail "feature-tree.md Features table must be '| # | Feature | Location | Routes | Systems Used | ...' (pulse-inspect reads \$3=name, \$4=loc, \$5=routes, \$6=systems)"
+  fi
+else
+  warn "feature-tree.md template missing at $FT"
+fi
+
+for REF in templates/references-frontend.md templates/references-backend.md templates/references-mobile.md; do
+  [ -f "$REF" ] || continue
+  # Project section must use `- Name:` bullets.
+  if awk '/^## Project/{flag=1;next} /^## /{flag=0} flag' "$REF" | grep -qE '^- Name:'; then
+    pass "$(basename "$REF") Project section uses '- Name:' bullet"
+  else
+    fail "$(basename "$REF") Project section must use '- Name: ...' bullets (pulse-inspect requires leading dash)"
+  fi
+  # Tech Stack section must use `- Key:` bullets.
+  if awk '/^## Tech Stack/{flag=1;next} /^## /{flag=0} flag' "$REF" | grep -qE '^- [A-Za-z]'; then
+    pass "$(basename "$REF") Tech Stack uses '- Key: Value' bullets"
+  else
+    fail "$(basename "$REF") Tech Stack must use '- Key: Value' bullets"
+  fi
+done
+
+# ----------------------------------------------------------------------
 echo ""
 echo "==="
 if [ "$ERRORS" -gt 0 ]; then

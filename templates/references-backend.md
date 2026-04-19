@@ -2,23 +2,27 @@
 
 ## Project
 
-Name: [project name]
-Purpose: [one-line description]
-Stage: [development / staging / production]
-API URL: [base URL]
+Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses these bullets; lines without a leading dash are ignored.
+
+- Name: [project name]
+- Purpose: [one-line description]
+- Stage: [development / staging / production]
+- API URL: [base URL]
 
 ## Tech Stack
 
-Runtime: [Node.js / Python / Go / C# / Java / etc.]
-Framework: [Express / Fastify / SST / Django / FastAPI / ASP.NET / Spring Boot / Gin / Rails / etc.]
-Language: [TypeScript / Python / Go / C# / Java / Ruby / Rust / etc.]
-ORM/DB: [Prisma / SQLAlchemy / Django ORM / Entity Framework / GORM / ActiveRecord / Diesel / etc.]
-Database: [PostgreSQL / MySQL / MongoDB / SQLite / SQL Server / etc.]
-Validation: [Zod / Pydantic / FluentValidation / go-playground/validator / Bean Validation / etc.]
-Cloud: [AWS / GCP / Azure / self-hosted / etc.]
-Auth: [Cognito / Auth0 / ASP.NET Identity / Django auth / Firebase / custom JWT / etc.]
-Testing: [Vitest / Jest / pytest / xUnit / go test / RSpec / etc.]
-Package Manager: [npm / pnpm / pip / dotnet / go mod / bundler / cargo / etc.]
+Each line must start with `- ` (dash space); content is `- Key: Value`. Inspector parses every bullet.
+
+- Runtime: [Node.js / Python / Go / C# / Java / etc.]
+- Framework: [Express / Fastify / SST / Django / FastAPI / ASP.NET / Spring Boot / Gin / Rails / etc.]
+- Language: [TypeScript / Python / Go / C# / Java / Ruby / Rust / etc.]
+- ORM/DB: [Prisma / SQLAlchemy / Django ORM / Entity Framework / GORM / ActiveRecord / Diesel / etc.]
+- Database: [PostgreSQL / MySQL / MongoDB / SQLite / SQL Server / etc.]
+- Validation: [Zod / Pydantic / FluentValidation / go-playground/validator / Bean Validation / etc.]
+- Cloud: [AWS / GCP / Azure / self-hosted / etc.]
+- Auth: [Cognito / Auth0 / ASP.NET Identity / Django auth / Firebase / custom JWT / etc.]
+- Testing: [Vitest / Jest / pytest / xUnit / go test / RSpec / etc.]
+- Package Manager: [npm / pnpm / pip / dotnet / go mod / bundler / cargo / etc.]
 
 ## Commands
 
