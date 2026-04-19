@@ -30,6 +30,12 @@
       <div id="features"></div>
     </section>
 
+    <section id="drift-section" hidden>
+      <h2>Drift <span class="badge badge-drift" id="drift-count"></span></h2>
+      <p class="muted">Declared state (feature-tree.md) vs actual state (filesystem). Items below don't match. Audit with your developer AI when drift appears.</p>
+      <div id="drift"></div>
+    </section>
+
     <section id="diagram-section">
       <h2>Architecture Diagram</h2>
       <p class="muted">Auto-generated from feature-tree.md. Each feature's "systems used" column produces edges into the foundational-systems subgraph.</p>

@@ -89,6 +89,14 @@ dd { margin: 0; }
 .badge-implemented, .badge-configured, .badge-verified { background: #c6f0c6; color: #064; }
 .badge-not-started, .badge-pending, .badge-planned { background: #f0e0c6; color: #644; }
 .badge-deferred { background: #e0e0e0; color: #666; }
+.badge-drift { background: #f5c6c6; color: #844; }
+
+.drift-group { border: 1px solid #f5c6c6; background: #fff8f8; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 0.5rem; }
+.drift-group h3 { margin: 0 0 0.5rem 0; font-size: 0.95rem; }
+.drift-group ul { margin: 0.25rem 0; padding-left: 1.2rem; font-size: 0.9rem; }
+.drift-group .drift-kind { font-size: 0.8rem; color: #844; text-transform: uppercase; letter-spacing: 0.05em; }
+[data-theme="dark"] .drift-group { border-color: #5a2a2a; background: #1f1010; }
+[data-theme="dark"] .drift-group .drift-kind { color: #f5a7a7; }
 
 pre {
   background: var(--card-bg);

@@ -99,19 +99,48 @@ Rules for the redesign:
 - **Stay read-only in v1** — writes are a v2 feature.
 - **Stay dev-only** — never ship the pulse UI to production builds. Auth leaks and internal-layout leaks are the risk.
 
-## v2 (deferred) — drift detection
+## v2 — static drift detection (shipped)
 
-Planned additions:
-- Features: declared in feature-tree.md vs actual `src/features/*/` dirs. Surface undocumented features and stale rows.
-- Systems: declared in References.md + feature-tree.md vs `src/shared/*/` dirs.
-- Dependencies: declared in `package.json` vs actual imports across `src/`.
-- Env vars: declared in env schema vs `process.env.*` references.
-- Routes: declared in router config vs actual handler files.
-- Migrations: declared in `prisma/migrations/` (or equivalent) vs current DB schema state.
+Inspector scans actual filesystem against declared state. Current coverage:
+- **Features:** `src/features/*/` dirs vs feature-tree.md Features table.
+- **Foundational systems:** `src/shared/*/` dirs vs feature-tree.md Systems table.
 
-Each adds a `drift` array to its section. UI surfaces drift visibly.
+Drift surfaces in `.pulse-state.json` as:
 
-Not in v1. Ship v1 first; add v2 when adoption signals it.
+```json
+"drift": {
+  "features": {
+    "declaredButMissing": ["record-session"],
+    "actualButUndeclared": ["health", "sessions"]
+  },
+  "foundationalSystems": { ... }
+}
+```
+
+UI renders a dedicated "Drift" section when any issues exist (hidden when clean). Declared-but-missing + actual-but-undeclared lists with tight visual treatment.
+
+Future (v3+, add when real use demands): dependency drift, env-var drift, route drift, migration drift.
+
+## How to audit the pulse (developer workflow)
+
+The framework does NOT ship a separate AI audit service. You audit ad-hoc with your own developer AI when:
+- A major feature just shipped
+- You just ran `update.sh` to pull framework changes
+- The drift section shows unexpected items
+- Something feels off and you want a second opinion
+
+Sample prompt to paste into your AI:
+
+```
+Read /path/to/project/.pulse-state.json. Compare it to the actual state of
+/path/to/project/src/ and /path/to/project/package.json. Tell me what the
+pulse is misrepresenting — what's wrong, missing, or misleading. Read-only;
+do not modify files. Report findings, then I decide what to fix.
+```
+
+The AI interprets stack-specific context (Python vs TypeScript vs Go), judges whether naming differences are cosmetic or structural, and flags issues the static scanner can't see. Human reviews, decides, fixes.
+
+Audits are optional. The static scanner + drift surface cover the 80% case. The AI audit covers the 20% where context matters.
 
 ## Known limitations (v1)
 

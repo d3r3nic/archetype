@@ -220,13 +220,116 @@ fi
 
 diagram_escaped="$(printf '%s' "$diagram" | awk '{ gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); printf "%s\\n", $0 }')"
 
+# ---------- Drift detection (static, universal) ----------
+# Compare declared state (feature-tree.md) to actual state (filesystem).
+# Keep hardcoded rules minimal. Surface drift; let the developer + their AI audit.
+
+# Build declared name sets
+declared_features=""
+declared_systems=""
+if [ -n "$features_section" ]; then
+  while IFS= read -r row; do
+    case "$row" in
+      \|*)
+        echo "$row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|' && continue
+        c3="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
+        [ -z "$c3" ] && continue
+        [ "$c3" = "Feature" ] && continue
+        [ "$c3" = "#" ] && continue
+        declared_features="${declared_features}${c3}\n"
+        ;;
+    esac
+  done <<< "$features_section"
+fi
+if [ -n "$systems_section" ]; then
+  while IFS= read -r row; do
+    case "$row" in
+      \|*)
+        echo "$row" | grep -qE '^\|[[:space:]]*[0-9-]+[[:space:]]*\|' || continue
+        echo "$row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|[[:space:]]*-+' && continue
+        name="$(printf '%s' "$row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
+        [ -n "$name" ] && declared_systems="${declared_systems}${name}\n"
+        ;;
+    esac
+  done <<< "$systems_section"
+fi
+
+# Scan actual filesystem
+actual_features=""
+if [ -d "$PROJECT_ROOT/src/features" ]; then
+  while IFS= read -r d; do
+    [ -z "$d" ] && continue
+    bn="$(basename "$d")"
+    case "$bn" in _*|.*) continue ;; esac
+    actual_features="${actual_features}${bn}\n"
+  done < <(find "$PROJECT_ROOT/src/features" -maxdepth 1 -mindepth 1 -type d)
+fi
+
+actual_systems=""
+if [ -d "$PROJECT_ROOT/src/shared" ]; then
+  while IFS= read -r d; do
+    [ -z "$d" ] && continue
+    bn="$(basename "$d")"
+    case "$bn" in _*|.*) continue ;; esac
+    actual_systems="${actual_systems}${bn}\n"
+  done < <(find "$PROJECT_ROOT/src/shared" -maxdepth 1 -mindepth 1 -type d)
+fi
+
+# Diff helper: emit JSON array of names in setA not in setB (normalized fuzzy: lowercase + non-alphanum → _)
+normalize_name() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g'; }
+diff_arr() {
+  # args: set_a set_b → items in A not matched by any in B
+  local a_list="$1"
+  local b_list="$2"
+  local result=""
+  local first=1
+  while IFS= read -r a; do
+    [ -z "$a" ] && continue
+    a_norm="$(normalize_name "$a")"
+    found=0
+    while IFS= read -r b; do
+      [ -z "$b" ] && continue
+      b_norm="$(normalize_name "$b")"
+      if [ "$a_norm" = "$b_norm" ]; then found=1; break; fi
+      # fuzzy: substring match either direction
+      case "$a_norm" in *"$b_norm"*) found=1; break ;; esac
+      case "$b_norm" in *"$a_norm"*) found=1; break ;; esac
+    done <<< "$(printf '%b' "$b_list")"
+    if [ "$found" -eq 0 ]; then
+      [ "$first" -eq 0 ] && result="${result},"
+      result="${result}\"$(json_escape "$a")\""
+      first=0
+    fi
+  done <<< "$(printf '%b' "$a_list")"
+  printf '[%s]' "$result"
+}
+
+features_declared_but_missing="$(diff_arr "$declared_features" "$actual_features")"
+features_actual_but_undeclared="$(diff_arr "$actual_features" "$declared_features")"
+systems_declared_but_missing="$(diff_arr "$declared_systems" "$actual_systems")"
+systems_actual_but_undeclared="$(diff_arr "$actual_systems" "$declared_systems")"
+
+drift_json=$(cat <<EOF
+{
+    "features": {
+      "declaredButMissing": ${features_declared_but_missing},
+      "actualButUndeclared": ${features_actual_but_undeclared}
+    },
+    "foundationalSystems": {
+      "declaredButMissing": ${systems_declared_but_missing},
+      "actualButUndeclared": ${systems_actual_but_undeclared}
+    }
+  }
+EOF
+)
+
 # ---------- Emit JSON ----------
 TIMESTAMP="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
 JSON=$(cat <<EOF
 {
   "generatedAt": "${TIMESTAMP}",
-  "dataContractVersion": "v1.1",
+  "dataContractVersion": "v2",
   "project": {
     "name": "$(json_escape "$project_name")",
     "purpose": "$(json_escape "$project_purpose")",
@@ -236,7 +339,8 @@ JSON=$(cat <<EOF
   "foundationalSystems": ${systems_json},
   "features": ${features_json},
   "architecture": "${architecture_escaped}",
-  "architectureDiagram": "${diagram_escaped}"
+  "architectureDiagram": "${diagram_escaped}",
+  "drift": ${drift_json}
 }
 EOF
 )

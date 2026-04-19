@@ -21,7 +21,9 @@ One dev-only surface per project. Read-only. Dev-only (never in production). Str
 - The inspector reads ONLY convention-mandated paths. If a project deviates from conventions, document the deviation in References.md; the inspector should still read from the new location via project-level override.
 - The data contract is documented per the spec template and stable. UI layers consume it. Breaking the contract requires a spec update.
 - The UI layer is explicitly replaceable. Per-project redesign is encouraged. The framework ships a vanilla HTML/CSS/JS starter; projects swap it for their stack if desired.
-- The pulse monitor is a read-only view in v1. Writes (e.g., "promote this feature to prod") are deferred to a later convention or feature.
+- The pulse monitor is read-only. Writes (e.g., "promote this feature to prod") are out of scope.
+- Drift is surfaced but not auto-fixed. Declared-but-missing and actual-but-undeclared items display; the developer resolves them.
+- **Periodic AI audit is a developer workflow, not a framework service.** After a major feature ships, after a framework update, or when drift looks suspicious, the developer asks their AI (the same one that coded the feature) to audit `.pulse-state.json` against the actual project state. The audit is ad-hoc, human-triggered, read-only. The framework does NOT ship a separate audit service.
 
 ## v1 scope — scaffolded state visibility
 
@@ -33,11 +35,26 @@ Five sections, all read from declared state:
 4. **Features** — each feature with routes, systems used, status, doc path. From feature-tree.md § Features.
 5. **Architecture** — folder structure. From References.md § Folder Structure.
 
-## v2 scope (deferred) — drift detection
+## v2 — static drift detection (shipped)
 
-Terraform-style declared-vs-actual for: features, foundational systems, dependencies, env vars, routes, migrations. Planner emits drift per section. UI surfaces undeclared actuals and unbuild declareds.
+The inspector scans actual filesystem against declared state:
+- `src/features/*/` vs feature-tree.md Features → declaredButMissing + actualButUndeclared
+- `src/shared/*/` vs feature-tree.md Foundational Systems → same drift arrays
 
-Not in v1. Revisit after v1 adoption.
+Matching is fuzzy (case-insensitive, non-alphanumeric normalized, substring-tolerant) to reduce false positives from naming-style differences.
+
+Drift is surfaced in `.pulse-state.json` under the `drift` field and rendered in a dedicated UI section.
+
+No language-specific AST parsing. No stack-specific rules. Static scanner stays portable. AI-level reasoning (if needed for nuanced cases) happens via the developer's own AI during ad-hoc audit — see Rules.
+
+## Future (v3+, not planned)
+
+- Dependency drift (package.json vs actual imports).
+- Env-var drift (schema vs `process.env.*` reads).
+- Route drift (router config vs actual handlers).
+- Migration drift.
+
+Each extends the scanner similarly. Add when real-use signals demand them.
 
 ## Violations
 
