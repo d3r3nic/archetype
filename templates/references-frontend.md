@@ -34,6 +34,19 @@ lint:      [command to lint]
 deploy:    [command to deploy]
 ```
 
+## Design Artifact
+
+Convention #27 anchor: **AI consults the artifact first. When silent, AI asks. AI never invents UX.**
+
+- Primary tool: [AI researches the current best-in-class design-artifact tool at bootstrap time — visual design, design-system-as-code, AI-driven design assistant, or hybrid]
+- Artifact location: [URL or path; `[to be created]` if not yet produced]
+- Token pipeline (if design-system-as-code): [how tokens flow between artifact and code — e.g., plugin + repo + CI sync]
+- Update responsibility: [who owns artifact edits; how code follow-ups trigger]
+- Every UI state is designed: empty, loading, error, success, disabled
+- Complementary tools (exploration only, never source-of-truth): [list]
+
+If the artifact is silent on a UI decision, AI flags it to the developer — it does not invent visual or interaction patterns.
+
 ## Foundational Systems
 
 Each system is built once following convention #0 (Reusability). Features plug into these, never build ad-hoc. Sections ordered by scaffold build sequence.

@@ -162,6 +162,16 @@ for REF in templates/references-frontend.md templates/references-backend.md temp
   fi
 done
 
+# UI-centric templates must include the Design Artifact section (convention #27 pipeline).
+for REF in templates/references-frontend.md templates/references-mobile.md; do
+  [ -f "$REF" ] || continue
+  if grep -qE '^## Design Artifact' "$REF"; then
+    pass "$(basename "$REF") has Design Artifact section (conv #27)"
+  else
+    fail "$(basename "$REF") must include a '## Design Artifact' section (conv #27 pipeline). Bootstrap relies on this placeholder."
+  fi
+done
+
 # ----------------------------------------------------------------------
 group 8 "No project artifacts inside the framework folder"
 # ----------------------------------------------------------------------

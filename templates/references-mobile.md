@@ -36,6 +36,18 @@ deploy:    [command to deploy - TestFlight, Play Store, etc.]
 clean:     [command to clean build artifacts]
 ```
 
+## Design Artifact
+
+Convention #27 anchor: **AI consults the artifact first. When silent, AI asks. AI never invents UX.**
+
+- Primary tool: [AI researches current best-in-class tool at bootstrap time]
+- Artifact location: [URL or path; `[to be created]` if not yet produced]
+- Platform parity: [how iOS + Android states are kept aligned in the artifact]
+- Every UI state is designed: empty, loading, error, success, disabled; platform-specific permission prompts included
+- Update responsibility: [who owns edits; how code follow-ups trigger]
+
+If the artifact is silent, AI asks — it does not invent visual or interaction patterns.
+
 ## Foundational Systems
 
 Each system is built once following convention #0 (Reusability). Features plug into these, never build ad-hoc.
