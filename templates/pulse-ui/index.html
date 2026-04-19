@@ -30,8 +30,14 @@
       <div id="features"></div>
     </section>
 
+    <section id="diagram-section">
+      <h2>Architecture Diagram</h2>
+      <p class="muted">Auto-generated from feature-tree.md. Each feature's "systems used" column produces edges into the foundational-systems subgraph.</p>
+      <div id="diagram" class="diagram-container">Loading diagram…</div>
+    </section>
+
     <section id="architecture-section">
-      <h2>Architecture</h2>
+      <h2>Folder Structure</h2>
       <pre id="architecture"></pre>
     </section>
   </main>
@@ -41,6 +47,8 @@
     <p class="meta muted">Generated <span id="generated-at"></span> · Data contract <span id="contract-version"></span></p>
   </footer>
 
+  <!-- Mermaid for architecture diagrams. Pinned major version; redesign freely, keep data contract. -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

@@ -72,6 +72,26 @@ function renderFeatures(features) {
   }
 }
 
+async function renderDiagram(mermaidText) {
+  const container = document.getElementById('diagram');
+  if (!container) return;
+  if (!mermaidText || !mermaidText.trim()) {
+    container.textContent = '(no diagram — add features with "Systems Used" column in feature-tree.md)';
+    return;
+  }
+  if (typeof mermaid === 'undefined') {
+    container.innerHTML = `<pre>${mermaidText.replace(/</g, '&lt;')}</pre><p class="muted">Mermaid library not loaded; raw diagram text shown above.</p>`;
+    return;
+  }
+  try {
+    mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+    const { svg } = await mermaid.render('pulse-diagram', mermaidText);
+    container.innerHTML = svg;
+  } catch (err) {
+    container.innerHTML = `<pre>${mermaidText.replace(/</g, '&lt;')}</pre><p class="muted">Diagram render failed: ${err.message}. Raw text shown above.</p>`;
+  }
+}
+
 async function refresh() {
   try {
     const resp = await fetch(`${STATE_URL}?_=${Date.now()}`);
@@ -85,6 +105,7 @@ async function refresh() {
     renderSystems(data.foundationalSystems);
     renderFeatures(data.features);
     text('architecture', data.architecture || '(no folder structure declared in References.md)');
+    await renderDiagram(data.architectureDiagram);
     text('generated-at', data.generatedAt || '?');
     text('contract-version', data.dataContractVersion || '?');
   } catch (err) {
