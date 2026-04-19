@@ -256,26 +256,49 @@ if [ -n "$systems_section" ]; then
   done <<< "$systems_section"
 fi
 
-# Scan actual filesystem
-actual_features=""
-if [ -d "$PROJECT_ROOT/src/features" ]; then
-  while IFS= read -r d; do
-    [ -z "$d" ] && continue
+# Scan actual filesystem.
+# Supports single-app layout ($PROJECT_ROOT/src/*) AND monorepo layout
+# ($PROJECT_ROOT/apps/*/src/* where apps/ is a pnpm workspace directory).
+# In a monorepo, features/systems from every app are aggregated — drift is
+# reported against the union. If multiple apps declare the same feature
+# name, duplicates are deduped at emit time.
+
+scan_dir() {
+  # $1 = directory to scan. Emits one basename per line (underscores preserved).
+  local dir="$1"
+  [ -d "$dir" ] || return 0
+  find "$dir" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | while IFS= read -r d; do
     bn="$(basename "$d")"
     case "$bn" in _*|.*) continue ;; esac
-    actual_features="${actual_features}${bn}\n"
-  done < <(find "$PROJECT_ROOT/src/features" -maxdepth 1 -mindepth 1 -type d)
+    printf '%s\n' "$bn"
+  done
+}
+
+actual_features=""
+actual_systems=""
+
+# Single-app layout
+while IFS= read -r bn; do
+  [ -n "$bn" ] && actual_features="${actual_features}${bn}\n"
+done < <(scan_dir "$PROJECT_ROOT/src/features")
+while IFS= read -r bn; do
+  [ -n "$bn" ] && actual_systems="${actual_systems}${bn}\n"
+done < <(scan_dir "$PROJECT_ROOT/src/shared")
+
+# Monorepo layout: apps/*/src/features and apps/*/src/shared
+if [ -d "$PROJECT_ROOT/apps" ]; then
+  while IFS= read -r app_dir; do
+    [ -z "$app_dir" ] && continue
+    while IFS= read -r bn; do
+      [ -n "$bn" ] && actual_features="${actual_features}${bn}\n"
+    done < <(scan_dir "$app_dir/src/features")
+    while IFS= read -r bn; do
+      [ -n "$bn" ] && actual_systems="${actual_systems}${bn}\n"
+    done < <(scan_dir "$app_dir/src/shared")
+  done < <(find "$PROJECT_ROOT/apps" -maxdepth 1 -mindepth 1 -type d 2>/dev/null)
 fi
 
-actual_systems=""
-if [ -d "$PROJECT_ROOT/src/shared" ]; then
-  while IFS= read -r d; do
-    [ -z "$d" ] && continue
-    bn="$(basename "$d")"
-    case "$bn" in _*|.*) continue ;; esac
-    actual_systems="${actual_systems}${bn}\n"
-  done < <(find "$PROJECT_ROOT/src/shared" -maxdepth 1 -mindepth 1 -type d)
-fi
+# Duplicates across apps (rare) are tolerated by diff_arr's set-membership check.
 
 # Diff helper: emit JSON array of names in setA not in setB (normalized fuzzy: lowercase + non-alphanum → _)
 normalize_name() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g'; }
