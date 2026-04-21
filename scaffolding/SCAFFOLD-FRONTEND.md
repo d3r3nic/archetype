@@ -18,15 +18,17 @@ Conventions: #1 (project setup), #7 (types), #2 (git).
 
 Build:
 - Language/runtime version pinned, package manager chosen + lockfile committed.
-- Type checker in strict mode.
-- Linter + formatter configs.
-- `.gitignore`, pre-commit hooks, barrel exports.
+- Type checker in strict mode, including the language's strictest available flags (e.g. unchecked indexed access, implicit override, unused locals).
+- Linter + formatter configs. **Real rules, not stubs** — one linter config per language scope, extending the framework's recommended set. See "Wrapper-boundary enforcement" below.
+- `.gitignore`, **pre-commit hooks that install automatically on fresh clone** so downstream forks inherit them without manual setup. Research current idiomatic tools for the chosen runtime.
 - Environment validation AT STARTUP (`loadEnv()` equivalent on app entry). See `bootstrap/RED-FLAGS.md` "Env validation at runtime."
 - Shared types directory, branded IDs, validation library wired in (one schema = type + validator).
-- **Vite-based projects:** bundler-provided types must be referenced for `import.meta.env` to typecheck — research Vite's current convention.
 - **Build script pattern:** typecheck and bundle run as separate steps. Never combine emit-to-disk with typecheck-only flags.
+- **Monorepo template projects:** root package manifest uses the chosen tool's workspace protocol for cross-package deps. Publishing via the tool's publish command (or tarball packing for local testing). For local consumer-site testing of transitive deps, use the tool's resolution-override mechanism to redirect scoped-package resolutions to local tarballs — otherwise transitive deps try to resolve from a public registry that doesn't know your scope yet.
 
-**Verify:** install succeeds, typechecker + linter run clean, pre-commit fires, deleting a required env var throws on start.
+**Wrapper-boundary enforcement** — Convention #22 says feature code never imports UI-library internals directly. Enforce mechanically via the linter's import-restriction rule: every raw library the `@scope/ui` package wraps belongs on the restricted list for feature + app code. The list grows as you wrap more primitives. Research the linter's current restricted-imports rule syntax.
+
+**Verify:** install succeeds, typechecker + linter run clean, pre-commit fires on commit (runs at least linter + formatter on staged source), deleting a required env var throws on start.
 
 ## Step 2 — Theme system
 
@@ -136,6 +138,15 @@ Build only if References.md lists forms beyond trivial inputs.
 
 Conventions: #12 (testing), #18 (verification).
 
+**Wiring shape** (tools per stack — research current best):
+- A test runner that handles the project's module system + JSX/TSX transform.
+- A DOM environment (headless) so component tests run without a real browser.
+- A testing library whose assertions describe what the user sees, not implementation details.
+- A global setup file that registers DOM matchers (auto-importable so each test file doesn't repeat setup).
+- A network-level mocker (not module-level mocks) for tests that cross the API boundary.
+- In monorepos, each package gets its own test config; packages with no DOM concerns use a node environment; packages with React concerns use a DOM environment.
+
+
 Build:
 - Test runner configured.
 - Custom render wrapper providing Theme + Store + Router + QueryClient + AuthProvider + ErrorBoundary — mirror the production order from Step 8 exactly.
@@ -195,3 +206,23 @@ Run `scripts/validate-scaffold.sh`. Fix any failures before committing.
 ## Post-scaffold output
 
 Same as SCAFFOLD-BACKEND: every system marked implemented with path, docs/systems/ entry per system, References.md updated, `.env.example`, VERSION-LOG entry, initial commit.
+
+## feature-tree status discipline
+
+As each system lands during scaffold, update the feature-tree.md row in-place:
+
+- `not started` → `in progress` when the directory exists and first file lands.
+- `in progress` → `implemented` when tests green + system doc in `docs/systems/<name>.md` explains "what's here / what's NOT here yet / verification".
+- Location column fills in real path (was `[scaffold fills]`).
+- Audit Log gets one entry per scaffold sub-phase (e.g. "B1 monorepo skeleton", "B2 non-UI foundation", "B3 tokens + UI + docs").
+
+Never leave a row at `not started` after its code ships. Pulse-inspect drift detection reads these statuses.
+
+## Monorepo template projects — extra lens
+
+Template-shape projects (framework Step 49) add a second distribution axis beyond "deploy the app":
+
+- Each package has a manifest with real scoped `name`, SemVer `version`, explicit `files` shipping list, and peer-dependencies for consumer-owned runtime (the view framework, the language runtime, etc.) so consumers aren't forced into the template's versions.
+- **SemVer discipline via a version-management tool** (research current best): one change-file per change, a command rolls versions + generates per-package CHANGELOG, a command publishes to the registry (or packs for local testing).
+- Progressive extraction: build a feature in the reference app first, extract to a package when the pattern stabilizes. Reference: the template's own `docs/CUSTOMER-SITE.md` for consumer-facing walkthrough; `docs/MAINTENANCE.md` for template-maintainer playbook.
+- If the bundler needs help consuming packages that ship raw source: use the bundler's transpile-dependency option (research current).

@@ -36,6 +36,20 @@ Establish one design artifact per project that is:
 - WRONG: developer updates the artifact with a new button variant; code keeps the old variant. Six weeks later they diverge irreversibly.
 - RIGHT: any artifact update triggers a code follow-up (and vice versa); the two are treated as two views of one source of truth.
 
+## Where in the project lifecycle UI/UX decisions happen
+
+This is a TIMING rule, not just a scoping rule:
+
+| Lifecycle moment | Who decides UI/UX | What they decide |
+|---|---|---|
+| Factory authoring a framework Step | Nobody decides brand UI/UX | Framework governs character (tokens layering, wrapper boundaries, every-state discipline) — NOT values |
+| Template project bootstrap (Step 49 `Type: template`) | Nobody decides brand UI/UX | Template ships structural primitives with neutral placeholder tokens. AI must NOT invent colors, type, iconography. Design Artifact is deferred. |
+| Template project scaffolding | Nobody decides brand UI/UX | Structural components (Button, Input, Dialog, etc.) get API + tokens wiring only. No brand values land here. |
+| **Product project bootstrap (Step 49 `Type: product`)** | **This is where UI/UX is decided** | AI researches + picks the Design Artifact tool (Figma / Claude Design / tokens.json / etc.) with developer. Artifact gets authored. Brand primitives committed. |
+| Product project feature work | UI/UX decisions come from the Artifact | AI consults the artifact first; asks when silent; never invents. |
+
+So: any "change the button color" / "add an icon" / "tweak the hover state" prompt belongs at the product-bootstrap or product-feature stage. At template or framework level, the same prompt should be deflected: "this template is brand-neutral; UI/UX decisions land when a product spawns from it."
+
 ## Research Notes
 
 When bootstrapping this convention:

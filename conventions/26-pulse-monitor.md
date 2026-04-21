@@ -37,15 +37,23 @@ Five sections, all read from declared state:
 
 ## v2 — static drift detection (shipped)
 
-The inspector scans actual filesystem against declared state:
-- `src/features/*/` vs feature-tree.md Features → declaredButMissing + actualButUndeclared
-- `src/shared/*/` vs feature-tree.md Foundational Systems → same drift arrays
+The inspector scans actual filesystem against declared state in both layouts:
+- **Single-app:** `src/features/*/` + `src/shared/*/` vs feature-tree.md rows.
+- **Monorepo:** `apps/*/src/features/*/` + `apps/*/src/shared/*/` (union across apps). Step 48 added this.
+
+→ `declaredButMissing` + `actualButUndeclared` arrays per section.
 
 Matching is fuzzy (case-insensitive, non-alphanumeric normalized, substring-tolerant) to reduce false positives from naming-style differences.
 
 Drift is surfaced in `.pulse-state.json` under the `drift` field and rendered in a dedicated UI section.
 
 No language-specific AST parsing. No stack-specific rules. Static scanner stays portable. AI-level reasoning (if needed for nuanced cases) happens via the developer's own AI during ad-hoc audit — see Rules.
+
+## Implementation gotchas (signals from battle-testing)
+
+- **Bundlers that refuse to follow external symlinks.** If the framework folder is symlinked to a sibling location (e.g. a shared framework shared across several templates), a bundler with strict asset tracing may reject paths that escape the project root. Consequence: a server-rendered page cannot read the framework's UI files from the symlinked folder at build time. **Signal:** do not embed the framework's vanilla HTML/CSS/JS pulse UI by reading it from the framework folder. Either render a project-local page that fetches a static `.pulse-state.json` asset, or serve the framework UI via a separate static server. Either preserves the data-contract-is-stable rule (the UI is replaceable).
+- **Refresh model.** v1 refresh is manual — rerun the inspector before viewing. Chaining the inspector to the dev-server start command means every session begins with fresh state.
+- **Pulse state file location.** Store it where the project's dev server serves static assets (wherever that is for the chosen stack). Git-ignore it — it's generated.
 
 ## Future (v3+, not planned)
 

@@ -46,6 +46,24 @@ Create a production-grade theme system that establishes:
 - WRONG: components use Tailwind defaults (gray-50, red-600) or raw color values. These don't change when the theme changes.
 - RIGHT: components use semantic tokens (bg-surface, text-primary, color-error) that are defined in the theme and resolve to different values in light vs dark mode.
 
+## Template vs product — tokens in each
+
+Per framework Step 49, token responsibility splits by project shape:
+
+- **Template projects** ship the STRUCTURE: primitive layer (`--t-*`) with system-neutral values (`Canvas`/`CanvasText` keywords, `currentColor`, rem-based sizing) and semantic layer (`--bg-surface`, `--text-primary`, etc.) referencing primitives. Zero hex literals, zero brand commitment. The template's token file is a shell: layer boundaries and semantic role names are the contract, primitive VALUES are placeholders.
+- **Product projects** (customer sites spawned from templates, or one-off custom builds) commit brand values by overriding `--t-*` primitives in their own stylesheet loaded AFTER the template's token file. Semantic names stay stable — feature code consumes semantics, never primitives.
+
+Example — template file ships:
+```css
+:root { --t-color-accent: AccentColor; --bg-surface: var(--t-color-bg); }
+```
+Customer site overrides:
+```css
+:root { --t-color-accent: oklch(0.55 0.2 260); }
+```
+
+Semantic tokens (`--bg-surface`, `--color-accent` if declared) don't change — customer-site components keep consuming them and pick up the brand value automatically.
+
 ## Research Notes
 
 When bootstrapping this convention:
