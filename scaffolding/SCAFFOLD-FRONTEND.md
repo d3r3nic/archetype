@@ -30,6 +30,27 @@ Build:
 
 **Verify:** install succeeds, typechecker + linter run clean, pre-commit fires on commit (runs at least linter + formatter on staged source), deleting a required env var throws on start.
 
+## Step 1b — Global Site Config (content, not code)
+
+Conventions: #0 (reusability, applied to content), #1 (project setup), #7 (types).
+
+One source of truth for site-wide business CONTENT: site name, tagline, navigation items, contact details, brand marks, footer links, meta description, social URLs. Anything that appears on more than one page OR would be a find-and-replace hazard belongs here.
+
+Build:
+- A typed config module exporting a `site` object (or equivalent structure).
+- Values that vary per environment (public contact email, analytics IDs, feature flags) read through the validated env layer from Step 1 — NOT duplicated as string constants.
+- Editor-authored values (tagline variants, about copy, announcement banners) come from the CMS at runtime via the API layer (Step 6). The site config module holds the STRUCTURE + FALLBACKS; the CMS provides the current values.
+- Default values so the app builds before a CMS is wired. A fresh clone renders with placeholders; overriding one file changes the whole site.
+
+Rules:
+- If a business string appears on more than one page, it MUST be in site config.
+- If a value is environment-specific, it MUST be in the env layer (not duplicated in site config).
+- Components NEVER hardcode business strings. They import `site` (or equivalent) and read from it.
+
+**Verify:** grep for hardcoded site name / tagline / nav labels across source — zero hits. Changing one value in the site config module reflects everywhere it appears.
+
+This pattern is hoisted to framework level because every CMS-driven consumer site faces the same need. Template projects ship the structure (placeholder values); product projects fill in values at their own bootstrap.
+
 ## Step 2 — Theme system
 
 Conventions: #6 (styling), #22 (design system).
