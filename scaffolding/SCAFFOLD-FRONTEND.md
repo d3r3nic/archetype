@@ -193,6 +193,40 @@ Build:
 
 **Verify:** a PR that pushes bundle over budget fails CI. Web Vitals collection works on a staging build.
 
+## Step 11a — Deployment discipline
+
+Conventions: #15 (build/CI), #0 (reusability), #18 (verification).
+
+Deployment is where the framework's signals meet the vendor's specifics. The rules below are vendor-agnostic; the template handles the concrete commands.
+
+Build-context and deploy-context ignores:
+- The image builder and the deploy-source uploader may be different actors reading different ignore files. Author each actor's ignore surface; do not rely on the image-builder ignore to suppress uploads.
+- Typical trap: the uploader packs files (like dev-only test harness configs) that survive into the typecheck step of the remote build, where imports they reference have been correctly stripped from the image context. Exclude them from BOTH surfaces, not just one.
+
+Local pre-deploy verification:
+- Chain local `typecheck → lint → test → build` as a precondition of the deploy command. Never deploy past a local red.
+- Remote builds should enforce the same chain so drift between local and remote surfaces fails fast.
+- Any error that only surfaces remotely is a sign the local chain is missing a step, not that the remote is "stricter."
+
+Env-schema and example files:
+- Schema that rejects empty strings is correct behavior. Example-env files that ship optional keys as blanks are a trap: the consumer copies the file, validation fails on first run, cause is non-obvious.
+- In example files, OPTIONAL keys are **commented out**, not set to empty. Comment explains why (the schema rejects empty; uncomment and fill when opting in).
+- REQUIRED keys may ship with a safe stub or an obviously-placeholder value that explains the intent.
+
+Ingress, certs, and multi-tenancy:
+- Confirm current vendor docs before committing to an ingress/cert path. A vendor's "preview" or "limited GA" feature may have materially worse reliability than their production path. Deprecated-but-available is a trap.
+- When placing multiple tenants behind shared ingress, verify the vendor allows the backend/NEG/service primitives to cross project/boundary lines. If they don't, single-project consolidation is forced; choose the multi-tenant boundary by WHO PAYS the vendor bill:
+  - Framework consumer pays → consolidate into one platform boundary, attribute cost via labels.
+  - End customer pays → each customer gets their own boundary.
+- DNS records for shared-ingress setups point to the shared ingress's static IP, not to the vendor's gateway hostname.
+- When the DNS provider offers a traffic proxy, **verify whether it passes the cert-issuer's ACME challenge through**. Proxies that terminate or redirect traffic can silently break cert issuance. Default to DNS-only until the cert is live.
+
+IAM and deploy actors:
+- Vendor IAM defaults shift across epochs. Projects created in older eras inherited broader defaults; new projects may not. Do not assume inheritance — automation must grant every binding a deploy actor needs, every time.
+- If a deploy tool fails with a permission error that references a "default" service agent or account, the fix is almost always explicit binding of a role the vendor used to grant implicitly.
+
+**Verify:** a fresh clone of the project runs the deploy command and a successful deploy reaches a known-working URL without any out-of-band manual steps. The command chain is idempotent: re-running after any failure resumes or replays cleanly.
+
 ## Step 11b — Pulse Monitor (dev-only project visibility)
 
 Conventions: #26 (pulse monitor).
