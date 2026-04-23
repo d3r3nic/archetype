@@ -193,6 +193,35 @@ Build:
 
 **Verify:** a PR that pushes bundle over budget fails CI. Web Vitals collection works on a staging build.
 
+## Step 10b — Data resolution layer
+
+Conventions: #0 (reusability), #9 (API).
+
+A feature's `data.ts` (or equivalent) is a **resolution function**, not a fixed data source. Pages call `listX()` / `findX(id)`; the function decides whether the data comes from hardcoded fixtures, a YAML file, a database, or a live API. When the real source lands, only `data.ts` changes — every page and component keeps working.
+
+Rules:
+- Pages and components NEVER import a data source directly. They import the resolution function.
+- The resolution function is allowed to be async (most real sources are).
+- Fallback behavior is explicit in the function (not magic): prefer real source when configured; else return a safe default (empty list, hardcoded fixture) for dev.
+- Swapping the source is an isolated change. A PR that replaces hardcoded → real source should touch one file, not many.
+
+**Verify:** grep for the names of data objects in the codebase. Only `data.ts` (or its named resolver) should appear; pages should only reference the function name.
+
+## Step 10c — Long-running operation streams
+
+For any operation that takes seconds-to-minutes (deploy, build, teardown, import), build a subprocess/job registry + SSE stream pattern rather than one-shot HTTP:
+
+- A **registry** keyed by the operation target (slug, job id, etc.) holds active and recently-completed operations.
+- The registry stores events as they happen, so a late subscriber can **replay** the tail.
+- SSE endpoints subscribe to the registry; multiple clients can watch the same operation (reload-resilient).
+- Finished operations TTL-cleanup after a window so subscribers who reload late still see the final state.
+
+Applies equally to shell subprocesses and async in-process jobs.
+
+## Step 10d — Subprocess input boundary
+
+Every value that reaches `spawn()`, `exec()`, or any shell-like API **must pass a safe-ident regex first.** Reject at the API boundary, not at use site. Even when using argv (no shell), fail closed on unexpected characters — it's a second line of defense that costs almost nothing.
+
 ## Step 11a — Deployment discipline
 
 Conventions: #15 (build/CI), #0 (reusability), #18 (verification).
