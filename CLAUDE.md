@@ -7,7 +7,7 @@ If References.md does not exist, bootstrap has not run yet. Read bootstrap/ONBOA
 ## Before Any Work
 
 1. Read References.md and feature-tree.md (always — these are project context)
-2. Scan Conventions.md to identify which conventions apply to the current task (it's a lookup index, not a reading list — read ONLY the relevant convention docs, not all 28)
+2. Scan Conventions.md to identify which conventions apply to the current task (it's a lookup index, not a reading list — read ONLY the relevant convention docs, not all 29)
 3. If conventions/overrides/, protocols/, or catalogs/ directories exist, check for project-specific rules relevant to the task
 
 Note: if framework files are in an archetype/ subfolder, read from there (archetype/Conventions.md, archetype/References.md, etc.)
@@ -27,6 +27,7 @@ Everything is built once, configured for context. Before building anything, chec
 - If uncertain, ask. Do not guess, do not assume. → conventions/19-steering.md
 - Never build one-off. Use existing systems or build reusable. → conventions/00-reusability.md
 - Never hardcode values that should come from configuration (colors, URLs, timeouts, dimensions, limits). → conventions/06-styling.md, conventions/01-project-setup.md
+- Never hardcode customer-facing copy, brand names, contact info, social links, integration keys, or industry-specific labels. They live in a single config blob delivered via the template's env-var convention (`NEXT_PUBLIC_SITE_CONFIG` / `EXPO_PUBLIC_SITE_CONFIG` / etc. — template's call). Components read via `getSiteConfig()`; defaults live in the schema, not in render output. → conventions/28-config-driven-content.md
 - Never import directly from third-party libraries without project wrappers. → conventions/22-design-system.md, conventions/03-architecture.md
 - Never instantiate a shared getter's underlying class (e.g., `new PrismaClient()` when `getDb()` exists in src/shared/db/). Use the getter. Type imports and namespace imports from the library are OK. → conventions/00-reusability.md
 - Never build standard UI components from scratch. Use the established UI library, configured and wrapped. → conventions/22-design-system.md

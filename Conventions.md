@@ -1,6 +1,6 @@
 # Conventions
 
-This is a LOOKUP INDEX. Do not read all 28 convention docs. Scan this list, identify the 2-4 conventions relevant to your current task, and read only those.
+This is a LOOKUP INDEX. Do not read all 29 convention docs. Scan this list, identify the 2-4 conventions relevant to your current task, and read only those.
 
 This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFOLD.md) → Develop (DEVELOP.md) → Maintain (MAINTAIN.md).
 
@@ -8,8 +8,9 @@ This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFO
 
 | Task type | Always read | Also read |
 |-----------|-------------|-----------|
-| Any new feature | #0, #3, #19 | #1 if new folders needed |
-| UI component work | #4, #6, #22 | #14 (accessibility), #27 (check design artifact first) |
+| Any new feature | #0, #3, #19 | #1 if new folders needed; #28 if UI text/values are involved |
+| UI component work | #4, #6, #22, #28 | #14 (accessibility), #27 (check design artifact first) |
+| Customer-facing copy / brand values | #28 | #6 (theme tokens), #16 (CONFIG.md) |
 | Any UI design decision (states, interactions, hierarchy) | #27, #6, #22 | ask developer if artifact is silent |
 | Forms | #20, #4, #6 | #7 (validation schemas) |
 | API consumption (client-side — fetching from an external API) | #9, #10, #8 | #7 (response types) |
@@ -79,3 +80,4 @@ Everything built once, configured for context. Governs how all other conventions
 - #21 Routing — layouts, guards, URL state → conventions/21-routing.md
 - #22 Design System — UI wrappers, token-first, component catalog → conventions/22-design-system.md
 - #27 Design Foundation — design artifact is source of truth, AI consults it first, never invents UX → conventions/27-design-foundation.md
+- #28 Config-Driven Brand & Content — every brand/content value lives in SiteConfig (NEXT_PUBLIC_SITE_CONFIG), never hardcoded in `.tsx`; templates ship reusable across customers via JSON-only swap → conventions/28-config-driven-content.md
