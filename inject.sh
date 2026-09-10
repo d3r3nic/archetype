@@ -1,9 +1,9 @@
 #!/bin/bash
 # Archetype Framework Injection Script
 # Injects the framework into a target project.
-# CLAUDE.md goes to project root (Claude Code auto-reads it).
+# AGENTS.md and CLAUDE.md go to project root (agent entry points).
 # Everything else goes in a subfolder.
-# Does not overwrite existing files without asking.
+# Existing instruction files are preserved before managed entry points replace them.
 
 set -e
 
@@ -26,22 +26,50 @@ if [ ! -d "$TARGET_DIR" ]; then
   exit 1
 fi
 
+case "$SUBFOLDER_NAME" in
+  ''|.|..|*/*)
+    echo "Error: subfolder-name must be one directory name within the target project."
+    exit 1
+    ;;
+esac
+
 DEST="$TARGET_DIR/$SUBFOLDER_NAME"
 
-if [ -d "$DEST" ]; then
+if [ -e "$DEST" ] || [ -L "$DEST" ]; then
   echo "Error: $DEST already exists."
   echo "Remove it first or choose a different subfolder name:"
   echo "  ./inject.sh \"$TARGET_DIR\" archetype-v2"
   exit 1
 fi
 
-# Refuse before any writes when an earlier migration's evidence would be lost.
+# Refuse unsafe destinations before any writes, including dangling symlinks.
+for entry in AGENTS.md CLAUDE.md Claude.md AGENTS.md.pre-archetype CLAUDE.md.pre-archetype VERSION-LOG.md; do
+  if [ -L "$TARGET_DIR/$entry" ] || { [ -e "$TARGET_DIR/$entry" ] && [ ! -f "$TARGET_DIR/$entry" ]; }; then
+    echo "Error: $entry must be a regular file, not a symlink or other file type."
+    exit 1
+  fi
+done
+for entry in docs docs/systems docs/features; do
+  if [ -L "$TARGET_DIR/$entry" ] || { [ -e "$TARGET_DIR/$entry" ] && [ ! -d "$TARGET_DIR/$entry" ]; }; then
+    echo "Error: $entry must be a local directory before injection."
+    exit 1
+  fi
+done
 for entry in AGENTS.md CLAUDE.md; do
-  if [ -e "$TARGET_DIR/$entry" ] && [ -e "$TARGET_DIR/$entry.pre-archetype" ]; then
+  original="$TARGET_DIR/$entry"
+  if [ "$entry" = CLAUDE.md ] && [ ! -f "$original" ]; then
+    original="$TARGET_DIR/Claude.md"
+  fi
+  if [ -f "$original" ] && [ -e "$TARGET_DIR/$entry.pre-archetype" ]; then
     echo "Error: $entry.pre-archetype already exists. Preserve and reconcile that guidance before injection."
     exit 1
   fi
 done
+if [ -f "$TARGET_DIR/CLAUDE.md" ] && [ -f "$TARGET_DIR/Claude.md" ] && \
+   [ ! "$TARGET_DIR/CLAUDE.md" -ef "$TARGET_DIR/Claude.md" ]; then
+  echo "Error: distinct CLAUDE.md and Claude.md files exist. Reconcile their guidance before injection."
+  exit 1
+fi
 
 echo "Archetype Framework Injection"
 echo "============================="

@@ -13,7 +13,7 @@ If References.md does not exist, bootstrap has not run yet. Read bootstrap/ONBOA
 3. If conventions/overrides/, protocols/, or catalogs/ directories exist, check for project-specific rules relevant to the task
 4. Read CLAUDE.md.additions if present. For tracked work, read development/TASKS.md and development/FRESHNESS.md from the framework, plus the project-root protocols/task-context.md binding if present. Those protocols also cover non-code work; engineering conventions apply when the task touches code.
 
-Note: if framework files are in an archetype/ subfolder, read from there (archetype/Conventions.md, archetype/References.md, etc.)
+Resolve framework paths from the installed engine (for example archetype/Conventions.md). Project context, additions, overrides, protocols, and catalogs live at the project root. If an older installation keeps local files inside the engine, inventory and read them too until their verified migration; never silently ignore existing guidance.
 
 ## Before Writing Code
 

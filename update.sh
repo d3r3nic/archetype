@@ -6,13 +6,21 @@
 
 set -e
 
-# Find the archetype/ subfolder
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Find the engine without assuming every installation lives below the project.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+EXPLICIT_ROOT=""
+if [ "$#" -gt 0 ]; then
+  if [ "$#" -ne 2 ] || [ "$1" != --project-root ] || [ ! -d "$2" ]; then
+    echo "Usage: update.sh [--project-root existing-project-directory]"
+    exit 1
+  fi
+  EXPLICIT_ROOT="$(cd "$2" && pwd -P)"
+fi
 
 # Detect if we're running from inside archetype/ or from project root
 if [ -f "$SCRIPT_DIR/Conventions.md" ] && [ -d "$SCRIPT_DIR/conventions" ]; then
   ARCHETYPE_DIR="$SCRIPT_DIR"
-elif [ -d "$SCRIPT_DIR/archetype" ]; then
+elif [ -f "$SCRIPT_DIR/archetype/Conventions.md" ] && [ ! -L "$SCRIPT_DIR/archetype" ]; then
   ARCHETYPE_DIR="$SCRIPT_DIR/archetype"
 else
   echo "Error: Cannot find archetype/ folder."
@@ -20,18 +28,54 @@ else
   exit 1
 fi
 
-PROJECT_ROOT="$(dirname "$ARCHETYPE_DIR")"
-if [ "$(basename "$ARCHETYPE_DIR")" = "$(basename "$PROJECT_ROOT")" ]; then
-  PROJECT_ROOT="$ARCHETYPE_DIR/.."
+ENGINE_PARENT="$(dirname "$ARCHETYPE_DIR")"
+GIT_ROOT="$(git -C "$ARCHETYPE_DIR" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "$EXPLICIT_ROOT" ]; then
+  if [ "$EXPLICIT_ROOT" != "$ARCHETYPE_DIR" ] && [ "$EXPLICIT_ROOT" != "$ENGINE_PARENT" ]; then
+    echo "Error: project root must contain the engine directly, or be the engine for a full-clone installation."
+    exit 1
+  fi
+  PROJECT_ROOT="$EXPLICIT_ROOT"
+elif [ "$ARCHETYPE_DIR" != "$SCRIPT_DIR" ]; then
+  PROJECT_ROOT="$SCRIPT_DIR"
+elif [ "$GIT_ROOT" = "$ARCHETYPE_DIR" ]; then
+  PROJECT_ROOT="$ARCHETYPE_DIR"
+elif [ -f "$ENGINE_PARENT/CLAUDE.md" ] && [ -f "$ENGINE_PARENT/VERSION-LOG.md" ]; then
+  PROJECT_ROOT="$ENGINE_PARENT"
+else
+  echo "Error: installation layout is ambiguous. Specify --project-root explicitly."
+  exit 1
 fi
 
-# If archetype/ IS the project root (new project clone), adjust
-if [ "$ARCHETYPE_DIR" = "$PROJECT_ROOT" ]; then
-  PROJECT_ROOT="$ARCHETYPE_DIR"
+# Validate destinations before network access, prompts, or writes.
+UNIVERSAL_FILES="AGENTS.md CLAUDE.md Conventions.md README.md inject.sh"
+UNIVERSAL_DIRS="conventions backend frontend bootstrap scaffolding development templates scripts"
+for file in $UNIVERSAL_FILES update.sh; do
+  if [ -L "$ARCHETYPE_DIR/$file" ] || { [ -e "$ARCHETYPE_DIR/$file" ] && [ ! -f "$ARCHETYPE_DIR/$file" ]; }; then
+    echo "Error: engine $file must be a regular file."
+    exit 1
+  fi
+done
+for file in AGENTS.md CLAUDE.md VERSION-LOG.md; do
+  if [ -L "$PROJECT_ROOT/$file" ] || { [ -e "$PROJECT_ROOT/$file" ] && [ ! -f "$PROJECT_ROOT/$file" ]; }; then
+    echo "Error: project $file must be a regular file."
+    exit 1
+  fi
+done
+for dir in $UNIVERSAL_DIRS; do
+  if [ -L "$ARCHETYPE_DIR/$dir" ] || { [ -e "$ARCHETYPE_DIR/$dir" ] && [ ! -d "$ARCHETYPE_DIR/$dir" ]; }; then
+    echo "Error: engine $dir must be a local directory."
+    exit 1
+  fi
+done
+if [ -L "$PROJECT_ROOT/conventions" ]; then
+  echo "Error: project conventions must be a local directory."
+  exit 1
 fi
 
 FRAMEWORK_REPO="https://github.com/d3r3nic/archetype.git"
 TEMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TEMP_DIR"' EXIT
 
 echo "Archetype Framework Update"
 echo "=========================="
@@ -41,8 +85,7 @@ echo ""
 
 # Step 1: Clone latest framework to temp
 echo "Pulling latest framework..."
-git clone --quiet --depth 1 "$FRAMEWORK_REPO" "$TEMP_DIR" 2>/dev/null
-if [ $? -ne 0 ]; then
+if ! git clone --quiet --depth 1 "$FRAMEWORK_REPO" "$TEMP_DIR"; then
   echo "Error: Could not clone framework repo. Check your internet connection."
   rm -rf "$TEMP_DIR"
   exit 1
@@ -70,8 +113,6 @@ SKIPPED=0
 # NOTE: update.sh is NOT in this list — it replaces itself atomically at the
 # end of the script (see Step 9). Putting it in the main loop caused the
 # running bash to read corrupted data from its own rewritten file.
-UNIVERSAL_FILES="AGENTS.md CLAUDE.md Conventions.md README.md inject.sh"
-UNIVERSAL_DIRS="conventions backend frontend bootstrap scaffolding development templates scripts"
 
 echo "--- Universal files (will be updated) ---"
 for file in $UNIVERSAL_FILES; do
@@ -258,9 +299,10 @@ echo "  updated: VERSION-LOG.md (project root)"
 # which corrupts bash's read position mid-execution.
 if [ -f "$TEMP_DIR/update.sh" ]; then
   if ! diff -q "$TEMP_DIR/update.sh" "$ARCHETYPE_DIR/update.sh" > /dev/null 2>&1; then
-    cp "$TEMP_DIR/update.sh" "$ARCHETYPE_DIR/update.sh.new"
-    chmod +x "$ARCHETYPE_DIR/update.sh.new"
-    mv -f "$ARCHETYPE_DIR/update.sh.new" "$ARCHETYPE_DIR/update.sh"
+    NEXT_UPDATER=$(mktemp "$ARCHETYPE_DIR/.update.sh.XXXXXX")
+    cp "$TEMP_DIR/update.sh" "$NEXT_UPDATER"
+    chmod +x "$NEXT_UPDATER"
+    mv -f "$NEXT_UPDATER" "$ARCHETYPE_DIR/update.sh"
     echo "  updated: archetype/update.sh (self, atomic replace)"
   fi
 fi
@@ -272,8 +314,8 @@ echo ""
 echo "Update complete."
 echo ""
 echo "What was updated:"
-echo "  - Universal convention docs (23 files)"
-echo "  - CLAUDE.md (enforcer at project root)"
+echo "  - Universal convention docs"
+echo "  - AGENTS.md and CLAUDE.md (managed entry points)"
 echo "  - Conventions.md (lookup index)"
 echo "  - Phase docs (bootstrap, scaffold, develop, maintain)"
 echo "  - Templates"

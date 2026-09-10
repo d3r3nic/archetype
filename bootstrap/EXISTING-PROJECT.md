@@ -1,8 +1,8 @@
 # Existing Project Bootstrap — Parts A, B, C, D
 
-Routed from `ONBOARD.md` Step 4 when the user is bootstrapping into an EXISTING project (via `inject.sh`) rather than starting new. Preserves everything the project already has; adds framework structure without modifying original files.
+Routed from `ONBOARD.md` Step 4 when the user is bootstrapping into an EXISTING project (via `inject.sh`) rather than starting new. Preserves everything the project already has; preserves original guidance in .pre-archetype backups before installing managed entry points. Other original files remain in place.
 
-**Critical rule for this entire file:** the migration must preserve EVERY rule. Nothing gets lost. If you find yourself summarizing, stop — the "CRITICAL: do not summarize" rule is enforced by `scripts/validate-migration.sh` which checks override-file length. A lazy AI that summarizes will fail the validator.
+**Critical rule for this entire file:** the migration must preserve EVERY rule. Nothing gets lost. Verify each original rule has a destination. `scripts/validate-migration.sh` checks structure and warns on short overrides; length cannot prove that guidance was preserved. The source-to-destination review is required.
 
 ## Prompt to give the AI
 
@@ -32,7 +32,8 @@ Document findings in `References.md` under "Foundational Systems" and in `featur
 ## Part B — Rule Extraction (CRITICAL — do not skip, do not summarize)
 
 Read EVERY existing instruction file in full:
-- `/CLAUDE.md` or `/Claude.md` (main project rules)
+- `/AGENTS.md.pre-archetype` and `/CLAUDE.md.pre-archetype` when injection preserved earlier guidance; read these originals, not only the new managed entry points
+- Existing `/AGENTS.md`, `/CLAUDE.md` or `/Claude.md` when not yet injected
 - Any `/docs/` directory with project-specific guides
 - Any `/TECHNICAL-DEBT.md`, `/HANDOFF.md`, `/MIGRATION_*.md`, `/REFACTORING_*.md`, `/IMPLEMENTATION-*.md`
 - Any `.claude/` directory with rules, agents, commands
@@ -42,7 +43,7 @@ Extract every rule, protocol, and pattern. Categorize each:
 
 ### Category 1 — Maps to a framework convention
 
-For each rule that maps to a framework convention, create an override file at `archetype/conventions/overrides/{N}-{name}.md`. Format:
+For each rule that maps to a framework convention, create an override file at `conventions/overrides/{N}-{name}.md`. Format:
 
 ```
 # Convention #N: {Name} — PROJECT OVERRIDES
@@ -67,29 +68,29 @@ Migration date: {date}
 
 ### Category 2 — Workflow protocols
 
-Audit, breaking change, technical debt, feature development protocols. Create at `archetype/protocols/{name}.md`. Capture: when it applies, step-by-step process, templates, examples, reporting format.
+Audit, breaking change, technical debt, feature development protocols. Create at `protocols/{name}.md`. Capture: when it applies, step-by-step process, templates, examples, reporting format.
 
 Common protocols: Feature Audit Protocol, Breaking Change Protocol, Technical Debt Tracking, Critical Workflow for complex tasks, Pre-commit checklist, Code review process.
 
 ### Category 3 — Reference catalogs
 
-Feature directories, pattern catalogs, helper API lists, theme token catalogs. Create at `archetype/catalogs/{name}.md`.
+Feature directories, pattern catalogs, helper API lists, theme token catalogs. Create at `catalogs/{name}.md`.
 
 Common catalogs: Feature directory (every feature with purpose), factory-pattern reference, helper catalog, quick-reference Q&A, topic-based documentation map, external-docs index.
 
 **Always create `catalogs/external-docs.md`** if the project has a `/docs/` folder with substantial content — cataloging every subfolder and standalone file with a one-line description. The framework's `docs/systems/` and `docs/features/` are for NEW framework-specific docs; they do NOT replace the existing `/docs/`. The catalog makes existing docs discoverable.
 
-### Category 4 — Framework-level enforcement rules (for CLAUDE.md root)
+### Category 4 — Project entry-point additions
 
-Rules that should appear in the project's root `CLAUDE.md` enforcer (not just in override docs). These are direct "never do X" rules that catch common mistakes at the enforcer layer. Add them to `archetype/CLAUDE.md.additions`.
+Put project-specific entry-point guidance in project-root `CLAUDE.md.additions`. The managed CLAUDE.md explicitly loads it. Shared rules belong in an upstream proposal, not in local additions.
 
-This file is a staging area — the user reviews and merges into root `CLAUDE.md` when ready. A rule may appear BOTH as a Category 1 override (full detail) AND as a Category 4 addition (one-line enforcer rule). The override has depth; the addition has visibility.
+This is a permanent project-owned file, preserved by updates. Never merge it into managed CLAUDE.md. Route detailed rules to their override or protocol instead of maintaining two independent copies.
 
 Example — "never throw new Error" rule:
 - Category 1: `conventions/overrides/08-errors.md` — full rule with project error hierarchy, examples, production-lesson context
 - Category 4: `CLAUDE.md.additions` — one line: `Never throw new Error. Use AppError subclass. → conventions/overrides/08-errors.md`
 
-**CRITICAL: do not summarize. EXTRACT IN FULL.** The original wording and detail must be preserved. A developer reading override files should get the same information as reading the original `CLAUDE.md`, just organized. If the original has 200 lines on the audit protocol, the protocol file has 200 lines. Lossy summarization defeats the purpose — and is checked by `scripts/validate-migration.sh`.
+**CRITICAL: do not summarize. EXTRACT IN FULL.** The original wording and detail must be preserved. A developer reading override files should get the same information as reading the original `CLAUDE.md`, just organized. If the original has 200 lines on the audit protocol, the protocol file has 200 lines. Lossy summarization defeats the purpose; the manual source-to-destination audit verifies preservation beyond structural checks.
 
 ---
 
@@ -100,16 +101,17 @@ After extraction, update `References.md` to LIST every file created. The "Projec
 - Every file in `protocols/` with a one-line description
 - Every file in `catalogs/` with a one-line description
 
-Create `archetype/INDEX.md` as a master map of every file in the `archetype/` subfolder, organized by category. A new AI agent reading `INDEX.md` should be able to find any rule, protocol, or pattern in 2 hops.
+Create project-root `INDEX.md` as a map of project-owned rules, protocols, catalogs, and migration evidence, organized by category. Link the framework index separately. For older installations, inventory project-owned files inside the engine and relocate them with verified preservation; do not delete them as obsolete framework files. A new AI agent reading `INDEX.md` should be able to find any rule, protocol, or pattern in 2 hops.
 
 **Verification (manual):** walk through the original `CLAUDE.md` top-to-bottom. For each section, identify which extracted file it lives in now. Any section without a destination = bug. Go back and extract it.
 
 **Verification (automated):** run `scripts/validate-migration.sh`. Checks:
-- Every rule in original CLAUDE.md has a pointer in INDEX.md
-- Every override file is non-trivial length (catches summarization)
-- Every audit file names its convention
-- No original files modified
-- Migrated docs match originals byte-for-byte
+- Required context and INDEX.md exist
+- Override headers are valid; short files receive a warning
+- Audit files name their convention
+- Inferable migrated Markdown copies match originals, except declared stale-banner copies
+
+These checks do not prove complete extraction, preserve every original automatically, or verify stale-banner content. Review the source-to-destination map and Git diff too.
 
 For existing systems that don't fully match a framework convention, note the gap under "Convention Overrides" in `References.md`. Do NOT change any existing code during bootstrap.
 
@@ -151,7 +153,7 @@ Output a summary with counts per tier, the ambiguous items requiring user decisi
 
 ### Step 4 — Migrate (COPY, not move, not edit)
 
-For each doc to migrate, COPY it into `archetype/docs/migrated/` preserving the original folder structure. Original files stay UNTOUCHED.
+For each doc to migrate, COPY it into `docs/migrated/` preserving the original folder structure. Original files stay UNTOUCHED.
 
 ### Step 5 — Map to convention
 
@@ -174,7 +176,7 @@ For each migrated doc, audit:
 
 ### Step 7 — Write audit files
 
-Create `archetype/docs/audit/{doc-path}.audit.md` for each migrated doc:
+Create `docs/audit/{doc-path}.audit.md` for each migrated doc:
 - Source path (where it was copied from)
 - Maps to convention: #N
 - Alignment summary: which parts follow the convention
@@ -198,7 +200,7 @@ This is the one documented edit allowed on migrated copies — a banner, never t
 
 ### Step 8 — Write summary
 
-Create `archetype/docs/audit/SUMMARY.md` with one-line status per doc (clean / minor issues / major issues / stale / orphaned). If the harness blocks filename `SUMMARY.md`, use `audit-status-table.md` and note the rename inside.
+Create `docs/audit/SUMMARY.md` with one-line status per doc (clean / minor issues / major issues / stale / orphaned). If the harness blocks filename `SUMMARY.md`, use `audit-status-table.md` and note the rename inside.
 
 ### Step 9 — Cross-link
 
@@ -209,8 +211,8 @@ Update `INDEX.md` and `References.md` with the migrated docs and audit results.
 - **COPY, do not edit** the original content. Original `/docs/` stays untouched.
 - **COPY, do not move.** Originals remain in place.
 - **STALE banner is the one exception** — banner added to migrated copy only, not the original.
-- Migrated copies in `archetype/docs/migrated/` are the audit targets, not the originals.
-- Audit findings live in `archetype/docs/audit/` separately from migrated copies.
+- Migrated copies in `docs/migrated/` are the audit targets, not the originals.
+- Audit findings live in `docs/audit/` separately from migrated copies.
 - A future cleanup phase (NOT part of bootstrap) uses audit findings to decide what to fix.
 
 ---
@@ -221,13 +223,13 @@ Update `INDEX.md` and `References.md` with the migrated docs and audit results.
 - `feature-tree.md` (all systems and features mapped with status)
 - `docs/systems/` with a doc for each foundational system that already exists
 - `docs/features/` with a doc for each feature that already exists
-- `archetype/conventions/overrides/` with one file per convention that has project-specific rules
-- `archetype/protocols/` with one file per workflow protocol found
-- `archetype/catalogs/` with one file per reference catalog found
-- `archetype/CLAUDE.md.additions` with extra enforcement rules staged for root merge
-- `archetype/INDEX.md` master map
-- `archetype/docs/migrated/` (byte-for-byte copies of discovered docs)
-- `archetype/docs/audit/` (one audit per migrated doc + SUMMARY.md)
+- `conventions/overrides/` with one file per convention that has project-specific rules
+- `protocols/` with one file per workflow protocol found
+- `catalogs/` with one file per reference catalog found
+- `CLAUDE.md.additions` with project-owned entry-point guidance loaded by the managed enforcer
+- `INDEX.md` master map
+- `docs/migrated/` (byte-for-byte copies of discovered docs)
+- `docs/audit/` (one audit per migrated doc + SUMMARY.md)
 - `MIGRATION-NOTES.md` explaining what was extracted, where it lives, how to merge
 
-Run `scripts/validate-migration.sh` before committing. Any validator failure = re-extract, do not paper over.
+Run the installed `scripts/validate-migration.sh` from the project root before committing. Any validator failure = re-extract, do not paper over.

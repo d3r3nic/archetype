@@ -35,8 +35,7 @@ rm -rf frontend/.git frontend/libraries/ backend/.git backend/libraries/
 
 ### For an EXISTING project (inject as subfolder):
 
-Use the inject script. It copies the framework into your project as a subfolder without touching any existing files. This is the safe migration path.
-The managed root instruction files are the exception: existing guidance is backed up before replacement. A backup collision stops injection. Read and incorporate the preserved guidance into project-owned files during onboarding.
+Use the inject script to install the framework as a subfolder. It replaces the managed root instruction files: existing guidance is backed up before replacement. A backup collision stops injection. Read and incorporate the preserved guidance into project-owned files during onboarding.
 
 ```bash
 # Clone the framework somewhere if you don't have it locally
@@ -450,7 +449,7 @@ For existing projects, additional verification:
 - [ ] conventions/overrides/ directory with project-specific rules per convention
 - [ ] protocols/ directory with workflow protocols extracted from existing files
 - [ ] catalogs/ directory with reference catalogs extracted
-- [ ] CLAUDE.md.additions with extra enforcement rules to merge later
+- [ ] Project-root CLAUDE.md.additions, loaded directly and preserved by updates
 - [ ] Every rule from the original CLAUDE.md is captured somewhere (not lost in summarization)
 - [ ] MIGRATION-NOTES.md explains where each piece of the original lives now
 

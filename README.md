@@ -20,7 +20,7 @@ rm -rf frontend/.git frontend/libraries/ backend/.git backend/libraries/
 
 ### Existing project (safe migration)
 
-Use the inject script. It copies the framework into a subfolder of your existing project without modifying any existing files.
+Use the inject script. It installs the framework in a subfolder and preserves existing root AGENTS.md/CLAUDE.md guidance in .pre-archetype backups before replacing those entry points. Symlinks and backup collisions are refused before writes; other project files remain in place.
 
 ```bash
 git clone https://github.com/d3r3nic/archetype.git /tmp/archetype
@@ -38,6 +38,16 @@ Then tell your AI assistant:
 > Read bootstrap/ONBOARD.md and help me set up this project. I want to build [describe your idea].
 
 The AI will interview you about what you're building, pick the right tech stack for your experience level, and generate your project's References.md and feature-tree.md.
+
+## Shared task rules and updates
+
+[Repository adoption](bootstrap/REPOSITORIES.md), [task rules](development/TASKS.md), and [freshness rules](development/FRESHNESS.md) define the shared contract. The installed AGENTS.md loads CLAUDE.md explicitly. Project-root References.md, CLAUDE.md.additions, and protocols/task-context.md provide local facts and capabilities; updates preserve them. A task service and enforced freshness are consuming-project responsibilities.
+
+Run the installed update.sh to fetch current shared rules. It is a manual latest-source updater, not an immutable release manager or automatic fleet controller. Full-clone installations at their own Git root and injected engines with parent CLAUDE.md/VERSION-LOG.md resolve automatically. For an unpacked or ambiguous layout, use `bash update.sh --project-root /absolute/project/path`; the directory must be the engine itself or its direct parent. Review the reported Project and Engine paths.
+
+**Upgrading the previous release:** an old injected updater first replaces itself, then its next invocation installs the new AGENTS entry points. Run it twice and verify root and engine AGENTS.md. If root AGENTS.md already contains local guidance, preserve it, migrate the rules to project-owned files, and install the managed entry point before updating; do not delete guidance to satisfy the check. For an old full-clone installation, use the current updater with an explicit verified root instead of running the legacy root-detection code.
+
+Verification: `bash scripts/validate-framework.sh` checks structural consistency; `python3 scripts/test-entrypoints.py` exercises distribution and preservation. Set `ARCHETYPE_LEGACY_SOURCE` to an exported previous release directory to include the two-step upgrade regression. These checks do not prove that an agent obeys instructions or that a platform enforces them.
 
 ## How It Works
 
@@ -57,9 +67,9 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 ## What's Inside
 
 ```
-├── CLAUDE.md                 # 21 enforcement rules with redirects to conventions
-├── Conventions.md             # Index of 28 conventions
-├── conventions/               # 28 framework-agnostic convention docs
+├── CLAUDE.md                 # Shared enforcer with convention routing
+├── Conventions.md             # Convention lookup index
+├── conventions/               # Framework-agnostic convention docs
 │   ├── 00-reusability.md      # Meta: everything built once, configured for context
 │   ├── 01-27.md               # Project setup, git, architecture, components, state,
 │   │                          # styling, types, errors, API, contract, authentication,
