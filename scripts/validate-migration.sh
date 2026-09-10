@@ -1,37 +1,39 @@
 #!/bin/bash
 # Validates an existing-project migration produced by bootstrap/EXISTING-PROJECT.md.
-# Replaces "AI discipline" with machine-verifiable gates. Run after migration,
+# Checks migration structure; semantic preservation still needs review. Run after migration,
 # before committing.
 #
 # Checks:
-#   1. conventions/overrides/ files are non-trivial length (catches summarization)
+#   1. conventions/overrides/ length heuristic (warning only)
 #   2. Every override file starts with a "# Convention #N: {Name} — PROJECT OVERRIDES" header
 #   3. Every audit file names its convention with "Maps to convention: #N"
 #   4. INDEX.md exists and is non-trivial
 #   5. docs/migrated/ matches originals byte-for-byte (no accidental edits)
 #   6. CLAUDE.md.pre-archetype exists (original preserved)
-#   7. No original project docs were modified (spot check via diff)
+#   7. Project context artifacts exist
 #
 # Exit 0 on pass, 1 on any error. Warnings do not fail.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Detect project root — migration produces archetype/ subfolder at project root
-PROJECT_ROOT=""
-for candidate in "$PWD" "$PWD/.." "$SCRIPT_DIR/../.." "$SCRIPT_DIR/../../.."; do
-  if [ -d "$candidate/archetype" ] && [ -f "$candidate/archetype/CLAUDE.md" ]; then
-    PROJECT_ROOT="$(cd "$candidate" && pwd)"
-    break
-  fi
-done
-
-if [ -z "$PROJECT_ROOT" ]; then
-  echo "Error: cannot find project with archetype/ subfolder."
-  echo "Run from the project root of an existing-project migration."
+# Run from the project root. Engine location follows this script, including
+# custom injection directory names. Do not guess a sibling project's root.
+PROJECT_ROOT="$(pwd -P)"
+ARCHETYPE="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+if [ ! -f "$PROJECT_ROOT/CLAUDE.md" ] || [ ! -f "$ARCHETYPE/Conventions.md" ]; then
+  echo "Error: run the installed migration validator from the project root."
   exit 1
 fi
 
-ARCHETYPE="$PROJECT_ROOT/archetype"
+# New outputs live at project root. Inspect legacy engine-owned outputs too
+# when the corresponding local path has not yet been migrated.
+project_path() {
+  if [ -e "$PROJECT_ROOT/$1" ]; then
+    printf '%s\n' "$PROJECT_ROOT/$1"
+  else
+    printf '%s\n' "$ARCHETYPE/$1"
+  fi
+}
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -54,7 +56,7 @@ echo "Archetype: $ARCHETYPE"
 group 1 "Override files non-trivial (catches summarization)"
 # ----------------------------------------------------------------------
 MIN_OVERRIDE_LINES=20  # Any override file under 20 lines is suspicious
-OVERRIDE_DIR="$ARCHETYPE/conventions/overrides"
+OVERRIDE_DIR="$(project_path conventions/overrides)"
 if [ -d "$OVERRIDE_DIR" ]; then
   SHORT=0
   for file in "$OVERRIDE_DIR"/*.md; do
@@ -88,7 +90,7 @@ fi
 # ----------------------------------------------------------------------
 group 3 "Audit files name their convention"
 # ----------------------------------------------------------------------
-AUDIT_DIR="$ARCHETYPE/docs/audit"
+AUDIT_DIR="$(project_path docs/audit)"
 if [ -d "$AUDIT_DIR" ]; then
   MISSING=0
   AUDIT_COUNT=0
@@ -112,8 +114,9 @@ fi
 # ----------------------------------------------------------------------
 group 4 "INDEX.md exists and is non-trivial"
 # ----------------------------------------------------------------------
-if [ -f "$ARCHETYPE/INDEX.md" ]; then
-  lines=$(wc -l < "$ARCHETYPE/INDEX.md" | tr -d ' ')
+PROJECT_INDEX="$(project_path INDEX.md)"
+if [ -f "$PROJECT_INDEX" ]; then
+  lines=$(wc -l < "$PROJECT_INDEX" | tr -d ' ')
   if [ "$lines" -lt 10 ]; then
     warn "INDEX.md is under 10 lines — likely incomplete"
   else
@@ -126,7 +129,7 @@ fi
 # ----------------------------------------------------------------------
 group 5 "Migrated docs match originals byte-for-byte"
 # ----------------------------------------------------------------------
-MIGRATED_DIR="$ARCHETYPE/docs/migrated"
+MIGRATED_DIR="$(project_path docs/migrated)"
 if [ -d "$MIGRATED_DIR" ]; then
   DRIFTED=0
   # Only check files where we can infer the original path
@@ -151,12 +154,15 @@ if [ -d "$MIGRATED_DIR" ]; then
 fi
 
 # ----------------------------------------------------------------------
-group 6 "Original CLAUDE.md preserved"
+group 6 "Original instruction preservation records"
 # ----------------------------------------------------------------------
 if [ -f "$PROJECT_ROOT/CLAUDE.md.pre-archetype" ]; then
   pass "original CLAUDE.md archived as CLAUDE.md.pre-archetype"
 else
   warn "no CLAUDE.md.pre-archetype — either no prior CLAUDE.md existed, or inject.sh was not used"
+fi
+if [ -f "$PROJECT_ROOT/AGENTS.md.pre-archetype" ]; then
+  pass "original AGENTS.md archived as AGENTS.md.pre-archetype"
 fi
 
 # ----------------------------------------------------------------------

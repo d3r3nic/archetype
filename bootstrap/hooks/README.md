@@ -1,6 +1,6 @@
 # Archetype Hooks
 
-Hooks enforce rules that must be followed every time. The CLAUDE.md enforcer achieves about 80% compliance. Hooks are deterministic — they run every time the AI reaches a trigger point.
+Configured hooks can check specific tool events. A blocking hook only enforces the patterns it recognizes when the host actually invokes it; an advisory hook only reminds. Neither establishes universal compliance or runtime task authorization.
 
 This directory contains two starter hooks for use with Claude Code (and adaptable to other AI tools). More hooks can be added as project needs emerge, but keep the count low: every advisory hook is noise until it fires on something real.
 
@@ -53,7 +53,7 @@ Test: have Claude try to run `echo "rm -rf /"` — the destructive hook should b
 
 Cursor and other tools have different hook mechanisms. The shell scripts still work; adapt the configuration format to your tool's convention. Check the tool's docs for a "run a script before a tool call" feature.
 
-If your AI tool has no hook system, skip this directory. The CLAUDE.md enforcer carries the load. Without hooks, compliance drops from ~100% on covered patterns to ~80% overall.
+If the host has no hook system, these hooks do not run. Record that enforcement gap; use service-side checks for controls that must not depend on agent behavior.
 
 ## Writing new hooks
 

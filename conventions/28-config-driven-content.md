@@ -146,3 +146,7 @@ a number, or any user-visible value, ask:
    language glyph, structural)?
 
 If you can't answer all three, the component isn't ready.
+
+## Research Notes
+
+Choose config delivery for the project's deployment model. Verify which values reach client bundles, when updates take effect, and how schema validation fails. Public content belongs in public configuration; credentials require a separate protected store. Keep the accessor stable when delivery changes.

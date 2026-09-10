@@ -193,6 +193,17 @@ if [ -d docs ]; then
 fi
 [ "$LEAKS" -eq 0 ] && pass "framework folder is clean (no project artifacts)"
 
+# These routes are part of the shared task contract, not proof of enforcement.
+group 9 "Task protocol routing"
+for path in AGENTS.md bootstrap/REPOSITORIES.md development/TASKS.md development/FRESHNESS.md templates/task-context.md; do
+  if [ ! -f "$path" ]; then
+    fail "task protocol target missing: $path"
+  fi
+done
+if ! grep -qF '<!-- archetype-managed-entrypoint -->' AGENTS.md 2>/dev/null; then
+  fail "AGENTS.md lacks the managed entry-point marker"
+fi
+
 # ----------------------------------------------------------------------
 echo ""
 echo "==="

@@ -9,6 +9,8 @@ Onboard a project into the framework. Run once at project creation or when adopt
 
 ## Step 1: Initialize Project
 
+Read [REPOSITORIES.md](REPOSITORIES.md) before creating a repository or installing the framework. Preserve an existing repository's history and local guidance; use the injection path when the project already exists.
+
 Tell your AI assistant to set up the project. Alternatively, run these commands yourself:
 
 ### For a NEW project (full clone):
@@ -33,7 +35,7 @@ rm -rf frontend/.git frontend/libraries/ backend/.git backend/libraries/
 
 ### For an EXISTING project (inject as subfolder):
 
-Use the inject script. It copies the framework into your project as a subfolder without touching any existing files. This is the safe migration path.
+Use the inject script to install the framework as a subfolder. It replaces the managed root instruction files: existing guidance is backed up before replacement. A backup collision stops injection. Read and incorporate the preserved guidance into project-owned files during onboarding.
 
 ```bash
 # Clone the framework somewhere if you don't have it locally
@@ -47,7 +49,7 @@ cd /tmp/archetype-framework
 ./inject.sh /path/to/your/existing-project archetype-migration
 ```
 
-After injection, your existing project has a new subfolder (default `archetype/`) containing the framework. Nothing existing was modified. From here, follow the "For an EXISTING project" path in Step 3.
+After injection, your existing project has a new subfolder (default `archetype/`) containing the framework. Root instruction files are managed copies; original guidance is preserved in .pre-archetype files. Other project files are preserved. From here, follow the "For an EXISTING project" path in Step 3.
 
 After setup, each project folder has:
 ```
@@ -447,7 +449,7 @@ For existing projects, additional verification:
 - [ ] conventions/overrides/ directory with project-specific rules per convention
 - [ ] protocols/ directory with workflow protocols extracted from existing files
 - [ ] catalogs/ directory with reference catalogs extracted
-- [ ] CLAUDE.md.additions with extra enforcement rules to merge later
+- [ ] Project-root CLAUDE.md.additions, loaded directly and preserved by updates
 - [ ] Every rule from the original CLAUDE.md is captured somewhere (not lost in summarization)
 - [ ] MIGRATION-NOTES.md explains where each piece of the original lives now
 

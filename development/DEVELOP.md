@@ -11,6 +11,8 @@ Build features on top of scaffolded foundational systems. Runs for the life of t
 
 ## Before starting a feature — read these in order
 
+Tracked work also follows [TASKS.md](TASKS.md), [FRESHNESS.md](FRESHNESS.md), and the project-root protocols/task-context.md binding when present. These govern task ownership and completion; the workflow below governs code implementation.
+
 1. `CLAUDE.md` (the enforcer — universal rules)
 2. `References.md` — tech stack, Commands, Foundational Systems, Convention Overrides, Critical Lessons
 3. `feature-tree.md` — inventory of what exists (systems + other features)

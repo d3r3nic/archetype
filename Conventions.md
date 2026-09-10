@@ -27,6 +27,8 @@ This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFO
 | Lint / formatter / enforcement | #25 | #15 (CI gates), #18 (verification) |
 | Dev-time project visibility / pulse monitor | #26 | #18 (verification), #16 (documentation) |
 | Documentation | #16 | |
+| Tracked tasks / project management | development/TASKS.md, development/FRESHNESS.md | project-root protocols/task-context.md; #16, #18, #19 as relevant |
+| Repository creation / framework adoption | bootstrap/REPOSITORIES.md, #1, #2 | bootstrap/ONBOARD.md |
 | Starting a new AI session | #17, #19 | re-read References.md |
 
 ## Convention Index
