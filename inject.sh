@@ -35,6 +35,14 @@ if [ -d "$DEST" ]; then
   exit 1
 fi
 
+# Refuse before any writes when an earlier migration's evidence would be lost.
+for entry in AGENTS.md CLAUDE.md; do
+  if [ -e "$TARGET_DIR/$entry" ] && [ -e "$TARGET_DIR/$entry.pre-archetype" ]; then
+    echo "Error: $entry.pre-archetype already exists. Preserve and reconcile that guidance before injection."
+    exit 1
+  fi
+done
+
 echo "Archetype Framework Injection"
 echo "============================="
 echo "Source: $FRAMEWORK_DIR"
@@ -43,6 +51,13 @@ echo "Subfolder: $SUBFOLDER_NAME/"
 echo ""
 
 # Step 1: CLAUDE.md goes to PROJECT ROOT (Claude Code auto-reads it from here)
+if [ -f "$FRAMEWORK_DIR/AGENTS.md" ]; then
+  if [ -f "$TARGET_DIR/AGENTS.md" ]; then
+    cp "$TARGET_DIR/AGENTS.md" "$TARGET_DIR/AGENTS.md.pre-archetype"
+  fi
+  cp "$FRAMEWORK_DIR/AGENTS.md" "$TARGET_DIR/AGENTS.md"
+  echo "  copied: AGENTS.md → project root (original guidance preserved)"
+fi
 if [ -f "$TARGET_DIR/CLAUDE.md" ] || [ -f "$TARGET_DIR/Claude.md" ]; then
   echo "  CLAUDE.md already exists at project root."
   echo "  Archiving existing as CLAUDE.md.pre-archetype"
@@ -55,7 +70,7 @@ echo "  copied: CLAUDE.md → project root (auto-loaded by Claude Code)"
 # Step 2: Everything else goes in the subfolder
 mkdir -p "$DEST"
 
-for item in Conventions.md README.md conventions backend bootstrap scaffolding development templates scripts; do
+for item in AGENTS.md CLAUDE.md Conventions.md README.md conventions backend bootstrap scaffolding development templates scripts; do
   if [ -e "$FRAMEWORK_DIR/$item" ]; then
     cp -R "$FRAMEWORK_DIR/$item" "$DEST/"
     echo "  copied: $item → $SUBFOLDER_NAME/"

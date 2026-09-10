@@ -50,6 +50,14 @@ fi
 echo "  Latest framework pulled."
 echo ""
 
+# Adopting an existing local entry point requires preservation, not replacement.
+if [ -f "$TEMP_DIR/AGENTS.md" ] && [ -e "$PROJECT_ROOT/AGENTS.md" ] && \
+   ! grep -qF '<!-- archetype-managed-entrypoint -->' "$PROJECT_ROOT/AGENTS.md"; then
+  echo "Error: root AGENTS.md is not managed by Archetype. Preserve and migrate its local guidance before updating."
+  rm -rf "$TEMP_DIR"
+  exit 1
+fi
+
 # Step 2: Show what would change
 echo "Comparing files..."
 echo ""
@@ -62,7 +70,7 @@ SKIPPED=0
 # NOTE: update.sh is NOT in this list — it replaces itself atomically at the
 # end of the script (see Step 9). Putting it in the main loop caused the
 # running bash to read corrupted data from its own rewritten file.
-UNIVERSAL_FILES="CLAUDE.md Conventions.md README.md inject.sh"
+UNIVERSAL_FILES="AGENTS.md CLAUDE.md Conventions.md README.md inject.sh"
 UNIVERSAL_DIRS="conventions backend frontend bootstrap scaffolding development templates scripts"
 
 echo "--- Universal files (will be updated) ---"
@@ -170,6 +178,10 @@ done
 if [ -f "$PROJECT_ROOT/CLAUDE.md" ] && [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then
   cp "$TEMP_DIR/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.md"
   echo "  updated: CLAUDE.md (project root)"
+fi
+if [ -f "$TEMP_DIR/AGENTS.md" ] && [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then
+  cp "$TEMP_DIR/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
+  echo "  updated: AGENTS.md (project root)"
 fi
 
 # Step 6: Update promoted conventions/ at project root if they exist
