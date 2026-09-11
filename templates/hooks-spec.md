@@ -17,7 +17,7 @@ The rest of this file is the conceptual spec — additional hooks you may want t
 
 Dated notes: verified against Claude Code at the time of writing. Other hosts differ; re-verify the event names and blocking semantics for the host in use at bootstrap.
 
-- The host exposes lifecycle events. The most-used, with Claude Code's names as the shipped configs use them: before a tool call (PreToolUse), after a tool call (PostToolUse), on stop (Stop), on session start (SessionStart), on session end (SessionEnd).
+- The host exposes lifecycle events. The most-used, with Claude Code's names (the shipped configs use PreToolUse and Stop): before a tool call (PreToolUse), after a tool call (PostToolUse), on stop (Stop), on session start (SessionStart), on session end (SessionEnd).
 - Event data arrives as JSON on stdin. The shipped scripts parse it with `jq` when available; any JSON tool works.
 - The before-tool-call event (PreToolUse) is the only one that can block. Exit 2 with a message on stderr to block; the AI sees the stderr and reasons about it.
 - Advisory hooks write stderr and exit 0. The AI sees the reminder, does not get blocked.

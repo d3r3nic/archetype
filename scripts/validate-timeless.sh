@@ -14,7 +14,8 @@
 #   D. Numeric limits tied to tool capability: line-count limits and
 #      minute cadences ("keep files under 300 lines", "every 25-30 minutes").
 #      A project-set dial names no number ("the project sets its limit in
-#      References.md"), so it never matches.
+#      References.md"), so it never matches. The pattern leans toward
+#      false positives ("look at 50 lines of output" is flagged); reword.
 #   E. Changelog language: version-scoped headers (v1, v2), "(shipped)",
 #      "not yet implemented", "added in Step N", "promoted from". Bare
 #      version tokens inside code fences and JSON are not flagged.
@@ -156,7 +157,7 @@ for file in "${FILES[@]}"; do
     research = 0; notice = 0; research_line = 0; fence = 0
     stat_trigger = "(^|[^[:alnum:]])(AI|[Aa]gents?|[Mm]odels?|LLMs?|[Cc]ompliance|[Gg]enerated)([^[:alnum:]]|$)"
     stat_number = "[0-9]+(\\.[0-9]+)?x([^[:alnum:]]|$)|[0-9]+(-[0-9]+)?%"
-    limit_words = "(under|below|beyond|over|exceeds?|exceeding|more than|less than|fewer than|up to|at most|max|maximum|maximum of|limit of|limited to|past|within|no more than|longer than|shorter than|every|each|per|at|to|around|roughly|about|approximately)"
+    limit_words = "([Uu]nder|[Bb]elow|[Bb]eyond|[Oo]ver|[Ee]xceeds?|[Ee]xceeding|[Mm]ore than|[Ll]ess than|[Ff]ewer than|[Uu]p to|[Aa]t most|[Mm]ax|[Mm]aximum|[Mm]aximum of|[Ll]imit of|[Ll]imited to|[Pp]ast|[Ww]ithin|[Nn]o more than|[Ll]onger than|[Ss]horter than|[Ee]very|[Ee]ach|[Pp]er|[Aa]t|[Tt]o|[Aa]round|[Rr]oughly|[Aa]bout|[Aa]pproximately)"
     line_limit = limit_words " [0-9]+(-[0-9]+)? lines?([^[:alnum:]]|$)|[0-9]+\\+ lines?([^[:alnum:]]|$)|[0-9]+-line (limit|max|maximum|cap|ceiling|files?|components?|target)|[0-9]+ lines? (max|maximum|limit|cap|or (more|less|fewer))"
     minute_limit = limit_words " [0-9]+(-[0-9]+)? minutes?([^[:alnum:]]|$)|[0-9]+-minute (cadence|interval|compaction|sessions?|check-?ins?)"
     version_ref = "(^|[[:space:](])v[0-9]+([^[:alnum:]]|$)"
