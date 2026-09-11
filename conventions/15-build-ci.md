@@ -32,7 +32,7 @@ Create a quality enforcement pipeline that establishes:
 - Stale feature flags left in code after full rollout
 - No rollback capability for deployments
 - Empty catch blocks (error silently swallowed with no logging or handling)
-- Console.log left in production code
+- Console-level debug output left in production code
 - No AI-targeted lint rules (the default linting config doesn't catch AI-specific mistakes)
 - Bundle growing unchecked with no budget enforcement
 
@@ -43,9 +43,11 @@ Create a quality enforcement pipeline that establishes:
 - WRONG: a feature flag is created for a new feature. The feature ships, everyone uses it, but the flag code stays in the codebase. Six months later, twenty stale flags with dead code paths.
 - RIGHT: when a feature is fully rolled out, the flag is removed and all conditional code is cleaned up in the same sprint.
 - WRONG: the linting config uses default rules only. AI generates code with untyped escape hatches, console-level output, direct UI library imports, unsafe casts. None are caught.
-- RIGHT: lint rules configured for the AI-prone categories catch these before commit. Research the specific rule IDs for the language's linter (examples by language: TS ESLint, Python Ruff, Go golangci-lint, Rust Clippy, .NET Roslyn analyzers, Ruby RuboCop).
+- RIGHT: lint rules configured for the AI-prone categories catch these before commit. Research the specific rule IDs for the language's linter at scaffold time.
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention, research current tooling for the chosen language/stack:
 - Native linter + formatter. Configure rules for the AI-prone categories (untyped escape hatches, console-level output, direct third-party UI imports, unsafe casts, empty catch/except). Specific rule IDs are language-specific — research at scaffold time.

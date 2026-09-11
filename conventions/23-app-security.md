@@ -2,7 +2,7 @@
 
 ## Principle
 
-Security is not a feature — it's a property of every feature. Every input is validated. Every output is encoded. Every secret is managed, never hardcoded. Every error message hides internal details. Every dependency is scanned. AI generates 2.74x more security vulnerabilities than human code and 45% of AI-generated code contains security issues. Security conventions must be explicit because AI does not apply them by default.
+Security is not a feature — it's a property of every feature. Every input is validated. Every output is encoded. Every secret is managed, never hardcoded. Every error message hides internal details. Every dependency is scanned. AI does not apply security controls unless told to, so security conventions must be explicit.
 
 ## Reusable System
 
@@ -56,12 +56,14 @@ Create a security foundation that establishes:
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
-- Research the framework's recommended security middleware (helmet for Node, SecurityHeaders for .NET, django-csp for Python)
+- Research the framework's recommended security-header middleware
 - Research CORS configuration for the framework
 - Research CSRF protection patterns for the framework (SameSite cookies, token-based)
 - Research rate limiting middleware for the framework
-- Research dependency scanning tools that integrate with the project's CI (npm audit, Snyk, Socket.dev, pip-audit)
+- Research dependency scanning that integrates with the project's CI (the package manager's audit command and, if warranted, a dedicated scanner)
 - Research encryption patterns for the language (field-level encryption, key management)
 - Research audit logging patterns for the framework
 - Document the security middleware, CORS config, rate limit settings, and audit logging in References.md

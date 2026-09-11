@@ -41,6 +41,8 @@ The test infrastructure from convention #12 serves this convention. Additionally
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 This convention is about development workflow, not framework-specific implementation. The test infrastructure details are in convention #12 and its research notes. For this convention, ensure:
 - Verification commands are documented clearly in References.md (exact command to run tests, type-check, build)
 - Build gates are configured (hooks or CI that blocks incomplete work)

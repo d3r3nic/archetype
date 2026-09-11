@@ -47,6 +47,8 @@ Create accessible base components during scaffolding that all features use:
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
 - Research the framework's accessibility patterns. What accessible component libraries are recommended? Do they handle focus trapping, keyboard navigation, and ARIA automatically?
 - Research the framework's focus management utilities. How do you trap focus in modals, return focus on close, and move focus on route changes?

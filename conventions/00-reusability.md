@@ -59,6 +59,8 @@ This convention doesn't produce a single system. It governs HOW all systems are 
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping, for each convention in this framework, the bootstrapper should:
 - Design the foundational system as a reusable service with a configuration API
 - Research the framework's recommended patterns for building reusable, config-driven services

@@ -1,6 +1,6 @@
 # Convention #9: API Integration & Data Fetching
 
-**Scope:** this convention covers CLIENT-SIDE API consumption — the project calls external APIs and needs a reusable layer for that. For server-side API design (the project IS the API — REST endpoints, GraphQL schemas, response shapes, pagination, versioning), see `backend/conventions/B2-api-design.md`. For GraphQL server specifically, B2 includes routing to GraphQL patterns (schema design, query-complexity limits, field-level authorization, DataLoader) — research current GraphQL tooling for the chosen language at bootstrap time.
+**Scope:** this convention covers CLIENT-SIDE API consumption — the project calls external APIs and needs a reusable layer for that. For server-side API design (the project IS the API — REST endpoints, GraphQL schemas, response shapes, pagination, versioning), see `backend/conventions/B2-api-design.md`. For GraphQL server specifically, B2 includes routing to GraphQL patterns (schema design, query-complexity limits, field-level authorization, batched data loading) — research current GraphQL tooling for the chosen language at bootstrap time.
 
 If the project is backend-only (no client), this convention mostly does not apply — mark it as "not needed" in feature-tree.md and focus on B2.
 
@@ -30,7 +30,7 @@ Create an API layer that establishes:
 
 ## Violations
 
-- Direct HTTP calls in feature components (fetch or axios called directly)
+- Direct HTTP calls in feature components (the platform's fetch primitive or an HTTP client called directly)
 - Different authentication header logic in different features
 - Raw API response format leaking into feature code (features parsing nested API structures)
 - Manual cache management (storing API data in local state or global store) instead of using the server-state library
@@ -65,6 +65,8 @@ Rules:
 - Validate file type and size on client AND server.
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
 - Research the framework's recommended HTTP client and how to configure it with interceptors for auth tokens and data transformation

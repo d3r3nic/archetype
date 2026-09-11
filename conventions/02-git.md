@@ -35,13 +35,15 @@ Create a version control setup that establishes:
 ## Wrong vs Right
 
 - WRONG: one commit with 800 changed lines titled "AI changes." Impossible to rollback, impossible to understand.
-- RIGHT: ten commits, each 50-80 lines, each with a descriptive message. Each one a rollback point.
+- RIGHT: ten small commits, each with a descriptive message. Each one a rollback point.
 - WRONG: pre-commit hook fails because of a lint error. Developer runs commit with --no-verify to skip it.
 - RIGHT: pre-commit hook fails. Developer fixes the lint error, stages the fix, commits cleanly.
 - WRONG: a function is broken. AI creates utils-v2.ts with the fixed version. Old file stays. Now two files do the same thing.
 - RIGHT: a function is broken. AI fixes the function in the original file. One file, one source of truth.
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
 - Research the framework's recommended commit conventions and any tooling that enforces them (commit linting, changelog generation)

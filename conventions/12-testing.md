@@ -43,6 +43,8 @@ Create a test infrastructure that establishes:
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
 - Research the framework's recommended testing libraries and test runner
 - Research network-level API mocking tools for the framework (tools that intercept HTTP requests, not module-level mocks)

@@ -8,7 +8,7 @@ Lint rules, formatters, and pre-commit hooks catch convention violations at writ
 
 Apply #0: configure enforcement once at the project level, apply everywhere.
 - Linter config: single source of truth, extended by file type
-- Formatter config: single source (Prettier, Black, gofmt, rustfmt, etc.)
+- Formatter config: single source, one formatter per language
 - Pre-commit hooks: run linter + formatter + type check before commit lands
 - CI gates: block PRs that fail enforcement; merge is impossible with red checks
 - Editor integration: format on save, show lint errors inline
@@ -18,11 +18,11 @@ Apply #0: configure enforcement once at the project level, apply everywhere.
 - Every convention that CAN be automated SHOULD be. If a rule can be a lint rule, make it one.
 - Lint rules block commit, not just warn. Warnings get ignored at scale.
 - Format on save AND format pre-commit. Do not debate style in code review.
-- Pre-commit hooks must be fast (under 5 seconds). Slow checks run in CI.
+- Pre-commit hooks must be fast enough that nobody is tempted to bypass them; the project sets the budget in References.md. Slow checks run in CI.
 - Never bypass hooks with --no-verify except for documented emergencies with a follow-up fix.
 - CI gate is the source of truth. If CI passes, the code is green. If CI fails, nothing merges.
 - When a convention violation is caught in code review, add a custom lint rule to catch it next time. Do not rely on memory.
-- eslint-disable / noqa / ignore directives require an inline comment explaining why. CI fails if the count grows beyond a documented baseline.
+- Lint-suppression directives require an inline comment explaining why. CI fails if the count grows beyond a documented baseline.
 
 ## Violations
 
@@ -31,29 +31,30 @@ Apply #0: configure enforcement once at the project level, apply everywhere.
 - Format disagreements in code review (should be auto-fixed by formatter)
 - Pre-commit hooks so slow that developers bypass them
 - CI green but local broken (environment drift, missing checks)
-- Scattered eslint-disable comments with no explanation
+- Scattered suppression comments with no explanation
 - Manual style enforcement ("the linter doesn't catch it but please use camelCase")
 
 ## Wrong vs Right
 
-- WRONG: "Remember to import from @/api, not axios directly" (rule in docs only)
-- RIGHT: Custom lint rule flags direct axios imports, blocks commit
+- WRONG: "Remember to import from the API layer, not the HTTP client directly" (rule in docs only)
+- RIGHT: Custom lint rule flags direct HTTP-client imports, blocks commit
 - WRONG: Team debates variable naming in PR reviews
 - RIGHT: Linter enforces naming, review focuses on logic and design
-- WRONG: `// eslint-disable-next-line` scattered through the codebase with no context
+- WRONG: suppression directives scattered through the codebase with no context
 - RIGHT: Disables require an explanatory comment; CI fails if disables exceed a threshold
 - WRONG: "We have a style guide" (PDF or wiki only, never enforced)
 - RIGHT: Style guide IS the linter config; everything enforceable is enforced
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention, research:
-- Native linter for the language: ESLint (JS/TS), Ruff or Flake8 (Python), golangci-lint (Go), Clippy (Rust), Roslyn analyzers (.NET), RuboCop (Ruby), PHP_CodeSniffer / PHPStan (PHP)
-- Whether the linter supports custom rules (most do) and the plugin API
-- Pre-commit hook framework: husky + lint-staged (JS), pre-commit (Python, language-agnostic), lefthook (language-agnostic)
-- Format-on-save editor configuration (.editorconfig, language-specific configs)
-- CI platform's ability to block merges on lint/test failure (required status checks on GitHub, merge queues, etc.)
-- Existing community rule sets: eslint-plugin-security, eslint-plugin-jsx-a11y, bandit (Python security), etc.
+- The native linter for the language, whether it supports custom rules (most do), and its plugin API
+- A pre-commit hook framework for the language, or a language-agnostic one
+- Format-on-save editor configuration
+- The CI platform's ability to block merges on lint/test failure (required status checks, merge queues, or equivalent)
+- Existing community rule sets for security and accessibility in the language's ecosystem
 - Which conventions from this framework map to enforceable rules for the chosen language — and which ones remain doc-only (note the gap in References.md)
 
 Document in References.md:

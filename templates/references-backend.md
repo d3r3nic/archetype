@@ -13,16 +13,16 @@ Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses t
 
 Each line must start with `- ` (dash space); content is `- Key: Value`. Inspector parses every bullet.
 
-- Runtime: [Node.js / Python / Go / C# / Java / etc.]
-- Framework: [Express / Fastify / SST / Django / FastAPI / ASP.NET / Spring Boot / Gin / Rails / etc.]
-- Language: [TypeScript / Python / Go / C# / Java / Ruby / Rust / etc.]
-- ORM/DB: [Prisma / SQLAlchemy / Django ORM / Entity Framework / GORM / ActiveRecord / Diesel / etc.]
-- Database: [PostgreSQL / MySQL / MongoDB / SQLite / SQL Server / etc.]
-- Validation: [Zod / Pydantic / FluentValidation / go-playground/validator / Bean Validation / etc.]
-- Cloud: [AWS / GCP / Azure / self-hosted / etc.]
-- Auth: [Cognito / Auth0 / ASP.NET Identity / Django auth / Firebase / custom JWT / etc.]
-- Testing: [Vitest / Jest / pytest / xUnit / go test / RSpec / etc.]
-- Package Manager: [npm / pnpm / pip / dotnet / go mod / bundler / cargo / etc.]
+- Runtime: [runtime]
+- Framework: [server framework]
+- Language: [language]
+- ORM/DB: [ORM or query layer]
+- Database: [database engine]
+- Validation: [schema library — one schema = types + validation]
+- Cloud: [cloud provider or self-hosted]
+- Auth: [identity provider or approach]
+- Testing: [test runner]
+- Package Manager: [package manager]
 
 ## Commands
 
@@ -46,12 +46,15 @@ Each system is built once following convention #0 (Reusability). Features plug i
 Commit convention: [e.g., conventional commits]
 Branch strategy: [e.g., trunk-based]
 Pre-commit hooks: [what runs - lint, format, typecheck]
+Pre-commit budget: [max hook runtime before a check moves to CI (#25)]
 
 ### Project Structure & Types (#1, #7)
 Folder structure: [see Folder Structure section below]
 Path alias: [if applicable]
-Type checking: [e.g., TypeScript strict, mypy strict, nullable reference types, etc.]
-Validation library: [e.g., Zod, Pydantic, FluentValidation, go-playground/validator, etc.]
+Type checking: [strictest mode the language supports]
+File-size limit: [lines per file the tools in use can read whole; split past it (#1, #17)]
+Compaction cadence: [optional; when the AI compacts context in long sessions (#17)]
+Validation library: [name - one schema = types + validation]
 Shared types: [path to shared type definitions]
 
 ### Handler Pattern & Architecture (#3)
@@ -65,12 +68,13 @@ Usage: [how new endpoints are structured]
 Location: [e.g., src/shared/errors/]
 Error classes: [path to custom error definitions]
 Error handling: [e.g., "framework wraps handlers, no try/catch needed"]
+Build-target check: [how custom error subclasses are verified on the real build target; the constructor fix if one is required (#8)]
 Usage: [how features throw errors]
 
 ### API Layer & Contract (#9, #10)
 Response format: [e.g., "{ data, meta, errors } via responses.success()"]
 Response utility: [path to response helpers]
-Contract: [how types are shared with frontend - OpenAPI, tRPC, shared schemas]
+Contract: [how types are shared with frontend - API specification, type-safe RPC, shared schemas]
 Usage: [how handlers return responses]
 
 ### Auth System (#11)
@@ -93,7 +97,7 @@ Shared primitives: [path to common validators]
 Usage: [how handlers validate input]
 
 ### File Storage (#11)
-Pattern: [e.g., "presigned URLs, 3-step: initiate → upload to S3 → verify"]
+Pattern: [e.g., "presigned URLs, 3-step: initiate → upload to object storage → verify"]
 Location: [path to file service]
 Usage: [how features handle file uploads]
 
@@ -109,7 +113,7 @@ CI platform: [which one]
 Pipeline: [sequence - lint → typecheck → test → build → deploy]
 Deploy command: [how to deploy]
 Rollback: [how to rollback]
-Lint rules: [AI-targeted rules - no any, no console.log]
+Lint rules: [AI-targeted rules - no untyped escape hatch, no console-level output]
 
 ## Folder Structure
 

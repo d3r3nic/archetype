@@ -42,9 +42,11 @@ Create an authorization foundation that establishes:
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
 - Research authorization models suitable for the project (RBAC for most apps, ABAC for complex multi-tenant). Research the framework's recommended authorization libraries.
 - Research the framework's patterns for middleware/decorator-based route protection (role requirements on endpoints).
 - Research object-level access check patterns for the ORM (scoped queries, policy-based access).
-- Research row-level security features in the database if applicable (PostgreSQL RLS, SQL Server row security).
+- Research row-level security features in the database if applicable.
 - Document the permission model, authorization service location, role definitions, and access check patterns in References.md.

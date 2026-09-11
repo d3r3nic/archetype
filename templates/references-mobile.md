@@ -13,15 +13,15 @@ Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses t
 
 Each line must start with `- ` (dash space); content is `- Key: Value`. Inspector parses every bullet.
 
-- Framework: [React Native / Flutter / SwiftUI / Kotlin / etc.]
-- Language: [TypeScript / Dart / Swift / Kotlin / etc.]
-- UI Library: [NativeBase / React Native Paper / Material for Flutter / etc.]
-- State: [Redux / Riverpod / Provider / Zustand / etc.]
-- Data Fetching: [React Query / Dio / Alamofire / etc.]
-- Validation: [Zod / freezed / etc.]
-- Navigation: [React Navigation / Go Router / etc.]
-- Testing: [Jest / Flutter test / XCTest / etc.]
-- Package Manager: [npm / pnpm / pub / CocoaPods / etc.]
+- Framework: [mobile framework chosen at bootstrap]
+- Language: [language]
+- UI Library: [component foundation, or "project-owned" with the #22 decision recorded]
+- State: [client-state approach]
+- Data Fetching: [server-state library or HTTP client]
+- Validation: [schema library]
+- Navigation: [navigation library]
+- Testing: [test runner]
+- Package Manager: [package manager and native dependency manager]
 
 ## Commands
 
@@ -32,7 +32,7 @@ build:android: [command to build Android]
 test:      [command to run tests]
 typecheck: [command to run type checker]
 lint:      [command to lint]
-deploy:    [command to deploy - TestFlight, Play Store, etc.]
+deploy:    [command to deploy to each store]
 clean:     [command to clean build artifacts]
 ```
 
@@ -56,25 +56,30 @@ Each system is built once following convention #0 (Reusability). Features plug i
 Commit convention: [e.g., conventional commits]
 Branch strategy: [e.g., trunk-based]
 Pre-commit hooks: [what runs]
+Pre-commit budget: [max hook runtime before a check moves to CI (#25)]
 
 ### Project Structure & Types (#1, #7)
 Folder structure: [see Folder Structure section below]
-Type checking: [strict mode configuration]
+Type checking: [strictest mode the language supports]
+File-size limit: [lines per file the tools in use can read whole; split past it (#1, #17)]
+Compaction cadence: [optional; when the AI compacts context in long sessions (#17)]
 Validation library: [which one]
 Shared types: [path to shared type definitions]
 
 ### Theme System (#6)
 Location: [path to theme definition]
 Tokens: [where design tokens are defined - colors, spacing, typography]
+Color schemes: [committed set, light + dark by default; if a single scheme, the reason (#6)]
 Platform adaptation: [how theme adapts between iOS and Android if applicable]
 Usage: [how features use theme values]
 
 ### Error System (#8)
 Location: [path to error service]
 Error types: [custom error classes]
+Build-target check: [how custom error subclasses are verified on the real build target; the constructor fix if one is required (#8)]
 Error display: [how errors are shown to users - toasts, alerts, error screens]
 Loading states: [unified loading and empty state components]
-Crash reporting: [which service - Crashlytics, Sentry, etc.]
+Crash reporting: [which service]
 Usage: [how features use the error system]
 
 ### API Layer & Contract (#9, #10)
@@ -110,6 +115,8 @@ Usage: [how features manage state]
 ### Component Foundation (#4, #22)
 Location: [path to shared components]
 Base components: [wrapper components]
+Foundation decision: [established library chosen, or "project-owned" with the reason, per #22]
+Component-size limit: [lines per component before it must be composed (#4)]
 Import rule: [import convention]
 Platform-specific: [components that differ between iOS/Android]
 Usage: [how features use shared components]
@@ -128,8 +135,8 @@ Verification commands: [exact commands]
 ### CI/CD & Build (#15)
 CI platform: [which one]
 Pipeline: [sequence]
-iOS deployment: [TestFlight, App Store process]
-Android deployment: [Play Store process]
+iOS deployment: [beta distribution and store submission process]
+Android deployment: [beta distribution and store submission process]
 Code signing: [how certificates/keys are managed]
 
 ## Folder Structure
@@ -157,7 +164,7 @@ Mobile projects need native-module wrappers for the same reason convention #22 r
 - Falls back gracefully when permission denied
 - Provides a stable API the rest of the project uses
 
-This applies to React Native, Flutter, and native iOS/Android. Research the current native-module approach for the chosen mobile framework (managed workflow vs bare workflow for React Native, platform channels for Flutter, etc.) at bootstrap time.
+This applies to cross-platform frameworks and native platforms alike. Research the current native-module approach for the chosen mobile framework at bootstrap time.
 
 List the wrappers in use:
 - [native capability]: [wrapper path] — [what native library it wraps, why]
@@ -165,20 +172,20 @@ List the wrappers in use:
 ## Platform-Specific Notes
 
 ### iOS
-- Minimum iOS version: [e.g., iOS 16+]
+- Minimum iOS version: [minimum supported version]
 - Required Info.plist permission strings: [NSCameraUsageDescription, NSHealthShareUsageDescription, etc. Missing entries cause App Store rejection.]
 - Code signing / provisioning: [how certificates and profiles are managed]
-- TestFlight / App Store: [submission timeline and costs — Apple Developer $99/yr, typical review 24-48h]
+- Store submission: [process, developer-program fee, and typical review time — verify current values at bootstrap and record the date checked]
 
 ### Android
-- Minimum API level: [e.g., API 26+]
+- Minimum API level: [minimum supported level]
 - Required manifest permissions: [CAMERA, ACCESS_FINE_LOCATION, etc.]
 - Signing config: [how release keystore is managed]
-- Play Console: [submission timeline and costs — Google Play $25 one-time, typical review 24-72h]
+- Store submission: [process, developer-program fee, and typical review time — verify current values at bootstrap and record the date checked]
 
-### Expo managed vs bare (React Native only)
-- **Managed workflow:** Expo handles native config, build, OTA updates. Faster to start. Limited to SDK-supported native modules unless you eject.
-- **Bare workflow:** full native project; can use any native module. Requires Xcode and Android Studio toolchain.
+### Managed vs bare native toolchain (cross-platform frameworks)
+- **Managed workflow:** the framework's tooling handles native config, build, and over-the-air updates. Faster to start. Limited to the native modules the managed layer supports unless you eject.
+- **Bare workflow:** full native project; can use any native module. Requires the native platform toolchains.
 - Choice depends on which native capabilities you need and whether the user owns the toolchain. Decide at bootstrap time.
 
 ## Existing Patterns to Study

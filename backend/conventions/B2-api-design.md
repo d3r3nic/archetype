@@ -51,21 +51,23 @@ If the server uses GraphQL instead of REST, the REST rules above do NOT translat
 - **Schema design** — types, queries, mutations, subscriptions. Schema IS the contract; evolve via deprecation, not breaking changes.
 - **Input validation at the boundary** — input types + schema-level constraints + runtime validation library. Same principle as REST, different mechanism.
 - **Response shape** — GraphQL's own response format is the envelope. The REST `{ data, meta, errors }` rule maps to GraphQL's built-in `data` and `errors` fields. Do not layer an additional envelope inside.
-- **Pagination** — Relay-style cursor pagination with `pageInfo` is the established pattern; research the current library for the language.
+- **Pagination** — cursor pagination with page-info metadata is the established pattern; research the current library for the language.
 - **Query complexity limits** — depth limiting, cost analysis, max-timeout. Without these, a malicious or naive query can take down the server.
 - **Persisted queries** — for production mobile/public APIs, persisted queries prevent arbitrary query execution.
 - **Field-level authorization** — auth at the resolver/field level, not just the HTTP layer. Research scope-auth / directive-based auth patterns for the chosen GraphQL library.
-- **Batched data loading (DataLoader pattern)** — prevents N+1 during resolution. Almost always needed; research the language's DataLoader equivalent.
+- **Batched data loading** — per-request batching and caching of resolver lookups prevents N+1 during resolution. Almost always needed; research the language's batched-loader library.
 - **Versioning** — GraphQL evolves via deprecation + schema directives, not URL versioning. Contract testing via schema-diff tooling in CI.
 
 Mutation-level idempotency (client retry on flaky networks) applies to both REST and GraphQL mutations. Research idempotency-key patterns for the transport layer.
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
 - Research the framework's route definition patterns and how to enforce consistent URL naming.
 - Research pagination libraries or patterns for the framework (offset and cursor).
 - Research validation middleware for the framework that integrates with the schema library.
 - Research API versioning approaches for the framework.
-- **If GraphQL:** research the chosen GraphQL server library, schema-design tooling, query-complexity analysis, persisted-query patterns, field-level authorization, DataLoader equivalent, and schema-diff CI tooling for the language.
+- **If GraphQL:** research the chosen GraphQL server library, schema-design tooling, query-complexity analysis, persisted-query patterns, field-level authorization, batched-loader equivalent, and schema-diff CI tooling for the language.
 - Document the URL conventions (or GraphQL schema conventions), response shape, pagination format, status code mapping (or error envelope), and idempotency-key mechanism in References.md.

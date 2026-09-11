@@ -1,0 +1,283 @@
+# Timeless-conventions term list. Read by scripts/validate-timeless.sh.
+#
+# One term per line: <extended-regex><TAB><category>. Terms are matched
+# case-sensitively as whole words (bounded by non-word characters) in every
+# scanned line that is NOT inside a "Research Notes" section. Escape dots.
+# Longer terms are tried first, so "React Native" consumes before "React".
+#
+# What belongs here: proper names of products, libraries, frameworks,
+# services, vendors, and vendor-specific identifiers (env-var prefixes,
+# config file names). What does NOT belong here: programming languages,
+# open standards (HTTP, JSON, OWASP, WCAG, ARIA, OpenAPI, GraphQL),
+# regulations (HIPAA, GDPR, PCI), and target platforms a product ships to
+# (iOS, Android, the web). Common English words that double as product
+# names (Black, Square, Monday, Provider, Bootstrap) are deliberately
+# absent; they are caught by review, not by this list. The same goes for
+# product names that are ordinary capitalized words at sentence start
+# (Express, Relay, Remix, Cursor, Notion).
+#
+# Prefix and extension terms carry their own tail ("NEXT_PUBLIC[A-Z_]*",
+# "[A-Za-z0-9_-]*\.tsx") because the word boundary treats "_" and letters
+# as word characters: a bare "NEXT_PUBLIC" would never match
+# NEXT_PUBLIC_SITE_CONFIG.
+#
+# Add a term when a review finds a name the list missed. Remove nothing
+# because a name went out of fashion: the list only grows.
+
+# UI component libraries and styling frameworks
+MUI	ui-library
+Chakra	ui-library
+Radix	ui-library
+Ant Design	ui-library
+FluentUI	ui-library
+Fluent UI	ui-library
+Tailwind	ui-library
+shadcn	ui-library
+NativeBase	ui-library
+React Native Paper	ui-library
+
+# Application frameworks and runtimes
+Next\.js	framework
+Nuxt	framework
+Gatsby	framework
+Fastify	framework
+NestJS	framework
+Koa	framework
+Hono	framework
+Django	framework
+django	framework
+Flask	framework
+FastAPI	framework
+Rails	framework
+Laravel	framework
+Spring Boot	framework
+ASP\.NET	framework
+[A-Za-z]*\.NET	framework
+SST	framework
+Expo	framework
+EXPO_PUBLIC[A-Z_]*	framework
+React Native	framework
+React	framework
+Vue	framework
+Svelte	framework
+Angular	framework
+SolidJS	framework
+Flutter	framework
+SwiftUI	framework
+Jetpack Compose	framework
+Node\.js	framework
+NODE_ENV	framework
+NEXT_PUBLIC[A-Z_]*	framework
+[A-Za-z0-9_-]*\.tsx	framework
+
+# State, data fetching, and API clients
+Redux Toolkit	state-data
+RTK Query	state-data
+Redux	state-data
+Zustand	state-data
+Jotai	state-data
+MobX	state-data
+React Query	state-data
+TanStack	state-data
+SWR	state-data
+Apollo	state-data
+DataLoader	state-data
+Riverpod	state-data
+Dio	state-data
+Alamofire	state-data
+axios	state-data
+tRPC	state-data
+Swagger	state-data
+MSW	state-data
+
+# Validation and schema libraries
+Zod	validation
+Yup	validation
+Valibot	validation
+Pydantic	validation
+FluentValidation	validation
+ajv	validation
+freezed	validation
+
+# ORMs, databases, and caches
+Prisma	database
+Drizzle	database
+TypeORM	database
+Sequelize	database
+Mongoose	database
+SQLAlchemy	database
+Entity Framework	database
+GORM	database
+ActiveRecord	database
+Diesel	database
+PostgreSQL	database
+Postgres	database
+MySQL	database
+MongoDB	database
+SQLite	database
+SQL Server	database
+DynamoDB	database
+Firestore	database
+Supabase	database
+Firebase	database
+PlanetScale	database
+Redis	database
+Memcached	database
+ioredis	database
+redis-py	database
+
+# Identity providers
+Auth0	auth
+auth0	auth
+Cognito	auth
+Okta	auth
+Keycloak	auth
+NextAuth	auth
+
+# Cloud providers and hosting
+AWS	cloud
+GCP	cloud
+Azure	cloud
+Vercel	cloud
+Netlify	cloud
+Cloudflare	cloud
+Cloud Run	cloud
+Heroku	cloud
+Fly\.io	cloud
+DigitalOcean	cloud
+S3	cloud
+GCS	cloud
+
+# Design tooling
+Figma	design
+Claude Design	design
+Storybook	design
+Chromatic	design
+Penpot	design
+Zeplin	design
+
+# Linters, formatters, hooks, and analyzers
+ESLint	lint
+eslint	lint
+Prettier	lint
+Biome	lint
+Ruff	lint
+Flake8	lint
+gofmt	lint
+rustfmt	lint
+golangci-lint	lint
+golangci	lint
+Clippy	lint
+Roslyn	lint
+RuboCop	lint
+PHPStan	lint
+PHP_CodeSniffer	lint
+mypy	lint
+pyright	lint
+Bandit	lint
+bandit	lint
+husky	lint
+Husky	lint
+lint-staged	lint
+lefthook	lint
+commitlint	lint
+tsconfig	lint
+
+# Security tooling
+helmet	security
+Snyk	security
+Socket\.dev	security
+pip-audit	security
+Dependabot	security
+django-csp	security
+SecurityHeaders	security
+
+# Build tools and bundlers
+Vite	build
+VITE_[A-Z_]*	build
+Vitest	build
+Webpack	build
+Turbopack	build
+esbuild	build
+Rollup	build
+Babel	build
+babel-preset-expo	build
+npm	build
+pnpm	build
+npx	build
+yarn	build
+bun	build
+
+# Test tooling
+Jest	test
+Playwright	test
+Cypress	test
+pytest	test
+xUnit	test
+RSpec	test
+Mocha	test
+XCTest	test
+
+# Logging and observability vendors
+pino	observability
+winston	observability
+Serilog	observability
+loguru	observability
+Sentry	observability
+Crashlytics	observability
+Datadog	observability
+New Relic	observability
+Grafana	observability
+Prometheus	observability
+
+# Mobile toolchains
+Xcode	mobile-tooling
+Android Studio	mobile-tooling
+CocoaPods	mobile-tooling
+TestFlight	mobile-tooling
+Play Console	mobile-tooling
+
+# Identifiers bound to one framework
+JSDoc	framework
+
+# Third-party platforms, SaaS, and integrations
+Shopify	platform
+WooCommerce	platform
+Squarespace	platform
+Wix	platform
+WordPress	platform
+Webflow	platform
+SimplePractice	platform
+TherapyNotes	platform
+Healthie	platform
+Calendly	platform
+Acuity	platform
+Airtable	platform
+Retool	platform
+Stripe	platform
+Etsy	platform
+GA4	platform
+Meta pixel	platform
+Zapier	platform
+Postmark	platform
+Slack	platform
+Discord	platform
+Twilio	platform
+SendGrid	platform
+Mailchimp	platform
+Jira	platform
+JIRA	platform
+GitHub	platform
+GitLab	platform
+Bitbucket	platform
+Docker	platform
+Kubernetes	platform
+Terraform	platform
+Mermaid	platform
+Jinja	platform
+
+# AI coding tools
+Claude Code	ai-tool
+Copilot	ai-tool
+ChatGPT	ai-tool
+Gemini	ai-tool

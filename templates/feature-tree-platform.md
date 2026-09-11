@@ -1,6 +1,6 @@
 # Feature Tree — Platform Project
 
-Use this template when the project is built on a third-party platform (Shopify, WordPress, SimplePractice, Blueprint, Squarespace, Notion, Airtable, etc.). For custom builds, use `feature-tree.md` instead.
+Use this template when the project is built on a third-party platform (a hosted commerce, content, practice-management, scheduling, or workflow product). For custom builds, use `feature-tree.md` instead.
 
 A platform feature-tree is a **configuration and rollout checklist**, not a systems map. There are no foundational systems to build — the platform owns them. The tree tracks what configuration has been set up and what milestones are still ahead.
 

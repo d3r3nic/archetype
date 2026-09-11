@@ -7,6 +7,11 @@
 #   4. Every convention doc has required sections
 #   5. No duplicate convention numbers
 #   6. Backend convention paths resolve (if backend/ exists)
+#   7. Templates and pulse-inspect agree on parse contract
+#   8. No project artifacts inside the framework folder
+#   9. Task protocol routing targets exist
+#  10. Timeless conventions: no expirable content outside Research Notes
+#      (delegates to scripts/validate-timeless.sh)
 # Exit 0 on pass, 1 on any error. Warnings do not fail the check.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -202,6 +207,27 @@ for path in AGENTS.md bootstrap/REPOSITORIES.md development/TASKS.md development
 done
 if ! grep -qF '<!-- archetype-managed-entrypoint -->' AGENTS.md 2>/dev/null; then
   fail "AGENTS.md lacks the managed entry-point marker"
+fi
+
+# ----------------------------------------------------------------------
+group 10 "Timeless conventions (no expirable content outside Research Notes)"
+# ----------------------------------------------------------------------
+# The framework encodes character; specifics live in project artifacts.
+# scripts/validate-timeless.sh fails on tool or vendor names outside a
+# Research Notes section, factory step references, statistics attached to
+# AI claims, tool-bound numeric limits, changelog language, and Research
+# Notes sections without the dated notice.
+if [ -f "$SCRIPT_DIR/validate-timeless.sh" ]; then
+  if TIMELESS_OUT="$(bash "$SCRIPT_DIR/validate-timeless.sh" 2>&1)"; then
+    pass "timeless check clean"
+  else
+    printf '%s\n' "$TIMELESS_OUT" | grep -E 'FAIL' | sed 's/\x1b\[[0-9;]*m//g' | while IFS= read -r line; do
+      printf '  %s\n' "$line"
+    done
+    fail "timeless check reported violations (see lines above)"
+  fi
+else
+  fail "scripts/validate-timeless.sh missing"
 fi
 
 # ----------------------------------------------------------------------

@@ -25,7 +25,7 @@ Create an authentication foundation that establishes:
 
 ## Violations
 
-- Using the auth provider's ID (like a Cognito sub or OAuth provider ID) as the database user ID. They are different things. This broke production.
+- Using the auth provider's subject ID (the ID inside the token or the OAuth profile) as the database user ID. They are different things. This broke production.
 - Storing tokens in localStorage or sessionStorage (accessible to any script on the domain)
 - Accepting user identity from the request body instead of deriving from the authenticated session
 - Features importing the auth provider SDK directly instead of using the project wrapper
@@ -37,8 +37,8 @@ Create an authentication foundation that establishes:
 - RIGHT: a handler calls the auth utility, which looks up the auth provider ID in the database and returns the database UUID. All queries work correctly.
 - WRONG: tokens stored in localStorage. A third-party script (analytics, ad tracker) on the page can read them.
 - RIGHT: tokens stored in httpOnly cookies that JavaScript cannot access. The browser sends them automatically on requests.
-- WRONG: each feature imports `@auth0/auth0-react` directly. Switching to Cognito means rewriting 20 features.
-- RIGHT: each feature imports `authService` from `@/shared/auth`. The wrapper imports from Auth0 internally. Switching providers means changing one file.
+- WRONG: each feature imports the auth provider's SDK directly. Switching providers means rewriting 20 features.
+- RIGHT: each feature imports the project's auth utility from the shared auth module. The wrapper imports the provider SDK internally. Switching providers means changing one file.
 
 ## Common Auth Providers
 
@@ -47,6 +47,8 @@ The framework doesn't prescribe a specific provider. Bootstrap researches and pi
 Whatever is chosen, wrap it in a project auth utility per this convention's Rules section. Features never import the provider's SDK directly.
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
 - Research auth providers suitable for the project's scale, compliance needs, and team experience

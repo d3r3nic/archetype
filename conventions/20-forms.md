@@ -43,6 +43,8 @@ Create a form system that establishes:
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
 - Research the framework's recommended form handling library. Find one that integrates with schema-based validation where schemas produce both types and validation.
 - Research validation schema libraries that work with the form library and produce type-safe form types

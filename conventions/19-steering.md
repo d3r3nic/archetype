@@ -16,7 +16,7 @@ Create steering artifacts that the team reuses:
 - Write a specification before complex features. Include an explicit "out of scope" section. Without it, AI explores everything.
 - Write a plan before multi-file changes. List the files, the changes, and the sequence. Get approval before implementing.
 - One change at a time. Verify between changes. Do not batch multiple changes without verification.
-- Do exactly what was asked. Do not refactor surrounding code, add improvements, or clean up files that weren't part of the request. AI does this at 80-90% frequency.
+- Do exactly what was asked. Do not refactor surrounding code, add improvements, or clean up files that weren't part of the request. AI does this unprompted.
 - Present options before implementing. When there are multiple approaches, present them with trade-offs and wait for a decision.
 - Stop and ask when uncertain. If a requirement is ambiguous or something doesn't make sense, ask. Do not guess. Do not build something that seems wrong.
 - Never modify existing foundational systems without explicit permission. These systems affect every feature in the project.
@@ -59,6 +59,8 @@ Non-breaking changes (extracting hardcoded values to config, adding missing erro
 - RIGHT: AI documents what needs to change and proposes a phased migration. New API is added alongside old. Features migrate one at a time. Old API removed after all migration is complete.
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 This convention is about AI collaboration workflow, not framework-specific implementation. Apply these principles to every AI-assisted development session regardless of framework. Ensure:
 - Specification and plan templates are available in the project
