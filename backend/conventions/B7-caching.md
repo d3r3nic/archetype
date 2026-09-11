@@ -7,7 +7,7 @@ Caching reduces database load and response times for read-heavy, infrequently-ch
 ## Reusable System
 
 Create a caching foundation that establishes:
-- A cache service interface that wraps the cache provider (Redis, Memcached, in-memory)
+- A cache service interface that wraps the cache provider (distributed or in-memory)
 - Consistent key naming convention: service:entity:id (e.g., api:user:123)
 - TTL-based expiration as the default strategy
 - Stampede prevention for hot keys (per-key locking or stale-while-revalidate)
@@ -20,7 +20,7 @@ Create a caching foundation that establishes:
 - Start with TTL-based expiration. If the business tolerates 5-minute staleness, set a 300-second TTL. Do NOT build complex invalidation when a short TTL suffices.
 - For stronger consistency, use event-driven invalidation: when data changes, publish an event that invalidates the cache entry.
 - Prevent cache stampedes: when a hot key expires and hundreds of requests simultaneously miss the cache, only one request should regenerate the cache. Others wait or receive stale data. Use per-key locking or stale-while-revalidate.
-- Use appropriate cache layers: in-memory for hot configuration and lookup tables (per-instance, fastest), distributed cache (Redis) for shared session data and API responses (cross-instance), CDN for static assets and public API responses (edge).
+- Use appropriate cache layers: in-memory for hot configuration and lookup tables (per-instance, fastest), distributed cache for shared session data and API responses (cross-instance), CDN for static assets and public API responses (edge).
 
 ## Violations
 
@@ -38,8 +38,10 @@ Create a caching foundation that establishes:
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
-- Research caching libraries for the framework (ioredis for Node, redis-py for Python, StackExchange.Redis for .NET).
+- Research caching libraries for the framework and the chosen cache provider.
 - Research the framework's patterns for cache-aside (check cache → miss → query DB → populate cache).
 - Research stampede prevention patterns for the chosen cache provider.
 - Research CDN configuration for the deployment platform if caching public API responses at the edge.

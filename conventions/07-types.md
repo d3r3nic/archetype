@@ -42,6 +42,8 @@ Create a type safety foundation that establishes:
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
 - Research the language's strict mode configuration options. Enable the maximum strictness.
 - Research runtime validation libraries for the language/framework. Find one that integrates well and can derive types from schemas (or vice versa).

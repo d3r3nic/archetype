@@ -19,14 +19,14 @@ Create a component foundation that establishes:
 - Consistent state props. Every component uses the same names for disabled, loading, read-only, required, and invalid states.
 - Components render UI. They do not fetch data, compute business logic, or manage complex state. That belongs in hooks or services.
 - Forward refs on all reusable components so parent components can access the underlying element for focus management and library interop.
-- Keep components focused. If a component grows beyond 200 lines, it's doing too much. Break it into composed smaller components.
+- Keep components focused. If a component grows past the project's size limit (set in References.md), it's doing too much. Break it into composed smaller components.
 - Before building a new component, check feature-tree.md and the shared component directory. The component may already exist.
 
 ## Violations
 
 - Importing directly from the UI library instead of project wrappers
 - Inconsistent sizing: one component uses small/medium/large, another uses xs/sm/md, another uses compact/regular
-- God components: a single 500+ line component that fetches data, manages state, handles events, and renders everything
+- God components: one oversized component that fetches data, manages state, handles events, and renders everything
 - Missing ref forwarding on reusable components
 - Building a new component without checking if one already exists in the project
 - Props that accept wildly different types for one value (a prop that takes string or number or function or element)
@@ -41,6 +41,8 @@ Create a component foundation that establishes:
 - RIGHT: AI reads feature-tree.md, sees ConfirmDialog already exists in shared, uses it with appropriate configuration.
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
 - Research the UI library's component wrapping patterns. Understand how to create thin wrappers that enforce theme usage while passing through all original props.

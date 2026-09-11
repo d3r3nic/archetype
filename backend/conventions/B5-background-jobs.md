@@ -30,12 +30,14 @@ Create a job processing foundation that establishes:
 
 ## Wrong vs Right
 
-- WRONG: user signs up → handler creates user → sends welcome email → sends Slack notification → returns response. If email service is slow, user waits. If it fails, signup fails even though user was created.
-- RIGHT: user signs up → handler creates user → queues "send welcome email" job → queues "send Slack notification" job → returns response immediately. Jobs process in background with their own retry logic.
+- WRONG: user signs up → handler creates user → sends welcome email → sends chat notification → returns response. If email service is slow, user waits. If it fails, signup fails even though user was created.
+- RIGHT: user signs up → handler creates user → queues "send welcome email" job → queues "send chat notification" job → returns response immediately. Jobs process in background with their own retry logic.
 - WRONG: job handler processes payment. Job fails due to timeout. Job retries. Payment processes twice. Customer charged twice.
 - RIGHT: job handler checks idempotency key (or checks payment status in database) before processing. Second execution detects the payment was already made and exits cleanly.
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
 - Research a job-queue library for the language.

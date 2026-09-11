@@ -40,6 +40,8 @@ Create a routing foundation that establishes:
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
 - Research the framework's routing library and its patterns for nested routes, layout routes, and route guards
 - Research typed routing solutions for the framework (how to define routes as constants with type safety)

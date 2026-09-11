@@ -47,6 +47,8 @@ Create a performance foundation that establishes:
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
 - Research the framework's code splitting configuration. How do you split at route boundaries? How do you lazy-load heavy components?
 - Research the framework's image optimization patterns. Is there a built-in optimized image component, or does the project need one?

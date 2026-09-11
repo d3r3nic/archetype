@@ -19,7 +19,7 @@ Create a layered architecture that establishes:
 - Features are self-contained. They never import from other features. If code needs sharing, move it to shared (ask first).
 - Duplication between features is better than coupling between features. Coupling creates hidden dependencies.
 - No circular dependencies. If module A imports from module B, module B must not import from module A.
-- Build only what the spec says. Never add phantom requirements like batch mode, dry-run, or legacy format that nobody asked for. AI does this at a rate of 80-90%.
+- Build only what the spec says. Never add phantom requirements like batch mode, dry-run, or legacy format that nobody asked for. AI adds these unprompted.
 - Never call functions or modules that don't exist in the project. Verify imports exist before using them.
 
 ## Violations
@@ -43,6 +43,8 @@ Create a layered architecture that establishes:
 - RIGHT: AI creates exactly what was asked. One user creation endpoint. Nothing more.
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
 - Research the framework's recommended architecture patterns for separating entry points, business logic, and data access

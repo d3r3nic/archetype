@@ -39,6 +39,8 @@ Create a contract system that establishes:
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
 - Research contract definition options for the project's stack: API specification formats, shared schema packages, type-safe RPC layers, or code generation tools that produce typed clients from API definitions
 - Research breaking change detection tools that can be integrated into the CI pipeline

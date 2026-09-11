@@ -6,18 +6,18 @@ AI performance degrades as context fills. Code structure, file size, and session
 
 ## Rules
 
-- Keep files under 300 lines. Split when they grow beyond this. Small files load fully into AI context.
+- Keep files small enough for the tool in use to read whole. The project sets its file-size limit in References.md; split when a file grows past it. Small files load fully into AI context.
 - One responsibility per file. AI loads exactly what it needs for the task at hand.
 - Colocate related code. Minimize the number of files AI needs to read to understand one feature.
 - Place critical instructions and important information at the start and end of documents, not in the middle. AI models lose accuracy on information buried in the middle of long context.
 - Clear context between unrelated tasks. Never mix unrelated work in one AI session.
 - Start fresh after two failed corrections on the same issue. If the AI fails twice and you correct it twice, the context is now polluted with failed approaches. Start a new session with a better initial prompt incorporating what you learned.
 - Use scoped instruction files for feature-specific context. A feature can have its own instruction file with context relevant only to that feature, keeping the main instruction file lean.
-- Compact context proactively during long sessions (every 25-30 minutes). Don't wait until the context window is full.
+- Compact context proactively during long sessions. Don't wait until the context window is full; the tool's window size sets the cadence, and the project may record one in References.md.
 
 ## Violations
 
-- Files with 800+ lines mixing multiple concerns
+- Files far past the project's size limit, mixing multiple concerns
 - An AI session with 5 unrelated tasks without clearing context between them
 - Correcting the same issue 4 times instead of starting fresh (context pollution)
 - Critical rules or constraints buried in the middle of a long document
@@ -33,5 +33,7 @@ AI performance degrades as context fills. Code structure, file size, and session
 - RIGHT: the most critical rules are at the top and bottom. The middle contains supporting detail that's less critical.
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 This convention is about AI session management, not framework-specific implementation. No framework research needed. Apply these principles to every AI-assisted development session regardless of framework.

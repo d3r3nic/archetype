@@ -17,7 +17,7 @@ Create a project scaffold that establishes:
 ## Rules
 
 - Organize by feature. Each feature directory contains everything that feature needs. Tests, types, styles, logic - all colocated.
-- Keep files under 300 lines. If a file grows beyond this, split it. Small files load fully into AI context.
+- Keep files small enough for the tools in use to read whole. The project sets its file-size limit in References.md; split any file that grows past it. Small files load fully into AI context.
 - One responsibility per file. Each file does one thing and exports one primary concept. AI loads exactly what it needs.
 - Every feature has the same internal structure. Consistency lets AI predict where things are without exploring.
 - Shared code lives in a dedicated shared directory. Features never import from other features. If something needs sharing, move it to shared.
@@ -28,7 +28,7 @@ Create a project scaffold that establishes:
 
 ## Violations
 
-- Files with 500+ lines mixing multiple concerns
+- Files far past the project's size limit, mixing multiple concerns
 - Organizing by type at the top level (all components in /components, all hooks in /hooks) instead of by feature
 - Feature A importing from Feature B's internals
 - Adding a dependency without checking if the functionality already exists
@@ -47,6 +47,8 @@ Create a project scaffold that establishes:
 - RIGHT: all environment variables validated at startup. If anything is missing, the app fails immediately with a clear error message.
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
 - Research the framework's recommended project structure. Look for feature-based organization patterns specific to the framework.

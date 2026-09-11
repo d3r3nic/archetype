@@ -2,7 +2,7 @@
 
 ## Principle
 
-Documentation captures what code cannot express: intent, constraints, business reasoning, and architectural decisions. Comments explain WHY, never WHAT. AI over-comments 90-100% of generated code with obvious descriptions - this convention corrects that. Documentation that matters is specifications, decision records, and constraint explanations. Documentation that wastes time restates what the code already says.
+Documentation captures what code cannot express: intent, constraints, business reasoning, and architectural decisions. Comments explain WHY, never WHAT. AI over-comments generated code with obvious descriptions by default - this convention corrects that. Documentation that matters is specifications, decision records, and constraint explanations. Documentation that wastes time restates what the code already says.
 
 ## Reusable System
 
@@ -30,15 +30,15 @@ Create a documentation system that establishes:
 - Domain abbreviations that only insiders understand
 - Features with no documentation explaining why they exist
 - Bare TODO comments with no ticket reference or context
-- Over-commenting: a JSDoc block on every function describing obvious parameters and return values
+- Over-commenting: a doc-comment block on every function describing obvious parameters and return values
 
 ## Wrong vs Right
 
 - WRONG: every line has a comment. "Initialize the user array." "Loop through each order." "Get the order total." The comments describe what the code already says. They add noise, not value.
-- RIGHT: one comment on the business rule that isn't obvious from the code. "Orders over $100 qualify for the loyalty discount per the 2024 partnership agreement (JIRA-1234)." The code shows the logic, the comment explains why.
+- RIGHT: one comment on the business rule that isn't obvious from the code. "Orders over $100 qualify for the loyalty discount per the current partnership agreement [TICKET-1234]." The code shows the logic, the comment explains why.
 - WRONG: TIMEOUT = 3000 with no explanation. Someone changes it to 5000 because "bigger is safer." The original value was chosen because the payment gateway's SLA is 3 seconds. Now payments sometimes hang for 5 seconds unnecessarily.
 - RIGHT: "Payment gateway SLA requires response within 3 seconds. Exceeding this triggers the fallback payment processor." The next developer understands the constraint and doesn't change it arbitrarily.
-- WRONG: a 15-line JSDoc comment on a function called getUserById that documents every parameter and the return type. The function name and types already communicate everything the JSDoc says.
+- WRONG: a long doc-comment block on a function called getUserById that documents every parameter and the return type. The function name and types already communicate everything the block says.
 - RIGHT: no comment needed. The function name, parameter types, and return type are the documentation.
 
 ## Documentation Formatting
@@ -51,9 +51,11 @@ Rules:
 - No bold or italic for emphasis in feature documentation. If something is important, say it is important in words.
 - Focus documentation on content density. Every line should deliver information the reader (human or AI) cannot get from the code itself.
 
-This reduces AI token consumption by 30-40% on documentation files and speeds up parsing.
+This cuts token consumption on documentation files and speeds up parsing.
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
 - Research ADR (Architecture Decision Record) template formats recommended for the framework or team size

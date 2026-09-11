@@ -56,6 +56,8 @@ Rules:
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
 - Research the framework's latest state management options. Find the recommended server-state library for the framework (handles API data caching and revalidation). Find the recommended client-state library if global state is needed.
 - Research the framework's patterns for computing derived state without storing it separately

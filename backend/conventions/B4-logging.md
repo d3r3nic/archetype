@@ -14,7 +14,7 @@ If the project handles regulated data (HIPAA, SOC 2, PCI, GDPR right-to-audit, f
 ## Reusable System
 
 Create an observability foundation that establishes:
-- A structured logging service (JSON format, proper library like pino, winston, Serilog, loguru). Never console.log.
+- A structured logging service (JSON format, an established logging library for the language). Never console-level output.
 - Every log entry includes: timestamp (ISO 8601 UTC), level, service name, correlation_id, message.
 - Sensitive data redaction: middleware that strips known sensitive fields before logging.
 - Two health check endpoints: liveness (process alive, no dependency checks) and readiness (dependencies connected, can serve traffic).
@@ -48,6 +48,8 @@ Create an observability foundation that establishes:
 - RIGHT: /health/ready checks database.ping(), cache.ping(). Returns 503 if any critical dependency is down. /health/live just returns 200 (process is running).
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
 - Research a structured-logging library for the language.

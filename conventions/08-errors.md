@@ -35,6 +35,7 @@ Features declare what data they need. The data layer and error system handle eve
 - Retry transient errors automatically with exponential backoff. Stop after a reasonable limit and show the error state with a manual retry option.
 - Never swallow errors. Every error must be logged, reported, or handled meaningfully. A catch block with only a console.log is a violation.
 - Cancel pending operations when the user navigates away. Stale responses arriving after navigation cause bugs.
+- Custom error classes must survive the build target. Some compilation or transpilation targets silently break runtime type checks (the language's instanceof equivalent) on subclassed errors. Verify with a test on the real target and record any required constructor fix in References.md.
 
 ## Violations
 
@@ -57,6 +58,8 @@ Features declare what data they need. The data layer and error system handle eve
 - RIGHT: server returns field-specific validation errors, the error system maps them back to the specific form fields that caused them.
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
 - Research the framework's latest error handling patterns and error boundary equivalents. Understand how the framework recommends catching errors at different levels (app-wide, per-route, per-feature).

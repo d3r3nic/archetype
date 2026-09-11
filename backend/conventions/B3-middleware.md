@@ -38,9 +38,11 @@ Create a middleware pipeline that establishes:
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
 - Research the framework's middleware system and how to define execution order.
 - Research correlation ID libraries or patterns for the framework.
-- Research the framework's built-in security middleware (CORS, HSTS, helmet/equivalent).
+- Research the framework's built-in security middleware (CORS, HSTS, security headers).
 - Research rate limiting middleware for the framework.
 - Document the middleware order, correlation ID header name, and logging format in References.md.

@@ -1,5 +1,14 @@
 # Convention #28: Config-Driven Brand & Content
 
+## Applies when
+
+The project is a template that serves many customers or brands from one
+codebase, or a product whose brand and content must change without code
+edits (white-label, multi-tenant, reseller). A single-purpose product with
+one brand and no customer variation marks #28 not applicable in
+feature-tree.md with a one-line reason; the never-hardcode rules of #1
+(environment values) and #6 (visual values) still apply to it.
+
 ## Principle
 
 A template ships once and serves many customers. Every value that
@@ -18,28 +27,27 @@ component, you are violating this convention.
 
 Establish a single config surface:
 
-- A typed schema (Zod / Pydantic / equivalent) that defines every
-  brand-shaped value: branding, theme, typography, nav, contact,
-  social, content (per page-shape), commerce, compliance,
-  integrations, SEO, operational settings.
-- A three-layer resolver: env-var blob → on-disk fallback file
-  (gitignored) → typed defaults. Production injects the env var;
-  local dev uses the file; defaults render a neutral demo.
-- A universal getter (`getSiteConfig()` or equivalent) that runs on
-  both server and client surfaces and returns the parsed,
-  validated config. One name across the codebase.
+- A typed schema that defines every brand-shaped value: branding,
+  theme, typography, nav, contact, social, content (per page-shape),
+  commerce, compliance, integrations, SEO, operational settings.
+- A three-layer resolver: environment-supplied config blob → on-disk
+  fallback file (gitignored) → typed defaults. Production injects the
+  blob; local dev uses the file; defaults render a neutral demo.
+- A universal getter with one name across the codebase that runs on
+  both server and client surfaces and returns the parsed, validated
+  config.
 - One canonical doc (e.g. `docs/CONFIG.md`) that lists every
   configurable field and shows the JSON shape for a customer.
 
 Components read from the config getter and fall back to a sensible
-default for the demo. Defaults live in the schema package's
-`DEFAULTS` constant or in colocated content modules — never
-inlined into render output.
+default for the demo. Defaults live in the schema package's defaults
+constant or in colocated content modules — never inlined into render
+output.
 
-The specific env-var name (e.g. `NEXT_PUBLIC_SITE_CONFIG` for
-Next.js, `EXPO_PUBLIC_SITE_CONFIG` for Expo, `VITE_SITE_CONFIG` for
-Vite, etc.) is template-local and documented in the template's
-References.md — not part of this convention.
+The delivery mechanism's specific names (the environment variable,
+the fallback file path) and the getter's name are template-local and
+documented in the template's References.md — not part of this
+convention.
 
 ## Rules
 
@@ -77,8 +85,8 @@ These do NOT need to be in the config:
   URLs internal to the app, internal cookie names, internal IDs.
 - **Structural glyphs / brand-language marks** that are part of
   the template's identity (e.g. an active-page marker, copyright
-  glyph). Document these in HANDOFF.md so they're explicitly
-  endorsed.
+  glyph). Document these in the template's config doc so they're
+  explicitly endorsed.
 - **Page section ORDER** on composed pages — order is structural
   identity, not brand voice. Customer sites override copy, not
   layout.
@@ -103,6 +111,9 @@ to change this?" If yes, configure it.
   call sites read it.
 
 ## Wrong vs Right (illustrative — exact syntax depends on stack)
+
+The getter name below is the example project's choice, not a
+prescription.
 
 **Wrong:**
 
@@ -148,5 +159,7 @@ a number, or any user-visible value, ask:
 If you can't answer all three, the component isn't ready.
 
 ## Research Notes
+
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 Choose config delivery for the project's deployment model. Verify which values reach client bundles, when updates take effect, and how schema validation fails. Public content belongs in public configuration; credentials require a separate protected store. Keep the accessor stable when delivery changes.

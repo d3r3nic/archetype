@@ -47,6 +47,8 @@ Create a database foundation that establishes:
 
 ## Research Notes
 
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+
 When bootstrapping this convention:
 - Research the ORM's eager loading and batch loading patterns. Find how to prevent N+1 by default.
 - Research the database's migration tooling. Find how to run migrations safely with approval gates.
