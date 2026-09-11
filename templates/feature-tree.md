@@ -36,7 +36,7 @@ Notes:
 
 ## Features
 
-**Column order is contract.** Pulse reads: `# | Feature | Location | Routes | Systems Used`. "Systems Used" values must match Foundational System names (case-insensitive, normalized) for drift detection + Mermaid diagram generation to work.
+**Column order is contract.** Pulse reads: `# | Feature | Location | Routes | Systems Used`. "Systems Used" values must match Foundational System names (case-insensitive, normalized) for drift detection and diagram generation to work.
 
 | # | Feature | Location | Routes | Systems Used | Status | Docs |
 |---|---------|----------|--------|--------------|--------|------|

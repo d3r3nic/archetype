@@ -1,6 +1,6 @@
 # References — Platform Project
 
-Use this template when the user's project is built on a third-party platform (Shopify, WordPress, SimplePractice, Blueprint, Squarespace, Notion, Airtable, etc.) instead of custom code. If the user is building custom, use `references-frontend.md`, `references-backend.md`, or `references-mobile.md` instead.
+Use this template when the user's project is built on a third-party platform (a hosted commerce, content, practice-management, scheduling, or workflow product) instead of custom code. If the user is building custom, use `references-frontend.md`, `references-backend.md`, or `references-mobile.md` instead.
 
 ---
 
@@ -16,7 +16,7 @@ Use this template when the user's project is built on a third-party platform (Sh
 
 **Platform build, not custom.** The Archetype framework's scaffolding phase does NOT apply. See the "Applicable Conventions" and "Out-of-Scope Systems" sections below for details on which framework rules still matter here.
 
-**Git note:** Platform projects often don't need a full repo for code. You may still want to version-control this `References.md` file and any exported config or theme files (e.g., `shopify theme pull`, WordPress child-theme files). Use your judgment — git is optional for platform projects, but useful if config drift is a concern.
+**Git note:** Platform projects often don't need a full repo for code. You may still want to version-control this `References.md` file and any exported config or theme files (theme exports, child-theme files). Use your judgment — git is optional for platform projects, but useful if config drift is a concern.
 
 ## Platform
 
@@ -44,13 +44,13 @@ Rationale tied to discovery answers (scale, compliance, budget, team, existing s
 Dated entries, append-only. Example format:
 
 ```
-2026-04-17 — Chose Shopify Basic plan over Squarespace Commerce.
-Reason: Etsy migration, catalog >50 items, needed lower transaction fees. Reevaluate at 500 orders/month.
+2026-04-17 — Chose [platform A, plan tier] over [platform B].
+Reason: marketplace migration, catalog >50 items, needed lower transaction fees. Reevaluate at 500 orders/month.
 ```
 
 ```
-2026-04-20 — Enabled Shopify Email app, disabled Shop Pay Installments.
-Reason: newsletter was the Turn-2 requirement. Installments don't fit a $15 product.
+2026-04-20 — Enabled the platform's email app, disabled pay-later installments.
+Reason: newsletter was the first growth requirement. Installments don't fit a $15 product.
 ```
 
 ## Configuration Checklist
@@ -96,16 +96,16 @@ Structure: five baseline sections apply to every platform. Sector-specific secti
 - [ ] RSS / sitemap generated and verified
 - [ ] Comment moderation policy set (if comments enabled)
 
-### [COMMERCE] — use for online stores (Shopify, WooCommerce, Square, etc.)
+### [COMMERCE] — use for online stores
 - [ ] Product catalog entered
 - [ ] Payment provider connected and test transaction processed
 - [ ] Tax settings configured for jurisdictions
 - [ ] Shipping rates / zones defined
 - [ ] Refund / return policy published
 - [ ] Abandoned-cart email flow configured (defer if low volume)
-- [ ] Analytics and attribution (GA4, platform-native, Meta pixel if applicable)
+- [ ] Analytics and attribution (platform-native or third-party; ad pixels if applicable)
 
-### [BOOKING] — use for appointment / scheduling platforms (Calendly, Acuity, Square Appointments, etc.)
+### [BOOKING] — use for appointment / scheduling platforms
 - [ ] Services / session types defined with duration and price
 - [ ] Availability calendar set up with buffer times
 - [ ] Confirmation and reminder email templates customized
@@ -113,7 +113,7 @@ Structure: five baseline sections apply to every platform. Sector-specific secti
 - [ ] Payment capture timing (at booking vs at session) decided
 - [ ] Intake form / pre-appointment questions configured
 
-### [HEALTHCARE] — use for HIPAA-regulated practice management (SimplePractice, Jane, TherapyNotes, Healthie, etc.)
+### [HEALTHCARE] — use for HIPAA-regulated practice-management platforms
 - [ ] BAA signed with platform vendor (file a copy)
 - [ ] Intake and consent forms configured (HIPAA notice of privacy practices, informed consent)
 - [ ] Clinical documentation templates set up (session notes, treatment plans)
@@ -124,7 +124,7 @@ Structure: five baseline sections apply to every platform. Sector-specific secti
 - [ ] Device-hygiene checklist for staff (encrypted laptops, no PHI on personal devices, remote wipe enabled)
 - [ ] Incident response plan (breach notification timelines: HIPAA 60 days, state laws may be shorter)
 
-### [WORKFLOW] — use for internal-tool platforms (Notion, Airtable, Retool, Monday, etc.)
+### [WORKFLOW] — use for internal-tool platforms
 - [ ] Database / base / workspace structure designed
 - [ ] User roles and permissions configured
 - [ ] Input forms for non-admin users
@@ -134,7 +134,7 @@ Structure: five baseline sections apply to every platform. Sector-specific secti
 
 ## Applicable Conventions (and how they apply)
 
-- **#2 Git** — If you version-control platform theme customizations, export files, or config-as-code (e.g., Shopify theme folder, WordPress child theme), commit them here. Otherwise this convention is minimal for platform projects.
+- **#2 Git** — If you version-control platform theme customizations, export files, or config-as-code (theme folders, child themes, exported settings), commit them here. Otherwise this convention is minimal for platform projects.
 - **#16 Documentation** — This file (References.md) is your primary documentation. Keep the Decisions & Configuration Log current. One commit per meaningful config change, referencing the log entry.
 - **#23 App Security** — Admin account hygiene (strong password, 2FA, limited admin users), PII handling (what customer data the platform collects and who can access it), audit logs (enable if the platform supports), export policies (who can export customer data), incident response (who to contact if the platform is breached).
 - **#24 Authorization** — Role definitions within the platform (owner / admin / staff / customer). Least privilege. Audit trail on role changes.
@@ -160,7 +160,7 @@ Project-specific deviations or additions. Start empty; add entries as they emerg
 
 ```
 #23 — This platform stores customer addresses by default. We will NOT store
-credit card numbers in platform fields; all card data stays with Stripe.
+credit card numbers in platform fields; all card data stays with the payment processor.
 ```
 
 ## Open Questions / Deferred Decisions

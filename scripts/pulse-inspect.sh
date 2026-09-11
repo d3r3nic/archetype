@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pulse Monitor — v1.1 inspector.
+# Pulse Monitor inspector.
 # Reads convention-mandated paths, emits .pulse-state.json to stdout or to a path.
 # Language-agnostic (pure bash + standard tools). Portable across macOS + Linux.
 #
@@ -12,8 +12,8 @@
 #   - References.md        (project root or archetype/)
 #   - feature-tree.md      (same)
 #
-# Emits JSON conforming to the v1.1 data contract documented in
-# templates/pulse-monitor-spec.md and conventions/26-pulse-monitor.md.
+# Emits JSON conforming to the data contract documented in
+# templates/pulse-monitor-spec.md (dataContractVersion is emitted in the output).
 
 set -euo pipefail
 

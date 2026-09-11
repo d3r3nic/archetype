@@ -13,15 +13,15 @@ Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses t
 
 Each line must start with `- ` (dash space); content is `- Key: Value`. Inspector parses every bullet.
 
-- Framework: [React / Next.js / Vue / Svelte / etc.]
-- Language: [TypeScript / JavaScript]
-- UI Library: [MUI / Chakra / Tailwind / Radix / etc.]
-- State: [Redux Toolkit / Zustand / Jotai / Context / etc.]
-- Data Fetching: [RTK Query / React Query / SWR / Apollo / etc.]
-- Validation: [Zod / Yup / Valibot / etc.]
-- Bundler: [Vite / Next.js / Webpack / Turbopack / etc.]
-- Testing: [Vitest / Jest / Playwright / Cypress / etc.]
-- Package Manager: [npm / pnpm / yarn / bun]
+- Framework: [UI framework chosen at bootstrap]
+- Language: [language]
+- UI Library: [component foundation, or "project-owned" with the #22 decision recorded below]
+- State: [client-state approach]
+- Data Fetching: [server-state library]
+- Validation: [schema library — one schema = types + validation]
+- Bundler: [build tool]
+- Testing: [test runner, end-to-end tool]
+- Package Manager: [package manager]
 
 ## Commands
 
@@ -60,8 +60,8 @@ Branch protection: [rules for main branch]
 ### Project Structure & Types (#1, #7)
 Folder structure: [see Folder Structure section below]
 Path alias: [e.g., @/ maps to src/]
-Type checking: [e.g., strict mode enabled in tsconfig]
-Validation library: [e.g., Zod - one schema = types + validation]
+Type checking: [strictest mode the language supports; config location]
+Validation library: [name - one schema = types + validation]
 Shared types: [path to shared type definitions]
 Barrel exports: [pattern used for module public APIs]
 
@@ -109,9 +109,10 @@ Usage: [how features create and register slices]
 ### Component Foundation & Accessibility (#4, #14, #22)
 Location: [e.g., src/shared/ui/]
 Base components: [where wrapper components live]
+Foundation decision: [established library chosen, or "project-owned" with the reason, per #22]
 Import rule: [e.g., "always from @/shared/ui, never from UI library directly"]
 Accessible components: [path to modal, dialog, dropdown with proper keyboard/ARIA support]
-Component catalog: [Storybook URL or equivalent, if applicable]
+Component catalog: [catalog URL or equivalent, if applicable]
 Icons: [exception rule if any]
 A11y testing: [which tools are configured]
 
@@ -133,7 +134,7 @@ CI platform: [which one]
 Pipeline: [sequence - lint → typecheck → test → build → deploy]
 Code splitting: [how routes are split]
 Bundle budget: [size limits and enforcement]
-Lint rules: [AI-targeted rules configured - no any, no console.log, no direct imports]
+Lint rules: [AI-targeted rules configured - no untyped escape hatch, no console-level output, no direct imports]
 Preview deployments: [per-PR deployments, if applicable]
 
 ## Folder Structure
@@ -148,8 +149,8 @@ src/
 │       ├── components/ # Feature UI
 │       ├── hooks/      # Feature logic
 │       ├── api/        # Feature API endpoints
-│       ├── types.ts    # Feature types
-│       └── index.ts    # Public API (barrel export)
+│       ├── types       # Feature types
+│       └── index       # Public API (barrel export)
 │
 ├── shared/             # Foundational systems
 │   ├── ui/             # Component foundation + theme

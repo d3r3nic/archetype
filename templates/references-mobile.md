@@ -13,15 +13,15 @@ Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses t
 
 Each line must start with `- ` (dash space); content is `- Key: Value`. Inspector parses every bullet.
 
-- Framework: [React Native / Flutter / SwiftUI / Kotlin / etc.]
-- Language: [TypeScript / Dart / Swift / Kotlin / etc.]
-- UI Library: [NativeBase / React Native Paper / Material for Flutter / etc.]
-- State: [Redux / Riverpod / Provider / Zustand / etc.]
-- Data Fetching: [React Query / Dio / Alamofire / etc.]
-- Validation: [Zod / freezed / etc.]
-- Navigation: [React Navigation / Go Router / etc.]
-- Testing: [Jest / Flutter test / XCTest / etc.]
-- Package Manager: [npm / pnpm / pub / CocoaPods / etc.]
+- Framework: [mobile framework chosen at bootstrap]
+- Language: [language]
+- UI Library: [component foundation, or "project-owned" with the #22 decision recorded]
+- State: [client-state approach]
+- Data Fetching: [server-state library or HTTP client]
+- Validation: [schema library]
+- Navigation: [navigation library]
+- Testing: [test runner]
+- Package Manager: [package manager and native dependency manager]
 
 ## Commands
 
@@ -32,7 +32,7 @@ build:android: [command to build Android]
 test:      [command to run tests]
 typecheck: [command to run type checker]
 lint:      [command to lint]
-deploy:    [command to deploy - TestFlight, Play Store, etc.]
+deploy:    [command to deploy to each store]
 clean:     [command to clean build artifacts]
 ```
 
@@ -74,7 +74,7 @@ Location: [path to error service]
 Error types: [custom error classes]
 Error display: [how errors are shown to users - toasts, alerts, error screens]
 Loading states: [unified loading and empty state components]
-Crash reporting: [which service - Crashlytics, Sentry, etc.]
+Crash reporting: [which service]
 Usage: [how features use the error system]
 
 ### API Layer & Contract (#9, #10)
@@ -157,7 +157,7 @@ Mobile projects need native-module wrappers for the same reason convention #22 r
 - Falls back gracefully when permission denied
 - Provides a stable API the rest of the project uses
 
-This applies to React Native, Flutter, and native iOS/Android. Research the current native-module approach for the chosen mobile framework (managed workflow vs bare workflow for React Native, platform channels for Flutter, etc.) at bootstrap time.
+This applies to cross-platform frameworks and native platforms alike. Research the current native-module approach for the chosen mobile framework at bootstrap time.
 
 List the wrappers in use:
 - [native capability]: [wrapper path] — [what native library it wraps, why]
@@ -165,20 +165,20 @@ List the wrappers in use:
 ## Platform-Specific Notes
 
 ### iOS
-- Minimum iOS version: [e.g., iOS 16+]
+- Minimum iOS version: [minimum supported version]
 - Required Info.plist permission strings: [NSCameraUsageDescription, NSHealthShareUsageDescription, etc. Missing entries cause App Store rejection.]
 - Code signing / provisioning: [how certificates and profiles are managed]
-- TestFlight / App Store: [submission timeline and costs — Apple Developer $99/yr, typical review 24-48h]
+- Store submission: [process, developer-program fee, and typical review time — verify current values at bootstrap and record the date checked]
 
 ### Android
-- Minimum API level: [e.g., API 26+]
+- Minimum API level: [minimum supported level]
 - Required manifest permissions: [CAMERA, ACCESS_FINE_LOCATION, etc.]
 - Signing config: [how release keystore is managed]
-- Play Console: [submission timeline and costs — Google Play $25 one-time, typical review 24-72h]
+- Store submission: [process, developer-program fee, and typical review time — verify current values at bootstrap and record the date checked]
 
-### Expo managed vs bare (React Native only)
-- **Managed workflow:** Expo handles native config, build, OTA updates. Faster to start. Limited to SDK-supported native modules unless you eject.
-- **Bare workflow:** full native project; can use any native module. Requires Xcode and Android Studio toolchain.
+### Managed vs bare native toolchain (cross-platform frameworks)
+- **Managed workflow:** the framework's tooling handles native config, build, and over-the-air updates. Faster to start. Limited to the native modules the managed layer supports unless you eject.
+- **Bare workflow:** full native project; can use any native module. Requires the native platform toolchains.
 - Choice depends on which native capabilities you need and whether the user owns the toolchain. Decide at bootstrap time.
 
 ## Existing Patterns to Study
