@@ -1,0 +1,10 @@
+# Timeless-conventions allowlist. Read by scripts/validate-timeless.sh.
+#
+# One entry per line: <file path relative to framework root><TAB><term exactly
+# as written in timeless-terms.txt><TAB><one-line justification>.
+# The path may be "*" to cover every scanned file. An entry without a
+# justification fails validation. An entry that matches nothing fails
+# validation (it is a placeholder). Keep this file short: the allowlist is
+# for names the framework cannot avoid, not for names it prefers.
+
+templates/hooks-spec.md	Claude Code	The two shipped hook configs (templates/claude-settings.*.json) are written in this host's settings format; the section that names it is marked dated.
