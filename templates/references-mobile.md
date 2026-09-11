@@ -56,22 +56,27 @@ Each system is built once following convention #0 (Reusability). Features plug i
 Commit convention: [e.g., conventional commits]
 Branch strategy: [e.g., trunk-based]
 Pre-commit hooks: [what runs]
+Pre-commit budget: [max hook runtime before a check moves to CI (#25)]
 
 ### Project Structure & Types (#1, #7)
 Folder structure: [see Folder Structure section below]
-Type checking: [strict mode configuration]
+Type checking: [strictest mode the language supports]
+File-size limit: [lines per file the tools in use can read whole; split past it (#1, #17)]
+Compaction cadence: [optional; when the AI compacts context in long sessions (#17)]
 Validation library: [which one]
 Shared types: [path to shared type definitions]
 
 ### Theme System (#6)
 Location: [path to theme definition]
 Tokens: [where design tokens are defined - colors, spacing, typography]
+Color schemes: [committed set, light + dark by default; if a single scheme, the reason (#6)]
 Platform adaptation: [how theme adapts between iOS and Android if applicable]
 Usage: [how features use theme values]
 
 ### Error System (#8)
 Location: [path to error service]
 Error types: [custom error classes]
+Build-target check: [how custom error subclasses are verified on the real build target; the constructor fix if one is required (#8)]
 Error display: [how errors are shown to users - toasts, alerts, error screens]
 Loading states: [unified loading and empty state components]
 Crash reporting: [which service]
@@ -110,6 +115,8 @@ Usage: [how features manage state]
 ### Component Foundation (#4, #22)
 Location: [path to shared components]
 Base components: [wrapper components]
+Foundation decision: [established library chosen, or "project-owned" with the reason, per #22]
+Component-size limit: [lines per component before it must be composed (#4)]
 Import rule: [import convention]
 Platform-specific: [components that differ between iOS/Android]
 Usage: [how features use shared components]
@@ -128,8 +135,8 @@ Verification commands: [exact commands]
 ### CI/CD & Build (#15)
 CI platform: [which one]
 Pipeline: [sequence]
-iOS deployment: [TestFlight, App Store process]
-Android deployment: [Play Store process]
+iOS deployment: [beta distribution and store submission process]
+Android deployment: [beta distribution and store submission process]
 Code signing: [how certificates/keys are managed]
 
 ## Folder Structure

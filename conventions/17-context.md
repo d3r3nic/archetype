@@ -13,11 +13,11 @@ AI performance degrades as context fills. Code structure, file size, and session
 - Clear context between unrelated tasks. Never mix unrelated work in one AI session.
 - Start fresh after two failed corrections on the same issue. If the AI fails twice and you correct it twice, the context is now polluted with failed approaches. Start a new session with a better initial prompt incorporating what you learned.
 - Use scoped instruction files for feature-specific context. A feature can have its own instruction file with context relevant only to that feature, keeping the main instruction file lean.
-- Compact context proactively during long sessions. Don't wait until the context window is full; the tool's window size sets the cadence, and the project may record one in References.md.
+- Compact context proactively during long sessions. Don't wait until the context window is full; the tool's window size sets the cadence, and the project records a cadence in References.md if it sets one.
 
 ## Violations
 
-- Files far past the project's size limit, mixing multiple concerns
+- Files past the project's size limit (References.md), mixing multiple concerns
 - An AI session with 5 unrelated tasks without clearing context between them
 - Correcting the same issue 4 times instead of starting fresh (context pollution)
 - Critical rules or constraints buried in the middle of a long document

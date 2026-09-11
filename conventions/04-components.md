@@ -19,7 +19,7 @@ Create a component foundation that establishes:
 - Consistent state props. Every component uses the same names for disabled, loading, read-only, required, and invalid states.
 - Components render UI. They do not fetch data, compute business logic, or manage complex state. That belongs in hooks or services.
 - Forward refs on all reusable components so parent components can access the underlying element for focus management and library interop.
-- Keep components focused. If a component grows past the project's size limit (set in References.md), it's doing too much. Break it into composed smaller components.
+- Keep components focused. If a component grows past the project's component-size limit (set in References.md), it's doing too much. Break it into composed smaller components.
 - Before building a new component, check feature-tree.md and the shared component directory. The component may already exist.
 
 ## Violations
@@ -35,7 +35,7 @@ Create a component foundation that establishes:
 
 - WRONG: Button uses size="small", Input uses size="sm", Card uses sizing="compact". Three components, three different APIs for the same concept.
 - RIGHT: Button, Input, and Card all accept size with the same values. Learn one API, use everywhere.
-- WRONG: UserDashboard is a 500-line component with 15 state variables, 8 effects, 10 event handlers, and a massive render function.
+- WRONG: UserDashboard is one oversized component with 15 state variables, 8 effects, 10 event handlers, and a massive render function.
 - RIGHT: UserDashboard composes UserProfile, RecentOrders, and NotificationFeed. Each focused component handles one concern. The dashboard just arranges them.
 - WRONG: AI builds a ConfirmDialog component in a feature without checking shared components. The project already has a ConfirmDialog.
 - RIGHT: AI reads feature-tree.md, sees ConfirmDialog already exists in shared, uses it with appropriate configuration.

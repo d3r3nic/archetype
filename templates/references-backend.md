@@ -46,11 +46,14 @@ Each system is built once following convention #0 (Reusability). Features plug i
 Commit convention: [e.g., conventional commits]
 Branch strategy: [e.g., trunk-based]
 Pre-commit hooks: [what runs - lint, format, typecheck]
+Pre-commit budget: [max hook runtime before a check moves to CI (#25)]
 
 ### Project Structure & Types (#1, #7)
 Folder structure: [see Folder Structure section below]
 Path alias: [if applicable]
 Type checking: [strictest mode the language supports]
+File-size limit: [lines per file the tools in use can read whole; split past it (#1, #17)]
+Compaction cadence: [optional; when the AI compacts context in long sessions (#17)]
 Validation library: [name - one schema = types + validation]
 Shared types: [path to shared type definitions]
 
@@ -65,6 +68,7 @@ Usage: [how new endpoints are structured]
 Location: [e.g., src/shared/errors/]
 Error classes: [path to custom error definitions]
 Error handling: [e.g., "framework wraps handlers, no try/catch needed"]
+Build-target check: [how custom error subclasses are verified on the real build target; the constructor fix if one is required (#8)]
 Usage: [how features throw errors]
 
 ### API Layer & Contract (#9, #10)

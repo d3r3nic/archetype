@@ -4,7 +4,7 @@
 
 All visual values flow from a single theme system. No color, spacing, shadow, typography, or dimension value is ever written directly in code. A design token hierarchy ensures consistency and enables theming, dark mode, and responsive behavior from one source of truth. AI hardcodes visual values constantly - this convention prevents it.
 
-The theme supports more than one color scheme from day one, because a scheme cannot be bolted on later without touching every component. Light and dark are the default pair for user-facing products; the project records its scheme set in References.md, and a project that ships a single scheme records why. The theme system detects the user's platform preference and allows manual override.
+The theme is built to swap color schemes from day one, because a scheme cannot be bolted on later without touching every component. Light and dark are the default pair for user-facing products; the project records its committed scheme set in References.md. A project that commits to a single scheme records why and still builds the semantic layer, so a second scheme costs configuration, not a rewrite. The theme system detects the user's platform preference and allows manual override.
 
 ## Reusable System
 
@@ -33,7 +33,7 @@ Create a production-grade theme system that establishes:
 - Any hardcoded color value (hex, rgb, rgba, hsl) anywhere in component or style code
 - Hardcoded pixel values for spacing instead of using the spacing scale
 - Arbitrary z-index values instead of using the named scale
-- A light-only theme with no recorded decision and no semantic layer to swap
+- A single-scheme theme with no recorded decision, or any theme without a semantic layer to swap
 - Dark mode implemented by duplicating color values instead of swapping semantic tokens
 - Components referencing "gray-50" or "red-600" directly instead of semantic tokens like "bg-surface" or "color-error"
 

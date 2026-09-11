@@ -28,7 +28,7 @@ Create a project scaffold that establishes:
 
 ## Violations
 
-- Files far past the project's size limit, mixing multiple concerns
+- Files past the project's size limit (References.md), mixing multiple concerns
 - Organizing by type at the top level (all components in /components, all hooks in /hooks) instead of by feature
 - Feature A importing from Feature B's internals
 - Adding a dependency without checking if the functionality already exists

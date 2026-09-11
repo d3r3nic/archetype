@@ -16,18 +16,25 @@
 #      A project-set dial names no number ("the project sets its limit in
 #      References.md"), so it never matches.
 #   E. Changelog language: version-scoped headers (v1, v2), "(shipped)",
-#      "not yet implemented", "added in Step N", "promoted from".
-#   F. Every "Research Notes" section must open with a line starting
+#      "not yet implemented", "added in Step N", "promoted from". Bare
+#      version tokens inside code fences and JSON are not flagged.
+#   F. Every "Research Notes" section must contain a line starting
 #      "Dated notes:" so readers know anything named there expires.
 #
 # Also validates the allowlist itself: every entry needs a justification,
-# and every entry must match something (no placeholders).
+# and (when scanning the default set) every entry must match something.
 #
 # Usage:
 #   scripts/validate-timeless.sh            # scan the default file set
 #   scripts/validate-timeless.sh FILE...    # scan specific files (relative to root)
 #
-# Exit 0 on pass, 1 on any finding. Portable bash + awk + grep only.
+# Exit 0 on pass, 1 on any finding. Portable bash + awk + grep only; awk
+# must support POSIX ERE interval expressions ({2,3}), which is checked.
+#
+# Known limits, by design: detection is by list and pattern, so a name the
+# list lacks passes until review adds it; a Research Notes section that is
+# the last section runs to end of file; a heading must be exactly
+# "## Research Notes" or "### Research Notes" to open the allowed zone.
 #
 # Scope note: the default set is conventions/, backend/conventions/, the
 # root and backend CLAUDE.md and Conventions.md, README.md, and
@@ -59,15 +66,22 @@ for required in "$TERMS_FILE" "$ALLOW_FILE"; do
   fi
 done
 
+if ! awk 'BEGIN { if ("##" !~ /^#{2}$/) exit 1 }' 2>/dev/null; then
+  echo "Error: this awk does not support ERE interval expressions; install a POSIX awk (gawk, onetrue awk, or busybox awk)"
+  exit 1
+fi
+
 cd "$FRAMEWORK_DIR" || exit 1
 
+FILES=()
+EXPLICIT=0
 if [ "$#" -gt 0 ]; then
-  FILES="$*"
+  EXPLICIT=1
+  for f in "$@"; do FILES+=("$f"); done
 else
-  FILES=""
   for f in CLAUDE.md Conventions.md README.md backend/CLAUDE.md backend/Conventions.md \
            conventions/*.md backend/conventions/*.md templates/*.md; do
-    [ -f "$f" ] && FILES="$FILES $f"
+    [ -f "$f" ] && FILES+=("$f")
   done
 fi
 
@@ -78,15 +92,16 @@ NC='\033[0m'
 ERRORS=0
 fail() { printf "${RED}FAIL${NC}: %s\n" "$1"; ERRORS=$((ERRORS + 1)); }
 pass() { printf "${GREEN}OK${NC}: %s\n" "$1"; }
+note() { printf "NOTE: %s\n" "$1"; }
 
 echo "Archetype Timeless-Conventions Check"
 echo "Root: $FRAMEWORK_DIR"
 
 # ----------------------------------------------------------------------
 # Load the term list (longest first so multi-word names win) and allowlist.
+# Temp copies are passed to awk as files (not -v strings) so newlines and
+# backslashes survive every awk flavor.
 # ----------------------------------------------------------------------
-# Temp copies: sorted terms and stripped allowlist. Passed to awk as files
-# (not -v strings) so newlines and backslashes survive every awk flavor.
 TMP_TERMS="$(mktemp -t timeless-terms.XXXXXX)"
 TMP_ALLOW="$(mktemp -t timeless-allow.XXXXXX)"
 trap 'rm -f "$TMP_TERMS" "$TMP_ALLOW"' EXIT
@@ -102,6 +117,7 @@ fi
 ALLOW_ENTRIES="$(cat "$TMP_ALLOW")"
 
 # Allowlist hygiene: three tab-separated fields, non-empty justification.
+# Entries that fail hygiene are also ignored by the scan (see awk BEGIN).
 BAD_ALLOW=0
 while IFS= read -r entry; do
   [ -z "$entry" ] && continue
@@ -115,15 +131,14 @@ done <<< "$ALLOW_ENTRIES"
 [ "$BAD_ALLOW" -eq 0 ] && pass "allowlist entries carry justifications"
 
 # ----------------------------------------------------------------------
-# Scan. One awk pass per file: track the Research Notes zone, apply checks.
-# Output lines: <class>\t<file>:<line>\t<detail>
+# Scan. One awk pass per file: track the Research Notes zone and code
+# fences, apply checks. Output lines: <class>\t<file>:<line>\t<detail>
 # ----------------------------------------------------------------------
 FINDINGS="$(
-for file in $FILES; do
+for file in "${FILES[@]}"; do
   awk -v FILE="$file" -v TERMS_PATH="$TMP_TERMS" -v ALLOW_PATH="$TMP_ALLOW" '
   function bounded(term) { return "(^|[^[:alnum:]_])" term "([^[:alnum:]_]|$)" }
   BEGIN {
-    FS = "\t"
     nterms = 0
     while ((getline tline < TERMS_PATH) > 0) {
       split(tline, parts, "\t")
@@ -131,23 +146,29 @@ for file in $FILES; do
     }
     close(TERMS_PATH)
     while ((getline aline < ALLOW_PATH) > 0) {
-      split(aline, parts, "\t")
+      n = split(aline, parts, "\t")
+      if (n < 3) continue
+      reason = parts[3]; gsub(/[[:space:]]/, "", reason)
+      if (reason == "") continue
       if (parts[1] == "*" || parts[1] == FILE) allowed[parts[2]] = 1
     }
     close(ALLOW_PATH)
-    research = 0; notice = 0; research_line = 0
-    stat_trigger = "(^|[^[:alnum:]])(AI|agents?|models?|LLMs?|compliance|generated)([^[:alnum:]]|$)"
+    research = 0; notice = 0; research_line = 0; fence = 0
+    stat_trigger = "(^|[^[:alnum:]])(AI|[Aa]gents?|[Mm]odels?|LLMs?|[Cc]ompliance|[Gg]enerated)([^[:alnum:]]|$)"
     stat_number = "[0-9]+(\\.[0-9]+)?x([^[:alnum:]]|$)|[0-9]+(-[0-9]+)?%"
-    limit_words = "(under|below|beyond|over|exceeds?|exceeding|more than|less than|fewer than|up to|at most|max|maximum|maximum of|limit of|limited to|past|within|no more than|longer than|shorter than|every|each|per)"
-    line_limit = limit_words " [0-9]+(-[0-9]+)? lines?([^[:alnum:]]|$)|[0-9]+\\+ lines?([^[:alnum:]]|$)|[0-9]+-line (limit|max|maximum|cap|ceiling)|[0-9]+ lines? (max|maximum|limit|cap|or (more|less|fewer))"
-    minute_limit = limit_words " [0-9]+(-[0-9]+)? minutes?([^[:alnum:]]|$)"
+    limit_words = "(under|below|beyond|over|exceeds?|exceeding|more than|less than|fewer than|up to|at most|max|maximum|maximum of|limit of|limited to|past|within|no more than|longer than|shorter than|every|each|per|at|to|around|roughly|about|approximately)"
+    line_limit = limit_words " [0-9]+(-[0-9]+)? lines?([^[:alnum:]]|$)|[0-9]+\\+ lines?([^[:alnum:]]|$)|[0-9]+-line (limit|max|maximum|cap|ceiling|files?|components?|target)|[0-9]+ lines? (max|maximum|limit|cap|or (more|less|fewer))"
+    minute_limit = limit_words " [0-9]+(-[0-9]+)? minutes?([^[:alnum:]]|$)|[0-9]+-minute (cadence|interval|compaction|sessions?|check-?ins?)"
     version_ref = "(^|[[:space:](])v[0-9]+([^[:alnum:]]|$)"
   }
   function report(class, detail) { printf "%s\t%s:%d\t%s\n", class, FILE, NR, detail }
   {
     line = $0
+    # Code fences: bare version tokens inside them are code, not scope language.
+    if (line ~ /^[[:space:]]*```/) { fence = !fence; next }
+
     # Zone tracking.
-    if (line ~ /^#{2,3} Research Notes[[:space:]]*$/) { research = 1; notice = 0; research_line = NR; next_is_zone = 1 }
+    if (line ~ /^#{2,3} Research Notes[[:space:]]*$/) { research = 1; notice = 0; research_line = NR }
     else if (line ~ /^#{1,3} /) {
       if (research && !notice) report("F", "Research Notes section at line " research_line " lacks a line starting \"Dated notes:\"")
       research = 0
@@ -169,9 +190,9 @@ for file in $FILES; do
 
     # E. Changelog language.
     if (line ~ /^#{1,6} / && line ~ version_ref) report("E", "version-scoped header: " line)
-    else if (line ~ /\((shipped|not yet implemented|not planned)\)|not yet implemented|(^|[^[:alnum:]])was shipped|shipped in (Step|v[0-9])|added (in|by|with|since) (Step|v[0-9])|(Step [0-9]+|v[0-9]+) (added|shipped|introduced|landed)|promoted from (Step|the factory)|(^|[[:space:](])v[0-9]+\+/ )
+    else if (line ~ /\((shipped|not yet implemented|not planned)\)|not yet implemented|(^|[^[:alnum:]])was shipped|shipped in (Step|v[0-9])|added (in|by|with|since) (Step|v[0-9])|(Step [0-9]+|v[0-9]+) (added|shipped|introduced|landed)|[Pp]romoted from (Step|the factory)|(^|[[:space:](])v[0-9]+\+/ )
       report("E", "changelog language: " line)
-    else if (line ~ version_ref && line !~ /^[[:space:]]*"/ && line !~ /```/)
+    else if (!fence && line ~ version_ref && line !~ /^[[:space:]]*"/)
       report("E", "version-scoped scope language: " line)
 
     # A. Named tools outside Research Notes.
@@ -220,23 +241,28 @@ report_class D "no tool-capability numeric limits"
 report_class E "no changelog language"
 report_class F "every Research Notes section carries the dated notice"
 
-# Allowlist entries that matched nothing are placeholders.
-STALE=0
-while IFS= read -r entry; do
-  [ -z "$entry" ] && continue
-  apath=$(printf '%s' "$entry" | awk -F'\t' '{ print $1 }')
-  aterm=$(printf '%s' "$entry" | awk -F'\t' '{ print $2 }')
-  if [ "$apath" = "*" ]; then
-    matched=$(printf '%s\n' "$FINDINGS" | awk -F'\t' -v t="$aterm" '$1 == "USED" && $3 == t' | head -1)
-  else
-    matched=$(printf '%s\n' "$FINDINGS" | awk -F'\t' -v p="$apath" -v t="$aterm" '$1 == "USED" && $2 == p && $3 == t' | head -1)
-  fi
-  if [ -z "$matched" ]; then
-    fail "allowlist entry matches nothing (remove it): $apath / $aterm"
-    STALE=$((STALE + 1))
-  fi
-done <<< "$ALLOW_ENTRIES"
-[ "$STALE" -eq 0 ] && pass "every allowlist entry is in use"
+# Allowlist entries that matched nothing are placeholders. Only meaningful
+# against the default set: a subset scan cannot see every file.
+if [ "$EXPLICIT" -eq 1 ]; then
+  note "explicit file list given; unused-allowlist check skipped"
+else
+  STALE=0
+  while IFS= read -r entry; do
+    [ -z "$entry" ] && continue
+    apath=$(printf '%s' "$entry" | awk -F'\t' '{ print $1 }')
+    aterm=$(printf '%s' "$entry" | awk -F'\t' '{ print $2 }')
+    if [ "$apath" = "*" ]; then
+      matched=$(printf '%s\n' "$FINDINGS" | awk -F'\t' -v t="$aterm" '$1 == "USED" && $3 == t' | head -1)
+    else
+      matched=$(printf '%s\n' "$FINDINGS" | awk -F'\t' -v p="$apath" -v t="$aterm" '$1 == "USED" && $2 == p && $3 == t' | head -1)
+    fi
+    if [ -z "$matched" ]; then
+      fail "allowlist entry matches nothing (remove it): $apath / $aterm"
+      STALE=$((STALE + 1))
+    fi
+  done <<< "$ALLOW_ENTRIES"
+  [ "$STALE" -eq 0 ] && pass "every allowlist entry is in use"
+fi
 
 echo "==="
 if [ "$ERRORS" -gt 0 ]; then

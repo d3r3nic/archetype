@@ -12,7 +12,14 @@
 # regulations (HIPAA, GDPR, PCI), and target platforms a product ships to
 # (iOS, Android, the web). Common English words that double as product
 # names (Black, Square, Monday, Provider, Bootstrap) are deliberately
-# absent; they are caught by review, not by this list.
+# absent; they are caught by review, not by this list. The same goes for
+# product names that are ordinary capitalized words at sentence start
+# (Express, Relay, Remix, Cursor, Notion).
+#
+# Prefix and extension terms carry their own tail ("NEXT_PUBLIC[A-Z_]*",
+# "[A-Za-z0-9_-]*\.tsx") because the word boundary treats "_" and letters
+# as word characters: a bare "NEXT_PUBLIC" would never match
+# NEXT_PUBLIC_SITE_CONFIG.
 #
 # Add a term when a review finds a name the list missed. Remove nothing
 # because a name went out of fashion: the list only grows.
@@ -32,9 +39,7 @@ React Native Paper	ui-library
 # Application frameworks and runtimes
 Next\.js	framework
 Nuxt	framework
-Remix	framework
 Gatsby	framework
-Express	framework
 Fastify	framework
 NestJS	framework
 Koa	framework
@@ -47,9 +52,10 @@ Rails	framework
 Laravel	framework
 Spring Boot	framework
 ASP\.NET	framework
-\.NET	framework
+[A-Za-z]*\.NET	framework
 SST	framework
 Expo	framework
+EXPO_PUBLIC[A-Z_]*	framework
 React Native	framework
 React	framework
 Vue	framework
@@ -61,6 +67,8 @@ SwiftUI	framework
 Jetpack Compose	framework
 Node\.js	framework
 NODE_ENV	framework
+NEXT_PUBLIC[A-Z_]*	framework
+[A-Za-z0-9_-]*\.tsx	framework
 
 # State, data fetching, and API clients
 Redux Toolkit	state-data
@@ -73,7 +81,6 @@ React Query	state-data
 TanStack	state-data
 SWR	state-data
 Apollo	state-data
-Relay	state-data
 DataLoader	state-data
 Riverpod	state-data
 Dio	state-data
@@ -187,7 +194,7 @@ SecurityHeaders	security
 
 # Build tools and bundlers
 Vite	build
-VITE_	build
+VITE_[A-Z_]*	build
 Vitest	build
 Webpack	build
 Turbopack	build
@@ -227,11 +234,10 @@ Prometheus	observability
 Xcode	mobile-tooling
 Android Studio	mobile-tooling
 CocoaPods	mobile-tooling
-EXPO_PUBLIC	mobile-tooling
+TestFlight	mobile-tooling
+Play Console	mobile-tooling
 
-# Web and env-var identifiers bound to one framework
-NEXT_PUBLIC	framework
-\.tsx	framework
+# Identifiers bound to one framework
 JSDoc	framework
 
 # Third-party platforms, SaaS, and integrations
@@ -246,7 +252,6 @@ TherapyNotes	platform
 Healthie	platform
 Calendly	platform
 Acuity	platform
-Notion	platform
 Airtable	platform
 Retool	platform
 Stripe	platform
@@ -273,7 +278,6 @@ Jinja	platform
 
 # AI coding tools
 Claude Code	ai-tool
-Cursor	ai-tool
 Copilot	ai-tool
 ChatGPT	ai-tool
 Gemini	ai-tool
