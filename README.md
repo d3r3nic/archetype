@@ -47,7 +47,7 @@ Run the installed update.sh to fetch current shared rules. It is a manual latest
 
 **Upgrading the previous release:** an old injected updater first replaces itself, then its next invocation installs the new AGENTS entry points. Run it twice and verify root and engine AGENTS.md. If root AGENTS.md already contains local guidance, preserve it, migrate the rules to project-owned files, and install the managed entry point before updating; do not delete guidance to satisfy the check. For an old full-clone installation, use the current updater with an explicit verified root instead of running the legacy root-detection code.
 
-Verification: `bash scripts/validate-framework.sh` checks structural consistency; `python3 scripts/test-entrypoints.py` exercises distribution and preservation. Set `ARCHETYPE_LEGACY_SOURCE` to an exported previous release directory to include the two-step upgrade regression. These checks do not prove that an agent obeys instructions or that a platform enforces them.
+Verification: `bash scripts/validate-framework.sh` checks structural consistency and runs the timeless-content check (`scripts/validate-timeless.sh`: no tool or vendor names outside Research Notes, no factory step references, no dated AI statistics, no tool-bound numeric limits, no changelog language); `python3 scripts/test-entrypoints.py` exercises distribution and preservation. Set `ARCHETYPE_LEGACY_SOURCE` to an exported previous release directory to include the two-step upgrade regression. These checks do not prove that an agent obeys instructions or that a platform enforces them.
 
 ## How It Works
 
@@ -62,7 +62,7 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 
 **You don't need to be a developer.** The discovery process asks plain-English questions ("What does your app do? Who uses it? Should it work in a browser or as a phone app?") and translates your answers into technical decisions.
 
-**The AI adjusts to your experience level.** A bakery owner gets Supabase + Vercel (zero server management). A developer gets managed cloud. An enterprise team gets AWS with full infrastructure control.
+**The AI adjusts to your experience level.** A bakery owner gets a managed platform with zero server management. A developer gets managed cloud. An enterprise team gets full infrastructure control.
 
 ## What's Inside
 
@@ -71,12 +71,13 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 ├── Conventions.md             # Convention lookup index
 ├── conventions/               # Framework-agnostic convention docs
 │   ├── 00-reusability.md      # Meta: everything built once, configured for context
-│   ├── 01-27.md               # Project setup, git, architecture, components, state,
+│   ├── 01-28.md               # Project setup, git, architecture, components, state,
 │   │                          # styling, types, errors, API, contract, authentication,
 │   │                          # testing, performance, accessibility, CI/CD, documentation,
 │   │                          # context management, verification, steering,
 │   │                          # forms, routing, design system, app security, authorization,
-│   │                          # automated enforcement, pulse monitor
+│   │                          # automated enforcement, pulse monitor, design foundation,
+│   │                          # config-driven brand and content
 │   └── (see Conventions.md)
 │
 ├── bootstrap/ONBOARD.md       # Phase 1: discovery interview + project setup
@@ -85,7 +86,7 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 │   ├── DEVELOP.md             # Phase 3: feature development workflow
 │   └── MAINTAIN.md            # Phase 4: audit, tech debt, convention evolution
 │
-├── libraries/                 # Optional framework-specific references (React, etc.)
+├── libraries/                 # Optional library-specific references
 │
 └── templates/
     ├── references-frontend.md  # Project context template (frontend)
@@ -121,8 +122,8 @@ your-project/
 ## Key Principles
 
 - **Everything built once, configured for context.** One error system, one API layer, one theme, one auth system. Features plug in.
-- **Use established UI libraries.** Don't reinvent buttons and modals. Configure MUI/Chakra/Radix with your theme (light + dark), wrap, export.
-- **Dark mode always.** The theme supports light and dark from day one.
+- **Prefer an established component foundation.** Don't reinvent buttons and modals when a fitting library exists. Configure it with your theme, wrap, export.
+- **Every color scheme from day one.** The theme swaps schemes at the token layer; light and dark are the default pair.
 - **Conventions describe WHAT, not HOW.** The bootstrapping AI researches the latest patterns for your specific tech stack.
 - **Feature tree as living map.** Every system and feature tracked. New AI agents read it to understand the project instantly.
 - **Documentation flows with code.** Not after. System docs, feature docs, and feature tree updated as you build.

@@ -30,16 +30,16 @@ Everything is built once, configured for context. Before building anything, chec
 - If uncertain, ask. Do not guess, do not assume. → conventions/19-steering.md
 - Never build one-off. Use existing systems or build reusable. → conventions/00-reusability.md
 - Never hardcode values that should come from configuration (colors, URLs, timeouts, dimensions, limits). → conventions/06-styling.md, conventions/01-project-setup.md
-- Never hardcode customer-facing copy, brand names, contact info, social links, integration keys, or industry-specific labels. They live in a single config blob delivered via the template's env-var convention (`NEXT_PUBLIC_SITE_CONFIG` / `EXPO_PUBLIC_SITE_CONFIG` / etc. — template's call). Components read via `getSiteConfig()`; defaults live in the schema, not in render output. → conventions/28-config-driven-content.md
+- Never hardcode customer-facing copy, brand names, contact info, social links, integration keys, or industry-specific labels. They live in one typed config surface delivered by the template's config convention; components read through the project's config getter; defaults live in the schema, not in render output. → conventions/28-config-driven-content.md
 - Never import directly from third-party libraries without project wrappers. → conventions/22-design-system.md, conventions/03-architecture.md
-- Never instantiate a shared getter's underlying class (e.g., `new PrismaClient()` when `getDb()` exists in src/shared/db/). Use the getter. Type imports and namespace imports from the library are OK. → conventions/00-reusability.md
-- Never build standard UI components from scratch. Use the established UI library, configured and wrapped. → conventions/22-design-system.md
+- Never instantiate a shared getter's underlying client yourself (for example constructing a new database client when the shared getter already exists). Use the getter. Type imports and namespace imports from the library are OK. → conventions/00-reusability.md
+- Never rebuild standard UI components the project's component foundation already provides. Use the foundation, configured and wrapped. → conventions/22-design-system.md
 - Never scatter error handling. Use the centralized error system. → conventions/08-errors.md
 - Never create ad-hoc API calls. Use the API layer. → conventions/09-api.md
 - Never extract auth from JWT directly. Use the auth utility. → conventions/11-auth-security.md
 - Never use the language's untyped escape hatch (e.g., TS `any`, Python `Any` without narrowing, unsafe casts). Use the language's narrow/type-check equivalent. → conventions/07-types.md
 - Never escape-hatch a type error with casts, ignore-comments, or re-instantiating a shared class with laxer config. Refactor the call site. → conventions/07-types.md, conventions/00-reusability.md
-- When Error subclasses target transpiled output (mobile via babel-preset-expo, older browsers, ES5 target), the constructor must call `Object.setPrototypeOf(this, new.target.prototype)` or `instanceof` checks silently return false. → conventions/08-errors.md
+- When the build target transpiles class inheritance (mobile bundlers, older runtime targets), verify custom error subclasses still pass runtime type checks; some targets silently break them. The required constructor fix is recorded in References.md. → conventions/08-errors.md
 - Validate all user input at entry points. Never trust client data. → conventions/23-app-security.md
 - Authorization checks at the service layer, not UI. Verify the user can access the specific resource. → conventions/24-authorization.md
 - Never hardcode secrets or environment-specific values. → conventions/01-project-setup.md

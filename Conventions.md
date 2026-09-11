@@ -63,11 +63,11 @@ Everything built once, configured for context. Governs how all other conventions
 
 ### Quality
 - #12 Testing — TDD, behavior testing, shared test utilities → conventions/12-testing.md
-- #13 Performance — code splitting, lazy loading, bundle budgets, Web Vitals → conventions/13-performance.md
+- #13 Performance — code splitting, lazy loading, bundle budgets, user-perceived speed metrics → conventions/13-performance.md
 - #14 Accessibility — semantic HTML, keyboard nav, ARIA, focus management → conventions/14-accessibility.md
 - #15 Build & CI/CD — pipeline, linting, feature flags, deployment → conventions/15-build-ci.md
 - #25 Automated Enforcement — lint rules, formatters, pre-commit hooks, CI gates catch violations at write time → conventions/25-automated-enforcement.md
-- #26 Pulse Monitor — dev-only visibility of scaffolded state (project, stack, systems, features, architecture); UI replaceable, data contract durable → conventions/26-pulse-monitor.md
+- #26 Pulse Monitor — dev-only visibility of scaffolded state (project, stack, systems, features, architecture); UI replaceable, data contract durable; applies to projects with a scaffolded code surface → conventions/26-pulse-monitor.md
 
 ### Knowledge
 - #16 Documentation — comments explain WHY, ADRs, machine-parseable specs → conventions/16-documentation.md
@@ -82,4 +82,4 @@ Everything built once, configured for context. Governs how all other conventions
 - #21 Routing — layouts, guards, URL state → conventions/21-routing.md
 - #22 Design System — UI wrappers, token-first, component catalog → conventions/22-design-system.md
 - #27 Design Foundation — design artifact is source of truth, AI consults it first, never invents UX → conventions/27-design-foundation.md
-- #28 Config-Driven Brand & Content — every brand/content value lives in SiteConfig (NEXT_PUBLIC_SITE_CONFIG), never hardcoded in `.tsx`; templates ship reusable across customers via JSON-only swap → conventions/28-config-driven-content.md
+- #28 Config-Driven Brand & Content — every brand/content value lives in one typed config surface, never in view code; templates ship reusable across customers via config-only swap; applies to templates and white-label products → conventions/28-config-driven-content.md
