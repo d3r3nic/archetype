@@ -25,7 +25,7 @@ Phase 4 has three distinct modes, each with its own trigger. Don't conflate them
 - [ ] `scripts/validate-develop.sh` — 0 errors
 - [ ] `scripts/validate-maintain.sh` — 0 errors
 - [ ] `scripts/validate-framework.sh` — 0 errors (framework itself OK)
-- [ ] `npm test` / equivalent — all green
+- [ ] The project's test command (`References.md § Commands`) — all green
 - [ ] Every feature directory has matching `feature-tree.md` row and `docs/features/{name}.md` entry (names align)
 - [ ] Every doc's referenced types still exist in source
 - [ ] Convention Overrides in `References.md` still apply
