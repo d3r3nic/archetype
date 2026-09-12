@@ -1,4 +1,4 @@
-# Convention: Automated Enforcement
+# Convention #25: Automated Enforcement
 
 ## Principle
 
