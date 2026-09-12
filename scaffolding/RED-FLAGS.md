@@ -27,7 +27,7 @@ Regulated projects need TWO separate logging systems. An agent uses the app logg
 - SCAFFOLD-BACKEND Step 5 is an explicit separate step from Step 4.
 - Convention `B4` has a "Two distinct logging systems" callout at the top.
 - Convention `#23` cross-references B4 for the distinction.
-- validate-scaffold.sh checks for a dedicated audit-log path separate from the app logger.
+- validate-scaffold.sh checks for a dedicated audit-log path, separate from the app logger and not an in-memory-only store, whenever References.md declares regulated data.
 
 ## 4. Middleware pipeline in wrong order
 
@@ -42,11 +42,11 @@ Convention `B3` specifies an exact order. If middleware is built inline in multi
 
 Both are listed in feature-tree.md. Neither has historically had a dedicated SCAFFOLD step. Agents skip by omission.
 
-**Defense:** SCAFFOLD-BACKEND has dedicated steps (10 idempotency, 11 rate limiting). Both named in validate-scaffold.sh expected-paths check.
+**Defense:** SCAFFOLD-BACKEND has dedicated steps (Step 10 idempotency, Step 11 rate limiting), each with its own verify line. validate-scaffold.sh checks neither system, so the defense is the dedicated step plus the Step 0 handoff check, which inventories every system listed in References.md against the playbook's steps.
 
 ## 6. Tenant isolation in schema but not queries (CRITICAL for multi-tenant B2B)
 
-The Prisma/ORM schema has `org_id` columns. Agent marks "tenant isolation: done." But the query layer has no enforcement — features can write queries without `org_id` filters, reading across tenants. This is the #1 data-leak cause in B2B multi-tenant systems.
+The ORM schema has `org_id` columns. Agent marks "tenant isolation: done." But the query layer has no enforcement — features can write queries without `org_id` filters, reading across tenants. This is the #1 data-leak cause in B2B multi-tenant systems.
 
 **Defense:** SCAFFOLD-BACKEND Step 8 explicitly distinguishes schema-level column existence from query-level enforcement. Must enforce at the query/repository layer via where-clause defaults, RLS policies, or a wrapper that rejects unfiltered queries. A multi-tenant test case verifies cross-tenant reads fail.
 
@@ -54,11 +54,11 @@ The Prisma/ORM schema has `org_id` columns. Agent marks "tenant isolation: done.
 
 `process.env.X` read ad-hoc across the code vs a `loadEnv()` function called once from `main()`. Ad-hoc reads mean a missing env var triggers an error mid-request, not at startup — production deploy succeeds, first user hits the error.
 
-**Defense:** SCAFFOLD Step 1 (both shapes) mandates startup validation. validate-scaffold.sh greps for a startup-level env validation call.
+**Defense:** SCAFFOLD Step 1 (both shapes) mandates startup validation. validate-scaffold.sh looks for a dedicated env-validation module or a named validation function in source; that the call sits at startup is the step's own verify line (delete a required env var, the process must fail to start).
 
 ## 8. Frontend step titles applied to backend (or vice versa)
 
-Literal-minded agent generates `src/theme/tokens.ts` for a GraphQL-only backend because Step 2 says "Theme System." Or generates `src/controllers/users.ts` for a React SPA because Step 5 says "Database." Wrong-shape artifacts proliferate.
+Literal-minded agent generates `src/theme/tokens.ts` for a GraphQL-only backend because Step 2 says "Theme System." Or generates `src/controllers/users.ts` for a browser-only SPA because Step 5 says "Database." Wrong-shape artifacts proliferate.
 
 **Defense:** SCAFFOLD.md routes by project shape BEFORE any step lists. A backend agent reads SCAFFOLD-BACKEND which has no theme step. No cross-contamination.
 
@@ -70,13 +70,13 @@ References.md says "persisted queries for mobile." Agent builds a standard Graph
 
 ## 10. Migrations auto-run in CI/deploy
 
-B1 is explicit: migrations are a separate gated step in production. But typical CI templates `prisma migrate deploy` on every push to main. A bad migration breaks production before anyone reviews it.
+B1 is explicit: migrations are a separate gated step in production. But typical CI templates run the migration-deploy command on every push to main. A bad migration breaks production before anyone reviews it.
 
 **Defense:** SCAFFOLD-BACKEND Step 17 CI step explicitly flags this. validate-scaffold.sh checks the CI workflow files for auto-migrate-on-deploy patterns.
 
 ## 11. Scaffold-complete without integration proof
 
-Every system individually looks built. But nobody tried to USE them together. First real feature (Phase 3) hits `undefined is not a function` because the auth middleware and the GraphQL yoga plugin were never wired through the same request.
+Every system individually looks built. But nobody tried to USE them together. First real feature (Phase 3) hits `undefined is not a function` because the auth middleware and the GraphQL server plugin were never wired through the same request.
 
 **Defense:** Every shape-specific playbook has a "Smoke-test feature" step at the end. A minimal feature that exercises every shared system. Integration test must pass. No scaffold-complete without the smoke test passing.
 
@@ -90,7 +90,7 @@ Audit log, rate limiting, tenant isolation — agent rationalizes skipping becau
 
 Agent pins SDK versions based on training-data knowledge. Versions are stale by scaffold time. First `install` either fails or installs deprecated packages.
 
-**Defense:** Every convention's Research Notes says "research current tooling for the chosen language." Agent resolves package versions at scaffold time, not from memory. validate-scaffold.sh can grep for obviously-stale version strings but is best-effort here — the real defense is the research-at-scaffold rule.
+**Defense:** Every convention's Research Notes says "research current tooling for the chosen language." Agent resolves package versions at scaffold time, not from memory. validate-scaffold.sh does not inspect version strings at all: the whole defense rests on the research-at-scaffold rule plus each step's install-and-verify gate, which fails loudly on a bad pin.
 
 ## 14. Provider composition order (frontend/mobile)
 
@@ -105,25 +105,25 @@ Frontend/mobile apps mount multiple providers at the root (ErrorBoundary, QueryC
 
 Developer adds a new route that should require auth but forgets to wrap it in `<RequireAuth>` or equivalent. No error, no warning — the unauthenticated user sees the page, data may leak, privileged actions may succeed.
 
-**Defense:** SCAFFOLD-FRONTEND Step 8 demands the pattern: every route definition explicitly declares `public: true` or wraps the element in a guard. An ESLint rule or a custom linter check can flag routes without an explicit auth decision. Integration tests for protected features MUST include a 401-when-unauthenticated test.
+**Defense:** SCAFFOLD-FRONTEND Step 8 demands the pattern: every route definition explicitly declares `public: true` or wraps the element in a guard. A lint rule or a custom check can flag routes without an explicit auth decision. Integration tests for protected features MUST include a 401-when-unauthenticated test.
 
 ## 16. Env-inlining breaks runtime env mutation in tests
 
-Mobile-specific (but applicable to any Vite/Babel/webpack project with `define` / DEFINE_PROCESS_ENV substitution): `babel-preset-expo` and Vite's `import.meta.env.VITE_*` rewrite `process.env.EXPO_PUBLIC_*` / `import.meta.env.VITE_*` to LITERAL VALUES at transform time. Tests that set `process.env.VITE_API_BASE_URL = 'mock'` at runtime have NO effect — the code was compiled with the value from the test environment at load time. Tests silently run against the wrong config and pass spuriously.
+Mobile-specific, but applicable to any project whose bundler or transpiler substitutes public env variables at build time: the transform rewrites every read of the public env prefix to a LITERAL VALUE at transform time. A test that assigns to that variable at runtime has NO effect — the module was compiled with the value present when the test environment loaded. Tests silently run against the wrong config and pass spuriously.
 
-**Defense:** Bracket-notation access (`process.env['EXPO_PUBLIC_*']` / explicit runtime lookup) for values that must be mutable in tests. Document which env vars are build-time (inlined) vs runtime (mutable) in References.md § Commands / Environment. SCAFFOLD-MOBILE M7 and SCAFFOLD-FRONTEND Step 10 call this out in the testing context.
+**Defense:** Bracket-notation access or an explicit runtime lookup for values that must be mutable in tests. Document which env vars are build-time (inlined) vs runtime (mutable) in References.md § Commands / Environment. SCAFFOLD-MOBILE Step M6 and SCAFFOLD-FRONTEND Step 10 call this out in the testing context.
 
 ## 17. Class prototype broken on transpiled Error subclasses
 
-When a TypeScript project's output target is ES5 or lower (common on mobile via babel-preset-expo for Hermes / older Android, or older browsers), the transpiler emits `_this = _super.call(this) || this` for class extension. This breaks the prototype chain for Error subclasses — `instanceof AppError` returns `false` for instances that ARE AppError. Silent: code compiles, errors throw, the catch block in the error middleware never matches, every error falls through to the generic 500 handler.
+When a TypeScript project's output target is ES5 or lower (common on mobile when the transpiler targets an older device JS engine, and on older browsers), the transpiler emits `_this = _super.call(this) || this` for class extension. This breaks the prototype chain for Error subclasses — `instanceof AppError` returns `false` for instances that ARE AppError. Silent: code compiles, errors throw, the catch block in the error middleware never matches, every error falls through to the generic 500 handler.
 
 **Defense:** CLAUDE.md rule: when the build target transpiles class inheritance, verify custom error subclasses still pass runtime type checks and record the required constructor fix in References.md; convention #8 carries the rule. For this target the fix is `Object.setPrototypeOf(this, new.target.prototype)` in the constructor (dated example; verify against the current transpiler). Test: assert `new SomeSubclass() instanceof AppError === true`.
 
 ## 18. Package peers drift from SDK expectations
 
-Mobile-specific: Expo SDK pins react-native + several peers to specific versions. Running `npm install react-native@X` (or pinning from training data) misses the SDK-intended peer. `expo-doctor` catches it, but `npm install` alone does not. First native build breaks or behaves unpredictably.
+Mobile-specific: a managed mobile SDK pins the native runtime and several peers to exact versions. Installing one of those peers by name with the generic package manager (or pinning from training data) misses the SDK-intended version. The SDK's own doctor command catches it; the generic installer does not. First native build breaks or behaves unpredictably.
 
-**Defense:** SCAFFOLD-MOBILE uses SDK-aware installer — `npx expo install` for Expo SDK packages (reads the SDK's compatibility matrix). Generic `npm install` only for explicitly-non-SDK packages. `expo-doctor` run as part of verify is the safety net.
+**Defense:** SCAFFOLD-MOBILE installs SDK-peer packages through the SDK's own installer, which reads its compatibility matrix. The generic installer is only for explicitly-non-SDK packages. The SDK's doctor command, run as part of verify, is the safety net.
 
 ---
 

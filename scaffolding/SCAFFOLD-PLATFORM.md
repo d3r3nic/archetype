@@ -78,7 +78,7 @@ Apply the Security and Roles sections of the References.md Configuration Checkli
 - **[if available]** Audit log enabled at the platform tier (if the chosen tier supports it; see tier-gap handling below).
 
 **Tier-gap handling:** if the chosen plan/tier does NOT support a `[required]` or `[recommended]` item, do NOT silently skip. Log as explicitly deferred in `References.md § Decisions & Configuration Log`:
-- What the gap is (e.g., "Shopify Basic does not include admin audit log — Plus tier only").
+- What the gap is (e.g., "the chosen entry tier has no admin audit log; only the higher tier does").
 - Why the current tier was chosen anyway (cost, scale, etc.).
 - Revisit trigger (e.g., "at first staff hire OR at 200+ orders/month, re-evaluate tier upgrade").
 - Compensating control if any (e.g., "manual monthly export of order history as audit-trail substitute").
@@ -89,26 +89,26 @@ A gap logged with trigger + rationale is acceptable. A gap silently skipped is r
 
 Conventions: #16 (documentation).
 
-Write `docs/runbook.md` covering the common admin tasks a non-developer will need to perform. **Use the sector-specific runbook template** where one exists:
+Write a project-owned `docs/runbook.md` covering the common admin tasks a non-developer will need to perform. **Cover the sector's task set** — the Commerce list is the pattern every other sector follows:
 
-- **[COMMERCE]**: `templates/runbook-commerce.md` — scaffolded template covering custom domain, products, orders + fulfillment, refunds, customers + CCPA/GDPR, newsletter, password reset, data exports, launch-day checklist, incident response, escalate-to-developer.
-- **[BOOKING]**: no template yet — structure per Commerce pattern: service catalog, availability, appointment lifecycle, cancellations, reminder workflows, customer data.
-- **[HEALTHCARE]**: no template yet — structure per Commerce pattern: patient onboarding, intake + consent, session notes, document sharing, BAA + compliance, record retention.
-- **[CONTENT/BLOG]**: no template yet — structure per Commerce pattern: post lifecycle, SEO, comment moderation, theme customization, analytics.
+- **[COMMERCE]**: custom domain, products, orders + fulfillment, refunds, customers + CCPA/GDPR, newsletter, password reset, data exports, launch-day checklist, incident response, escalate-to-developer.
+- **[BOOKING]**: service catalog, availability, appointment lifecycle, cancellations, reminder workflows, customer data.
+- **[HEALTHCARE]**: patient onboarding, intake + consent, session notes, document sharing, BAA + compliance, record retention.
+- **[CONTENT/BLOG]**: post lifecycle, SEO, comment moderation, theme customization, analytics.
 
 **Required sections in every runbook (regardless of sector):**
 - Each admin task: problem → numbered steps → verification → common gotchas.
-- **"What I can't do from this runbook — escalate to developer"** section. Prevents the owner thrashing on problems they physically cannot solve without dev help (e.g., "platform is down site-wide" is NOT a runbook item — it's a Shopify Support ticket; "custom liquid theme changes" require a dev). Explicit escalation list.
+- **"What I can't do from this runbook — escalate to developer"** section. Prevents the owner thrashing on problems they physically cannot solve without dev help (e.g., "platform is down site-wide" is NOT a runbook item — it's a ticket for the platform's own support; theme template-code changes require a dev). Explicit escalation list.
 - Launch-day checklist (matches Step 7 smoke-test script).
 - Incident response (compromised login, fraudulent order, data breach notification).
 
 ## Step 7 — Smoke-test (agent produces script, owner executes)
 
-**Subject-of-action clarification (Step 41):** the AI agent running this scaffold almost never has the ability to execute a smoke-test on the actual platform (requires live account, platform credentials, often a credit card). The agent's responsibility is to PRODUCE the script; the owner EXECUTES it live and logs results.
+**Subject-of-action clarification:** the AI agent running this scaffold almost never has the ability to execute a smoke-test on the actual platform (requires live account, platform credentials, often a credit card). The agent's responsibility is to PRODUCE the script; the owner EXECUTES it live and logs results.
 
 **Agent output:**
 - A step-by-step smoke-test script inside `docs/runbook.md` (Launch-day checklist section) — sector-specific.
-- **[COMMERCE]**: test order flow — add a cheap test product, place an order via test-mode payment (e.g., Shopify bogus gateway), verify confirmation email + order record, fulfill with test shipping, verify refund.
+- **[COMMERCE]**: test order flow — add a cheap test product, place an order through the platform's test-mode payment gateway, verify confirmation email + order record, fulfill with test shipping, verify refund.
 - **[BOOKING]**: test appointment — book a test service, verify confirmation email + reminder schedule, test cancellation flow.
 - **[HEALTHCARE]**: test patient flow — invite a test patient (use a staff email), complete intake form, share a test document, record a session note, verify BAA is signed + audit log records the access.
 - **[CONTENT/BLOG]**: test post — publish a draft, verify appearance on custom domain (DNS + SSL working), verify SEO metadata + social preview.

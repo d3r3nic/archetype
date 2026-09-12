@@ -17,3 +17,5 @@ Scan backend/Conventions.md for which backend conventions apply to your current 
 - Never trust client Content-Type headers for file validation. Check magic bytes server-side. → backend/conventions/B6-file-handling.md
 - Never return raw arrays from API endpoints. Use the response envelope. → backend/conventions/B2-api-design.md
 - Never proxy file uploads through the server. Use presigned URLs. → backend/conventions/B6-file-handling.md
+- Never put authentication, authorization, or input validation inside a route handler. The middleware pipeline runs them in its fixed order. → backend/conventions/B3-middleware.md
+- Never cache user-specific data in a shared cache without the user in the key, and never cache data that must be real-time consistent. → backend/conventions/B7-caching.md

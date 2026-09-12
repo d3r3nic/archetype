@@ -20,7 +20,7 @@ Conventions: #1 (project setup), #7 (types), #2 (git).
 Build:
 - Language/runtime version pinned (`.nvmrc`, `.tool-versions`, `pyproject.toml`, `go.mod`, etc.).
 - Package manager chosen + lockfile committed.
-- `tsconfig` / `pyproject` / equivalent in strict mode.
+- Type checker in strict mode, configured in the language's standard config file.
 - Linter + formatter configs.
 - `.gitignore` for the stack.
 - Pre-commit hooks (commit via shared hook framework for the language).
@@ -36,7 +36,7 @@ Conventions: #7 (types).
 Build:
 - Shared type-exports directory for cross-feature types.
 - Branded ID types (`UserId`, `OrgId`, etc.) to prevent type confusion at compile time.
-- Validation library wired in (the language's current Zod-equivalent).
+- Validation library wired in (the language's current schema-validation library).
 - Pattern: one schema definition produces both the runtime validator AND the type. No drift between validated input and typed code.
 
 **Verify:** a type-confusion test (passing a `UserId` where an `OrgId` is required) fails to compile. Valid input parses cleanly; invalid input errors with field-level messages.
@@ -58,7 +58,7 @@ Build:
 Conventions: B4 (logging).
 
 Build:
-- Structured logger (language's current pino-equivalent — JSON output).
+- Structured logger for the language (JSON output).
 - Correlation-ID middleware: generates or propagates a request ID; binds it to a child logger per request.
 - PII redaction config (allowlist approach): which fields can log, strip everything else.
 - Dev pretty-print config; production JSON.
@@ -93,7 +93,7 @@ Build:
 - Migration safety: destructive changes (drop column, type change) require the two-phase pattern (add new, backfill, cutover, remove old).
 - **Migrations NEVER auto-run in production.** CI runs migrations only in staging; prod migrations are a separate gated step. See RED-FLAGS "Migrations auto-run in CI."
 
-**Verify:** initial migration applies cleanly on a fresh DB (use the project's dev-database setup — Docker Compose, Testcontainers, or equivalent). A test query against a multi-tenant table without `org_id` filter either errors (via a query lint) or is caught by Step 8 (Authorization) isolation.
+**Verify:** initial migration applies cleanly on a fresh DB (use the project's dev-database setup — a containerized local instance or equivalent). A test query against a multi-tenant table without `org_id` filter either errors (via a query lint) or is caught by Step 8 (Authorization) isolation.
 
 ## Step 7 — Auth (authentication)
 
@@ -126,7 +126,7 @@ Build:
 Conventions: B7 (caching).
 
 Build:
-- Cache service wrapping the key-value store (language's Redis client or equivalent).
+- Cache service wrapping the key-value store (the language's current client for the chosen store).
 - `getOrSet(key, ttl, fetch)` utility with stampede prevention (single-flight lock or probabilistic early expiration).
 - TTL policy documented per cache.
 - Invalidation strategy for mutable data (write-through, delete-on-write, or event-driven).
@@ -139,7 +139,7 @@ Conventions: B5 extension (for API mutations, not just jobs).
 
 Build:
 - `Idempotency-Key` header accepted on all state-mutating endpoints.
-- Redis-backed deduplication with TTL (24h is typical; adjust to project retry windows).
+- Deduplication records in the shared key-value store with a TTL (24h is typical; adjust to project retry windows).
 - Pending / done state machine: pending means a concurrent request is in flight; done means the response is cached. Conflicts return the original response.
 
 **Verify:** replaying the same request with the same idempotency key produces the original response, not a duplicate mutation.
@@ -151,7 +151,7 @@ Conventions: B3 extension (middleware pipeline includes rate limiting), #23 (app
 Build:
 - Per-user limiter on authenticated endpoints.
 - Per-IP limiter on public/auth endpoints (login, register, password reset).
-- Backing store: Redis counters (research current algorithm options — fixed window, sliding window, token bucket).
+- Backing store: counters in the shared key-value store (research current algorithm options — fixed window, sliding window, token bucket).
 - Exemptions for health checks, internal calls.
 - Rate-limit responses return 429 with `Retry-After`.
 
@@ -177,7 +177,7 @@ Build:
 - GraphQL server (current language server library). Schema-first builder preferred (code-first-with-types is the second choice).
 - Depth limit and cost analysis plugins configured. Defaults: depth 10, cost per request low enough to prevent abuse.
 - Field-level authorization via scope-auth or directive-based plugin. EVERY sensitive field has an auth check.
-- DataLoader pattern wired in to prevent N+1 during resolution. Build a per-request loader per parent→children relationship used in resolvers (users→orders, orders→items, etc.). Research current DataLoader library for the chosen GraphQL server language. The pattern is universal; the library name varies. **CRITICAL: DataLoaders MUST be per-request instances created inside the request context.** A module-scope DataLoader caches across requests and leaks data between tenants — a security bug, not a performance bug.
+- Batched-loading pattern wired in to prevent N+1 during resolution. Build a per-request loader per parent→children relationship used in resolvers (users→orders, orders→items, etc.). Research the current batched-loading library for the chosen GraphQL server language. The pattern is universal; the library name varies. **CRITICAL: loaders MUST be per-request instances created inside the request context.** A module-scope loader caches across requests and leaks data between tenants — a security bug, not a performance bug.
 - If mobile/public clients: persisted queries plugin. Arbitrary query execution disabled in production.
 - Schema diff check in CI (contract testing — see B2 versioning section).
 - Idempotency (Step 10) applied to mutations.
@@ -199,7 +199,7 @@ Build middleware in the EXACT order specified by B3:
 7. Body parsing + body size limit
 8. Authentication (Step 7)
 9. Authorization (Step 8)
-10. Route handler / GraphQL yoga
+10. Route handler / GraphQL execution layer
 
 Wrong order = wrong behavior. Example: if auth runs before CORS, preflight OPTIONS requests fail with 401. If rate-limit runs after auth, an unauthenticated attacker can still exhaust rate limit counters.
 
@@ -210,7 +210,7 @@ Wrong order = wrong behavior. Example: if auth runs before CORS, preflight OPTIO
 Conventions: B5 (background jobs).
 
 Build:
-- Job queue framework (BullMQ, Celery, Sidekiq, equivalent for language).
+- Job queue framework for the language (research current options).
 - Job producer API used by features.
 - Worker entry point (separate from HTTP server — separate process / container).
 - Idempotency-keys required on every job payload.
@@ -224,7 +224,7 @@ Build:
 Conventions: B4 (logging & observability).
 
 Build:
-- Metrics library wired in (current OpenTelemetry SDK for the language, or Prometheus client).
+- Metrics library wired in (the language's current OpenTelemetry SDK, or a client for the chosen scrape format).
 - RED method per endpoint: Rate, Errors, Duration. p50/p95/p99 histograms.
 - Database query duration metric.
 - Queue depth + job latency metrics for Step 14.
@@ -239,9 +239,9 @@ Conventions: #12 (testing), #18 (verification).
 
 Build:
 - Test runner configured (language's current equivalent).
-- Test database using Testcontainers (or equivalent) — real DB, not mocks. Convention #12 prefers integration over mocked unit tests.
+- Test database in a disposable real instance (container-per-run or equivalent) — real DB, not mocks. Convention #12 prefers integration over mocked unit tests.
 - Test factories for domain objects (Builder pattern or fixture helpers).
-- Custom setup/teardown for shared resources (DB reset, Redis flush).
+- Custom setup/teardown for shared resources (DB reset, cache flush).
 - Tests organized colocated with code (`.test.ts` next to source file).
 
 **Verify:** `<test-runner>` command runs the base test suite green. Coverage thresholds configured per project.
@@ -251,7 +251,7 @@ Build:
 Conventions: #15 (build/CI), #2 (git).
 
 Build:
-- CI pipeline definition in repo (GitHub Actions / GitLab CI / equivalent).
+- CI pipeline definition in repo, in the code host's pipeline format.
 - Sequence: lint → typecheck → test → build → (containerize) → artifact push.
 - Required status checks on main branch (merge blocks if any fail).
 - Preview deployments per PR if the platform supports.
@@ -267,12 +267,12 @@ Conventions: #26 (pulse monitor).
 Copy the framework's base UI into the project's dev-static path and wire a dev-only route that serves both the UI and `.pulse-state.json`. Production builds MUST exclude the pulse UI.
 
 Build:
-- Dev-only route (guard on `NODE_ENV !== 'production'`): `GET /dev/pulse` serves `templates/pulse-ui/index.html` (+ css/js assets); `GET /dev/pulse/.pulse-state.json` serves the generated state.
-- Copy `archetype/templates/pulse-ui/` into the project (or serve directly from archetype if `archetype/` is inside the project — decide per project layout).
-- Add an npm script (or equivalent) that runs `./archetype/scripts/pulse-inspect.sh --out <path>/.pulse-state.json` before serving.
-- Create `docs/systems/pulse-monitor.md` from `archetype/templates/pulse-monitor-spec.md`; fill in the project-specific "Where it's served" section.
+- Dev-only route, guarded on the runtime's environment flag meaning "not production": `GET /dev/pulse` serves the starter UI (markup plus its style and script assets); `GET /dev/pulse/.pulse-state.json` serves the generated state.
+- Copy `archetype/templates/pulse-ui/` into the project (or serve directly from the installed framework folder if it sits inside the project — decide per project layout).
+- Add a project task (the package manager's script runner, or equivalent) that runs `archetype/scripts/pulse-inspect.sh --out <project-owned path>/.pulse-state.json` before serving.
+- Create `docs/systems/pulse-monitor.md` from `archetype/templates/pulse-monitor-spec.md`; fill in the project-specific "Where it's served" section, and read that spec's implementation notes before wiring the serve path.
 
-**Verify:** start the dev server, open the pulse route, confirm all 5 sections render with real data from References.md + feature-tree.md. Refresh button re-fetches `.pulse-state.json` (re-run the inspector first for live updates).
+**Verify:** start the dev server, open the pulse route, confirm every section renders with real data from References.md + feature-tree.md. Refresh re-fetches `.pulse-state.json` (re-run the inspector first for live updates).
 
 ## Step 18 — Smoke-test feature (scaffold exit gate)
 
@@ -295,10 +295,10 @@ This is the end-to-end integration proof. Without it, the scaffold can appear "c
 
 Run `scripts/validate-scaffold.sh`. Do not commit until it passes. The validator checks:
 - Every foundational system in feature-tree.md has a `docs/systems/{name}.md`
-- Expected paths exist
-- Anti-patterns absent (console-level output in source, direct third-party imports bypassing wrappers, untyped escape hatches without justifying comment)
-- Env validation called from startup
-- Migrations not in auto-apply CI step
+- Env validation exists as a dedicated module or a named validation function in source
+- No console-level output in source outside dev-guarded blocks
+- When References.md declares regulated data: an audit-log path separate from the app log, and not an in-memory-only store. When it declares mobile/public GraphQL clients: persisted queries. When it names a telemetry standard: a configured exporter
+- A smoke-test feature, a pre-commit hook, and a VERSION-LOG Scaffold entry; migrations not in an auto-apply CI step
 
 If validator fails, FIX before committing. Do not paper over.
 

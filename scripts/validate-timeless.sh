@@ -6,9 +6,14 @@
 # or file templates carry content that expires:
 #
 #   A. Product, library, service, or vendor proper names outside a section
-#      titled "Research Notes" (term list: scripts/timeless-terms.txt;
-#      per-file exceptions with a written reason: scripts/timeless-allowlist.txt)
-#   B. Factory step references ("Step 48 added this")
+#      titled "Research Notes" or a line beginning "Dated example:" (term
+#      list: scripts/timeless-terms.txt; per-file exceptions with a written
+#      reason: scripts/timeless-allowlist.txt). A "Dated example:" line keeps
+#      a concrete example next to its rule and marks it expirable; the other
+#      classes still apply to it.
+#   B. Factory step references ("Step 48 added this"). A step the same file
+#      defines as a heading ("## Step 12 — ...") or a step named with its
+#      playbook ("SCAFFOLD-BACKEND Step 13") is a playbook step and legal.
 #   C. Statistics or multipliers attached to claims about AI
 #      ("AI does this at 80-90% frequency", "2.74x more vulnerabilities")
 #   D. Numeric limits tied to tool capability: line-count limits and
@@ -37,10 +42,10 @@
 # the last section runs to end of file; a heading must be exactly
 # "## Research Notes" or "### Research Notes" to open the allowed zone.
 #
-# Scope note: the default set is conventions/, backend/conventions/, the
-# root and backend CLAUDE.md and Conventions.md, README.md, and
-# templates/*.md. Phase playbooks (bootstrap/, scaffolding/, development/)
-# are not yet in scope; pass them as arguments to measure them.
+# Scope: every shipped markdown file except libraries/: conventions/,
+# backend/, the root and backend CLAUDE.md and Conventions.md, AGENTS.md, README.md,
+# META-BATTLE-TESTING.md, templates/*.md, bootstrap/ (with hooks/README.md),
+# scaffolding/, and development/. Pass file arguments to scan a subset.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -80,8 +85,9 @@ if [ "$#" -gt 0 ]; then
   EXPLICIT=1
   for f in "$@"; do FILES+=("$f"); done
 else
-  for f in CLAUDE.md Conventions.md README.md backend/CLAUDE.md backend/Conventions.md \
-           conventions/*.md backend/conventions/*.md templates/*.md; do
+  for f in CLAUDE.md AGENTS.md Conventions.md README.md META-BATTLE-TESTING.md backend/CLAUDE.md backend/Conventions.md \
+           conventions/*.md backend/conventions/*.md templates/*.md \
+           bootstrap/*.md bootstrap/hooks/README.md scaffolding/*.md development/*.md; do
     [ -f "$f" ] && FILES+=("$f")
   done
 fi
@@ -162,24 +168,45 @@ for file in "${FILES[@]}"; do
     minute_limit = limit_words " [0-9]+(-[0-9]+)? minutes?([^[:alnum:]]|$)|[0-9]+-minute (cadence|interval|compaction|sessions?|check-?ins?)"
     version_ref = "(^|[[:space:](])v[0-9]+([^[:alnum:]]|$)"
   }
-  function report(class, detail) { printf "%s\t%s:%d\t%s\n", class, FILE, NR, detail }
+  function report(class, detail) { printf "%s\t%s:%d\t%s\n", class, FILE, FNR, detail }
+  # First pass over the file: collect the steps this playbook defines as headings.
+  FNR == NR {
+    if (match($0, /^#{1,6} Step [0-9]+[a-z]?/)) {
+      h = substr($0, RSTART, RLENGTH); sub(/^#+ Step /, "", h); defined[h] = 1
+    }
+    next
+  }
   {
     line = $0
+    dated_line = (line ~ /^[[:space:]]*([-*] )?Dated example:/)
     # Code fences: bare version tokens inside them are code, not scope language.
     if (line ~ /^[[:space:]]*```/) { fence = !fence; next }
 
     # Zone tracking.
-    if (line ~ /^#{2,3} Research Notes[[:space:]]*$/) { research = 1; notice = 0; research_line = NR }
+    if (line ~ /^#{2,3} Research Notes[[:space:]]*$/) { research = 1; notice = 0; research_line = FNR }
     else if (line ~ /^#{1,3} /) {
       if (research && !notice) report("F", "Research Notes section at line " research_line " lacks a line starting \"Dated notes:\"")
       research = 0
     }
     if (research && line ~ /^Dated notes:/) notice = 1
 
-    # B. Factory step references. Playbook steps are single-digit within a
-    #    named document; factory steps are two or more digits.
-    if (line ~ /(^|[^[:alnum:]])Steps? [0-9][0-9]+/ || line ~ /(framework|factory) Step [0-9]+/ || line ~ /Step [0-9]+ (added|shipped|introduced|landed|promoted)/)
+    # B. Factory step references. A step this file defines as a heading, or a
+    #    step named together with its playbook, is a playbook step and legal.
+    #    Explicit factory phrasing is always flagged.
+    if (line ~ /(framework|factory) Step [0-9]+/ || line ~ /Step [0-9]+ (added|shipped|introduced|landed|promoted)/)
       report("B", "factory step reference: " line)
+    else {
+      rest = line; offset = 0
+      while (match(rest, /(^|[^[:alnum:]])Steps? [0-9][0-9]+[a-z]?/)) {
+        tok = substr(rest, RSTART, RLENGTH); sub(/^[^[:alnum:]]/, "", tok)
+        num = tok; sub(/^Steps? /, "", num)
+        before = substr(line, 1, offset + RSTART)
+        if (!(num in defined) && before !~ /(ONBOARD|EXISTING-PROJECT|LEARNING-PROJECTS|RED-FLAGS|REPOSITORIES|SCAFFOLD(-[A-Z_]+)?|_preamble|DEVELOP|MAINTAIN(-RED-FLAGS)?|TASKS|FRESHNESS|CREATING-FORKABLE-TEMPLATES)(\.md)?/)
+          report("B", "factory step reference (" tok "): " line)
+        offset += RSTART + RLENGTH - 1
+        rest = substr(rest, RSTART + RLENGTH)
+      }
+    }
 
     # C. Statistics attached to claims about AI.
     if (line ~ stat_trigger && line ~ stat_number)
@@ -196,8 +223,8 @@ for file in "${FILES[@]}"; do
     else if (!fence && line ~ version_ref && line !~ /^[[:space:]]*"/)
       report("E", "version-scoped scope language: " line)
 
-    # A. Named tools outside Research Notes.
-    if (!research) {
+    # A. Named tools outside Research Notes and outside dated-example lines.
+    if (!research && !dated_line) {
       scan = line
       for (i = 1; i <= nterms; i++) {
         re = bounded(term[i])
@@ -217,7 +244,7 @@ for file in "${FILES[@]}"; do
   END {
     if (research && !notice) report("F", "Research Notes section at line " research_line " lacks a line starting \"Dated notes:\"")
     for (t in used) printf "USED\t%s\t%s\n", FILE, t
-  }' "$file"
+  }' "$file" "$file"
 done
 )"
 

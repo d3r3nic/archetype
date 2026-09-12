@@ -35,7 +35,7 @@ The feedback loop is the whole point. A session review with no promotion path is
 
 ## 4. Doc freshness drift accumulates invisibly
 
-MAINTAIN.md used to say "hooks handle this automatically." The shipped hooks (`pre-destructive-warn.sh`, `post-task-verify.sh`) do NOT check doc freshness. The defense was name-only.
+A defense that says "hooks handle this automatically" is name-only: the shipped hooks (`pre-destructive-warn.sh`, `post-task-verify.sh`) do NOT check doc freshness.
 
 Real pattern: a feature's code changes, its `docs/features/{name}.md` does not. Both "work." Future agent reads the doc, writes client code against the documented shape, hits the actual shape at runtime.
 
@@ -46,9 +46,9 @@ Real pattern: a feature's code changes, its `docs/features/{name}.md` does not. 
 
 ## 5. Two audits disagreeing on the same repo
 
-This fired during the first Phase 4 agent run. The inline bash script in MAINTAIN.md and the separate `validate-develop.sh` checked overlapping concerns with different logic. They produced different answers. An agent relying on one sees "clean"; the other sees "broken." Neither is trustworthy when the other contradicts.
+This fired on a real Phase 4 audit run: an inline audit script in the playbook and the separate `validate-develop.sh` checked overlapping concerns with different logic. They produced different answers. An agent relying on one sees "clean"; the other sees "broken." Neither is trustworthy when the other contradicts.
 
-**Defense:** MAINTAIN.md NO LONGER contains an inline audit script. Routes to `scripts/validate-maintain.sh` + `scripts/validate-develop.sh` as the single source of audit truth. Two audits must never overlap with different logic. Shared logic lives in one validator, consumed by both phases.
+**Defense:** MAINTAIN.md carries NO inline audit script. It routes to `scripts/validate-maintain.sh` + `scripts/validate-develop.sh` as the single source of audit truth. Two audits must never overlap with different logic. Shared logic lives in one validator, consumed by both phases.
 
 ---
 

@@ -3,15 +3,19 @@
 # Replaces AI-discipline-only verification with machine-verifiable gates.
 # Run from the project root after scaffolding.
 #
-# Checks (categorical, not prescriptive):
-#   1. Every foundational system in feature-tree.md has a docs/systems/{name}.md
-#   2. Env validation is called from startup (startup-call pattern, not ad-hoc process.env)
-#   3. No console-level output in source (language-agnostic grep)
-#   4. Direct third-party imports flagged outside project wrappers
-#   5. Audit log path exists if References.md mentions regulated data
-#   6. CI workflow doesn't auto-run migrations on main/master pushes
-#   7. Smoke-test feature exists
-#   8. VERSION-LOG.md has a Scaffold entry
+# Checks (categorical, not prescriptive); ids match the groups the script prints:
+#   1.  Every foundational system in feature-tree.md has a docs/systems/{name}.md
+#   2.  An env-validation module or a named validation function exists in source
+#       (that the call sits at startup is the scaffold step's own verify line)
+#   3.  No console-level output in source outside dev-guarded blocks
+#   4.  Audit log path exists if References.md mentions regulated data
+#   4b. In-memory audit store not shipped to regulated production
+#   5.  Smoke-test feature exists
+#   6.  CI workflow doesn't auto-run migrations on main/master pushes
+#   6b. Pre-commit hook present
+#   6c. Persisted queries for mobile/public GraphQL clients (if declared)
+#   6d. Telemetry exporter configured (if References.md names the standard)
+#   7.  VERSION-LOG.md has a Scaffold entry
 #
 # Exit 0 on pass, 1 on any error. Warnings do not fail.
 

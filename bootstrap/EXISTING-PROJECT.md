@@ -131,7 +131,7 @@ Search for:
 - Any `*.md` files in `src/` subdirectories (feature docs)
 - `/architecture/`, `/decisions/`, `/adr/` (architecture decision records)
 - `/docs1/`, `/docs2/`, `/old-docs/` (sometimes projects have multiple generations)
-- Confluence / Notion / external doc URLs referenced from `CLAUDE.md` or `README`
+- Links to an external wiki or knowledge-base platform referenced from the instruction files or `README`
 - `/HANDOFF.md`, `/MIGRATION_*.md`, `/REFACTORING_*.md`, `/IMPLEMENTATION-*.md` at root (these are docs even if not in a folder)
 
 Use `grep` or `find` to locate all `.md` files (excluding `node_modules`, `.git`, `dist`, `build`).
@@ -160,7 +160,7 @@ For each doc to migrate, COPY it into `docs/migrated/` preserving the original f
 For each migrated doc, identify the framework convention it maps to. Examples:
 - `/docs/01-fundamentals/architecture-overview.md` → convention #3 (Architecture)
 - `/docs/02-structure/folder-structure.md` → convention #1 (Project Setup)
-- `/docs/03-state-management/redux-structure.md` → convention #5 (State Management)
+- `/docs/03-state-management/store-structure.md` → convention #5 (State Management)
 - `/docs/06-styling/*` → convention #6 (Styling)
 - `/docs/07-error-handling/*` → convention #8 (Errors)
 - `/docs/00-factory-pattern/*` → convention #0 (Reusability)

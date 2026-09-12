@@ -16,7 +16,7 @@ Tell your AI assistant to set up the project. Alternatively, run these commands 
 ### For a NEW project (full clone):
 
 ```bash
-# Option A: Clone from GitHub
+# Option A: Clone the framework repository
 git clone https://github.com/d3r3nic/archetype.git my-project-name
 cd my-project-name
 rm -rf .git libraries/
@@ -56,7 +56,7 @@ After setup, each project folder has:
 your-project/
 ├── CLAUDE.md          # the enforcer
 ├── Conventions.md     # convention index
-├── conventions/       # 25 convention docs
+├── conventions/       # every numbered convention doc
 ├── bootstrap/         # this file
 ├── scaffolding/       # scaffold guide
 ├── development/       # develop + maintain guides
@@ -92,13 +92,13 @@ Before choosing any technology or generating any files, interview the user with 
 - Is this a product you want to ship, or a project to learn a specific technology? (If learning a technology, that's a legitimate reason to use that stack even when a platform would be simpler — but note it explicitly so Step 3 can handle it correctly.)
 - **Is this a TEMPLATE / starter kit / generator, or a PRODUCT / end deliverable?** A template is code that other projects FORK or INSTALL FROM — its audience is developers; it ships structural primitives, neutral defaults, and intentionally has no brand identity. A product is the end thing that real users interact with — it commits to a visual identity, a specific set of features, and a deployed URL. Same framework applies to both, but bootstrap generation diverges: templates defer brand/design-artifact decisions to downstream projects, ship `@scope/*` packages with placeholder tokens, and document the "downstream sites" model. Products complete those decisions at bootstrap.
 
-**Proactive learning-intent detection:** If the user's OPENING message declares enterprise or complex infrastructure (Kubernetes, Redis, Kafka, service mesh, multi-region, microservices, self-managed clusters) for a personal-scale or small-scale project (one user, a blog, a single-person tool, a portfolio), ask the ship-vs-learn question in your FIRST reply, not after red flags fire in later turns. Pattern: solo + enterprise-infra = learning intent >80% of the time. Surface it early so the rest of discovery proceeds with the right frame.
+**Proactive learning-intent detection:** If the user's OPENING message declares enterprise or complex infrastructure (container orchestration, distributed caching, distributed message queues, service mesh, multi-region, microservices, self-managed clusters) for a personal-scale or small-scale project (one user, a blog, a single-person tool, a portfolio), ask the ship-vs-learn question in your FIRST reply, not after red flags fire in later turns. Pattern: solo + enterprise-infra is nearly always learning intent. Surface it early so the rest of discovery proceeds with the right frame.
 
 **Template vs product — how generation diverges:** Discovery answer routes Step 4.
 
 | Concern | TEMPLATE | PRODUCT |
 |---|---|---|
-| References.md § Project `Stage` | `template v0.x.y` | `development / staging / production` |
+| References.md § Project `Stage` | `template` plus the template's own version number | `development / staging / production` |
 | References.md § Design Artifact | "Downstream projects decide their own artifact at their own bootstrap. Template ships neutral placeholder tokens — no visual identity invented." | AI researches tooling, documents chosen tool + location (convention #27). |
 | References.md new § | `## Downstream Projects` — how sites FORK or INSTALL from this template, what's shared vs local, upgrade flow. | `## Deployment` (standard). |
 | `@scope/*` packages | Built with neutral tokens (system colors, inherited typography). Convention #27 gate is about STRUCTURE, not VALUES. | Values come from design artifact per #27. |
@@ -109,15 +109,16 @@ Before choosing any technology or generating any files, interview the user with 
 This distinction is not the same as #22 Design System (which is always about component libraries) or #27 Design Foundation (always about the design-artifact discipline). It's orthogonal: a template or a product can still have both. Templates DEFER the artifact; products COMMIT it.
 
 **Group 2 - Where does it run?**
-- Should this work in a web browser? (like Gmail, Twitter)
-- Should this be a phone app? (like Instagram, Uber)
-- Should this be a desktop application? (like Photoshop, Slack desktop)
+- Should this work in a web browser?
+- Should this be a phone app, installed from an app store?
+- Should this be a desktop application, installed on a laptop or desktop?
 - Or some combination?
+- Name a well-known app in each category so the question lands with a non-technical user. Pick apps that are popular now, not ones you remember.
 
 If the user says "phone app" or "works on my phone," do NOT silently pick a stack. Run the mobile disambiguation and decision tree — full detail in `bootstrap/RED-FLAGS.md` "Mobile Disambiguation" section. Three distinct choices: responsive web (cheapest), PWA (installable web + offline), native (App Store + native device APIs). Default for "I don't know" = responsive.
 
 **Mobile decision tree — pattern:**
-- If user names a native-only capability (HealthKit/Google Fit, haptics, biometrics, BLE, deep OS integration) → native.
+- If user names a native-only capability (the OS health-data store, haptics, biometrics, Bluetooth peripherals, deep OS integration) → native.
 - If user wants installability + offline but no native-device APIs → PWA.
 - If user just wants the site to work on phones → responsive.
 - If ambiguous → ask explicitly. Do not guess.
@@ -153,7 +154,7 @@ The AI should gauge the user's technical experience from how they talk. Adjust c
 
 **Non-technical user** (says things like "I don't know how apps work", "I heard AI can help"):
 - Choose managed / BaaS services that require zero DevOps knowledge
-- Database: a managed PostgreSQL with auth + storage built in, or SQLite for simple single-user apps
+- Database: a managed relational database with auth and file storage built in, or an embedded single-file database for simple single-user apps
 - Hosting: a managed frontend platform + a managed backend/app platform
 - Auth: a fully-managed drop-in auth provider
 - Category shape is what matters; research current market leaders at bootstrap time. These ARE production-level tiers — they just don't require server management knowledge.
@@ -164,7 +165,7 @@ The AI should gauge the user's technical experience from how they talk. Adjust c
 - Migratable to self-managed cloud later as needs grow
 - Research current options at bootstrap time.
 
-**Experienced developer / team with DevOps knowledge** (mentions AWS, cloud, infrastructure):
+**Experienced developer / team with DevOps knowledge** (mentions a cloud provider, containers, infrastructure):
 - Choose a major cloud provider with full control
 - Database: managed database service on that cloud
 - Auth: cloud-native managed auth or a compliance-certified managed auth broker
@@ -176,7 +177,7 @@ The AI should gauge the user's technical experience from how they talk. Adjust c
 
 FIRST: identify the regime. Different regimes require different controls, vendor agreements, and evidence. Research current requirements and vendor options for the specific regime at bootstrap time — do NOT rely on training-data-era recommendations.
 
-SECOND: run Step 3 platform research. For most regulated domains, a compliance-ready vertical SaaS exists and solves 80%+ of the use case without custom engineering. Platforms with signed BAA (HIPAA), subprocessor+attestation (SOC 2), or equivalent compliance artifacts for the regime are the first choice. Custom is the last resort for regulated data.
+SECOND: run Step 3 platform research. For most regulated domains, a compliance-ready vertical SaaS exists and clears the Step 3 coverage threshold without custom engineering. Platforms with signed BAA (HIPAA), subprocessor+attestation (SOC 2), or equivalent compliance artifacts for the regime are the first choice. Custom is the last resort for regulated data.
 
 THIRD — only if custom is genuinely required (product logic no platform offers, scale exceeds platform tier, multi-system integration):
 - Cloud provider with the right compliance certifications AND signed vendor agreement for the regime
@@ -192,35 +193,33 @@ THIRD — only if custom is genuinely required (product logic no platform offers
 
 | Answer | Technical Decision |
 |--------|-------------------|
-| Web browser app | Frontend: web framework (React, Vue, Svelte, etc.) |
-| Phone app (confirmed native) | Mobile: React Native + Expo OR Flutter OR native iOS/Android |
-| Phone app (PWA, installable from browser) | Web stack (React/Vue/Svelte) + PWA manifest + service worker |
+| Web browser app | Frontend: a component-based web UI framework |
+| Phone app (confirmed native) | Mobile: one cross-platform native framework, or each platform's own native toolchain |
+| Phone app (PWA, installable from browser) | Web stack + PWA manifest + service worker |
 | Works on phone (responsive web) | Web stack, responsive design, no mobile-specific tooling |
-| Desktop app | Desktop: Electron, Tauri, .NET WPF, or native |
+| Desktop app | Desktop: a web-stack desktop shell, or the OS's native UI toolkit |
 | Users log in | Auth system needed |
 | Users submit forms | Form system needed |
 | Users upload files | File storage system needed |
 | Real-time updates | WebSocket/SSE needed |
 | Works offline | Offline support needed |
-| Just me / personal | Simple stack, SQLite OK, managed hosting |
-| Startup MVP | Modern stack, managed PostgreSQL, cloud hosting |
-| Enterprise / compliance | AWS/GCP, infrastructure as code, full monitoring |
+| Just me / personal | Simple stack, an embedded single-file database is fine, managed hosting |
+| Startup MVP | Modern stack, managed relational database, cloud hosting |
+| Enterprise / compliance | A major cloud provider, infrastructure as code, full monitoring |
 | Millions of users | Performance, CDN, caching, horizontal scaling |
 | No tech preferences | AI picks based on experience level (see above) |
 | Has preferences | AI respects preferences AND still runs Step 3 research. If a platform covers the use case, or scale/compliance/cost is mismatched to the preference, surface the alternatives before agreeing. User can still choose their preference — but must see the tradeoff. |
 | Sensitive data (health, finance) | Compliance-grade infrastructure, encryption, audit trails |
 | No DevOps knowledge | Managed / BaaS services category (research current market leaders) |
-| Knows AWS/cloud | AWS with proper architecture (preferred for production) |
+| Knows cloud infrastructure | A major cloud provider with proper architecture (preferred for production) |
 
-### Common proven stacks (for reference):
+### Proven stack shapes (for each slot, research the current mainstream, actively maintained choice in the project's language — never pick from memory):
 
-Web frontend: React + TypeScript + Vite + Tailwind
-Content sites / blogs / docs: Astro + Starlight (zero JS by default, fast)
-Backend API (Node): Node.js + TypeScript + Express + Prisma + PostgreSQL
-Backend API (Python): Python + FastAPI + SQLAlchemy + PostgreSQL
-Backend API (C#): ASP.NET + Entity Framework + SQL Server
-Mobile: React Native + Expo OR Flutter + Dart
-Desktop: Electron + React OR Tauri + Svelte
+Web frontend: component UI framework + statically typed language + fast bundler + a styling system
+Content sites / blogs / docs: a static-first site generator that ships little or no client JS
+Backend API: typed server framework + a schema/ORM layer + a managed relational database
+Mobile: one cross-platform native framework, or each platform's own native toolchain
+Desktop: a web-stack desktop shell, or the OS's native UI toolkit
 
 ### Handling scope changes mid-discovery
 
@@ -262,21 +261,21 @@ Research and present these options to the user BEFORE committing:
 
 | User wants | Consider instead of custom code |
 |---|---|
-| Blog / content site | WordPress, Ghost, Astro + headless CMS |
-| Online store | Shopify, WooCommerce, BigCommerce |
-| Portfolio / brochure site | Squarespace, Wix, Webflow, Astro |
-| Landing pages | Carrd, Webflow, Framer |
-| Internal forms / workflows | Notion, Airtable, Retool, Google Forms |
-| Booking / appointments | Calendly, Acuity, Square Appointments |
-| Documentation site | Astro Starlight, Docusaurus, GitBook |
+| Blog / content site | a hosted CMS, or a static site generator plus a headless CMS |
+| Online store | a hosted e-commerce platform |
+| Portfolio / brochure site | a hosted website builder, or a static site generator |
+| Landing pages | a hosted landing-page builder |
+| Internal forms / workflows | a no-code database, form, or internal-tool builder |
+| Booking / appointments | a hosted scheduling service |
+| Documentation site | a docs-site generator, or a hosted docs platform |
 
-If an existing platform covers 80%+ of what the user needs, recommend it. Custom code should only be chosen when the user has requirements that platforms genuinely cannot meet.
+Research the current market leader in each category at bootstrap; the leaders change. If an existing platform covers 80%+ of what the user needs, recommend it. Custom code should only be chosen when the user has requirements that platforms genuinely cannot meet.
 
 **Option 2: Hybrid (platform + custom pieces)**
 
 Sometimes the right answer is a platform for the core + custom code for specific features:
-- WordPress for content + custom React frontend (headless WordPress)
-- Shopify for e-commerce + custom dashboard for analytics
+- A hosted CMS for content + a custom frontend against its API (headless CMS)
+- A hosted e-commerce platform for checkout + a custom dashboard for analytics
 - A BaaS (Backend-as-a-Service) platform + custom frontend
 
 **Option 3: Full custom build (what this framework scaffolds)**
@@ -363,13 +362,13 @@ The AI runs once in the project folder, using the matching template (frontend, b
 
 ---
 
-Read Conventions.md to understand the convention index. Do NOT read all 28 convention docs upfront.
+Read Conventions.md to understand the convention index. Do NOT read every convention doc upfront.
 
 Based on the discovery answers, you now know: what platforms, what features, what scale, and what tech stack.
 
 Generate these files:
 - References.md using the appropriate template from templates/ (references-frontend.md, references-backend.md, or references-mobile.md).
-  - If the project is a **TEMPLATE** (per Group 1), apply the diverging generation rules from the "Template vs product" table: Stage = `template v0.x.y`, add a `## Downstream Projects` section, rewrite `## Design Artifact` to defer to downstream projects, note that any `@scope/*` packages ship with neutral placeholder tokens. Do NOT research design tooling — that decision belongs to downstream projects at their own bootstrap.
+  - If the project is a **TEMPLATE** (per Group 1), apply the diverging generation rules from the "Template vs product" table: Stage = `template` plus its own version number, add a `## Downstream Projects` section, rewrite `## Design Artifact` to defer to downstream projects, note that any `@scope/*` packages ship with neutral placeholder tokens. Do NOT research design tooling — that decision belongs to downstream projects at their own bootstrap.
   - If the project is a **PRODUCT**, research the design-artifact tool at bootstrap and document it in References.md § Design Artifact per convention #27.
 - feature-tree.md using templates/feature-tree.md. For TEMPLATE projects, mark design-derived rows (Components, Design System, Styling values, per-feature visual states) as "structural at template level; downstream projects apply brand"; do NOT leave them undefined.
 - docs/systems/ directory (empty)
@@ -402,13 +401,13 @@ AI: "Great! Let me ask a few questions to understand what you need..."
 
 User: "I just want people to see our menu and book a table online"
 
-AI: "Got it. This is a web app with a frontend for customers and a backend to store menu items and bookings. Users don't need accounts for viewing the menu, but bookings need a simple form. No file uploads, no real-time, no offline needed. I'd recommend React + Node.js. Let me set it up..."
+AI: "Got it. This is a web app with a frontend for customers and a backend to store menu items and bookings. Users don't need accounts for viewing the menu, but bookings need a simple form. No file uploads, no real-time, no offline needed. I'd recommend a standard web stack: a component UI framework for the pages and a small typed API behind it. Let me set it up..."
 
 **Developer who knows what they want:**
 
-User: "I'm building a healthcare SaaS. React frontend, cloud-hosted backend, managed Postgres, cloud-managed auth. I know the stack."
+User: "I'm building a healthcare SaaS. Component-framework frontend, cloud-hosted backend, managed relational database, cloud-managed auth. I know the stack."
 
-AI: "Stack noted. Before I generate files, Step 3 still applies — even with a declared stack. For healthcare SaaS specifically, HIPAA-compliant vertical platforms often cover 80%+ of typical use cases (patient portals, intake, scheduling, notes) with BAAs included. Let me confirm: is the core of your product something those platforms already do, or is it unique logic on top of that (AI analysis, custom workflows, proprietary algorithms)? If it's the latter, your stack is a reasonable fit. If it's the former, start from the platform and build only the unique layer. Research current HIPAA vertical-SaaS options to make sure the recommendation is up-to-date."
+AI: "Stack noted. Before I generate files, Step 3 still applies — even with a declared stack. For healthcare SaaS specifically, HIPAA-compliant vertical platforms often cover most typical use cases (patient portals, intake, scheduling, notes) with BAAs included. Let me confirm: is the core of your product something those platforms already do, or is it unique logic on top of that (AI analysis, custom workflows, proprietary algorithms)? If it's the latter, your stack is a reasonable fit. If it's the former, start from the platform and build only the unique layer. Research current HIPAA vertical-SaaS options to make sure the recommendation is up-to-date."
 
 User: "Custom — the core is our AI analysis pipeline, no platform does that."
 
@@ -437,7 +436,7 @@ After bootstrap, verify:
 - [ ] CLAUDE.md in project root (or in archetype/ subfolder if existing project)
 - [ ] Conventions.md in project root (or in archetype/)
 - [ ] conventions/ directory with all framework convention docs (unmodified)
-- [ ] References.md generated (use `references-platform.md` for platform choice, `references-frontend/backend/mobile.md` for custom)
+- [ ] References.md generated (use `references-platform.md` for platform choice, or the matching custom template: `references-frontend.md`, `references-backend.md`, `references-mobile.md`)
 - [ ] feature-tree.md initialized (use `feature-tree-platform.md` for platform choice, `feature-tree.md` for custom)
 - [ ] VERSION-LOG.md bootstrap entry written (with `Type: platform / {name}` or `Type: custom`)
 - [ ] **For CUSTOM BUILDS ONLY:** docs/systems/ directory created
@@ -455,7 +454,7 @@ For existing projects, additional verification:
 
 ## Step 6: Log the Bootstrap
 
-After bootstrap completes, update VERSION-LOG.md (at the **project root**, not inside archetype/ — per Step 45) to record what was done. If VERSION-LOG.md doesn't exist, create it.
+After bootstrap completes, update VERSION-LOG.md (at the **project root**, not inside archetype/ — the version log is project-owned, and framework updates overwrite the engine) to record what was done. If VERSION-LOG.md doesn't exist, create it.
 
 Append a bootstrap entry:
 

@@ -18,7 +18,7 @@ Determine the shape from `References.md`:
 - **Backend** (API, worker, service, GraphQL server, data pipeline, etc.) → `scaffolding/SCAFFOLD-BACKEND.md`
 - **Frontend** (web app, SPA, SSR app, PWA) → `scaffolding/SCAFFOLD-FRONTEND.md`
 - **Mobile** (native iOS/Android, cross-platform mobile) → `scaffolding/SCAFFOLD-MOBILE.md`
-- **Platform** (user picked Shopify / WordPress / SimplePractice / etc. in Step 3) → `scaffolding/SCAFFOLD-PLATFORM.md`
+- **Platform** (user picked a hosted platform — storefront, site builder, practice-management suite, workspace tool — in `bootstrap/ONBOARD.md` Step 3) → `scaffolding/SCAFFOLD-PLATFORM.md`
 - **Fullstack with separate frontend + backend folders** → run SCAFFOLD-FRONTEND in the frontend folder AND SCAFFOLD-BACKEND in the backend folder. Each has its own `References.md` and `feature-tree.md`.
 
 Do NOT attempt to build from this router directly. The shape-specific playbooks have the ordered steps and the convention mappings.
@@ -32,7 +32,7 @@ All shared scaffold rules live in `scaffolding/_preamble.md`. Read that file bef
 - Smoke-test rule (scaffold not complete until end-to-end smoke test passes)
 - Verification discipline (operational exit criteria, not "looks like it works")
 - Commit discipline (one commit per system)
-- Red-flags rule (consult `scaffolding/RED-FLAGS.md`, 13 silent-failure patterns)
+- Red-flags rule (consult `scaffolding/RED-FLAGS.md`, the silent-failure catalogue)
 - Machine-verifiable exit gate (`scripts/validate-scaffold.sh` must pass)
 
 Single source of truth — do not restate these rules inside the shape-specific playbooks. Update `_preamble.md` to change them.

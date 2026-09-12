@@ -48,8 +48,8 @@ echo "Features: $FEATURES_DIR"
 # ----------------------------------------------------------------------
 group 1 "No direct shared-class instantiation in features/"
 # ----------------------------------------------------------------------
-# Known shared-class getters: PrismaClient (db), Redis/IORedis, pino (logger)
-# The pattern to flag: `new PrismaClient(` outside src/shared/
+# Direct construction of a shared client inside features/ (a fixed, dated pattern
+# list: PrismaClient, Redis, IORedis). Only features/ is scanned; test files are skipped.
 HITS=0
 while IFS= read -r file; do
   # Skip test files — mocks may legitimately new up clients for fakes

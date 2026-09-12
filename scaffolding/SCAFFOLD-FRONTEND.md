@@ -84,7 +84,7 @@ Build:
 - Base wrapper components around the UI library (Button, Input, Modal, Dialog, Dropdown, etc.).
 - Wrappers enforce accessibility (ARIA, focus management, keyboard nav) the UI library's defaults might miss.
 - Layout primitives: Stack, Grid, Page container.
-- Component catalog (Storybook or equivalent) if the project is team-sized.
+- Component catalog in a component-explorer tool if the project is team-sized.
 - Consistent component API across wrappers (consistent prop names, variant system).
 - **Lint-enforce the wrapper boundary.** Direct UI-library imports outside `src/shared/ui/` must fail the build. Use your linter's import-restriction mechanism — feature/app code cannot bypass the wrapper layer. Exempt `src/shared/ui/` itself. Research current linter rule for the chosen language.
 
@@ -96,7 +96,7 @@ Conventions: #5 (state), #9 (API — server state).
 
 Build:
 - Global store configured (for global-state needs — auth, theme, app-level UI state).
-- Server-state library configured (current equivalent of TanStack Query / SWR / Apollo client cache / etc.).
+- Server-state library configured (a caching query client for the chosen stack — research current options).
 - Slice/module pattern per feature (each feature owns its store slice).
 - Pattern for syncing server state with cache invalidation.
 
@@ -111,7 +111,7 @@ Build:
 - Data transformation at the boundary (snake_case↔camelCase, date parsing).
 - Integration with server-state library from Step 5.
 - Consistent error handling (API errors throw Step 3 error classes).
-- Contract typing: if the backend ships typed contracts (OpenAPI, tRPC, GraphQL codegen), wire that in.
+- Contract typing: if the backend ships typed contracts (OpenAPI, GraphQL codegen, a typed RPC layer), wire that in.
 
 **Verify:** a test API call hits a mocked endpoint, returns transformed data, caches via server-state, and displays through Step 5 state.
 
@@ -165,15 +165,15 @@ Conventions: #12 (testing), #18 (verification).
 - A testing library whose assertions describe what the user sees, not implementation details.
 - A global setup file that registers DOM matchers (auto-importable so each test file doesn't repeat setup).
 - A network-level mocker (not module-level mocks) for tests that cross the API boundary.
-- In monorepos, each package gets its own test config; packages with no DOM concerns use a node environment; packages with React concerns use a DOM environment.
+- In monorepos, each package gets its own test config; packages with no DOM concerns use a plain runtime environment; packages with component concerns use a DOM environment.
 
 
 Build:
 - Test runner configured.
 - Custom render wrapper providing Theme + Store + Router + QueryClient + AuthProvider + ErrorBoundary — mirror the production order from Step 8 exactly.
-- Network-level API mocking (current equivalent of MSW).
+- Network-level API mocking (the stack's current interceptor-based mocker, not module mocks).
 - Test data factories.
-- Accessibility testing wired in (axe-core or equivalent) to catch a11y regressions. At least one test on a wrapped component runs axe.
+- Accessibility testing wired in (an automated a11y rule engine) to catch a11y regressions. At least one test on a wrapped component runs it.
 - **Test network-layer client has retries disabled.** Retries on failing test fetches mask real errors. Research current test-config pattern for the chosen data-fetching library.
 - **Test and production client configs can differ.** Some library features (abort signals, exponential backoff, streaming) interact unpredictably with mocked networks or test DOMs. Keep production semantics in the prod client; diverge for tests as needed. See `scaffolding/RED-FLAGS.md` #16 (env-inlining trap).
 
@@ -230,7 +230,7 @@ Deployment is where the framework's signals meet the vendor's specifics. The rul
 
 Build-context and deploy-context ignores:
 - The image builder and the deploy-source uploader may be different actors reading different ignore files. Author each actor's ignore surface; do not rely on the image-builder ignore to suppress uploads.
-- Typical trap: the uploader packs files (like dev-only test harness configs) that survive into the typecheck step of the remote build, where imports they reference have been correctly stripped from the image context. Exclude them from BOTH surfaces, not just one.
+- Dated example: a deploy uploader packed a dev-only test-harness config whose imports had been correctly stripped from the image context, so the remote typecheck failed on a file the image never needed. Exclude such files from BOTH surfaces, not just one.
 
 Local pre-deploy verification:
 - Chain local `typecheck → lint → test → build` as a precondition of the deploy command. Never deploy past a local red.
@@ -244,15 +244,14 @@ Env-schema and example files:
 
 Ingress, certs, and multi-tenancy:
 - Confirm current vendor docs before committing to an ingress/cert path. A vendor's "preview" or "limited GA" feature may have materially worse reliability than their production path. Deprecated-but-available is a trap.
-- When placing multiple tenants behind shared ingress, verify the vendor allows the backend/NEG/service primitives to cross project/boundary lines. If they don't, single-project consolidation is forced; choose the multi-tenant boundary by WHO PAYS the vendor bill:
+- When placing multiple tenants behind shared ingress, verify the vendor lets its load-balancer backend primitives cross project/account boundaries. If they can't, consolidation into one boundary is forced; choose the multi-tenant boundary by WHO PAYS the vendor bill:
   - Framework consumer pays → consolidate into one platform boundary, attribute cost via labels.
   - End customer pays → each customer gets their own boundary.
-- DNS records for shared-ingress setups point to the shared ingress's static IP, not to the vendor's gateway hostname.
-- When the DNS provider offers a traffic proxy, **verify whether it passes the cert-issuer's ACME challenge through**. Proxies that terminate or redirect traffic can silently break cert issuance. Default to DNS-only until the cert is live.
+- DNS records for shared-ingress setups point to the shared ingress's own address, not to a per-service hostname the vendor assigns.
+- When the DNS provider offers a traffic proxy, **verify whether it passes the cert issuer's domain-validation challenge through**. Proxies that terminate or redirect traffic can silently break cert issuance. Default to DNS-only until the cert is live.
 
 IAM and deploy actors:
-- Vendor IAM defaults shift across epochs. Projects created in older eras inherited broader defaults; new projects may not. Do not assume inheritance — automation must grant every binding a deploy actor needs, every time.
-- If a deploy tool fails with a permission error that references a "default" service agent or account, the fix is almost always explicit binding of a role the vendor used to grant implicitly.
+- Vendor IAM defaults shift across epochs. Projects created in older eras inherited broader defaults; new projects may not. Do not assume inheritance — automation must grant every binding a deploy actor needs, every time. A deploy tool failing with a permission error that names a "default" service agent or account almost always needs that role bound explicitly, because the vendor used to grant it implicitly.
 
 **Verify:** a fresh clone of the project runs the deploy command and a successful deploy reaches a known-working URL without any out-of-band manual steps. The command chain is idempotent: re-running after any failure resumes or replays cleanly.
 
@@ -263,12 +262,12 @@ Conventions: #26 (pulse monitor).
 Copy the framework's base UI into the project's dev-static path. Serve via a dev-only route. Production builds MUST exclude the pulse UI (tree-shaken out or route-guarded).
 
 Build:
-- Dev-only route (e.g., `/dev/pulse`) that serves `templates/pulse-ui/index.html` via the framework's static or dev-middleware path.
-- `.pulse-state.json` served as a sibling static file in the same dev route.
-- Script (npm run or equivalent) that runs `./archetype/scripts/pulse-inspect.sh --out <path>/.pulse-state.json`.
-- Create `docs/systems/pulse-monitor.md` from `archetype/templates/pulse-monitor-spec.md`; fill in the project-specific "Where it's served" section.
+- Dev-only route (e.g., `/dev/pulse`), registered only when the runtime's environment flag says development, that serves the starter UI from `archetype/templates/pulse-ui/` via the stack's static or dev-middleware path.
+- `.pulse-state.json` served as a sibling static file in the same dev route, from a project-owned path.
+- A project task (the package manager's script runner, or equivalent) that runs `archetype/scripts/pulse-inspect.sh --out <project-owned path>/.pulse-state.json`.
+- Create `docs/systems/pulse-monitor.md` from `archetype/templates/pulse-monitor-spec.md`; fill in the project-specific "Where it's served" section, and read that spec's implementation notes before wiring the serve path.
 
-**Verify:** `npm run dev`, open `/dev/pulse`, confirm 5 sections render with real data. Verify production build excludes the pulse UI.
+**Verify:** start the dev server, open the pulse route, confirm every section renders with real data. Verify the production build excludes the pulse UI.
 
 ## Step 12 — Smoke-test feature (scaffold exit gate)
 
@@ -304,9 +303,9 @@ Never leave a row at `not started` after its code ships. Pulse-inspect drift det
 
 ## Monorepo template projects — extra lens
 
-Template-shape projects (framework Step 49) add a second distribution axis beyond "deploy the app":
+Template-shape projects (a codebase distributed as packages for other projects to consume) add a second distribution axis beyond "deploy the app":
 
 - Each package has a manifest with real scoped `name`, SemVer `version`, explicit `files` shipping list, and peer-dependencies for consumer-owned runtime (the view framework, the language runtime, etc.) so consumers aren't forced into the template's versions.
 - **SemVer discipline via a version-management tool** (research current best): one change-file per change, a command rolls versions + generates per-package CHANGELOG, a command publishes to the registry (or packs for local testing).
-- Progressive extraction: build a feature in the reference app first, extract to a package when the pattern stabilizes. Reference: the template's own `docs/CUSTOMER-SITE.md` for consumer-facing walkthrough; `docs/MAINTENANCE.md` for template-maintainer playbook.
+- Progressive extraction: build a feature in the reference app first, extract to a package when the pattern stabilizes. The template keeps its own project-owned consumer walkthrough and maintainer playbook docs.
 - If the bundler needs help consuming packages that ship raw source: use the bundler's transpile-dependency option (research current).

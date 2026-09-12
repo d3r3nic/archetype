@@ -10,9 +10,9 @@ Factory (archetype-lab) → Framework (archetype) → Template → Product (cust
 
 | Layer | Role | Repo / location |
 |---|---|---|
-| Factory | Where framework changes are authored; all history is narrative Steps in `planning/CHANGELOG.md` | `github.com/d3r3nic/archetype-lab` |
-| Framework | What consumers use: 28 conventions, 4 phase playbooks (bootstrap/scaffold/develop/maintain), scripts, file templates | `github.com/d3r3nic/archetype` (published dist) |
-| Template | A reusable project shape (e.g. `headless-wp-next`) — monorepo with `@scope/*` packages, reference app, governed by the framework | per-template repo |
+| Factory | Where framework changes are authored; all history is narrative numbered steps in `planning/CHANGELOG.md` | `d3r3nic/archetype-lab` |
+| Framework | What consumers use: the convention catalogue, the phase playbooks (bootstrap/scaffold/develop/maintain), scripts, file templates | `d3r3nic/archetype` (published dist) |
+| Template | A reusable project shape — monorepo with `@scope/*` packages, a reference app, governed by the framework | per-template repo |
 | Product | A customer site spawned from a template | per-site repo |
 
 ## Updates flow downstream; findings flow upstream
@@ -22,18 +22,18 @@ Downstream (each consumer pulls):
 - Framework → everyone via `archetype/update.sh` (read-only discipline: framework folder never receives project artifacts)
 - Template packages → consumers via the chosen package manager's upgrade command for `@scope/<pkg>` (SemVer contract; patch/minor safe, major ships a codemod)
 
-Upstream — **every discovery by a downstream layer lands in the factory as a numbered Step**. Battle-test findings never stay at the discovering layer. Examples (factory Steps 44–49 and beyond):
+Upstream — **every discovery by a downstream layer lands in the factory as a numbered step carrying its (trigger, finding, fix) tuple**. Battle-test findings never stay at the discovering layer. The recurring shapes, each taken from a real battle-test:
 
-| Step | Triggered by | Finding | Landed where |
-|---|---|---|---|
-| 44 | Template bootstrap | `dist/templates/feature-tree.md` columns didn't match `pulse-inspect.sh` parse | Templates + script + validator group 7 |
-| 45 | Template restructure | `inject.sh` / `update.sh` wrote project artifacts inside the framework folder | `dist/inject.sh`, `dist/update.sh`, validator group 8 |
-| 46 | Template needed a design-discipline convention | No convention governed the "design artifact as source of truth" rule | New convention #27 Design Foundation |
-| 47 | Step 46 left a pipeline leak | `references-*.md` templates didn't have the Design Artifact section | Templates + validator |
-| 48 | Template is a monorepo | `pulse-inspect.sh` scanned only `src/*`, not `apps/*/src/*` | Script extended with monorepo scan |
-| 49 | Template wasn't a product | Framework conflated template-shape with product-shape in bootstrap | `bootstrap/ONBOARD.md` Group 1 gained the distinction |
+| Triggered by | Finding | Landed where |
+|---|---|---|
+| Template bootstrap | A shipped file template's columns didn't match what `pulse-inspect.sh` parses | Templates + script + a validator group |
+| Template restructure | `inject.sh` / `update.sh` wrote project artifacts inside the framework folder | `inject.sh`, `update.sh`, a validator group |
+| Template needed a design-discipline convention | No convention governed the "design artifact as source of truth" rule | New convention #27 Design Foundation |
+| An earlier convention left a pipeline leak | The `references-*.md` templates had no Design Artifact section | Templates + validator |
+| Template is a monorepo | `pulse-inspect.sh` scanned one source root, not a monorepo's app roots | Script extended with a monorepo scan |
+| Template wasn't a product | Framework conflated template-shape with product-shape at bootstrap | `bootstrap/ONBOARD.md` Group 1 gained the distinction |
 
-Everything in the framework's current state was either originally authored here OR promoted up from a real use.
+The shape repeats: a downstream layer hits a gap, the gap is classified, the fix lands at the layer that owns it (convention, playbook, script, or template), and the factory step records the tuple so the next consumer inherits the fix instead of rediscovering it. Everything in the framework's current state was either originally authored here OR promoted up from a real use.
 
 ## What belongs upstream vs what stays local
 
@@ -48,7 +48,7 @@ Belongs in the framework:
 Stays local at the product layer:
 
 - Specific brand tokens (colors, typography values)
-- Specific vendor choices (Sentry DSN, Stripe keys, WP URL)
+- Specific vendor choices (error-tracking DSN, payment keys, CMS endpoint)
 - UI/UX decisions tied to the product's brand — these live in the product's Design Artifact per convention #27, never in the framework
 
 Stays local at the template layer:

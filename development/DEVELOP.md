@@ -7,7 +7,7 @@ Build features on top of scaffolded foundational systems. Runs for the life of t
 - Phase 2 (Scaffold) complete
 - `feature-tree.md § Foundational Systems` populated
 - `References.md § Foundational Systems` lists every shared system's location + import path
-- Verification commands (`npm test` / pytest / equivalent) runnable and green
+- Verification commands from `References.md § Commands` runnable and green
 
 ## Before starting a feature — read these in order
 
@@ -17,7 +17,7 @@ Tracked work also follows [TASKS.md](TASKS.md), [FRESHNESS.md](FRESHNESS.md), an
 2. `References.md` — tech stack, Commands, Foundational Systems, Convention Overrides, Critical Lessons
 3. `feature-tree.md` — inventory of what exists (systems + other features)
 4. `Conventions.md` — scan the lookup table for YOUR task type (it's an index, NOT a reading list)
-5. `development/RED-FLAGS.md` — 7 Phase 3 silent-failure patterns
+5. `development/RED-FLAGS.md` — the Phase 3 silent-failure catalogue
 
 Note: if framework is in `archetype/` subfolder, conventions live at `archetype/Conventions.md` and `archetype/backend/Conventions.md` (for backend projects).
 
@@ -34,7 +34,7 @@ Example inventory for a "record-session" feature:
 - auth (src/shared/auth/) — will use (`requireAuth` — this is a write endpoint)
 - logger (src/shared/logger/) — will use (`req.log` for the request-scoped logger)
 - env (src/shared/config/env.ts) — not needed directly (used via auth and db)
-- types — will use (Zod schema at HTTP boundary)
+- types — will use (validation schema at the HTTP boundary)
 
 If you find yourself wanting to `new` up a class that's already wrapped in `src/shared/`, STOP — that's red flag #2 (see `development/RED-FLAGS.md`). Use the getter.
 
@@ -85,19 +85,19 @@ These are baselines. Add more for domain-specific risks (race conditions, concur
 
 Tests live co-located with the feature: `src/features/{name}/{name}.test.ts` (adjust extension/format to project language). Follow the existing scaffold pattern — if `src/features/health/health.test.ts` exists, match that style.
 
-**Test isolation:** when multiple integration test files share a database (common for SQLite / ephemeral setups), assertions must be isolation-resilient. Sibling test files leave rows; an unfiltered list-endpoint test asserting `length === N` will flake. See `development/RED-FLAGS.md` #8 for the four isolation strategies — pick one at scaffold time and document it in References.md. Minimum bar: scoped lookups (set-membership assertions) rather than total-count assertions.
+**Test isolation:** when multiple integration test files share a database (common for file-backed or ephemeral test databases), assertions must be isolation-resilient. Sibling test files leave rows; an unfiltered list-endpoint test asserting `length === N` will flake. See `development/RED-FLAGS.md` #8 for the isolation strategies — pick one at scaffold time and document it in References.md. Minimum bar: scoped lookups (set-membership assertions) rather than total-count assertions.
 
 ### Step 6 — Verify (run the gates)
 
-Run each of the project's verification commands from `References.md § Commands`. For a typical backend:
+Run each of the project's verification commands from `References.md § Commands`. Typically three gates:
 
 ```
-npm run typecheck   # must exit 0
-npm test            # must exit 0, all tests passing including new ones
-npm run build       # must exit 0
+<typecheck command>   # must exit 0
+<test command>        # must exit 0, all tests passing including new ones
+<build command>       # must exit 0
 ```
 
-Do NOT proceed to Step 7 if any gate is red. Fix the issue. Do not paper over with skip-tests / eslint-disable / type-assertions-to-any.
+Do NOT proceed to Step 7 if any gate is red. Fix the issue. Do not paper over with skipped tests, lint-suppression comments, or casts to an untyped escape hatch.
 
 ### Step 7 — Document + cross-reference
 
@@ -138,7 +138,7 @@ Each feature gets a doc at `docs/features/{feature-name}.md`:
 
 ## API Shape
 - **Route(s):** [method + path]
-- **Request:** [schema / Zod type name / reference to schema.ts]
+- **Request:** [schema type name / reference to the schema module]
 - **Response (success):** [shape]
 - **Errors:** [table of code → status → message]
 
@@ -165,12 +165,11 @@ Each feature gets a doc at `docs/features/{feature-name}.md`:
 
 ## Final gate — automated validator
 
-Run `scripts/validate-develop.sh` before committing:
+Run `scripts/validate-develop.sh` before committing. It fails the run on:
 
-- No direct shared-class instantiation in features (bypassing getters — red flag #2)
-- No console-level output in `src/features/` (red flag — use the shared logger)
-- Every `src/features/{name}/` has a matching test file
-- Every feature in feature-tree.md has a `docs/features/{name}.md`
-- No `throw new Error(` in features (use AppError subclasses — red flag #1 spillover)
+- Direct construction of a shared client class in features, bypassing its getter (red flag #2). The check matches a fixed list of shared client class names, so it catches the common bypasses, not every one.
+- Console-level output in `src/features/` (red flag — use the shared logger)
+- A feature directory under `src/features/` with no test file
+- A feature row in feature-tree.md with no `docs/features/{name}.md` (the cross-check warns and skips when the project has no feature tree or no `docs/features/` yet)
 
-If the validator fails, fix the underlying issue. Do not paper over.
+It only warns on `throw new Error(` in features, and the run exits clean with warnings outstanding, so that rule rests on you rather than on the gate: raw throws stay forbidden — use AppError subclasses from `src/shared/errors/` (red flag #1 spillover). A clean exit with warnings is not a pass. Fix the underlying issue, warnings included. Do not paper over.

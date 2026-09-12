@@ -11,9 +11,9 @@ Most Step 0-11 of `SCAFFOLD-FRONTEND.md` apply identically to mobile (project se
 ### Step M1 — Project shape decision
 
 Before building:
-- **Framework**: React Native, Flutter, native iOS/Android, or cross-platform alternative. Decision recorded in References.md per bootstrap.
-- **Workflow (React Native only)**: managed (Expo) vs bare. See `templates/references-mobile.md` "Expo managed vs bare" section. Decision changes native-module access.
-- **Backend approach**: custom (separate folder) vs BaaS (platform backend) vs offline-only. See `templates/references-mobile.md` "Backend" section.
+- **Framework**: a cross-platform mobile framework, or each platform's native toolchain. Decision recorded in References.md per bootstrap.
+- **Workflow (cross-platform frameworks only)**: managed SDK vs bare native project. See `templates/references-mobile.md` "Managed vs bare native toolchain" section. Decision changes native-module access.
+- **Backend approach**: custom (separate folder) vs hosted backend service vs offline-only. See `templates/references-mobile.md` "Backend" section.
 
 ### Step M2 — Native-module wrappers
 
@@ -33,7 +33,7 @@ Build wrappers for every capability listed in References.md:
 - **Permission timing:** lazy (on first capability use) unless References.md declares regulated data — then eager at first launch with disclosure.
 - **Test-environment fallback:** each wrapper exposes an availability check that returns false where the native module is absent (simulator, CI, web preview). Features guard calls with it.
 
-ESLint rule (or equivalent): direct native-library imports outside `src/shared/native/` fail the build.
+Lint rule: direct native-library imports outside `src/shared/native/` fail the build.
 
 **Verify:** features use only wrapper imports. A permission-denied test shows graceful fallback UI.
 
@@ -52,14 +52,14 @@ Build:
 
 Research current requirements per capability at scaffold time on Apple Developer Documentation and Android Developers Permission guides. Permission models drift as OS versions release — a stale matrix is worse than no matrix. Have a human review the list against current store submission policies before first build.
 
-**Verify:** build succeeds on both platforms (iOS Xcode build + Android Gradle build). Permission request UX tested on a real device or emulator.
+**Verify:** build succeeds on both platforms, each through its own native build toolchain. Permission request UX tested on a real device or emulator.
 
 ### Step M4 — Offline sync
 
 Conventions: #5 (state), #9 (API — server-state offline handling).
 
 If References.md discovery answered "works offline" = yes:
-- Local persistent store (SQLite via a wrapper, MMKV, or equivalent).
+- Local persistent store (an embedded database or key-value store, reached through a Step M2 wrapper).
 - Sync queue: mutations performed offline queue and replay on reconnect.
 - Conflict resolution strategy (last-write-wins, CRDT, or server-wins — documented decision).
 - UI indicator for offline state.
@@ -82,9 +82,9 @@ Build (if push is in scope per References.md):
 ### Step M6 — Code signing + submission flow
 
 Build:
-- **iOS:** certificates, provisioning profiles, signing config documented. TestFlight upload flow scripted if possible.
-- **Android:** release keystore securely stored, signing config in `build.gradle` reading from env. Play Console upload flow scripted if possible.
-- EAS Build (React Native + Expo) config if that's the chosen approach.
+- **iOS:** certificates, provisioning profiles, signing config documented. Upload flow to the platform's beta-distribution channel scripted if possible.
+- **Android:** release keystore securely stored, signing config in the native build file reading from env. Upload flow to the store's internal track scripted if possible.
+- Hosted build-service config if the project uses one.
 - OTA (over-the-air) update strategy documented (if applicable).
 
 **Build-service config signals:**
@@ -93,25 +93,25 @@ Build:
 - Real credentials (Apple IDs, team IDs, service-account keys) are NEVER committed. Use the build service's secret mechanism or the CI platform's secrets.
 - Research the current schema for the chosen build service.
 
-**SDK-aware package installation:** use the SDK's package installer (not generic `npm install`) for packages with SDK peers. The SDK knows its compatibility matrix; generic installers don't. See `scaffolding/RED-FLAGS.md` #18.
+**SDK-aware package installation:** use the SDK's own package installer (not the package manager's generic install) for packages with SDK peers. The SDK knows its compatibility matrix; generic installers don't. See `scaffolding/RED-FLAGS.md` #18.
 
-**Build-time env-inlining trap:** bundlers and Babel presets rewrite public env variables to literal values at transform time. Runtime env mutation in tests has NO effect on these. Research the current opt-out mechanism for the chosen stack. See `scaffolding/RED-FLAGS.md` #16.
+**Build-time env-inlining trap:** bundlers and transpiler presets rewrite public env variables to literal values at transform time. Runtime env mutation in tests has NO effect on these. Research the current opt-out mechanism for the chosen stack. See `scaffolding/RED-FLAGS.md` #16.
 
 Note: developer-program enrollment costs and review-cycle timing are referenced in `templates/references-mobile.md`. Verify current numbers at enrollment time.
 
-**Verify:** a build uploaded to TestFlight / internal track on Play Console installs on a test device.
+**Verify:** a build uploaded to each platform's beta or internal distribution channel installs on a test device.
 
 ## Step M6b — Pulse Monitor (dev-only, host-served)
 
 Conventions: #26 (pulse monitor).
 
 Mobile projects don't bundle the pulse UI into the app. Instead, serve it locally on the developer's host machine:
-- `npx http-server archetype/templates/pulse-ui/ -p 4500` (or equivalent static server).
-- Developer opens `http://localhost:4500` in a browser; the page fetches `.pulse-state.json` from the same host.
-- Run `./archetype/scripts/pulse-inspect.sh --out archetype/templates/pulse-ui/.pulse-state.json` to refresh state.
-- Optionally scaffold a `scripts/pulse.sh` convenience wrapper that does both.
+- Copy `archetype/templates/pulse-ui/` into a project-owned dev-static directory (for example `dev/pulse/`) and serve that directory with any static file server on a local port. No project artifact is written inside the framework folder.
+- Developer opens that local address in a browser; the page fetches `.pulse-state.json` from the same directory.
+- Run `archetype/scripts/pulse-inspect.sh --out <that project-owned directory>/.pulse-state.json` to refresh state.
+- Optionally scaffold a project-owned `scripts/pulse.sh` convenience wrapper that does both.
 
-Create `docs/systems/pulse-monitor.md` from `archetype/templates/pulse-monitor-spec.md`; document this host-served pattern in the project-specific "Where it's served" section.
+Create `docs/systems/pulse-monitor.md` from `archetype/templates/pulse-monitor-spec.md`; document this host-served pattern in the project-specific "Where it's served" section, and read that spec's implementation notes before choosing the snapshot path.
 
 ## Step M7 — Smoke-test feature (scaffold exit gate)
 

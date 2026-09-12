@@ -10,11 +10,11 @@ Surface before moving to Step 3. If any combination fires, do NOT silently proce
 |-------------|---------------------|------------|
 | Free to run + regulated data (HIPAA, PCI, financial) | Compliance-grade hosting has a meaningful monthly floor. BAAs, compliant storage, encryption, audit logging — none ship on free tiers. | Step 3 Option A is the only correct answer. Recommend the cheapest compliant platform for the regime. Custom for $0 is not possible. |
 | Offline + regulated data (PHI, PII, financial) | Offline means data on the device. Device loss, encryption failure, sync integrity, remote wipe — all compliance risks. | Challenge the requirement. Ask: "Do you need truly offline, or fast access while online?" Offline with regulated data is a significant compliance burden. |
-| Solo user + enterprise infra (Kubernetes, multi-region, service mesh, Kafka) | Operational burden exceeds feature work. User bounces off the infra before shipping the product — UNLESS this is a learning project (see LEARNING-PROJECTS.md). | First, ask ship-vs-learn (see LEARNING-PROJECTS.md). If shipping, surface the scale mismatch and quantify complexity cost (hours of ops/week). Offer a simpler stack. |
+| Solo user + enterprise infra (container orchestration, multi-region, service mesh, distributed message queues) | Operational burden exceeds feature work. User bounces off the infra before shipping the product — UNLESS this is a learning project (see LEARNING-PROJECTS.md). | First, ask ship-vs-learn (see LEARNING-PROJECTS.md). If shipping, surface the scale mismatch and quantify complexity cost (hours of ops/week). Offer a simpler stack. |
 | Real-time + static hosting | Real-time (WebSocket, SSE) needs a long-lived server. Static hosts cannot. | Add a managed real-time service OR a stateful backend. Confirm the cost addition. |
-| Multi-user team + "just me" stack (SQLite-only, no auth, local files) | Team features need auth, shared persistence, concurrency. Solo stacks cannot handle this. | Re-run discovery Groups 3 and 4; escalate the stack. |
+| Multi-user team + "just me" stack (an embedded single-file database only, no auth, local files) | Team features need auth, shared persistence, concurrency. Solo stacks cannot handle this. | Re-run discovery Groups 3 and 4; escalate the stack. |
 | "All equally important" priorities + tight deadline | If everything is top priority, nothing is. Deadlines force tradeoffs. | Force a ranking. See "Priority-ranking fallback" below. |
-| Enterprise SSO (Okta, Azure AD, Google Workspace) + consumer auth stack | Enterprise SSO usually needs a SAML/SCIM-capable managed auth provider — not consumer auth. | Route to enterprise-auth research. See "SSO tenant ownership check" below. |
+| Enterprise SSO (an employer-managed identity provider) + consumer auth stack | Enterprise SSO usually needs a SAML/SCIM-capable managed auth provider — not consumer auth. | Route to enterprise-auth research. See "SSO tenant ownership check" below. |
 | Compliance claim + no BAA / vendor-agreement discussion | Claiming a compliance regime without vendor agreements is a common user error. | Ask about BAA/subprocessor plans. Route to compliance-aware platforms or enterprise cloud paths. |
 | Enterprise SSO mentioned + user is not an admin on the IdP tenant | Provisioning (SAML metadata, SCIM, conditional access) requires admin access to the identity provider. | Ask: "Are you an admin on that tenant, or will IT provision?" If not admin, scaffold a fallback (consumer auth with SAML-ready adapter) until IT engages. |
 | "All equally important" + user refuses to rank | Proceeding without a ranking means AI guesses and may optimize the wrong axis. | Apply default order: (1) compliance and legal safety, (2) data integrity and authentication, (3) core user flow, (4) scale, (5) polish and nice-to-haves. Document the applied order in References.md under "Convention Overrides" so the user can redirect later. |
@@ -52,12 +52,14 @@ If the regulated-data question is in "default-assumed yes, not explicitly answer
 
 If the user says "phone app" or "works on my phone," do NOT silently pick a stack. Follow up:
 
-> "When you say phone, do you mean: (a) installed from the App Store / Play Store like Instagram (a native app), (b) added to the home screen from a browser like a PWA, or (c) just works well when they open your site on their phone (responsive web)? The three are very different in cost and time to build."
+> "When you say phone, do you mean: (a) installed from the phone's app store, like the apps already on their home screen (a native app), (b) added to the home screen from a browser (a PWA), or (c) just works well when they open your site on their phone (responsive web)? The three are very different in cost and time to build."
+
+Name a well-known app for option (a) so the question lands with a non-technical user; pick one that is popular now, not one you remember.
 
 These three are genuinely distinct decisions — do NOT merge them:
 - **Responsive web (c)** — site works on phone browsers. No install. Cheapest and fastest. The default for "I don't know."
 - **PWA (b)** — responsive web PLUS an installable home-screen icon via manifest + service worker. Adds offline caching and push notifications. More work than (c), meaningfully less than (a).
-- **Native (a)** — native modules, App Store presence, native device APIs (HealthKit, haptics, biometrics), different deployment. Most work.
+- **Native (a)** — native modules, app-store presence, native device APIs (the OS health-data store, haptics, biometrics), different deployment. Most work.
 
 If the user says "I don't know what that means" or deflects, pick responsive (c). Do NOT silently pick native or bundle PWA on top by default.
 
