@@ -43,7 +43,7 @@
 # "## Research Notes" or "### Research Notes" to open the allowed zone.
 #
 # Scope: every shipped markdown file except libraries/: conventions/,
-# backend/, the root and backend CLAUDE.md and Conventions.md, README.md,
+# backend/, the root and backend CLAUDE.md and Conventions.md, AGENTS.md, README.md,
 # META-BATTLE-TESTING.md, templates/*.md, bootstrap/ (with hooks/README.md),
 # scaffolding/, and development/. Pass file arguments to scan a subset.
 
@@ -85,7 +85,7 @@ if [ "$#" -gt 0 ]; then
   EXPLICIT=1
   for f in "$@"; do FILES+=("$f"); done
 else
-  for f in CLAUDE.md Conventions.md README.md META-BATTLE-TESTING.md backend/CLAUDE.md backend/Conventions.md \
+  for f in CLAUDE.md AGENTS.md Conventions.md README.md META-BATTLE-TESTING.md backend/CLAUDE.md backend/Conventions.md \
            conventions/*.md backend/conventions/*.md templates/*.md \
            bootstrap/*.md bootstrap/hooks/README.md scaffolding/*.md development/*.md; do
     [ -f "$f" ] && FILES+=("$f")
@@ -183,7 +183,7 @@ for file in "${FILES[@]}"; do
     if (line ~ /^[[:space:]]*```/) { fence = !fence; next }
 
     # Zone tracking.
-    if (line ~ /^#{2,3} Research Notes[[:space:]]*$/) { research = 1; notice = 0; research_line = NR }
+    if (line ~ /^#{2,3} Research Notes[[:space:]]*$/) { research = 1; notice = 0; research_line = FNR }
     else if (line ~ /^#{1,3} /) {
       if (research && !notice) report("F", "Research Notes section at line " research_line " lacks a line starting \"Dated notes:\"")
       research = 0
@@ -201,7 +201,7 @@ for file in "${FILES[@]}"; do
         tok = substr(rest, RSTART, RLENGTH); sub(/^[^[:alnum:]]/, "", tok)
         num = tok; sub(/^Steps? /, "", num)
         before = substr(line, 1, offset + RSTART)
-        if (!(num in defined) && before !~ /(ONBOARD|SCAFFOLD(-[A-Z]+)?|DEVELOP|MAINTAIN|EXISTING-PROJECT|REPOSITORIES)(\.md)?[^#]*$/)
+        if (!(num in defined) && before !~ /(ONBOARD|EXISTING-PROJECT|LEARNING-PROJECTS|RED-FLAGS|REPOSITORIES|SCAFFOLD(-[A-Z_]+)?|_preamble|DEVELOP|MAINTAIN(-RED-FLAGS)?|TASKS|FRESHNESS|CREATING-FORKABLE-TEMPLATES)(\.md)?/)
           report("B", "factory step reference (" tok "): " line)
         offset += RSTART + RLENGTH - 1
         rest = substr(rest, RSTART + RLENGTH)

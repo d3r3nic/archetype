@@ -111,7 +111,7 @@ Developer adds a new route that should require auth but forgets to wrap it in `<
 
 Mobile-specific, but applicable to any project whose bundler or transpiler substitutes public env variables at build time: the transform rewrites every read of the public env prefix to a LITERAL VALUE at transform time. A test that assigns to that variable at runtime has NO effect — the module was compiled with the value present when the test environment loaded. Tests silently run against the wrong config and pass spuriously.
 
-**Defense:** Bracket-notation access or an explicit runtime lookup for values that must be mutable in tests. Document which env vars are build-time (inlined) vs runtime (mutable) in References.md § Commands / Environment. SCAFFOLD-MOBILE M7 and SCAFFOLD-FRONTEND Step 10 call this out in the testing context.
+**Defense:** Bracket-notation access or an explicit runtime lookup for values that must be mutable in tests. Document which env vars are build-time (inlined) vs runtime (mutable) in References.md § Commands / Environment. SCAFFOLD-MOBILE Step M6 and SCAFFOLD-FRONTEND Step 10 call this out in the testing context.
 
 ## 17. Class prototype broken on transpiled Error subclasses
 

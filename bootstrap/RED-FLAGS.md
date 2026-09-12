@@ -54,6 +54,8 @@ If the user says "phone app" or "works on my phone," do NOT silently pick a stac
 
 > "When you say phone, do you mean: (a) installed from the phone's app store, like the apps already on their home screen (a native app), (b) added to the home screen from a browser (a PWA), or (c) just works well when they open your site on their phone (responsive web)? The three are very different in cost and time to build."
 
+Name a well-known app for option (a) so the question lands with a non-technical user; pick one that is popular now, not one you remember.
+
 These three are genuinely distinct decisions — do NOT merge them:
 - **Responsive web (c)** — site works on phone browsers. No install. Cheapest and fastest. The default for "I don't know."
 - **PWA (b)** — responsive web PLUS an installable home-screen icon via manifest + service worker. Adds offline caching and push notifications. More work than (c), meaningfully less than (a).

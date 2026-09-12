@@ -131,6 +131,7 @@ mkdir -p vendor
 cp "$TEMP/template/<pack output>/"* vendor/
 
 # 5. Rewrite the per-customer slug only: the manifest's name field, nothing else
+<set the manifest name field to the customer slug>
 
 # 6. Plain workflow — no patches, no flags
 <package-manager> install

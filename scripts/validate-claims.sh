@@ -20,7 +20,9 @@
 #      "when available", "optionally", "project-owned", "generated") are
 #      skipped.
 #   3. Convention references. "#N" must resolve to conventions/NN-*.md and
-#      "BN" to backend/conventions/BN-*.md.
+#      "BN" to backend/conventions/BN-*.md. "#N" after "issue", "ticket",
+#      "PR", or "pull request" is not a convention reference. Ordinals such
+#      as "Phase 3 silent-failure patterns" are names, not counts.
 #
 # Usage:
 #   scripts/validate-claims.sh            # scan every shipped markdown file
@@ -77,6 +79,7 @@ for p in bootstrap/ONBOARD.md scaffolding/SCAFFOLD.md development/DEVELOP.md dev
   [ -f "$p" ] && PHASE_COUNT=$((PHASE_COUNT + 1))
 done
 MAX_ID=$(find conventions -maxdepth 1 -name '[0-9]*.md' | sed 's|.*/||' | cut -d- -f1 | sort -n | tail -1)
+MAX_ID=$((10#$MAX_ID))
 
 word_to_number() {
   case "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" in
@@ -92,7 +95,7 @@ word_to_number() {
 # 1. Count claims.
 # ----------------------------------------------------------------------
 NUMBERS='([0-9]+|[Oo]ne|[Tt]wo|[Tt]hree|[Ff]our|[Ff]ive|[Ss]ix|[Ss]even|[Ee]ight|[Nn]ine|[Tt]en|[Ee]leven|[Tt]welve|[Tt]hirteen|[Ff]ourteen|[Ff]ifteen|[Ss]ixteen|[Ss]eventeen|[Ee]ighteen|[Nn]ineteen|[Tt]wenty)'
-NOUNS='(numbered )?(universal )?(convention docs?|conventions|backend conventions|(known )?silent-failure patterns?|red[- ]flag patterns?|red[- ]flags|phase playbooks?|phases|starter hooks?|working hook scripts?|hook scripts?)'
+NOUNS='(numbered )?(universal )?(convention docs?|conventions|backend conventions|(known )?silent-failure patterns?|red[- ]flag patterns?|red[- ]flags|patterns|phase playbooks?|phases|starter hooks?|working hook scripts?|hook scripts?)'
 COUNT_FAILS=0
 for file in "${FILES[@]}"; do
   while IFS= read -r hit; do
@@ -106,7 +109,13 @@ for file in "${FILES[@]}"; do
     num="$(word_to_number "$num_word")"
     noun="$(printf '%s' "$phrase" | sed -E "s/^$NUMBERS[ -]//")"
     context="$(sed -n "${lineno}p" "$file")"
+    # An ordinal such as "Phase 3 silent-failure patterns" is a name, not a count.
+    printf '%s' "$context" | grep -qE "(Phase|Step|Group|Part|Tier|Option) $num_word[ -]$noun" && continue
     case "$noun" in
+      patterns)
+        printf '%s' "$context" | grep -qiE 'RED-FLAGS|red[- ]flag|silent-failure' || continue
+        fail "$file:$lineno: counts a red-flag catalogue (\"$phrase\"); name the catalogue, never its size"
+        COUNT_FAILS=$((COUNT_FAILS + 1)); continue ;;
       *silent-failure*|*red-flag*|*red\ flag*)
         fail "$file:$lineno: counts a red-flag catalogue (\"$phrase\"); name the catalogue, never its size"
         COUNT_FAILS=$((COUNT_FAILS + 1)); continue ;;
@@ -169,7 +178,9 @@ for file in "${FILES[@]}"; do
   while IFS= read -r hit; do
     [ -z "$hit" ] && continue
     lineno="${hit%%:*}"; n="${hit#*:}"
-    padded=$(printf '%02d' "$n")
+    # An issue, ticket, or pull-request number is not a convention reference.
+    if sed -n "${lineno}p" "$file" | grep -qiE "(issue|ticket|bug|PR|MR|pull request)[[:space:]#]*#?$n([^0-9]|$)"; then continue; fi
+    padded=$(printf '%02d' "$((10#$n))")
     if ! ls conventions/${padded}-*.md > /dev/null 2>&1; then
       fail "$file:$lineno: references convention #$n but conventions/${padded}-*.md does not exist"
       CONV_FAILS=$((CONV_FAILS + 1))
