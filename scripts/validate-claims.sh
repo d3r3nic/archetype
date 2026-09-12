@@ -109,8 +109,15 @@ for file in "${FILES[@]}"; do
     num="$(word_to_number "$num_word")"
     noun="$(printf '%s' "$phrase" | sed -E "s/^$NUMBERS[ -]//")"
     context="$(sed -n "${lineno}p" "$file")"
-    # An ordinal such as "Phase 3 silent-failure patterns" is a name, not a count.
-    printf '%s' "$context" | grep -qE "(Phase|Step|Group|Part|Tier|Option) $num_word[ -]$noun" && continue
+    # An ordinal such as "Phase 3 silent-failure patterns" is a name, not a count,
+    # unless a count precedes the ordinal ("7 Phase 3 silent-failure patterns").
+    ORDINALS='(Phase|Step|Group|Part|Tier|Option)'
+    if printf '%s' "$context" | grep -qE "$ORDINALS $num_word[ -]$noun"; then
+      lead="$(printf '%s' "$context" | grep -oE "(^|[^0-9A-Za-z-])$NUMBERS[ -]$ORDINALS $num_word[ -]$noun" | head -1 | sed -E 's/^[^0-9A-Za-z-]//' | grep -oE "^$NUMBERS")"
+      [ -z "$lead" ] && continue
+      phrase="$lead $(printf '%s' "$context" | grep -oE "$ORDINALS $num_word[ -]$noun" | head -1)"
+      num="$(word_to_number "$lead")"
+    fi
     case "$noun" in
       patterns)
         printf '%s' "$context" | grep -qiE 'RED-FLAGS|red[- ]flag|silent-failure' || continue
@@ -121,7 +128,7 @@ for file in "${FILES[@]}"; do
         COUNT_FAILS=$((COUNT_FAILS + 1)); continue ;;
       *backend\ conventions*) expected="$BACK_COUNT" ;;
       *convention*)
-        if printf '%s' "$context" | grep -qiE "$phrase[^.]{0,40}backend"; then expected="$BACK_COUNT"; else expected="$CONV_COUNT"; fi ;;
+        if printf '%s' "$context" | grep -qiE "$phrase (for|of|in) (the )?backend|backend $phrase"; then expected="$BACK_COUNT"; else expected="$CONV_COUNT"; fi ;;
       *phase*) expected="$PHASE_COUNT" ;;
       *hook*) expected="$HOOK_COUNT" ;;
       *) continue ;;
