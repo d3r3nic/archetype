@@ -6,11 +6,11 @@ Routed from `ONBOARD.md` Step 3. Read this when the user's goal is to learn a te
 
 Framework's default is "don't build what already exists as a platform" (see Convention #0). But learning a specific technology is a legitimate reason to use a custom stack that would otherwise be overkill. The technology choice IS the point.
 
-This applies to any enterprise-infra-as-learning-vehicle: Kubernetes, Kafka, Istio, service mesh, stream processing, distributed systems, microservices orchestration, etc. Pattern is the same.
+This applies to any enterprise-infra-as-learning-vehicle: container orchestration, distributed message queues, service mesh, stream processing, distributed systems, microservices orchestration, etc. Pattern is the same.
 
 ## Proactive Detection
 
-If the user's OPENING message declares enterprise or complex infrastructure (any of the above, plus Redis, multi-region, self-managed clusters) for a personal-scale or small-scale project (one user, a blog, a personal tool, a portfolio), ask the ship-vs-learn question in your FIRST reply, not after red flags fire in later turns. Pattern: solo + enterprise-infra = learning intent >80% of the time.
+If the user's OPENING message declares enterprise or complex infrastructure (any of the above, plus distributed caching, multi-region, self-managed clusters) for a personal-scale or small-scale project (one user, a blog, a personal tool, a portfolio), ask the ship-vs-learn question in your FIRST reply, not after red flags fire in later turns. Pattern: solo + enterprise-infra is nearly always learning intent.
 
 Example first-reply script:
 > "Stack noted — [their declared stack]. Before I proceed, one question that shapes everything: your opener combines solo user + enterprise infrastructure for a [small-scale project]. That combination is almost always one of two things: (a) you're optimizing for shipping and the stack is overkill — a platform or lighter stack ships in a weekend, or (b) this is an excuse to learn [technology] and the project is the vehicle. Both are legit, but they lead to very different recommendations. Which is it?"
@@ -20,10 +20,8 @@ Example first-reply script:
 If user confirms learning intent:
 
 1. **Skip Step 3 platform-vs-custom research.** The technology choice is the point, not a mistake.
-2. **Scale-vs-cost still matters.** Custom stacks for learning can still be expensive. Recommend the cheapest way to exercise the target technology:
-   - Learning Kubernetes: use kind, minikube, or k3s locally (free) before EKS / GKE / AKS (monthly floor).
-   - Learning Kafka: use local docker-compose or Redpanda single-node before managed Kafka (Confluent, AWS MSK).
-   - Learning service mesh: use local kind + linkerd before managed cloud options.
+2. **Scale-vs-cost still matters.** Custom stacks for learning can still be expensive. Recommend the cheapest way to exercise the target technology: a local single-node or single-container tier first, a managed cloud tier only when the learning goal genuinely needs it.
+   - Dated example: learning container orchestration ran free on a local single-node cluster (kind, minikube, k3s) while the managed clusters (EKS, GKE, AKS) carried a monthly floor; the same local-first pattern held for message queues and service mesh.
    - Research current cheapest-tier tooling for the specific technology at bootstrap time.
 3. **Surface the cost of the learning exercise explicitly.** Quote the approximate delta between local learning and cloud learning. User makes an informed decision.
 4. **Document the learning intent in References.md.** Future AI agents should not re-litigate the decision. Include:
@@ -43,7 +41,7 @@ In References.md under "Convention Overrides" or "Build Approach":
 This project deliberately uses a stack that would be over-engineered for
 its user-facing scope. The stated goal is to learn [TECHNOLOGY].
 
-- Target technology: [Kubernetes / Kafka / etc.]
+- Target technology: [the one technology this project exists to teach]
 - User-facing scope: [personal blog / 5 readers / etc.]
 - Learning-driven components: [list]
 - Load-driven components: [list]
