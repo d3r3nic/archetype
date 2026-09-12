@@ -9,11 +9,11 @@ The framework encodes the developer's CHARACTER (instincts, patterns, judgment) 
 - **Framework must NOT contain:** specific tool names as THE answer, specific API calls, version numbers, current pricing, vendor product names as prescriptions.
 - **Project artifacts SHOULD contain:** the specific tools THIS project uses, current versions, current pricing, current vendor choices. That's their job.
 
-When you scaffold, populate project artifacts with current specifics you researched. Don't abstract them into generic language — References.md naming "Prisma 6 + PostgreSQL 15 + Vitest" is correct. The framework describing the same stack abstractly is correct. Both are right in their place.
+When you scaffold, populate project artifacts with current specifics you researched. Don't abstract them into generic language — a References.md that names this project's exact ORM, database, and test runner with their versions is correct, and the framework describing that same stack abstractly is also correct. Both are right in their place.
 
 ## Zero-stale rule (framework only)
 
-Every tool, SDK, version, linter rule, or vendor named in the FRAMEWORK is a reference — verify current options at scaffold time. Research Notes in each convention list the CATEGORY of tooling ("a structured logger for the language", "a SAML-capable enterprise auth broker"). Resolve to a specific current choice at scaffold time, not from training-data memory. The specifics land in project artifacts, not in framework edits.
+Every tool, SDK, version, linter rule, or vendor named in the FRAMEWORK is a reference — verify current options at scaffold time. Research Notes in each convention list the CATEGORY of tooling ("a structured logger for the language", "a SAML-capable enterprise auth broker"). Resolve to a specific current choice at scaffold time, not from training-data memory. The specifics land in project artifacts, not in framework edits. Where a framework file keeps one concrete illustration, it sits on a line beginning `Dated example:` — read those as expired until re-verified, never as a prescription.
 
 ## Convention-mapping rule
 
@@ -41,7 +41,7 @@ One commit per foundational system per convention #2. The commit history IS the 
 
 ## Red-flags rule
 
-Before scaffolding, read `scaffolding/RED-FLAGS.md` — 13 known silent-failure patterns. Consult it during each step. If a red flag fires, STOP and resolve before continuing.
+Before scaffolding, read `scaffolding/RED-FLAGS.md` — the catalogue of known silent-failure patterns. Consult it during each step. If a red flag fires, STOP and resolve before continuing.
 
 ## Machine-verifiable exit gate
 
