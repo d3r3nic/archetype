@@ -12,6 +12,8 @@
 #   9. Task protocol routing targets exist
 #  10. Timeless conventions: no expirable content outside Research Notes
 #      (delegates to scripts/validate-timeless.sh)
+#  11. Self-claims: counts, engine paths, and convention references in the
+#      shipped docs match the tree (delegates to scripts/validate-claims.sh)
 # Exit 0 on pass, 1 on any error. Warnings do not fail the check.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -228,6 +230,22 @@ if [ -f "$SCRIPT_DIR/validate-timeless.sh" ]; then
   fi
 else
   fail "scripts/validate-timeless.sh missing"
+fi
+
+# ----------------------------------------------------------------------
+group 11 "Self-claims (counts, engine paths, convention references match the tree)"
+# ----------------------------------------------------------------------
+if [ -f "$SCRIPT_DIR/validate-claims.sh" ]; then
+  if CLAIMS_OUT="$(bash "$SCRIPT_DIR/validate-claims.sh" 2>&1)"; then
+    pass "self-claims check clean"
+  else
+    printf '%s\n' "$CLAIMS_OUT" | grep -E 'FAIL' | sed 's/\x1b\[[0-9;]*m//g' | while IFS= read -r line; do
+      printf '  %s\n' "$line"
+    done
+    fail "self-claims check reported violations (see lines above)"
+  fi
+else
+  fail "scripts/validate-claims.sh missing"
 fi
 
 # ----------------------------------------------------------------------

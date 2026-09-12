@@ -7,8 +7,9 @@
 #   1. Every foundational system in feature-tree.md has a docs/systems/{name}.md
 #   2. Env validation is called from startup (startup-call pattern, not ad-hoc process.env)
 #   3. No console-level output in source (language-agnostic grep)
-#   4. Direct third-party imports flagged outside project wrappers
-#   5. Audit log path exists if References.md mentions regulated data
+#   4. Audit log path exists if References.md mentions regulated data, and an
+#      in-memory audit store is not shipped to regulated production
+#   5. (see 4b in the groups below; the numbering here follows the groups)
 #   6. CI workflow doesn't auto-run migrations on main/master pushes
 #   7. Smoke-test feature exists
 #   8. VERSION-LOG.md has a Scaffold entry
