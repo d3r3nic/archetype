@@ -305,15 +305,28 @@ else
       SUPPRESS_PASS=1
       continue
     fi
-    # A Control naming a floor item is wrong whatever the Kind says: a floor item is never postponed.
+    # The Control is checked for every open entry that declares one, whatever the Kind says: it must
+    # name a convention, a backend rule, or a floor item, and a floor item is never postponed.
     if [ -n "$control" ] && [ "$status" != "fixed" ]; then
-      case "$(printf '%s' "$control" | tr '[:upper:]' '[:lower:]')" in
+      lc_control="$(printf '%s' "$control" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]*:[[:space:]]*/:/; s/^[[:space:]]+//; s/[[:space:]]+$//')"
+      case "$lc_control" in
+        \[*) fail "$id: Control still holds a template placeholder"; SUPPRESS_PASS=1 ;;
+        floor)
+          fail "$id: Control says floor but names no floor item; floor items: ${FLOOR// /, }"; SUPPRESS_PASS=1 ;;
         floor:*)
-          if [ "$kind" != "deferral" ]; then
-            item="${control#*:}"; item="${item#"${item%%[! ]*}"}"; item="${item%% *}"
-            fail "$id: a floor item ($item) is never postponed, as a deferral or as a shortcut (#30)"
-            SUPPRESS_PASS=1
-          fi ;;
+          item="${lc_control#floor:}"; item="${item%% *}"
+          if in_list "$item" "$FLOOR"; then
+            if [ "$kind" = "deferral" ]; then
+              fail "$id: a floor item ($item) is never a deferral (#30)"
+            else
+              fail "$id: a floor item ($item) is never postponed, as a deferral or as a shortcut (#30)"
+            fi
+          else
+            fail "$id: Control names unknown floor item \"$item\"; floor items: ${FLOOR// /, }"
+          fi
+          SUPPRESS_PASS=1 ;;
+        '#'[0-9]*|b[0-9]*) ;;
+        *) fail "$id: Control is \"$control\"; name a convention (#N and the obligation), a backend rule (BN), or a floor item (floor: name)"; SUPPRESS_PASS=1 ;;
       esac
     fi
     if [ -z "$kind" ] && [ "$kindpresent" = "1" ]; then
@@ -333,21 +346,6 @@ else
     [ -z "$review" ] && fail "$id: deferral without Review-by"
     [ -z "$closure" ] && fail "$id: deferral without Closure-evidence"
     case "$closure" in \[*) fail "$id: Closure-evidence still holds a template placeholder" ;; esac
-    if [ -n "$control" ]; then
-      lc_control="$(printf '%s' "$control" | tr '[:upper:]' '[:lower:]')"
-      case "$lc_control" in
-        \[*) fail "$id: Control still holds a template placeholder" ;;
-        floor:*)
-          item="${lc_control#*:}"; item="${item#"${item%%[! ]*}"}"; item="${item%% *}"
-          if in_list "$item" "$FLOOR"; then
-            fail "$id: a floor item ($item) is never a deferral (#30)"
-          else
-            fail "$id: Control names unknown floor item \"$item\"; floor items: ${FLOOR// /, }"
-          fi ;;
-        '#'[0-9]*|b[0-9]*) ;;
-        *) fail "$id: Control is \"$control\"; name a convention (#N and the obligation), a backend rule (BN), or a floor item (floor: name)" ;;
-      esac
-    fi
     if [ "$PROFILE_PRESENT" -eq 0 ]; then
       fail "$id: a deferral cannot be evaluated without PROFILE.md; create the profile or fix the entry"
       continue

@@ -840,6 +840,16 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_fail(out, code, "TD-127: a floor item (secrets) is never postponed, as a deferral or as a shortcut")
         self.assertNotIn("has no deferrals", out)
 
+    def test_malformed_floor_controls_on_shortcuts_fail(self):
+        code, out = self.run_validator(profile_text(), debt_entry(128, kind="shortcut", control="floor"))
+        self.assert_fail(out, code, "TD-128: Control says floor but names no floor item")
+        code, out = self.run_validator(profile_text(), debt_entry(128, kind="shortcut", control="Floor : secrets"))
+        self.assert_fail(out, code, "TD-128: a floor item (secrets) is never postponed")
+        code, out = self.run_validator(profile_text(), debt_entry(128, kind="shortcut", control="something vague"))
+        self.assert_fail(out, code, 'TD-128: Control is "something vague"; name a convention')
+        code, out = self.run_validator(profile_text(), debt_entry(128, kind="shortcut", control="#0 duplicated helper"))
+        self.assert_clean(out, code)
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)
