@@ -9,6 +9,10 @@ Use this template when the user's project is built on a third-party platform (a 
 - Name:
 - Purpose (one sentence):
 - Stage: [idea / building / live / maintaining]
+- Profile: PROFILE.md (operating stage and decision authority per #30 and #29)
+- Owner channel: [where escalations go and how quickly the owner usually answers]
+- Decision location: [architecture decision records path, or "References.md § Decisions" until one exists]
+- Reporting pace: [every session / every release / on request]
 - Public URL (if any):
 - Owner (who holds the account):
 
