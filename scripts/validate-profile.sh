@@ -281,6 +281,7 @@ else
     if [ "$id" = "ODD-HEADING" ]; then
       if [ "$kind" = "1" ]; then
         fail "TECHNICAL-DEBT.md: \"$status\" carries entry fields but is not a level-two heading, so it would not be checked; entries start with \"## TD-\""
+        FENCE_BAD=1
       else
         warn "TECHNICAL-DEBT.md: \"$status\" is not a level-two heading, so it is not read as an entry; entries start with \"## TD-\""
       fi
@@ -367,17 +368,31 @@ else
       c = substr(body, 1, 1); n = 0
       while (substr(body, n + 1, 1) == c) n++
       rest = substr(body, n + 1)
-      if (!infence) { infence = 1; fchar = c; flen = n; fence_line = NR }
+      # A backtick run followed by more backticks on the same line is inline code, not a fence.
+      if (!infence) { if (!(c == "`" && rest ~ /`/)) { infence = 1; fchar = c; flen = n; fence_line = NR } }
       else if (c == fchar && n >= flen && rest ~ /^[ \t]*$/) { infence = 0 }
       next
     }
     infence { next }
-    # An entry starts at "## TD-" and runs until the next "## TD-" heading (or a level-one heading);
-    # other headings inside it, such as "### Follow-up" or a stray "## Follow-up", stay part of it, so
-    # fields written under them are still read and a repeated field still fails.
-    /^## TD-/ { flush(); reset(); id = $2; sub(/[^A-Za-z0-9-].*$/, "", id); next }
-    /^#+ TD-/ { flush(); reset(); odd = $0; next }
-    /^# / { flush(); reset(); next }
+    # Headings: up to three spaces of indentation, one to six marks, then whitespace. An entry starts
+    # at a level-two "TD-" heading and runs until the next one or a level-one heading; other headings
+    # inside it, such as "### Follow-up" or a stray "## Follow-up", stay part of it, so fields written
+    # under them are still read and a repeated field still fails. A "TD-" heading at any other level
+    # is recorded so the shell can fail or warn about it.
+    /^ ? ? ?#/ {
+      h = $0; sub(/^ ? ? ?/, "", h)
+      if (h ~ /^#+([ \t]|$)/) {
+        level = 0; while (substr(h, level + 1, 1) == "#") level++
+        text = substr(h, level + 1); sub(/^[ \t]+/, "", text)
+        if (level <= 6 && text ~ /^TD-/) {
+          flush(); reset()
+          if (level == 2) { id = text; sub(/[^A-Za-z0-9-].*$/, "", id) } else { odd = $0 }
+          next
+        }
+        if (level == 1) { flush(); reset(); next }
+        next
+      }
+    }
     odd != "" && /^- \*\*[A-Za-z-]+:?\*\*:?/ { name = $0; sub(/^- \*\*/, "", name); sub(/:?\*\*.*$/, "", name); if (governed(name)) oddfields = 1; next }
     id == "" { next }
     /^- \*\*[A-Za-z-]+:?\*\*:?/ {

@@ -589,6 +589,32 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_clean(out, code)
         self.assertIn("DEFERRED: TD-075 until first-outside-participant", out)
 
+    def test_heading_whitespace_variants_are_entries(self):
+        for heading in ("  ## TD-080 — indented", "##  TD-080 — double space", "##\tTD-080 — tab", "## TD-080"):
+            with self.subTest(heading=heading):
+                body = "\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** #23 rate limiting\n- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n"
+                code, out = self.run_validator(profile_text(TRIAL), heading + body, strict=True)
+                self.assert_fail(out, code, "TD-080: trigger first-outside-participant is true")
+
+    def test_indented_wrong_level_heading_with_fields_fails(self):
+        entry = "  ### TD-091 — indented h3\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
+        self.assertNotIn("has no deferrals", out)
+
+    def test_inline_code_spans_are_not_fences(self):
+        debt = ("# Technical Debt Log\n\n```inline```\n\n" + debt_entry(90, due="first-outside-participant")
+                + "```\n```literal```\n```\n")
+        code, out = self.run_validator(profile_text(TRIAL), debt, strict=True)
+        self.assert_fail(out, code, "TD-090: trigger first-outside-participant is true")
+
+    def test_tilde_fence_info_string_may_contain_backticks(self):
+        debt = "# Technical Debt Log\n\n~~~ example with `code`\n" + debt_entry(92, control="floor: secrets") + "~~~\n\n" + debt_entry(93)
+        code, out = self.run_validator(profile_text(), debt)
+        self.assert_clean(out, code)
+        self.assertNotIn("TD-092", out)
+        self.assertIn("DEFERRED: TD-093 until first-outside-participant", out)
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)
