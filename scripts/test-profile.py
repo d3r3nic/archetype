@@ -1029,6 +1029,45 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(), entry)
         self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
 
+    def test_bold_prose_bullet_mentioning_a_governed_word_midway_is_fine(self):
+        entry = debt_entry(158, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\n- **Note the control flow changed while waiting**\n- **Status of the kind request is unknown for now** (prose)\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assertEqual(code, 1, out)
+        self.assertIn("TD-158: field label(s) found on lines the validator does not read as fields: Status", out)
+        entry = debt_entry(159, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\n- **Note the control flow changed while waiting**\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assert_clean(out, code)
+        self.assertIn("DEFERRED: TD-159 until public-access", out)
+
+    def test_nested_inner_markup_in_no_colon_labels_fails_loudly(self):
+        for form in ("**note _{n}_**", "**note <span>{n}</span>**", "**_{n}_ value**"):
+            with self.subTest(form=form):
+                entry = ("## TD-160 — nested no colon\n\n" + "\n".join(
+                    "- " + form.format(n=name) + " " + value for name, value in (
+                        ("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
+                        ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))) + "\n")
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assertEqual(code, 1, out)
+                self.assertIn("TD-160: field label(s) found on lines the validator does not read as fields", out)
+                self.assertNotIn("has no deferrals", out)
+
+    def test_underlined_headings_share_the_identifier_normalization(self):
+        for head in ("**<span>TD</span>-161** floor shortcut\n---\n", "<span TD-161 floor shortcut\n===\n"):
+            with self.subTest(head=head.replace("\n", "|")):
+                entry = head + "\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
+                code, out = self.run_validator(profile_text(), entry)
+                self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
+        entry = "## **<span>TD</span>-162** floor shortcut\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-162: a floor item (secrets) is never postponed")
+
+    def test_inline_code_field_lines_reach_the_stray_rule(self):
+        for ticks in ("```", "````"):
+            with self.subTest(ticks=ticks):
+                entry = "## TD-163 — inline code line\n\n- **Status:** open\n- **Kind:** shortcut\n" + ticks + "Control" + ticks + ": floor: secrets\n"
+                code, out = self.run_validator(profile_text(), entry)
+                self.assert_fail(out, code, "TD-163: field label(s) found on lines the validator does not read as fields: Control")
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)

@@ -404,10 +404,16 @@ else
       # italic everyday word has no list marker and no leading markup, so it is not a label.
       if (match(s, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<\[]*[ \t])?)?([*_`\[]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)+/)) {
         rest = substr(s, RSTART + RLENGTH)
-        lab = rest
-        if (match(rest, /([*_`\]]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)/)) lab = substr(rest, 1, RSTART - 1)
-        gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, " ", lab); gsub(/[()]/, " ", lab)
-        if (match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) {
+        # The label runs to the last markup run on the line, so nested inner markup ("**note _Kind_**")
+        # is decoded as part of it; an unclosed label runs to the end of the line.
+        lab = rest; lastrun = 0
+        while (match(substr(lab, lastrun + 1), /([*_`\]]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)+/)) lastrun = lastrun + RSTART - 1 + RLENGTH
+        if (lastrun > 0) { lab = substr(rest, 1, lastrun); sub(/([*_`\]]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)+$/, "", lab) }
+        gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, " ", lab); gsub(/[*_`\[\]()]/, " ", lab)
+        # The governed name must be the first or the last word of the decoded span ("Kind, if any",
+        # "note Kind", "(Kind)"); a bold sentence that merely mentions the word mid-way is prose.
+        gsub(/^[^a-z]+|[^a-z]+$/, "", lab)
+        if (match(lab, /^(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) || match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)$/)) {
           m = substr(lab, RSTART, RLENGTH); gsub(/[^a-z-]/, "", m); found = " " canon(m)
           s = substr(s, length(s) - length(rest) + length(lab) + 1)
         }
@@ -440,6 +446,14 @@ else
     # A plain "Kind: value" list item carries no markup and is left to the stray rule.
     # The label delimiter is the first colon that sits outside parentheses (link destinations, which
     # may nest one level) and outside HTML tags, so "https:" inside a link never splits a label.
+    # Heading identifier normalization, shared by ATX and underlined headings: closed HTML tags are
+    # removed (so "<span>TD</span>-12" reads TD-12), then whitespace, emphasis markers, brackets, and
+    # an unclosed tag start ("<span TD-12") are peeled off in turn.
+    function idtext(t) {
+      gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", t)
+      while (t ~ /^([ \t]|[*_`\[]|<[^ \t>]*[ \t])/) sub(/^([ \t]+|[*_`\[]+|<[^ \t>]*[ \t]+)/, "", t)
+      return t
+    }
     function delimpos(s,   i, c, depth, intag, q) {
       depth = 0; intag = 0; q = ""
       for (i = 1; i <= length(s); i++) {
@@ -496,10 +510,13 @@ else
       c = substr(body, 1, 1); n = 0
       while (substr(body, n + 1, 1) == c) n++
       rest = substr(body, n + 1)
-      # A backtick run followed by more backticks on the same line is inline code, not a fence.
-      if (!infence) { if (!(c == "`" && rest ~ /`/)) { infence = 1; fchar = c; flen = n; fence_line = NR } }
-      else if (c == fchar && n >= flen && rest ~ /^[ \t]*$/) { infence = 0 }
-      next
+      # A backtick run followed by more backticks on the same line is inline code, not a fence: the
+      # line is left for the ordinary rules instead of being skipped.
+      if (!infence) {
+        if (c == "`" && rest ~ /`/) { inline_code = 1 } else { infence = 1; fchar = c; flen = n; fence_line = NR; next }
+      }
+      else if (c == fchar && n >= flen && rest ~ /^[ \t]*$/) { infence = 0; next }
+      else next
     }
     infence { next }
     # HTML bold tags in any letter case, with attributes (quoted values may contain ">") or inner
@@ -512,10 +529,11 @@ else
     # "**`Kind`:**" and "**[Kind](#kind):**" read as Kind while values keep their brackets.
     # A paragraph that starts with a "TD-" line and is underlined with dashes or equals signs (any
     # length, possibly after wrapped title lines) is a setext heading the parser does not read as an
-    # entry; it is recorded like a wrong-level heading so its fields cannot vanish.
+    # entry; it is recorded like a wrong-level heading so its fields cannot vanish. The identifier is
+    # exposed by the same normalization the ATX path uses.
     /^ ? ? ?(-+|=+)[ \t]*$/ && prevtd != "" { flush(); reset(); odd = prevtd; prevtd = ""; next }
     {
-      if ($0 ~ /^ ? ? ?([*_`\[ \t]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)*TD-[^ \t]/) prevtd = $0
+      if (idtext($0) ~ /^TD-[^ \t]/) prevtd = $0
       else if ($0 ~ /^[ \t]*$/ || $0 ~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]/ || $0 ~ /^ ? ? ?#/) prevtd = ""
     }
     # Headings: up to three spaces of indentation, one to six marks, then whitespace. An entry starts
@@ -526,12 +544,7 @@ else
     /^ ? ? ?#/ {
       h = $0; sub(/^ ? ? ?/, "", h)
       level = 0; while (substr(h, level + 1, 1) == "#") level++
-      text = substr(h, level + 1); sub(/^[ \t]+/, "", text)
-      # Inline markup around the identifier (bold, italic, code, a link, an HTML tag, nested in any
-      # order) is stripped before the test.
-      gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", text)
-      # Whitespace, markers, and an unclosed tag start ("<span TD-12") are peeled off in turn.
-      while (text ~ /^([ \t]|[*_`\[]|<[^ \t>]*[ \t])/) sub(/^([ \t]+|[*_`\[]+|<[^ \t>]*[ \t]+)/, "", text)
+      text = idtext(substr(h, level + 1))
       if (text ~ /^TD-/) {
         # A TD heading of any shape: level two with a space is an entry; anything else (another
         # level, seven or more marks, no space after the marks) is recorded for the shell.
