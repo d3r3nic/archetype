@@ -273,7 +273,7 @@ else
   SEEN=0
   SUPPRESS_PASS=0
   SEEN_IDS=" "
-  while IFS="$US" read -r id status kind control due review closure dups strays kindpresent; do
+  while IFS="$US" read -r id status kind control due review closure dups strays kindpresent metapresent; do
     [ -z "$id" ] && continue
     if [ "$id" = "UNCLOSED-FENCE" ]; then
       fail "TECHNICAL-DEBT.md has a code fence that never closes (opened at line $status); every entry after it is hidden from this check"
@@ -300,7 +300,7 @@ else
       fail "$id: field label(s) found on lines the validator does not read as fields:$strays; write each as a list item such as \"- **Kind:** deferral\""
       SUPPRESS_PASS=1
     fi
-    if [ -z "$kind" ] && [ "$kindpresent" != "1" ] && { [ -n "$control" ] || [ -n "$due" ] || [ -n "$review" ] || [ -n "$closure" ]; }; then
+    if [ -z "$kind" ] && [ "$kindpresent" != "1" ] && [ "$metapresent" = "1" ]; then
       fail "$id: carries deferral fields (Control, Due-before, Review-by, or Closure-evidence) but no Kind line; add \"- **Kind:** deferral\" or \"- **Kind:** shortcut\""
       SUPPRESS_PASS=1
       continue
@@ -367,8 +367,9 @@ else
       fi
     fi
   done < <(awk -v US="$US" '
-    function flush() {
-      if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%d\n", id, US, status, US, kind, US, control, US, due, US, review, US, closure, US, dups, US, strays, US, kindpresent
+    function flush(   mp) {
+      mp = (("Control" in seen) || ("Due-before" in seen) || ("Review-by" in seen) || ("Closure-evidence" in seen)) ? 1 : 0
+      if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%d%s%d\n", id, US, status, US, kind, US, control, US, due, US, review, US, closure, US, dups, US, strays, US, kindpresent, US, mp
       if (odd != "") printf "ODD-HEADING%s%s%s%d\n", US, odd, US, oddfields
     }
     function reset() { id = ""; status = ""; kind = ""; control = ""; due = ""; review = ""; closure = ""; dups = ""; strays = ""; odd = ""; oddfields = 0; kindpresent = 0; split("", seen) }
@@ -437,7 +438,9 @@ else
     # HTML bold tags in any letter case, with attributes (quoted values may contain ">") or inner
     # whitespace, are rewritten to bold markers so a field written with them is still a field.
     { gsub(/<[ \t]*\/?[ \t]*([bB]|[sS][tT][rR][oO][nN][gG])([ \t]([^>"\047]|"[^"]*"|\047[^\047]*\047)*)?[ \t]*>/, "**"); gsub(/<[ \t]*\/?[ \t]*([iI]|[eE][mM])([ \t]([^>"\047]|"[^"]*"|\047[^\047]*\047)*)?[ \t]*>/, "*") }
-    # HTML italic tags become single emphasis markers, so an italic label is caught as a stray.
+    # HTML italic tags become single emphasis markers, so an italic label is caught as a stray; HTML
+    # code tags become backticks, which the label rules unwrap or the stray rule ignores.
+    { gsub(/<[ \t]*\/?[ \t]*([cC][oO][dD][eE]|[tT][tT])([ \t]([^>"\047]|"[^"]*"|\047[^\047]*\047)*)?[ \t]*>/, "`") }
     # Code spans and links around a label are unwrapped inside the label only (see fieldname), so
     # "**`Kind`:**" and "**[Kind](#kind):**" read as Kind while values keep their brackets.
     # A paragraph that starts with a "TD-" line and is underlined with dashes or equals signs (any

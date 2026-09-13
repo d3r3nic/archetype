@@ -827,6 +827,14 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_fail(out, code, 'TD-125: Kind is "Deferral"; expected shortcut or deferral (lower case)')
         self.assertNotIn("has no deferrals", out)
 
+    def test_blank_deferral_fields_without_kind_still_fail(self):
+        for body in ("- <code>Kind</code>: deferral\n- **Due-before:**\n", "- **Control:**\n", "- **Review-by:**   \n", "- **Closure-evidence:**\n", "- **Due-before:**\n- **Control:**\n"):
+            with self.subTest(body=body.replace("\n", "|")):
+                entry = "## TD-126 — blank metadata\n\n- **Status:** open\n" + body
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assert_fail(out, code, "TD-126: carries deferral fields (Control, Due-before, Review-by, or Closure-evidence) but no Kind line")
+                self.assertNotIn("has no deferrals", out)
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)
