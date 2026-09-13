@@ -1139,6 +1139,23 @@ class ValidateProfileTests(unittest.TestCase):
                 self.assertIn("TD-171: field label(s) found on lines the validator does not read as fields", out)
                 self.assertNotIn("has no deferrals", out)
 
+    def test_punctuation_before_nested_emphasis_and_split_names_fail_loudly(self):
+        forms = ("*note,**{n}*** {v}", "**{first}*{tail}*** {v}", "**{first}<i>{tail}</i>** {v}")
+        for form in forms:
+            with self.subTest(form=form):
+                lines = []
+                for name, value in (("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
+                                    ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test")):
+                    lines.append("- " + form.format(n=name, first=name[0], tail=name[1:], v=value))
+                entry = "## TD-172 — flanking\n\n" + "\n".join(lines) + "\n"
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assertEqual(code, 1, out)
+                self.assertIn("TD-172: field label(s) found on lines the validator does not read as fields", out)
+                self.assertNotIn("has no deferrals", out)
+        entry = "## TD-173 — split control\n\n- **Status:** open\n- **Kind:** shortcut\n- **C*ontrol*** floor secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-173: field label(s) found on lines the validator does not read as fields: Control")
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)

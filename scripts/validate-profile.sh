@@ -398,12 +398,15 @@ else
     # everyday word are not labels.
     # Position where the markup opened at the start of r has all closed again (inclusive), or the end
     # of r when something never closes. Brackets pair with brackets (a stray "]" is content); tags
-    # nest and close with their closing tags, void elements open nothing; an emphasis run opens when
-    # it follows whitespace, an opening bracket, or the start, and otherwise closes as much of the
-    # open runs of its character as its length covers (so "**note *Kind***" closes both at once).
+    # nest and close with their closing tags, void elements open nothing. An emphasis run closes when
+    # it can close (it follows a non-space, and if it follows punctuation it precedes a space,
+    # punctuation, or the end) and something of its character is open; otherwise it opens when it can
+    # open (it precedes a non-space, and if it precedes punctuation it follows a space, punctuation, or
+    # the start); otherwise it is content. A closing run consumes as much of the open runs of its
+    # character as its length covers, so "**note *Kind***" closes both at once.
     function stacklast(st) { sub(/,$/, "", st); sub(/^.*,/, "", st); return st + 0 }
     function stackpop(st) { sub(/,$/, "", st); if (st ~ /,/) sub(/,[^,]*$/, ",", st); else st = ""; return st }
-    function labelend(r,   i, j, c, ch, q, n, runlen, prev, opened, brackets, tags, emopen, stk, tagtxt, tname, L, t, key) {
+    function labelend(r,   i, j, c, ch, q, n, runlen, prev, nxt, canopen, canclose, opened, brackets, tags, emopen, stk, tagtxt, tname, L, t) {
       n = length(r); i = 1; opened = 0; brackets = 0; tags = 0; emopen = 0; LABCLOSED = 0
       split("", stk)
       while (i <= n) {
@@ -420,15 +423,16 @@ else
         else if (c == "]") { if (brackets > 0) brackets--; i++ }
         else if (c == "*" || c == "_" || c == "`") {
           j = i; while (j <= n && substr(r, j, 1) == c) j++
-          runlen = j - i; prev = (i == 1) ? " " : substr(r, i - 1, 1)
-          if (prev ~ /[ \t(\[<]/ || stk[c] == "") { stk[c] = stk[c] runlen ","; emopen++; opened = 1 }
-          else {
+          runlen = j - i; prev = (i == 1) ? " " : substr(r, i - 1, 1); nxt = (j > n) ? " " : substr(r, j, 1)
+          canopen = (nxt !~ /[ \t]/) && (nxt !~ /[[:punct:]]/ || prev ~ /[ \t[:punct:]]/)
+          canclose = (prev !~ /[ \t]/) && (prev !~ /[[:punct:]]/ || nxt ~ /[ \t[:punct:]]/)
+          if (canclose && stk[c] != "") {
             L = runlen
             while (L > 0 && stk[c] != "") {
               t = stacklast(stk[c]); stk[c] = stackpop(stk[c]); emopen--
               if (t > L) { stk[c] = stk[c] (t - L) ","; emopen++; L = 0 } else L -= t
             }
-          }
+          } else if (canopen) { stk[c] = stk[c] runlen ","; emopen++; opened = 1 }
           i = j
         } else i++
         if (opened && brackets + tags + emopen <= 0) { LABCLOSED = 1; return i - 1 }
@@ -450,9 +454,10 @@ else
         # line. Link destinations, values, and annotations after the label stay outside it.
         full = op rest
         lab = substr(full, 1, labelend(full))
-        # Decoding keeps word boundaries as written: tags and code marks vanish without adding a space
-        # ("K<span>ind</span>" stays "kind"), while emphasis marks, brackets, and parentheses become spaces.
-        gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", lab); gsub(/`/, "", lab); gsub(/[*_\[\]()]/, " ", lab)
+        # Decoding keeps word boundaries as written: tags, code marks, and emphasis marks vanish without
+        # adding a space ("K<span>ind</span>" and "K*ind*" stay "kind"), while brackets and parentheses
+        # become spaces.
+        gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", lab); gsub(/[`*_]/, "", lab); gsub(/[\[\]()]/, " ", lab)
         # In a closed label the governed name must be the first or the last word of a short span
         # ("Kind, if any", "note Kind", "(Kind)", at most four words); a bold sentence that mentions
         # the word is prose. An unclosed label is malformed markup, so a governed name anywhere in it
