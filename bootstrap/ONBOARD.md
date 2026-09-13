@@ -148,6 +148,19 @@ If the user answers vaguely ("I dunno", "not sure", "I guess not"), DEFAULT TO A
 
 **Vague stack preference** ("use whatever", "I don't care"): not a choice, a deflection. Apply Step 3 default (platform if one covers 80%+, minimum-viable custom otherwise). See RED-FLAGS.md.
 
+**Group 6 - How careful, and who decides** (fills PROFILE.md per #30 and the decision-authority setting per #29; ask only what Groups 1-5 did not already answer)
+- What should this first version prove, or let someone accomplish?
+- Will it work with made-up information, or real information? If real, is any of it about people (names, contact details, health, money)?
+- Would anything be lost for good if its records disappeared?
+- Could it move money, send messages, change important records, or affect someone's health, safety, work, or access to a service?
+- If it stopped working or gave a wrong answer, what would happen? Could people use another way meanwhile?
+- Are we testing an idea we might throw away, or preparing something people will depend on? Is there a promised date?
+- What have you promised the people involved about privacy, reliability, or the handling of their information?
+- What monthly running cost is comfortable, and how much extra AI spending? (Reuse the budget answer if already given.)
+- Do you want to make the technical choices yourself, or should I make them and show you what I decided and why?
+
+The AI derives the operating stage from the answers (#30): `isolated` when only the owner uses it, with made-up data, no real effects, nobody depending on it or on its records; `trial` when identified people try it and have a workable fallback; `operational` otherwise. A vague answer stays `unknown` in PROFILE.md and is never read as "no". For audience, effects, reliance, and records, `unknown` blocks real exposure, not the contained experiment; the regulated-data question keeps its own stricter gate (`bootstrap/RED-FLAGS.md` "Deploy Gate"), which halts scaffolding and deployment until it is answered. A vague answer to the last question records `Decision authority: ai-decides` with `Authority source: defaulted` (#29); see `bootstrap/RED-FLAGS.md` "Vague answer about who decides".
+
 ### How the AI decides (read the user's knowledge level):
 
 The AI should gauge the user's technical experience from how they talk. Adjust choices accordingly:
@@ -371,6 +384,8 @@ Generate these files:
   - If the project is a **TEMPLATE** (per Group 1), apply the diverging generation rules from the "Template vs product" table: Stage = `template` plus its own version number, add a `## Downstream Projects` section, rewrite `## Design Artifact` to defer to downstream projects, note that any `@scope/*` packages ship with neutral placeholder tokens. Do NOT research design tooling — that decision belongs to downstream projects at their own bootstrap.
   - If the project is a **PRODUCT**, research the design-artifact tool at bootstrap and document it in References.md § Design Artifact per convention #27.
 - feature-tree.md using templates/feature-tree.md. For TEMPLATE projects, mark design-derived rows (Components, Design System, Styling values, per-feature visual states) as "structural at template level; downstream projects apply brand"; do NOT leave them undefined.
+- PROFILE.md using templates/profile.md: the operating stage you derived, every Group 6 fact (unknown stays unknown), the cost ceilings, the decision-authority setting with its source (owner-stated or defaulted), today's date as Observed-on, and a Review condition (a date or the first trigger you expect). Per #30.
+- In References.md § Project, the owner channel, the decision location, and the reporting pace, per #29.
 - docs/systems/ directory (empty)
 - docs/features/ directory (empty)
 - .gitignore appropriate for the tech stack
@@ -438,6 +453,7 @@ After bootstrap, verify:
 - [ ] conventions/ directory with all framework convention docs (unmodified)
 - [ ] References.md generated (use `references-platform.md` for platform choice, or the matching custom template: `references-frontend.md`, `references-backend.md`, `references-mobile.md`)
 - [ ] feature-tree.md initialized (use `feature-tree-platform.md` for platform choice, `feature-tree.md` for custom)
+- [ ] PROFILE.md generated from templates/profile.md with an operating stage, the decision-authority setting and its source, and Observed-on (per #30; unknown facts stay unknown); `scripts/validate-profile.sh` passes
 - [ ] VERSION-LOG.md bootstrap entry written (with `Type: platform / {name}` or `Type: custom`)
 - [ ] **For CUSTOM BUILDS ONLY:** docs/systems/ directory created
 - [ ] **For CUSTOM BUILDS ONLY:** docs/features/ directory created
@@ -464,6 +480,7 @@ Append a bootstrap entry:
 Date: [today's date]
 Type: [template / product / existing-project-migration]
 Tech stack: [the tech stack chosen]
+Profile: [operating stage], decision authority [owner-decides / ai-decides] ([owner-stated / defaulted]), facts still unknown: [list or none]
 Files generated:
 - References.md ([word count] words)
 - feature-tree.md ([number of systems] systems, [number of features] features)

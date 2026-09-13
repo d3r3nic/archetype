@@ -17,6 +17,8 @@ Surface before moving to Step 3. If any combination fires, do NOT silently proce
 | Enterprise SSO (an employer-managed identity provider) + consumer auth stack | Enterprise SSO usually needs a SAML/SCIM-capable managed auth provider — not consumer auth. | Route to enterprise-auth research. See "SSO tenant ownership check" below. |
 | Compliance claim + no BAA / vendor-agreement discussion | Claiming a compliance regime without vendor agreements is a common user error. | Ask about BAA/subprocessor plans. Route to compliance-aware platforms or enterprise cloud paths. |
 | Enterprise SSO mentioned + user is not an admin on the IdP tenant | Provisioning (SAML metadata, SCIM, conditional access) requires admin access to the identity provider. | Ask: "Are you an admin on that tenant, or will IT provision?" If not admin, scaffold a fallback (consumer auth with SAML-ready adapter) until IT engages. |
+| Stage downgrade while exposure exists (PROFILE.md moved from `operational` or `trial` to `isolated` with outside users, real data, or real effects still recorded) | A label cannot remove an obligation that arises from actual use; downgrading hides deferrals that are already due. | Refuse the downgrade until the facts say the exposure is gone; record the reason and review every deferral that survives (#30). |
+| Technical question put to a non-technical owner under `ai-decides` (which database, which framework, which folder layout) | The owner cannot answer it well and did not hire the AI to be asked. It stalls delivery and teaches the owner to guess. | Decide per the conventions, record the decision with its reason, tell the owner in the session summary (#29). |
 | "All equally important" + user refuses to rank | Proceeding without a ranking means AI guesses and may optimize the wrong axis. | Apply default order: (1) compliance and legal safety, (2) data integrity and authentication, (3) core user flow, (4) scale, (5) polish and nice-to-haves. Document the applied order in References.md under "Convention Overrides" so the user can redirect later. |
 
 Multiple red flags = strong signal for platform Option A.
@@ -36,6 +38,10 @@ The safe default is yes-regulated. A wrong "no" here leads to a non-compliant st
 Parallels vague-regulated:
 - If regulated-data is YES (confirmed or default-assumed), surface the minimum monthly compliance floor — research current vendor quotes for the specific regime before committing. If user cannot absorb it, platform Option A is the only correct answer.
 - If regulated-data is NO, assume $0 budget. Flag any non-free component (paid hosting tier, paid auth provider, paid monitoring) before committing. Get affirmative consent per component.
+
+### Vague answer about who decides
+
+If the owner answers the last Group 6 question vaguely ("you decide", "whatever works", "I don't know"): for a new project record `Decision authority: ai-decides` with `Authority source: defaulted` in PROFILE.md and log it in VERSION-LOG.md with one line, because the owner keeps every escalation category either way (#29) and delivery does not stall; for an existing project being migrated record `owner-decides` with `Authority source: defaulted`, because its team worked under approval rules until now. Tell the owner it can be changed any time by saying so; moving to `ai-decides` later needs the owner's statement recorded in the PROFILE.md change log, never an AI-written line alone. A clear "I want to approve technical choices" records `owner-decides`, `owner-stated`.
 
 ### Vague stack preference ("use whatever", "I don't care")
 

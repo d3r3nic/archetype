@@ -27,6 +27,15 @@ Read `References.md` in full before building anything:
 - **Convention Overrides** document project-specific deviations.
 - **Open pre-production gates** in `VERSION-LOG.md` block further scaffolding until resolved (per `bootstrap/RED-FLAGS.md`).
 
+## Stage rule (operating profile)
+
+Read `PROFILE.md` with References.md. The stage (#30) decides what this scaffold may defer:
+- `isolated`: may defer remote deployment, capacity engineering, operational dashboards, integrations for capabilities the experiment does not exercise, and detailed research for unused systems. May not defer protected configuration, the trust boundary of anything reachable, reproducible verification, containment of the experiment from live systems, or the smoke test.
+- `trial`: adds boundary, integration, permission, and recovery checks for everything the participants can reach.
+- `operational`: nothing is deferred without a recorded reason and a trigger.
+
+Every deferral is a `TECHNICAL-DEBT.md` entry with `Kind: deferral`, a `Control`, and a `Due-before` trigger or date (templates/technical-debt.md). A floor item (secrets, trust boundaries, irreversible effects, personal data, authorized reuse, honest completion) is never deferred. "Later" without an entry is a loose end, and `scripts/validate-profile.sh` treats a deferral without a trigger as malformed. A deferred foundational system keeps its row in feature-tree.md with Status `deferred (TD-N)` and a docs/systems/ page that says what is deferred and until which trigger, so `scripts/validate-scaffold.sh` reads the page like any other and the deferral stays visible; the smoke test still covers everything that was built.
+
 ## Smoke-test rule
 
 Every shape-specific playbook ends with a minimal feature exercising the full scaffold end-to-end. Scaffold is NOT complete until the smoke-test feature's integration test passes. A scaffold with every system individually built but not wired together is silently broken.

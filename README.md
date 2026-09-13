@@ -71,7 +71,7 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 ├── Conventions.md             # Convention lookup index
 ├── conventions/               # Framework-agnostic convention docs
 │   ├── 00-reusability.md      # Meta: everything built once, configured for context
-│   ├── 01-28.md               # Project setup, git, architecture, components, state,
+│   ├── 01-30.md               # Project setup, git, architecture, components, state,
 │   │                          # styling, types, errors, API, contract, authentication,
 │   │                          # testing, performance, accessibility, CI/CD, documentation,
 │   │                          # context management, verification, steering,

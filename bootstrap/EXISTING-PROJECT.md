@@ -221,6 +221,7 @@ Update `INDEX.md` and `References.md` with the migrated docs and audit results.
 
 - `References.md` (project context + tech stack + Critical Lessons + Convention Overrides summary)
 - `feature-tree.md` (all systems and features mapped with status)
+- `PROFILE.md` from `templates/profile.md`: the operating stage the audit supports, every fact the audit could not establish marked `unknown`, the decision-authority setting the owner stated (`Authority source: owner-stated`), and today's date as Observed-on (#30, #29). If the owner was not asked or answered vaguely, record `owner-decides` with `Authority source: defaulted`: the team worked under approval rules until now, and nobody asked to change that.
 - `docs/systems/` with a doc for each foundational system that already exists
 - `docs/features/` with a doc for each feature that already exists
 - `conventions/overrides/` with one file per convention that has project-specific rules
