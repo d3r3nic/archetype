@@ -730,6 +730,47 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(), entry)
         self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
 
+    def test_spaced_closing_html_tag_is_read(self):
+        entry = ("## TD-110 — spaced closer\n\n- < b >Status:< /b > open\n- <b>Kind:< /b > deferral\n- <b>Control:</b> floor: secrets\n")
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-110: a floor item (secrets) is never a deferral")
+
+    def test_bare_governed_name_with_colon_in_prose_fails_loudly(self):
+        entry = "## TD-111 — bare\n\n- **Status:** open\n\nKind: deferral\nControl: floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-111: field label(s) found on lines the validator does not read as fields: Kind Control")
+
+    def test_governed_word_without_colon_in_prose_is_fine(self):
+        entry = debt_entry(112, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\nThe status of the control is unchanged; see the Kind of work in the plan.\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assert_clean(out, code)
+
+    def test_nested_heading_wrappers_are_read(self):
+        for heading in ("## **[TD-113](#debt)** title", "## [**TD-113**](#debt) title", "## [`TD-113`](#debt) title", "## _**TD-113**_ title"):
+            with self.subTest(heading=heading):
+                entry = (heading + "\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** #23 rate limiting\n"
+                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assert_fail(out, code, "TD-113: trigger first-outside-participant is true")
+        entry = "[**TD-114**](#debt) underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
+
+    def test_quoted_attribute_with_angle_bracket_is_read(self):
+        for kind_line in ('- <strong title="a > b">Kind:</strong> deferral', "- <b title='x > y'>Kind:</b> deferral"):
+            with self.subTest(kind_line=kind_line):
+                entry = ("## TD-115 — quoted attribute\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
+                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assert_fail(out, code, "TD-115: trigger first-outside-participant is true")
+
+    def test_html_inside_a_backtick_run_does_not_become_a_fence(self):
+        odd_line = '```<b title="`">x</b>\n'
+        debt = ("# Technical Debt Log\n\n" + odd_line + "\n" + debt_entry(116, due="first-outside-participant")
+                + "```\n" + odd_line + "```\n")
+        code, out = self.run_validator(profile_text(TRIAL), debt, strict=True)
+        self.assert_fail(out, code, "TD-116: trigger first-outside-participant is true")
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)
