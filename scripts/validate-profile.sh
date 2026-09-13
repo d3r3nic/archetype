@@ -373,8 +373,20 @@ else
     # Stray detection casts a wide net on purpose: a governed name followed by a colon anywhere on a
     # line that is not a field line (any markup around it, or none) fails loudly instead of being
     # read as prose, so no spelling of a field can vanish.
-    function strayname(s) { if (match(s, /(^|[^A-Za-z-])(Status|Kind|Control|Due-before|Review-by|Closure-evidence)[ \t]*:/)) { s = substr(s, RSTART, RLENGTH); sub(/^[^A-Za-z]/, "", s); sub(/[ \t]*:$/, "", s); return s } return "" }
-    function governed(n) { return (n == "Status" || n == "Kind" || n == "Control" || n == "Due-before" || n == "Review-by" || n == "Closure-evidence") }
+    function strayname(s) {
+      s = tolower(s)
+      if (match(s, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)[ \t]*:/)) { s = substr(s, RSTART, RLENGTH); sub(/^[^a-z]/, "", s); sub(/[ \t]*:$/, "", s); return canon(s) }
+      if (match(s, /(\*\*|__|\*|_)[ \t]*(status|kind|control|due-before|review-by|closure-evidence)[ \t]*(\*\*|__|\*|_)/)) { s = substr(s, RSTART, RLENGTH); gsub(/^(\*\*|__|\*|_)[ \t]*|[ \t]*(\*\*|__|\*|_)$/, "", s); return canon(s) }
+      return ""
+    }
+    # Labels are compared without regard to letter case; canon() returns the spelling the template uses.
+    function governed(n) { n = tolower(n); return (n == "status" || n == "kind" || n == "control" || n == "due-before" || n == "review-by" || n == "closure-evidence") }
+    function canon(n) {
+      n = tolower(n)
+      if (n == "status") return "Status"; if (n == "kind") return "Kind"; if (n == "control") return "Control"
+      if (n == "due-before") return "Due-before"; if (n == "review-by") return "Review-by"; if (n == "closure-evidence") return "Closure-evidence"
+      return n
+    }
     # A field line is a list item (marker "-", "*", "+", or an ordered marker such as "1." or "1)",
     # indented at most three spaces, followed by spaces or tabs) whose text starts with a bold label
     # in either bold syntax and either colon placement: "**Name:** value", "**Name**: value",
@@ -402,7 +414,8 @@ else
     infence { next }
     # HTML bold tags in any letter case, with attributes (quoted values may contain ">") or inner
     # whitespace, are rewritten to bold markers so a field written with them is still a field.
-    { gsub(/<[ \t]*\/?[ \t]*([bB]|[sS][tT][rR][oO][nN][gG])([ \t]([^>"\047]|"[^"]*"|\047[^\047]*\047)*)?[ \t]*>/, "**") }
+    { gsub(/<[ \t]*\/?[ \t]*([bB]|[sS][tT][rR][oO][nN][gG])([ \t]([^>"\047]|"[^"]*"|\047[^\047]*\047)*)?[ \t]*>/, "**"); gsub(/<[ \t]*\/?[ \t]*([iI]|[eE][mM])([ \t]([^>"\047]|"[^"]*"|\047[^\047]*\047)*)?[ \t]*>/, "*") }
+    # HTML italic tags become single emphasis markers, so an italic label is caught as a stray.
     # A paragraph that starts with a "TD-" line and is underlined with dashes or equals signs (any
     # length, possibly after wrapped title lines) is a setext heading the parser does not read as an
     # entry; it is recorded like a wrong-level heading so its fields cannot vanish.
@@ -441,6 +454,7 @@ else
     fieldname($0) != "" {
       name = fieldname($0)
       if (!governed(name)) next
+      name = canon(name)
       seen[name]++; if (seen[name] == 2) dups = dups " " name
       if (seen[name] > 1) next
       v = val($0)

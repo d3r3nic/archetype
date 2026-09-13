@@ -771,6 +771,26 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(TRIAL), debt, strict=True)
         self.assert_fail(out, code, "TD-116: trigger first-outside-participant is true")
 
+    def test_label_case_is_ignored(self):
+        entry = ("## TD-117 — lower case\n\n- **status:** open\n- **kind:** deferral\n- **CONTROL:** #23 rate limiting\n"
+                 "- **due-before:** first-outside-participant\n- **Review-By:** 2027-01-01\n- **closure-evidence:** a test\n")
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assert_fail(out, code, "TD-117: trigger first-outside-participant is true")
+
+    def test_emphasized_label_without_colon_fails_loudly(self):
+        entry = "## TD-118 — no colon\n\n- **Status:** open\n    - **Kind** deferral\n    - __control__ floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-118: field label(s) found on lines the validator does not read as fields: Kind Control")
+
+    def test_closing_markup_before_the_colon_fails_loudly(self):
+        for kind_line in ("- *Kind*: deferral", "- _Kind_: deferral", "- <em>Kind</em>: deferral", "- <i>Kind</i>: deferral", "\t**Kind**: deferral", "**Kind**: deferral"):
+            with self.subTest(kind_line=kind_line):
+                entry = ("## TD-119 — markup before colon\n\n- **Status:** open\n" + kind_line + "\n- **Control:** floor: secrets\n"
+                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assertEqual(code, 1, out)
+                self.assertTrue("TD-119: field label(s) found on lines the validator does not read as fields" in out, out)
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)
