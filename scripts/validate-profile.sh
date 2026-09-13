@@ -305,6 +305,17 @@ else
       SUPPRESS_PASS=1
       continue
     fi
+    # A Control naming a floor item is wrong whatever the Kind says: a floor item is never postponed.
+    if [ -n "$control" ] && [ "$status" != "fixed" ]; then
+      case "$(printf '%s' "$control" | tr '[:upper:]' '[:lower:]')" in
+        floor:*)
+          if [ "$kind" != "deferral" ]; then
+            item="${control#*:}"; item="${item#"${item%%[! ]*}"}"; item="${item%% *}"
+            fail "$id: a floor item ($item) is never postponed, as a deferral or as a shortcut (#30)"
+            SUPPRESS_PASS=1
+          fi ;;
+      esac
+    fi
     if [ -z "$kind" ] && [ "$kindpresent" = "1" ]; then
       fail "$id: Kind is present but has no value on its line; write \"- **Kind:** shortcut\" or \"- **Kind:** deferral\""
       SUPPRESS_PASS=1

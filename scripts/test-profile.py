@@ -835,6 +835,11 @@ class ValidateProfileTests(unittest.TestCase):
                 self.assert_fail(out, code, "TD-126: carries deferral fields (Control, Due-before, Review-by, or Closure-evidence) but no Kind line")
                 self.assertNotIn("has no deferrals", out)
 
+    def test_floor_item_as_shortcut_fails(self):
+        code, out = self.run_validator(profile_text(), debt_entry(127, kind="shortcut", control="floor: secrets"))
+        self.assert_fail(out, code, "TD-127: a floor item (secrets) is never postponed, as a deferral or as a shortcut")
+        self.assertNotIn("has no deferrals", out)
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)
