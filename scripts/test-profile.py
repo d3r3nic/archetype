@@ -676,6 +676,34 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(TRIAL), entry)
         self.assert_fail(out, code, "TD-101: field label(s) found on lines the validator does not read as fields: Status")
 
+    def test_html_bold_field_is_read(self):
+        entry = ("## TD-102 — html bold\n\n- <b>Status:</b> open\n- <strong>Kind:</strong> deferral\n- <b>Control:</b> floor: secrets\n"
+                 "- <b>Due-before:</b> public-access\n- <b>Review-by:</b> 2027-01-01\n- <b>Closure-evidence:</b> a test\n")
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-102: a floor item (secrets) is never a deferral")
+
+    def test_space_inside_bold_markers_fails_loudly(self):
+        entry = "## TD-103 — spaced markers\n\n- **Status:** open\n- ** Kind:** deferral\n- **Control:** floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-103: field label(s) found on lines the validator does not read as fields: Kind")
+
+    def test_whitespace_inside_label_is_normalized(self):
+        for kind_line in ("- **Kind :** deferral", "- **Kind\t:** deferral", "- ** Kind:** deferral"):
+            with self.subTest(kind_line=kind_line):
+                entry = ("## TD-104 — label whitespace\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
+                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assertEqual(code, 1, out)
+                self.assertTrue("TD-104: trigger first-outside-participant is true" in out or "TD-104: field label(s) found" in out, out)
+
+    def test_short_and_wrapped_setext_headings_with_fields_fail(self):
+        cases = ["TD-105 underlined\n-\n", "TD-105 underlined\n==\n", "TD-105 title\ncontinued title\n---\n"]
+        for head in cases:
+            with self.subTest(head=head.replace("\n", "|")):
+                entry = head + "\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
+                code, out = self.run_validator(profile_text(), entry)
+                self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)

@@ -370,18 +370,19 @@ else
     # A governed label that appears on a line the list-item rule does not read (a tab-indented or
     # deeply indented block, a label in running text) is a stray: the entry fails instead of the
     # field vanishing.
-    function strayname(s) { if (match(s, /(\*\*|__)(Status|Kind|Control|Due-before|Review-by|Closure-evidence):?(\*\*|__)/)) { s = substr(s, RSTART + 2, RLENGTH - 4); sub(/:$/, "", s); return s } return "" }
+    function strayname(s) { if (match(s, /(\*\*|__)[ \t]*(Status|Kind|Control|Due-before|Review-by|Closure-evidence)[ \t]*:?[ \t]*(\*\*|__)/)) { s = substr(s, RSTART, RLENGTH); gsub(/^(\*\*|__)[ \t]*|[ \t]*:?[ \t]*(\*\*|__)$/, "", s); return s } return "" }
     function governed(n) { return (n == "Status" || n == "Kind" || n == "Control" || n == "Due-before" || n == "Review-by" || n == "Closure-evidence") }
     # A field line is a list item (marker "-", "*", "+", or an ordered marker such as "1." or "1)",
     # indented at most three spaces, followed by spaces or tabs) whose text starts with a bold label
     # in either bold syntax and either colon placement: "**Name:** value", "**Name**: value",
     # "__Name:__ value". The list marker is required; a bold label in running text is not a field.
     function fieldname(s) {
-      if (s !~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)[A-Za-z][A-Za-z -]*:?(\*\*|__):?/) return ""
-      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)/, "", s); sub(/:?(\*\*|__).*$/, "", s); return s
+      if (s !~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)[A-Za-z][A-Za-z \t-]*:?[ \t]*(\*\*|__):?/) return ""
+      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)/, "", s); sub(/[ \t]*:?[ \t]*(\*\*|__).*$/, "", s); sub(/[ \t]+$/, "", s); return s
     }
-    function val(s) { sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)[A-Za-z][A-Za-z -]*:?(\*\*|__):?[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
-    { sub(/\r$/, "") }
+    function val(s) { sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)[A-Za-z][A-Za-z \t-]*:?[ \t]*(\*\*|__):?[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
+    { sub(/\r$/, ""); gsub(/<\/?(b|strong)>/, "**") }
+    # HTML bold tags are read as bold markers so a field written with them is still a field.
     # Fenced examples are skipped. A fence opens with three or more backticks or tildes indented by
     # at most three spaces and closes only with a run of the same character at least as long,
     # indented by at most three spaces, followed by nothing but whitespace; a shorter or different
@@ -397,10 +398,14 @@ else
       next
     }
     infence { next }
-    # A "TD-" line underlined with dashes or equals signs is a setext heading the parser does not
-    # read as an entry; it is recorded like a wrong-level heading so its fields cannot vanish.
-    /^ ? ? ?(---+|===+)[ \t]*$/ && prevtd != "" { flush(); reset(); odd = prevtd; prevtd = ""; next }
-    { if ($0 ~ /^ ? ? ?TD-[0-9]/) prevtd = $0; else prevtd = "" }
+    # A paragraph that starts with a "TD-" line and is underlined with dashes or equals signs (any
+    # length, possibly after wrapped title lines) is a setext heading the parser does not read as an
+    # entry; it is recorded like a wrong-level heading so its fields cannot vanish.
+    /^ ? ? ?(-+|=+)[ \t]*$/ && prevtd != "" { flush(); reset(); odd = prevtd; prevtd = ""; next }
+    {
+      if ($0 ~ /^ ? ? ?TD-[0-9]/) prevtd = $0
+      else if ($0 ~ /^[ \t]*$/ || $0 ~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]/ || $0 ~ /^ ? ? ?#/) prevtd = ""
+    }
     # Headings: up to three spaces of indentation, one to six marks, then whitespace. An entry starts
     # at a level-two "TD-" heading and runs until the next one or a level-one heading; other headings
     # inside it, such as "### Follow-up" or a stray "## Follow-up", stay part of it, so fields written
