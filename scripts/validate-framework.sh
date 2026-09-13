@@ -14,6 +14,9 @@
 #      (delegates to scripts/validate-timeless.sh)
 #  11. Self-claims: counts, engine paths, and convention references in the
 #      shipped docs match the tree (delegates to scripts/validate-claims.sh)
+#  12. Profile vocabulary: the stages, triggers, and floor items that
+#      scripts/validate-profile.sh evaluates are the ones the profile and debt
+#      templates and convention #30 name
 # Exit 0 on pass, 1 on any error. Warnings do not fail the check.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -68,7 +71,7 @@ group 2 "Convention count consistency"
 CLAIMED=$(grep -oE 'all [0-9]+ convention' Conventions.md | head -1 | grep -oE '[0-9]+')
 ACTUAL=$(find conventions -maxdepth 1 -type f -name '[0-9]*.md' | wc -l | tr -d ' ')
 if [ -z "$CLAIMED" ]; then
-  warn "Conventions.md has no 'all N convention' count claim"
+  pass "Conventions.md states no convention count (the index names them; group 11 checks any count that is stated)"
 elif [ "$CLAIMED" != "$ACTUAL" ]; then
   fail "Conventions.md claims 'all $CLAIMED' but found $ACTUAL numbered convention files"
 else
@@ -246,6 +249,47 @@ if [ -f "$SCRIPT_DIR/validate-claims.sh" ]; then
   fi
 else
   fail "scripts/validate-claims.sh missing"
+fi
+
+# ----------------------------------------------------------------------
+group 12 "Profile vocabulary (validator, templates, and convention #30 agree)"
+# ----------------------------------------------------------------------
+PV="$SCRIPT_DIR/validate-profile.sh"
+if [ ! -f "$PV" ]; then
+  fail "scripts/validate-profile.sh missing"
+else
+  VOCAB_FAILS=0
+  vocab_words() { sed -n "s/^$1=\"\(.*\)\"\$/\1/p" "$PV" | head -1; }
+  check_vocab() {
+    # $1 label, $2 words, $3... files that must each contain every word
+    local label="$1" words="$2"; shift 2
+    [ -z "$words" ] && { fail "validate-profile.sh defines no $label list"; VOCAB_FAILS=$((VOCAB_FAILS + 1)); return; }
+    local w f
+    for w in $words; do
+      for f in "$@"; do
+        if ! grep -qF -- "$w" "$f"; then
+          fail "$f does not name $label \"$w\", which validate-profile.sh evaluates"
+          VOCAB_FAILS=$((VOCAB_FAILS + 1))
+        fi
+      done
+    done
+  }
+  check_vocab "trigger" "$(vocab_words TRIGGERS)" templates/profile.md templates/technical-debt.md conventions/30-operating-profile.md
+  check_vocab "stage" "$(vocab_words STAGES)" templates/profile.md conventions/30-operating-profile.md
+  check_vocab "floor item" "$(vocab_words FLOOR)" templates/technical-debt.md
+  # Every trigger the templates name (on the lines that list triggers) must be one the validator knows.
+  for f in templates/profile.md templates/technical-debt.md; do
+    for w in $(grep -iE 'trigger|Due-before' "$f" | grep -oE '\b[a-z]+(-[a-z]+)+\b' | sort -u); do
+      case "$w" in
+        *-stage|*-participant|*-access|*-data|*-action|*-reliance|*-records|*-contributor|*-commitment)
+          if ! printf ' %s ' "$(vocab_words TRIGGERS)" | grep -qF " $w "; then
+            fail "$f names \"$w\" as a trigger but validate-profile.sh does not evaluate it"
+            VOCAB_FAILS=$((VOCAB_FAILS + 1))
+          fi ;;
+      esac
+    done
+  done
+  [ "$VOCAB_FAILS" -eq 0 ] && pass "profile vocabulary agrees across validator, templates, and convention #30"
 fi
 
 # ----------------------------------------------------------------------
