@@ -370,7 +370,9 @@ else
     # A governed label that appears on a line the list-item rule does not read (a tab-indented or
     # deeply indented block, a label in running text) is a stray: the entry fails instead of the
     # field vanishing.
-    function strayname(s) { if (match(s, /(\*\*|__)[ \t]*(Status|Kind|Control|Due-before|Review-by|Closure-evidence)[ \t]*:?[ \t]*(\*\*|__)/)) { s = substr(s, RSTART, RLENGTH); gsub(/^(\*\*|__)[ \t]*|[ \t]*:?[ \t]*(\*\*|__)$/, "", s); return s } return "" }
+    # Stray detection also accepts a single emphasis marker, so an italic label fails loudly instead of
+    # being read as prose.
+    function strayname(s) { if (match(s, /(\*\*|__|\*|_)[ \t]*(Status|Kind|Control|Due-before|Review-by|Closure-evidence)[ \t]*:?[ \t]*(\*\*|__|\*|_)/)) { s = substr(s, RSTART, RLENGTH); gsub(/^(\*\*|__|\*|_)[ \t]*|[ \t]*:?[ \t]*(\*\*|__|\*|_)$/, "", s); return s } return "" }
     function governed(n) { return (n == "Status" || n == "Kind" || n == "Control" || n == "Due-before" || n == "Review-by" || n == "Closure-evidence") }
     # A field line is a list item (marker "-", "*", "+", or an ordered marker such as "1." or "1)",
     # indented at most three spaces, followed by spaces or tabs) whose text starts with a bold label
@@ -381,8 +383,9 @@ else
       sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)/, "", s); sub(/[ \t]*:?[ \t]*(\*\*|__).*$/, "", s); sub(/[ \t]+$/, "", s); return s
     }
     function val(s) { sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)[A-Za-z][A-Za-z \t-]*:?[ \t]*(\*\*|__):?[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
-    { sub(/\r$/, ""); gsub(/<\/?(b|strong)>/, "**") }
-    # HTML bold tags are read as bold markers so a field written with them is still a field.
+    { sub(/\r$/, ""); gsub(/<\/?[ \t]*([bB]|[sS][tT][rR][oO][nN][gG])([ \t][^>]*)?[ \t]*>/, "**") }
+    # HTML bold tags in any letter case, with attributes or inner whitespace, are read as bold
+    # markers so a field written with them is still a field.
     # Fenced examples are skipped. A fence opens with three or more backticks or tildes indented by
     # at most three spaces and closes only with a run of the same character at least as long,
     # indented by at most three spaces, followed by nothing but whitespace; a shorter or different
@@ -403,7 +406,7 @@ else
     # entry; it is recorded like a wrong-level heading so its fields cannot vanish.
     /^ ? ? ?(-+|=+)[ \t]*$/ && prevtd != "" { flush(); reset(); odd = prevtd; prevtd = ""; next }
     {
-      if ($0 ~ /^ ? ? ?TD-[0-9]/) prevtd = $0
+      if ($0 ~ /^ ? ? ?([*_`]+|\[)?TD-[0-9]/) prevtd = $0
       else if ($0 ~ /^[ \t]*$/ || $0 ~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]/ || $0 ~ /^ ? ? ?#/) prevtd = ""
     }
     # Headings: up to three spaces of indentation, one to six marks, then whitespace. An entry starts
@@ -415,6 +418,8 @@ else
       h = $0; sub(/^ ? ? ?/, "", h)
       level = 0; while (substr(h, level + 1, 1) == "#") level++
       text = substr(h, level + 1); sub(/^[ \t]+/, "", text)
+      # Inline markup around the identifier (bold, italic, code, a link) is stripped before the test.
+      sub(/^([*_`]+|\[)/, "", text)
       if (text ~ /^TD-/) {
         # A TD heading of any shape: level two with a space is an entry; anything else (another
         # level, seven or more marks, no space after the marks) is recorded for the shell.

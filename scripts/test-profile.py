@@ -704,6 +704,32 @@ class ValidateProfileTests(unittest.TestCase):
                 code, out = self.run_validator(profile_text(), entry)
                 self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
 
+    def test_italic_label_fails_loudly(self):
+        entry = "## TD-106 — italic\n\n- **Status:** open\n- *Kind:* deferral\n- _Control:_ floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-106: field label(s) found on lines the validator does not read as fields: Kind Control")
+
+    def test_html_bold_variants_are_read(self):
+        for kind_line in ("- <STRONG>Kind:</STRONG> deferral", '- <strong class="label">Kind:</strong> deferral', "- <b >Kind:</b > deferral", "- <B>Kind:</B> deferral"):
+            with self.subTest(kind_line=kind_line):
+                entry = ("## TD-107 — html variants\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
+                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assert_fail(out, code, "TD-107: trigger first-outside-participant is true")
+
+    def test_inline_markup_around_the_heading_identifier_is_read(self):
+        for heading in ("## **TD-108** title", "## `TD-108` title", "## [TD-108](link) title", "## <b>TD-108</b> title", "## _TD-108_ title"):
+            with self.subTest(heading=heading):
+                entry = (heading + "\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** #23 rate limiting\n"
+                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assert_fail(out, code, "TD-108: trigger first-outside-participant is true")
+
+    def test_formatted_setext_identifier_with_fields_fails(self):
+        entry = "**TD-109** underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)
