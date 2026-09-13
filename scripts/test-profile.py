@@ -398,10 +398,10 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(TRIAL), entry)
         self.assert_fail(out, code, "TD-030: field(s) repeated inside the entry: Kind")
 
-    def test_fields_under_a_later_heading_do_not_belong_to_the_entry(self):
+    def test_fields_under_a_later_heading_cannot_overwrite_the_entry(self):
         entry = debt_entry(31, due="first-outside-participant") + "## Separate summary\n\n- **Kind:** shortcut\n- **Due-before:** 2030-01-01\n"
         code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assert_fail(out, code, "TD-031: trigger first-outside-participant is true")
+        self.assert_fail(out, code, "TD-031: field(s) repeated inside the entry: Kind Due-before")
 
     def test_duplicate_entry_id_fails(self):
         code, out = self.run_validator(profile_text(), debt_entry(32) + debt_entry(32, due="2030-01-01"))
@@ -497,6 +497,57 @@ class ValidateProfileTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 1, proc.stdout)
         self.assertIn("Mode: strict", proc.stdout)
         self.assertIn("strict mode: 1 unverified result(s) count as errors", ANSI.sub("", proc.stdout))
+
+    def test_longer_fence_with_shorter_run_inside_does_not_hide_entries(self):
+        example = "````markdown\n```\n````\n\n"
+        debt = "# Technical Debt Log\n\n" + example + debt_entry(60, due="first-outside-participant") + example
+        code, out = self.run_validator(profile_text(TRIAL), debt, strict=True)
+        self.assert_fail(out, code, "TD-060: trigger first-outside-participant is true")
+
+    def test_longer_fence_example_containing_sample_debt_is_ignored(self):
+        example = "````\n```\n" + debt_entry(61, control="floor: secrets") + "```\n````\n\n"
+        debt = "# Technical Debt Log\n\n" + example + debt_entry(62)
+        code, out = self.run_validator(profile_text(), debt)
+        self.assert_clean(out, code)
+        self.assertNotIn("TD-061", out)
+        self.assertIn("DEFERRED: TD-062 until first-outside-participant", out)
+
+    def test_empty_first_repeated_field_fails(self):
+        entry = ("## TD-063 — empty then filled\n\n- **Status:** open\n- **Kind:**\n- **Kind:** deferral\n- **Control:**\n"
+                 "- **Control:** #23 rate limiting\n- **Due-before:** public-access\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-063: field(s) repeated inside the entry: Kind Control")
+
+    def test_any_repeated_bold_field_fails(self):
+        entry = debt_entry(64).rstrip("\n") + "\n- **Logged:** 2026-09-02 by someone else\n\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-064: field(s) repeated inside the entry: Logged")
+
+    def test_trailing_comma_and_spaced_letters_in_effects_fail(self):
+        code, out = self.run_validator(profile_text(OPERATIONAL, {"External effects": "money,"}))
+        self.assert_fail(out, code, '"External effects" contains an empty item')
+        code, out = self.run_validator(profile_text(OPERATIONAL, {"External effects": "m o n e y"}))
+        self.assert_fail(out, code, '"External effects" lists "m o n e y"')
+
+    def test_fields_under_a_follow_up_heading_still_belong_to_the_entry(self):
+        entry = ("## TD-065 — retrofitted\n\n- **Status:** open\n- **Severity:** high\n\n## Follow-up\n\n"
+                 "- **Kind:** deferral\n- **Control:** floor: secrets\n- **Due-before:** first-outside-participant\n"
+                 "- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assert_fail(out, code, "TD-065: a floor item (secrets) is never a deferral")
+        self.assertIn("TD-065: trigger first-outside-participant is true", out)
+
+    def test_h3_follow_up_inside_entry_is_fine(self):
+        entry = debt_entry(66, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\nStill waiting on the first tester.\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assert_clean(out, code)
+        self.assertIn("DEFERRED: TD-066 until public-access", out)
+
+    def test_entry_heading_at_wrong_level_warns(self):
+        entry = "### TD-067 — wrong level\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assertEqual(code, 0, out)
+        self.assertIn('WARN: TECHNICAL-DEBT.md: "### TD-067 — wrong level" is not a level-two heading', out)
 
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:

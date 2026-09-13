@@ -13,8 +13,9 @@
 #      regulated data contradicts synthetic-only data
 #   3. Deferrals are well-formed: Kind: deferral needs Control, Due-before, Review-by, and
 #      Closure-evidence; Control names a convention, a backend rule, or a floor item; Due-before is
-#      a known trigger or a real date; a floor item is never a deferral; fields appear once per
-#      entry; ids are unique; an unclosed code fence fails (it would hide every entry after it)
+#      a known trigger or a real date; a floor item is never a deferral; every bold field appears
+#      once per entry; ids are unique; fenced examples are skipped with fence length respected, and
+#      an unclosed code fence fails (it would hide every entry after it)
 #   4. Triggered deferrals fail: a Due-before trigger the facts make true, or a Due-before date
 #      reached (inclusive), blocks until the entry is fixed; won't-fix does not clear it
 #   5. A Review-by date in the past warns
@@ -171,21 +172,19 @@ else
     case "$EFF" in
       \[*|none|unknown) ;;
       *)
-        EFF_COUNT=0
-        IFS=',' read -ra EFF_PARTS <<< "$EFF"
-        for part in "${EFF_PARTS[@]}"; do
-          w="${part//[[:space:]]/}"
-          if [ -z "$w" ]; then
-            fail "PROFILE.md: \"External effects\" contains an empty item; write none, unknown, or a comma-separated list"
-            continue
-          fi
-          if in_list "$w" "money messages records health-safety-access"; then
-            EFF_COUNT=$((EFF_COUNT + 1))
-          else
-            fail "PROFILE.md: \"External effects\" lists \"$w\"; allowed: none, unknown, or any of money, messages, records, health-safety-access"
-          fi
-        done
-        [ "$EFF_COUNT" -eq 0 ] && [ "${#EFF_PARTS[@]}" -eq 0 ] && fail "PROFILE.md: \"External effects\" lists nothing; write none, unknown, or a comma-separated list" ;;
+        if [[ "$EFF" == ,* ]] || [[ "$EFF" == *, ]] || [[ "$EFF" == *,,* ]]; then
+          fail "PROFILE.md: \"External effects\" contains an empty item; write none, unknown, or a comma-separated list"
+        else
+          IFS=',' read -ra EFF_PARTS <<< "$EFF"
+          for part in "${EFF_PARTS[@]}"; do
+            w="${part#"${part%%[![:space:]]*}"}"; w="${w%"${w##*[![:space:]]}"}"
+            if [ -z "$w" ]; then
+              fail "PROFILE.md: \"External effects\" contains an empty item; write none, unknown, or a comma-separated list"
+            elif ! in_list "$w" "money messages records health-safety-access"; then
+              fail "PROFILE.md: \"External effects\" lists \"$w\"; allowed: none, unknown, or any of money, messages, records, health-safety-access"
+            fi
+          done
+        fi ;;
     esac
   fi
   if [ -n "$OBS" ]; then
@@ -276,6 +275,10 @@ else
       FENCE_BAD=1
       continue
     fi
+    if [ "$id" = "ODD-HEADING" ]; then
+      warn "TECHNICAL-DEBT.md: \"$status\" is not a level-two heading, so it is not read as an entry; entries start with \"## TD-\""
+      continue
+    fi
     case "$SEEN_IDS" in
       *" $id "*) fail "$id appears more than once in TECHNICAL-DEBT.md; one entry per id" ;;
       *) SEEN_IDS="$SEEN_IDS$id " ;;
@@ -341,21 +344,39 @@ else
     fi
   done < <(awk -v US="$US" '
     function flush() { if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", id, US, status, US, kind, US, control, US, due, US, review, US, closure, US, dups }
-    function reset() { id = ""; status = ""; kind = ""; control = ""; due = ""; review = ""; closure = ""; dups = "" }
+    function reset() { id = ""; status = ""; kind = ""; control = ""; due = ""; review = ""; closure = ""; dups = ""; split("", seen) }
     function val(s) { sub(/^- \*\*[A-Za-z-]+:?\*\*:?[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
-    function take(name, cur, s) { if (cur != "") dups = dups " " name; return val(s) }
     { sub(/\r$/, "") }
-    # Fenced examples (``` or ~~~ at column one) are skipped; a fence closes only with its own marker.
-    /^(```|~~~)/ { m = substr($0, 1, 3); if (!infence) { infence = 1; marker = m; fence_line = NR } else if (m == marker) { infence = 0 } next }
+    # Fenced examples are skipped. A fence opens with three or more backticks or tildes at column
+    # one and closes only with a run of the same character at least as long, followed by nothing
+    # but whitespace; a shorter or different run inside the fence is content.
+    /^(```|~~~)/ {
+      c = substr($0, 1, 1); n = 0
+      while (substr($0, n + 1, 1) == c) n++
+      rest = substr($0, n + 1)
+      if (!infence) { infence = 1; fchar = c; flen = n; fence_line = NR }
+      else if (c == fchar && n >= flen && rest ~ /^[ \t]*$/) { infence = 0 }
+      next
+    }
     infence { next }
-    /^## / { flush(); reset(); if ($0 ~ /^## TD-/) { id = $2; sub(/[^A-Za-z0-9-].*$/, "", id) } next }
+    # An entry starts at "## TD-" and runs until the next "## TD-" heading (or a level-one heading);
+    # other headings inside it, such as "### Follow-up" or a stray "## Follow-up", stay part of it, so
+    # fields written under them are still read and a repeated field still fails.
+    /^## TD-/ { flush(); reset(); id = $2; sub(/[^A-Za-z0-9-].*$/, "", id); next }
+    /^#+ TD-/ { printf "ODD-HEADING%s%s\n", US, $0; next }
+    /^# / { flush(); reset(); next }
     id == "" { next }
-    /^- \*\*Status:?\*\*:?/ { status = take("Status", status, $0) }
-    /^- \*\*Kind:?\*\*:?/ { kind = take("Kind", kind, $0) }
-    /^- \*\*Control:?\*\*:?/ { control = take("Control", control, $0) }
-    /^- \*\*Due-before:?\*\*:?/ { due = take("Due-before", due, $0) }
-    /^- \*\*Review-by:?\*\*:?/ { review = take("Review-by", review, $0) }
-    /^- \*\*Closure-evidence:?\*\*:?/ { closure = take("Closure-evidence", closure, $0) }
+    /^- \*\*[A-Za-z-]+:?\*\*:?/ {
+      name = $0; sub(/^- \*\*/, "", name); sub(/:?\*\*.*$/, "", name)
+      seen[name]++; if (seen[name] == 2) dups = dups " " name
+      v = val($0)
+      if (name == "Status") status = v
+      else if (name == "Kind") kind = v
+      else if (name == "Control") control = v
+      else if (name == "Due-before") due = v
+      else if (name == "Review-by") review = v
+      else if (name == "Closure-evidence") closure = v
+    }
     END { flush(); if (infence) printf "UNCLOSED-FENCE%s%d\n", US, fence_line }
   ' "$TD")
   if [ "$FENCE_BAD" -eq 1 ]; then

@@ -4,7 +4,7 @@
 
 The owner decides what the product is, who it serves, what it promises, and what it may spend and commit. Everything technical (architecture, stack, schemas, sequencing, tooling, infrastructure timing, design internals) is prepared by the AI: weighed against what is known (product intent, compliance posture, security, simplicity, cost), stated in one line with its reason, recorded. Under `ai-decides` the AI then acts on it; under `owner-decides` the owner approves it first (#19). Either way the owner is interrupted only for the questions that are theirs, always with one plain recommendation leading, never a bare menu.
 
-An AI that asks the owner technical questions pushes its job back onto the person who hired it. An AI that acts on the owner's questions without asking takes decisions that are not its to take. This convention draws the line and records which side of it a project sits on.
+Under `ai-decides`, an AI that asks the owner technical questions pushes its job back onto the person who hired it. Under either setting, an AI that acts on the owner's questions without asking takes decisions that are not its to take. This convention draws the line and records which side of it a project sits on.
 
 ## Reusable System
 
@@ -52,8 +52,8 @@ I never expose secrets in code, messages, or logs; invent evidence; bypass indep
 
 ## Wrong vs Right
 
-- WRONG: "Do you want a relational or a document database? Here are the trade-offs." RIGHT: "Using a managed relational database: your data is records with relations between them, and the managed tier removes server upkeep. Recorded. Doing this unless you object."
-- WRONG: the owner is asked to approve a folder layout. RIGHT: the layout is decided per #1 and #3, recorded with the reason, and mentioned in the session summary.
+- WRONG, under `ai-decides`: "Do you want a relational or a document database? Here are the trade-offs." RIGHT: "Using a managed relational database: your data is records with relations between them, and the managed tier removes server upkeep. Recorded. Doing this unless you object."
+- WRONG, under `ai-decides`: the owner is asked to approve a folder layout. RIGHT: the layout is decided per #1 and #3, recorded with the reason, and mentioned in the session summary. Under `owner-decides` the same layout is proposed with its reason and approved.
 - WRONG: "Hosting is set up, it costs a little every month." RIGHT: "Hosting would be a new monthly cost. I recommend the managed tier because it removes server upkeep. Setting it up unless you object."
 - WRONG: under `ai-decides`, the AI changes a shared service's interface and moves on. RIGHT: the phased protocol of #19 is recorded and followed; the owner hears about it only if a live customer environment is touched.
 - WRONG: under `owner-decides`, the AI waits for approval of a one-file bug fix. RIGHT: approval is for plans and foundational changes, as #19 says; the fix is made, verified, committed.

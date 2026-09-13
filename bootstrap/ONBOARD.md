@@ -326,18 +326,17 @@ Option C: Custom build with [tech stack]
 - Cost: development time + hosting
 - Effort: [timeline estimate]
 - Best if: you need full control, have complex requirements, or this is a product
-
 ```
 
-Under `owner-decides`, wait for the owner's choice before generating anything. Under `ai-decides`, generate the project context for the recommended path if the owner does not object in the session; any sign-up, payment, or commitment waits for an explicit yes, because silence is not authorization (#29). Never generate a custom build when the recommendation was a platform and the owner has not chosen it.
+Under `owner-decides`, wait for the owner's choice before generating anything. Under `ai-decides`, generate the project context for the recommended path if the owner does not object in the session: generating reversible context is preparation, not the decision, and the decision itself stays open; any sign-up, payment, or commitment waits for an explicit yes, because silence is not authorization (#29). Never generate a custom build when the recommendation was a platform and the owner has not chosen it.
 
 If the user chooses a platform (Option A or B), help them set it up. The Archetype framework's scaffolding phase doesn't apply — but the conventions around security (#23), documentation (#16), and git (#2) still do.
 
-If the user confirms custom build (Option C), proceed to Step 4.
+Proceed to Step 4 when the build approach is settled: under `owner-decides`, when the owner confirms the custom build; under `ai-decides`, when the recommendation is a custom build and the owner has not objected.
 
 ## Step 4: Generate Project Context
 
-After the user confirms their build approach, the AI generates the project files. The generation path depends on whether the user picked a platform (Option A/B from Step 3) or a custom build (Option C).
+Once the build approach is settled per Step 3 (confirmed under `owner-decides`; recommended and not objected to under `ai-decides`), the AI generates the project files. The generation path depends on whether the approach is a platform (Option A/B from Step 3) or a custom build (Option C).
 
 ### If the user picked a PLATFORM (Option A or B from Step 3):
 
