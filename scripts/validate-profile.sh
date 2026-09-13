@@ -396,21 +396,23 @@ else
     # followed by a colon anywhere on the line, plus a label wrapped in emphasis at the start of the
     # line (after indentation or a list marker) even without a colon. Mid-sentence italics of an
     # everyday word are not labels.
-    function strayname(s,   found, m, t) {
-      s = tolower(s); found = ""
-      # Parenthesized asides inside a label ("**Kind (see note)**") do not hide the label.
-      gsub(/\([^()]*\)/, "", s)
+    function strayname(s,   found, m, t, s0) {
+      s = tolower(s); s0 = s; found = ""
+      # Parenthesized asides inside a label ("**Kind (see note)**") do not hide the label from the
+      # start-of-line pattern; the colon pattern below runs on the unstripped line, so a field line
+      # wrapped entirely in parentheses is still caught.
+      gsub(/\([^()]*\)/, "", s); gsub(/\([^()]*\)/, "", s); gsub(/\([^()]*\)/, "", s)
       # An emphasized or tagged label at the start of the line, even without a colon.
       # Leading plain words are allowed only on a list item ("- note **Kind** deferral"); a prose
       # sentence with an italic everyday word is not a label.
-      if (match(s, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<\[]*[ \t])?)?([*_`\[]|<[^>]*>)+[ \t]*(status|kind|control|due-before|review-by|closure-evidence)[ \t]*([*_`\]]|<[^>]*>)+/)) {
+      if (match(s, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<\[]*[ \t])?)?([*_`\[]|<[^>]*>)+[ \t]*(status|kind|control|due-before|review-by|closure-evidence)([ \t][^*_`\]<]*)?[ \t]*([*_`\]]|<[^>]*>)+/)) {
         m = substr(s, RSTART, RLENGTH); gsub(/<[^>]*>/, "", m)
-        if (match(m, /(status|kind|control|due-before|review-by|closure-evidence)[ \t]*[*_`\]]+[ \t]*$/)) m = substr(m, RSTART, RLENGTH)
-        gsub(/[^a-z-]/, "", m); found = " " canon(m)
+        if (match(m, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) { m = substr(m, RSTART, RLENGTH); gsub(/[^a-z-]/, "", m) }
+        found = " " canon(m)
         s = substr(s, RSTART + RLENGTH)
       }
       # A governed name followed by a colon anywhere, with any markup between the name and the colon.
-      t = s; gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", t); gsub(/\]\(([^()]|\([^()]*\))*\)/, "", t); gsub(/[*_`\[\]]/, "", t)
+      t = s0; gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", t); gsub(/\]\(([^()]|\([^()]*\))*\)/, "", t); gsub(/[*_`\[\]]/, "", t)
       while (match(t, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)[ \t]*:/)) {
         m = substr(t, RSTART, RLENGTH); sub(/^[^a-z]/, "", m); sub(/[ \t]*:$/, "", m)
         if (index(found, " " canon(m)) == 0) found = found " " canon(m)
@@ -512,7 +514,7 @@ else
     # entry; it is recorded like a wrong-level heading so its fields cannot vanish.
     /^ ? ? ?(-+|=+)[ \t]*$/ && prevtd != "" { flush(); reset(); odd = prevtd; prevtd = ""; next }
     {
-      if ($0 ~ /^ ? ? ?[*_`\[]*TD-[0-9]/) prevtd = $0
+      if ($0 ~ /^ ? ? ?([*_`\[]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)*TD-[0-9]/) prevtd = $0
       else if ($0 ~ /^[ \t]*$/ || $0 ~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]/ || $0 ~ /^ ? ? ?#/) prevtd = ""
     }
     # Headings: up to three spaces of indentation, one to six marks, then whitespace. An entry starts
@@ -524,9 +526,9 @@ else
       h = $0; sub(/^ ? ? ?/, "", h)
       level = 0; while (substr(h, level + 1, 1) == "#") level++
       text = substr(h, level + 1); sub(/^[ \t]+/, "", text)
-      # Inline markup around the identifier (bold, italic, code, a link, nested in any order) is
-      # stripped before the test.
-      sub(/^[*_`\[]+/, "", text)
+      # Inline markup around the identifier (bold, italic, code, a link, an HTML tag, nested in any
+      # order) is stripped before the test.
+      gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", text); sub(/^[ \t]+/, "", text); sub(/^[*_`\[]+/, "", text)
       if (text ~ /^TD-/) {
         # A TD heading of any shape: level two with a space is an entry; anything else (another
         # level, seven or more marks, no space after the marks) is recorded for the shell.

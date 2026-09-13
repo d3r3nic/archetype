@@ -964,6 +964,35 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_clean(out, code)
         self.assertIn("DEFERRED: TD-148 until public-access", out)
 
+    def test_field_lines_wrapped_in_parentheses_fail_loudly(self):
+        entry = "## TD-149 — wrapped\n\n- **Status:** open\n- (**Kind:** deferral)\n- (**Control:** floor: secrets)\n- (**Due-before:** first-outside-participant)\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("TD-149: field label(s) found on lines the validator does not read as fields", out)
+        self.assertNotIn("has no deferrals", out)
+
+    def test_no_colon_labels_with_extra_words_or_nested_asides_fail_loudly(self):
+        for suffix in (" value", " (see (note))"):
+            with self.subTest(suffix=suffix):
+                entry = ("## TD-150 — no colon\n\n" + "\n".join(
+                    f"- **{name}{suffix}** {value}" for name, value in (
+                        ("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
+                        ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))) + "\n")
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assertEqual(code, 1, out)
+                self.assertIn("TD-150: field label(s) found on lines the validator does not read as fields", out)
+                self.assertNotIn("has no deferrals", out)
+
+    def test_html_wrapped_heading_identifiers_are_read(self):
+        for heading in ("## <span>TD-151</span> floor shortcut", "## **<span>TD-151</span>** floor shortcut", '## <span class="id">TD-151</span> floor shortcut'):
+            with self.subTest(heading=heading):
+                entry = heading + "\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
+                code, out = self.run_validator(profile_text(), entry)
+                self.assert_fail(out, code, "TD-151: a floor item (secrets) is never postponed")
+        entry = "<span>TD-152</span> underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)
