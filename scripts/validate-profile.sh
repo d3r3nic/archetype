@@ -300,6 +300,11 @@ else
       fail "$id: field label(s) found on lines the validator does not read as fields:$strays; write each as a list item such as \"- **Kind:** deferral\""
       SUPPRESS_PASS=1
     fi
+    if [ -z "$kind" ] && [ "$kindpresent" != "1" ] && { [ -n "$control" ] || [ -n "$due" ] || [ -n "$review" ] || [ -n "$closure" ]; }; then
+      fail "$id: carries deferral fields (Control, Due-before, Review-by, or Closure-evidence) but no Kind line; add \"- **Kind:** deferral\" or \"- **Kind:** shortcut\""
+      SUPPRESS_PASS=1
+      continue
+    fi
     if [ -z "$kind" ] && [ "$kindpresent" = "1" ]; then
       fail "$id: Kind is present but has no value on its line; write \"- **Kind:** shortcut\" or \"- **Kind:** deferral\""
       SUPPRESS_PASS=1
@@ -308,7 +313,7 @@ else
     case "$kind" in
       ""|shortcut) continue ;;
       deferral) ;;
-      *) fail "$id: Kind is \"$kind\"; expected shortcut or deferral"; continue ;;
+      *) fail "$id: Kind is \"$kind\"; expected shortcut or deferral (lower case)"; SUPPRESS_PASS=1; continue ;;
     esac
     SEEN=$((SEEN + 1))
     [ "$status" = "fixed" ] && continue
@@ -373,11 +378,23 @@ else
     # Stray detection casts a wide net on purpose: a governed name followed by a colon anywhere on a
     # line that is not a field line (any markup around it, or none) fails loudly instead of being
     # read as prose, so no spelling of a field can vanish.
-    function strayname(s) {
-      s = tolower(s)
-      if (match(s, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)[ \t]*:/)) { s = substr(s, RSTART, RLENGTH); sub(/^[^a-z]/, "", s); sub(/[ \t]*:$/, "", s); return canon(s) }
-      if (match(s, /(\*\*|__|\*|_)[ \t]*(status|kind|control|due-before|review-by|closure-evidence)[ \t]*(\*\*|__|\*|_)/)) { s = substr(s, RSTART, RLENGTH); gsub(/^(\*\*|__|\*|_)[ \t]*|[ \t]*(\*\*|__|\*|_)$/, "", s); return canon(s) }
-      return ""
+    # Returns every governed label found on a non-field line, space separated: any governed name
+    # followed by a colon anywhere on the line, plus a label wrapped in emphasis at the start of the
+    # line (after indentation or a list marker) even without a colon. Mid-sentence italics of an
+    # everyday word are not labels.
+    function strayname(s,   found, m) {
+      s = tolower(s); gsub(/`/, "", s); gsub(/\]\([^)]*\)/, "", s); gsub(/[\[\]]/, "", s)
+      found = ""
+      if (match(s, /^[ \t]*([-*+]|[0-9]+[.)])?[ \t]*(\*\*|__|\*|_)[ \t]*(status|kind|control|due-before|review-by|closure-evidence)[ \t]*(\*\*|__|\*|_)/)) {
+        m = substr(s, RSTART, RLENGTH); sub(/^[ \t]*([-*+]|[0-9]+[.)])?[ \t]*(\*\*|__|\*|_)[ \t]*/, "", m); sub(/[ \t]*(\*\*|__|\*|_)$/, "", m); found = " " canon(m)
+        s = substr(s, RSTART + RLENGTH)
+      }
+      while (match(s, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)[ \t]*(\*\*|__|\*|_)?[ \t]*:/)) {
+        m = substr(s, RSTART, RLENGTH); sub(/^[^a-z]/, "", m); sub(/[ \t]*(\*\*|__|\*|_)?[ \t]*:$/, "", m)
+        if (index(found, " " canon(m)) == 0) found = found " " canon(m)
+        s = substr(s, RSTART + RLENGTH)
+      }
+      sub(/^ /, "", found); return found
     }
     # Labels are compared without regard to letter case; canon() returns the spelling the template uses.
     function governed(n) { n = tolower(n); return (n == "status" || n == "kind" || n == "control" || n == "due-before" || n == "review-by" || n == "closure-evidence") }
@@ -391,11 +408,16 @@ else
     # indented at most three spaces, followed by spaces or tabs) whose text starts with a bold label
     # in either bold syntax and either colon placement: "**Name:** value", "**Name**: value",
     # "__Name:__ value". The list marker is required; a bold label in running text is not a field.
+    # The label between the bold markers may be wrapped in a code span or a link, or the bold itself
+    # may sit inside a link; those wrappers are removed before the name is compared.
     function fieldname(s) {
-      if (s !~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)[A-Za-z][A-Za-z \t-]*:?[ \t]*(\*\*|__):?/) return ""
-      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)/, "", s); sub(/[ \t]*:?[ \t]*(\*\*|__).*$/, "", s); sub(/[ \t]+$/, "", s); return s
+      if (s !~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+\[?(\*\*|__)[^*_]+(\*\*|__)(\]\([^)]*\))?:?/) return ""
+      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+\[?(\*\*|__)/, "", s); sub(/(\*\*|__).*$/, "", s)
+      gsub(/`/, "", s); sub(/\]\([^)]*\)/, "", s); gsub(/[\[\]]/, "", s); sub(/[ \t]*:[ \t]*$/, "", s); sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s)
+      if (s !~ /^[A-Za-z][A-Za-z \t-]*$/) return ""
+      return s
     }
-    function val(s) { sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)[A-Za-z][A-Za-z \t-]*:?[ \t]*(\*\*|__):?[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
+    function val(s) { sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+\[?(\*\*|__)[^*_]+(\*\*|__)(\]\([^)]*\))?:?[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
     { sub(/\r$/, "") }
     # Fenced examples are skipped. Fences are classified on the raw line, before any HTML rewriting. A fence opens with three or more backticks or tildes indented by
     # at most three spaces and closes only with a run of the same character at least as long,
@@ -416,6 +438,8 @@ else
     # whitespace, are rewritten to bold markers so a field written with them is still a field.
     { gsub(/<[ \t]*\/?[ \t]*([bB]|[sS][tT][rR][oO][nN][gG])([ \t]([^>"\047]|"[^"]*"|\047[^\047]*\047)*)?[ \t]*>/, "**"); gsub(/<[ \t]*\/?[ \t]*([iI]|[eE][mM])([ \t]([^>"\047]|"[^"]*"|\047[^\047]*\047)*)?[ \t]*>/, "*") }
     # HTML italic tags become single emphasis markers, so an italic label is caught as a stray.
+    # Code spans and links around a label are unwrapped inside the label only (see fieldname), so
+    # "**`Kind`:**" and "**[Kind](#kind):**" read as Kind while values keep their brackets.
     # A paragraph that starts with a "TD-" line and is underlined with dashes or equals signs (any
     # length, possibly after wrapped title lines) is a setext heading the parser does not read as an
     # entry; it is recorded like a wrong-level heading so its fields cannot vanish.

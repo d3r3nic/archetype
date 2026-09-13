@@ -682,10 +682,10 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(), entry)
         self.assert_fail(out, code, "TD-102: a floor item (secrets) is never a deferral")
 
-    def test_space_inside_bold_markers_fails_loudly(self):
+    def test_space_inside_bold_markers_is_read_as_the_field(self):
         entry = "## TD-103 — spaced markers\n\n- **Status:** open\n- ** Kind:** deferral\n- **Control:** floor: secrets\n"
         code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-103: field label(s) found on lines the validator does not read as fields: Kind")
+        self.assert_fail(out, code, "TD-103: a floor item (secrets) is never a deferral")
 
     def test_whitespace_inside_label_is_normalized(self):
         for kind_line in ("- **Kind :** deferral", "- **Kind\t:** deferral", "- ** Kind:** deferral"):
@@ -790,6 +790,42 @@ class ValidateProfileTests(unittest.TestCase):
                 code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
                 self.assertEqual(code, 1, out)
                 self.assertTrue("TD-119: field label(s) found on lines the validator does not read as fields" in out, out)
+
+    def test_code_and_link_wrapped_labels_are_read(self):
+        for kind_line in ("- **`Kind`:** deferral", "- **[Kind](#kind):** deferral", "- [**Kind**](#kind): deferral"):
+            with self.subTest(kind_line=kind_line):
+                entry = ("## TD-120 — wrapped label\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
+                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assert_fail(out, code, "TD-120: trigger first-outside-participant is true")
+
+    def test_deferral_fields_without_kind_fail(self):
+        entry = ("## TD-121 — no kind\n\n- **Status:** open\n- **Control:** floor: secrets\n- **Due-before:** first-outside-participant\n"
+                 "- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assert_fail(out, code, "TD-121: carries deferral fields (Control, Due-before, Review-by, or Closure-evidence) but no Kind line")
+        self.assertNotIn("has no deferrals", out)
+
+    def test_legacy_entry_with_status_and_severity_only_is_still_legacy(self):
+        legacy = "## TD-122 — legacy\n\n- **Logged:** 2026-01-01\n- **Status:** open\n- **Severity:** low\n- **Proposed fix:** later\n"
+        code, out = self.run_validator(profile_text(), legacy)
+        self.assert_clean(out, code)
+        self.assertIn("TECHNICAL-DEBT.md has no deferrals", out)
+
+    def test_mid_sentence_italics_are_not_labels(self):
+        entry = debt_entry(123, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\nWe reworked the *control* flow and the *status* banner while waiting; the __kind__ of fix is open.\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assert_clean(out, code)
+
+    def test_every_stray_label_on_a_line_is_named(self):
+        entry = debt_entry(124, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\nSee *Kind*: deferral, _Control_: #23 and **Due-before**: soon.\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assert_fail(out, code, "TD-124: field label(s) found on lines the validator does not read as fields: Kind Control Due-before")
+
+    def test_unknown_kind_value_suppresses_the_pass_line(self):
+        code, out = self.run_validator(profile_text(), debt_entry(125, kind="Deferral"))
+        self.assert_fail(out, code, 'TD-125: Kind is "Deferral"; expected shortcut or deferral (lower case)')
+        self.assertNotIn("has no deferrals", out)
 
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
