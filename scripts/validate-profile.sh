@@ -396,20 +396,21 @@ else
     # followed by a colon anywhere on the line, plus a label wrapped in emphasis at the start of the
     # line (after indentation or a list marker) even without a colon. Mid-sentence italics of an
     # everyday word are not labels.
-    function strayname(s,   found, m, t, s0) {
+    function strayname(s,   found, m, t, s0, rest, lab) {
       s = tolower(s); s0 = s; found = ""
-      # Parenthesized asides inside a label ("**Kind (see note)**") do not hide the label from the
-      # start-of-line pattern; the colon pattern below runs on the unstripped line, so a field line
-      # wrapped entirely in parentheses is still caught.
-      gsub(/\([^()]*\)/, "", s); gsub(/\([^()]*\)/, "", s); gsub(/\([^()]*\)/, "", s)
-      # An emphasized or tagged label at the start of the line, even without a colon.
-      # Leading plain words are allowed only on a list item ("- note **Kind** deferral"); a prose
-      # sentence with an italic everyday word is not a label.
-      if (match(s, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<\[]*[ \t])?)?([*_`\[]|<[^>]*>)+[ \t]*(status|kind|control|due-before|review-by|closure-evidence)([ \t][^*_`\]<]*)?[ \t]*([*_`\]]|<[^>]*>)+/)) {
-        m = substr(s, RSTART, RLENGTH); gsub(/<[^>]*>/, "", m)
-        if (match(m, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) { m = substr(m, RSTART, RLENGTH); gsub(/[^a-z-]/, "", m) }
-        found = " " canon(m)
-        s = substr(s, RSTART + RLENGTH)
+      # An emphasized or tagged span at the start of the line (after an optional list marker and
+      # markup-free leading words) is decoded, parentheses and punctuation included, and a governed
+      # name found in it as a whole word is a stray even without a colon. A prose sentence with an
+      # italic everyday word has no list marker and no leading markup, so it is not a label.
+      if (match(s, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<\[]*[ \t])?)?([*_`\[]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)+/)) {
+        rest = substr(s, RSTART + RLENGTH)
+        lab = rest
+        if (match(rest, /([*_`\]]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)/)) lab = substr(rest, 1, RSTART - 1)
+        gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, " ", lab); gsub(/[()]/, " ", lab)
+        if (match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) {
+          m = substr(lab, RSTART, RLENGTH); gsub(/[^a-z-]/, "", m); found = " " canon(m)
+          s = substr(s, length(s) - length(rest) + length(lab) + 1)
+        }
       }
       # A governed name followed by a colon anywhere, with any markup between the name and the colon.
       t = s0; gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", t); gsub(/\]\(([^()]|\([^()]*\))*\)/, "", t); gsub(/[*_`\[\]]/, "", t)
@@ -514,7 +515,7 @@ else
     # entry; it is recorded like a wrong-level heading so its fields cannot vanish.
     /^ ? ? ?(-+|=+)[ \t]*$/ && prevtd != "" { flush(); reset(); odd = prevtd; prevtd = ""; next }
     {
-      if ($0 ~ /^ ? ? ?([*_`\[]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)*TD-[0-9]/) prevtd = $0
+      if ($0 ~ /^ ? ? ?([*_`\[ \t]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)*TD-[^ \t]/) prevtd = $0
       else if ($0 ~ /^[ \t]*$/ || $0 ~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]/ || $0 ~ /^ ? ? ?#/) prevtd = ""
     }
     # Headings: up to three spaces of indentation, one to six marks, then whitespace. An entry starts
@@ -528,7 +529,9 @@ else
       text = substr(h, level + 1); sub(/^[ \t]+/, "", text)
       # Inline markup around the identifier (bold, italic, code, a link, an HTML tag, nested in any
       # order) is stripped before the test.
-      gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", text); sub(/^[ \t]+/, "", text); sub(/^[*_`\[]+/, "", text)
+      gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", text)
+      # Whitespace, markers, and an unclosed tag start ("<span TD-12") are peeled off in turn.
+      while (text ~ /^([ \t]|[*_`\[]|<[^ \t>]*[ \t])/) sub(/^([ \t]+|[*_`\[]+|<[^ \t>]*[ \t]+)/, "", text)
       if (text ~ /^TD-/) {
         # A TD heading of any shape: level two with a space is an entry; anything else (another
         # level, seven or more marks, no space after the marks) is recorded for the shell.
