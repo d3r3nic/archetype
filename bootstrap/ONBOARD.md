@@ -148,6 +148,20 @@ If the user answers vaguely ("I dunno", "not sure", "I guess not"), DEFAULT TO A
 
 **Vague stack preference** ("use whatever", "I don't care"): not a choice, a deflection. Apply Step 3 default (platform if one covers 80%+, minimum-viable custom otherwise). See RED-FLAGS.md.
 
+**Group 6 - How careful, and who decides** (fills PROFILE.md per #30 and the decision-authority setting per #29; ask only what Groups 1-5 did not already answer)
+- What should this first version prove, or let someone accomplish?
+- Will it work with made-up information, or real information? If real, is any of it about people (names, contact details, health, money)?
+- Would anything be lost for good if its records disappeared?
+- Could it move money, send messages, change important records, or affect someone's health, safety, work, or access to a service?
+- If it stopped working or gave a wrong answer, what would happen? Could people use another way meanwhile?
+- Are we testing an idea we might throw away, or preparing something people will depend on? Is there a promised date?
+- What have you promised the people involved about privacy, reliability, or the handling of their information?
+- What monthly running cost is comfortable, and how much extra AI spending? (Reuse the budget answer if already given.)
+- Who else will work on the code with me, now or soon? (Just you and me, or other people too?)
+- Do you want to make the technical choices yourself, or should I make them and show you what I decided and why?
+
+The AI derives the operating stage from the answers (#30): `isolated` when only the owner uses it, with made-up data, no real effects, nobody depending on it or on its records; `trial` when identified people try it and have a workable fallback; `operational` otherwise. A vague answer stays `unknown` in PROFILE.md and is never read as "no". For audience, effects, reliance, and records, `unknown` blocks real exposure, not the contained experiment; the regulated-data question keeps its own stricter gate (`bootstrap/RED-FLAGS.md` "Deploy Gate"), which halts scaffolding and deployment until it is answered. When the regulated-data answer is vague, PROFILE.md records `Regulated data: unknown`; the default-assumed-yes lives in VERSION-LOG.md as the open pre-production gate, not in the profile. A vague answer to the last question records `Decision authority: ai-decides` with `Authority source: defaulted` (#29); see `bootstrap/RED-FLAGS.md` "Vague answer about who decides".
+
 ### How the AI decides (read the user's knowledge level):
 
 The AI should gauge the user's technical experience from how they talk. Adjust choices accordingly:
@@ -289,10 +303,12 @@ Custom code is the right choice when:
 
 ### How to present the decision:
 
-Research online (if capable) for the latest platform options that match the user's use case. Then present:
+Research online (if capable) for the latest platform options that match the user's use case. This choice touches recurring cost and the shape of the product, so it goes to the owner under both decision-authority settings (#29): one recommendation first, the reason and the cost with it, the alternatives after it. Then present:
 
 ```
-Based on what you described, here are your options:
+Based on what you described, my recommendation is [option] because [reason tied to the discovery answers]; it would cost [monthly cost or "nothing"] and take about [effort]. Doing this unless you object.
+
+The alternatives I weighed:
 
 Option A: [Platform name]
 - What it does: [covers X, Y, Z of your requirements]
@@ -310,21 +326,17 @@ Option C: Custom build with [tech stack]
 - Cost: development time + hosting
 - Effort: [timeline estimate]
 - Best if: you need full control, have complex requirements, or this is a product
-
-My recommendation: [which option and why, based on the discovery answers]
-
-Which direction would you like to go?
 ```
 
-Wait for the user to decide. Do NOT proceed to file generation until the user confirms they want a custom build.
+Under `owner-decides`, wait for the owner's choice before generating anything. Under `ai-decides`, generate the project context for the recommended path if the owner does not object in the session: generating reversible context is preparation, not the decision, and the decision itself stays open; any sign-up, payment, or commitment waits for an explicit yes, because silence is not authorization (#29). Never generate a custom build when the recommendation was a platform and the owner has not chosen it.
 
 If the user chooses a platform (Option A or B), help them set it up. The Archetype framework's scaffolding phase doesn't apply — but the conventions around security (#23), documentation (#16), and git (#2) still do.
 
-If the user confirms custom build (Option C), proceed to Step 4.
+Proceed to Step 4 when the build approach is settled: under `owner-decides`, when the owner confirms the custom build; under `ai-decides`, when the recommendation is a custom build and the owner has not objected.
 
 ## Step 4: Generate Project Context
 
-After the user confirms their build approach, the AI generates the project files. The generation path depends on whether the user picked a platform (Option A/B from Step 3) or a custom build (Option C).
+Once the build approach is settled per Step 3 (confirmed under `owner-decides`; recommended and not objected to under `ai-decides`), the AI generates the project files. The generation path depends on whether the approach is a platform (Option A/B from Step 3) or a custom build (Option C).
 
 ### If the user picked a PLATFORM (Option A or B from Step 3):
 
@@ -332,6 +344,7 @@ The framework's scaffolding phase does NOT apply. There is no tech stack to docu
 
 Generate:
 - `References.md` using `templates/references-platform.md` (NOT the frontend/backend/mobile templates — those are for custom builds)
+- `PROFILE.md` using `templates/profile.md`: the operating stage derived from Group 6, the facts with unknown kept unknown, the decision-authority setting with its source. A platform project still has an audience, data, effects, and an owner who decides (#30, #29).
 - `feature-tree.md` reshaped as a configuration checklist for the chosen platform (not a systems map)
 - `VERSION-LOG.md` with `Type: platform / {platform-name}` in the bootstrap entry
 - No `.gitignore`, no `git init`, no `docs/systems/`, no `docs/features/` — the framework doesn't manage the platform's internals
@@ -341,10 +354,11 @@ Conventions that still apply:
 - #16 (Documentation) — the References.md IS their documentation
 - #23 (App Security) — admin account, 2FA, PII handling within the platform
 - #24 (Authorization) — role settings within the platform
+- #29 (Decision Authority) and #30 (Operating Profile) — who decides, what is escalated, how careful the configuration must be, and what was deferred
 
 Conventions that do NOT apply: everything else (architecture, components, state, styling, types, errors, API, testing, build/CI, etc.). Those are owned by the platform.
 
-Stop after generating References.md, feature-tree.md, and VERSION-LOG.md. Help the user sign up for the platform and walk through initial configuration.
+Stop after generating References.md, PROFILE.md, feature-tree.md, and VERSION-LOG.md. Help the user sign up for the platform (the sign-up and any payment wait for the owner's explicit yes, #29) and walk through initial configuration.
 
 ### If the user picked a CUSTOM BUILD (Option C from Step 3):
 
@@ -352,7 +366,7 @@ Proceed below. This is the path the framework was originally built around.
 
 ### For a fullstack project (web frontend + backend API):
 
-The AI runs the generation process TWICE - once for the frontend folder using templates/references-frontend.md, and once for the backend folder using templates/references-backend.md. Each endpoint gets its own References.md and feature-tree.md.
+The AI runs the generation process TWICE - once for the frontend folder using templates/references-frontend.md, and once for the backend folder using templates/references-backend.md. PROFILE.md is generated once, at the repository root, never per endpoint: stage and decision authority are project-wide (#30). Each endpoint gets its own References.md and feature-tree.md.
 
 ### For a single endpoint:
 
@@ -371,6 +385,8 @@ Generate these files:
   - If the project is a **TEMPLATE** (per Group 1), apply the diverging generation rules from the "Template vs product" table: Stage = `template` plus its own version number, add a `## Downstream Projects` section, rewrite `## Design Artifact` to defer to downstream projects, note that any `@scope/*` packages ship with neutral placeholder tokens. Do NOT research design tooling — that decision belongs to downstream projects at their own bootstrap.
   - If the project is a **PRODUCT**, research the design-artifact tool at bootstrap and document it in References.md § Design Artifact per convention #27.
 - feature-tree.md using templates/feature-tree.md. For TEMPLATE projects, mark design-derived rows (Components, Design System, Styling values, per-feature visual states) as "structural at template level; downstream projects apply brand"; do NOT leave them undefined.
+- PROFILE.md using templates/profile.md, every key filled: the operating stage you derived and its one-line Stage reason; Audience from Group 1 and Group 4 (who uses it, how many); Data, External effects, Operational reliance, Valuable records, Fallback, Contributors, and Customer commitments from Group 6; Regulated data from Group 5 (unknown when vague); the cost ceilings; the decision-authority setting with its source (owner-stated or defaulted); today's date as Observed-on; and a Review condition (a date or the first trigger you expect). Run `scripts/validate-profile.sh` afterwards; a placeholder left in any key fails it. Per #30.
+- In References.md § Project, the owner channel, the decision location, and the reporting pace, per #29.
 - docs/systems/ directory (empty)
 - docs/features/ directory (empty)
 - .gitignore appropriate for the tech stack
@@ -438,6 +454,7 @@ After bootstrap, verify:
 - [ ] conventions/ directory with all framework convention docs (unmodified)
 - [ ] References.md generated (use `references-platform.md` for platform choice, or the matching custom template: `references-frontend.md`, `references-backend.md`, `references-mobile.md`)
 - [ ] feature-tree.md initialized (use `feature-tree-platform.md` for platform choice, `feature-tree.md` for custom)
+- [ ] PROFILE.md generated from templates/profile.md with an operating stage, the decision-authority setting and its source, and Observed-on (per #30; unknown facts stay unknown); `scripts/validate-profile.sh` passes
 - [ ] VERSION-LOG.md bootstrap entry written (with `Type: platform / {name}` or `Type: custom`)
 - [ ] **For CUSTOM BUILDS ONLY:** docs/systems/ directory created
 - [ ] **For CUSTOM BUILDS ONLY:** docs/features/ directory created
@@ -464,8 +481,10 @@ Append a bootstrap entry:
 Date: [today's date]
 Type: [template / product / existing-project-migration]
 Tech stack: [the tech stack chosen]
+Profile: [operating stage], decision authority [owner-decides / ai-decides] ([owner-stated / defaulted]), facts still unknown: [list or none]
 Files generated:
 - References.md ([word count] words)
+- PROFILE.md ([operating stage], [number of facts still unknown] unknown)
 - feature-tree.md ([number of systems] systems, [number of features] features)
 - [for existing projects] conventions/overrides/ ([number] files)
 - [for existing projects] protocols/ ([number] files)

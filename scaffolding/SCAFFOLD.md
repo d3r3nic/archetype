@@ -104,7 +104,7 @@ Conventions read: [which convention docs were read during scaffolding]
 
 ## What scaffolding produces
 
-A working, empty project with all foundational systems in place plus ONE smoke-test feature that exercises every system. No business features yet. Any feature can be built immediately by plugging into these systems.
+A working, empty project with every applicable foundational system in place, or recorded as a deferral with its trigger per the operating stage (#30, `_preamble.md` stage rule), plus ONE smoke-test feature that exercises every system that was built. No business features yet. Any feature can be built immediately by plugging into these systems.
 
 The scaffold is REUSABLE. Projects with the same tech stack can start from this base.
 

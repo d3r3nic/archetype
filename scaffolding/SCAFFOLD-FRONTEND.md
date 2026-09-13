@@ -288,7 +288,7 @@ Run `scripts/validate-scaffold.sh`. Fix any failures before committing.
 
 ## Post-scaffold output
 
-Same as SCAFFOLD-BACKEND: every system marked implemented with path, docs/systems/ entry per system, References.md updated, `.env.example`, VERSION-LOG entry, initial commit.
+Same as SCAFFOLD-BACKEND: every applicable system marked implemented with path, or `deferred (TD-N)` with its trigger per #30, docs/systems/ entry per system (a deferred system's page says what is deferred and until when), References.md updated, `.env.example`, VERSION-LOG entry, initial commit.
 
 ## feature-tree status discipline
 

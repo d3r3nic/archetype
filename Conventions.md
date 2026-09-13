@@ -1,6 +1,6 @@
 # Conventions
 
-This is a LOOKUP INDEX. Do not read all 29 convention docs. Scan this list, identify the 2-4 conventions relevant to your current task, and read only those.
+This is a LOOKUP INDEX. Do not read every convention doc. Scan this list, identify the 2-4 conventions relevant to your current task, and read only those.
 
 This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFOLD.md) → Develop (DEVELOP.md) → Maintain (MAINTAIN.md).
 
@@ -29,7 +29,9 @@ This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFO
 | Documentation | #16 | |
 | Tracked tasks / project management | development/TASKS.md, development/FRESHNESS.md | project-root protocols/task-context.md; #16, #18, #19 as relevant |
 | Repository creation / framework adoption | bootstrap/REPOSITORIES.md, #1, #2 | bootstrap/ONBOARD.md |
-| Starting a new AI session | #17, #19 | re-read References.md |
+| Starting a new AI session | #17, #19, #29 | re-read References.md and PROFILE.md |
+| Anything that might need the owner (spend, commitments, live systems, product scope) | #29 | PROFILE.md for the decision-authority setting |
+| Deferring work, taking a shortcut, changing the project's stage | #30 | #18 (verification); TECHNICAL-DEBT.md entry with a trigger |
 
 ## Convention Index
 
@@ -75,7 +77,9 @@ Everything built once, configured for context. Governs how all other conventions
 ### AI
 - #17 Context Management — file size, session hygiene, lost-in-the-middle → conventions/17-context.md
 - #18 Verification — TDD for AI, run tests after every change, build gates → conventions/18-verification.md
-- #19 AI Steering — specs before code, drift prevention, scope discipline → conventions/19-steering.md
+- #19 AI Steering — specs before code, drift prevention, scope discipline; approval rules read the #29 setting → conventions/19-steering.md
+- #29 Decision Authority & Escalation — owner decides the product, AI decides and records everything technical; the escalation categories, one recommendation; no unverified claims; owner safety rails → conventions/29-decision-authority.md
+- #30 Operating Profile & Deferral — stage derived from facts (isolated, trial, operational), the floor no stage may defer, trigger-linked deferrals in TECHNICAL-DEBT.md, PROFILE.md → conventions/30-operating-profile.md
 
 ### Specialized
 - #20 Forms — schema validation, accessible errors, multi-step → conventions/20-forms.md

@@ -304,7 +304,7 @@ If validator fails, FIX before committing. Do not paper over.
 
 ## Post-scaffold output
 
-- Every system listed in `feature-tree.md` marked implemented with its path.
+- Every applicable system listed in `feature-tree.md` marked implemented with its path, or `deferred (TD-N)` with its trigger per #30 (a deferred system keeps its row and its docs/systems/ page, which says what is deferred and until when).
 - Every system has a doc at `docs/systems/{name}.md` using the template in `scaffolding/SCAFFOLD.md`.
 - `References.md` updated with actual paths, DB schema overview, API summary.
 - `.env.example` at project root.

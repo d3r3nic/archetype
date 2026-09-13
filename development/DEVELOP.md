@@ -59,6 +59,8 @@ For a feature touching 3+ files:
 
 Either write this plan inline or in a scratch doc. It's not a ceremony — it's how you catch over-engineering before you ship it.
 
+Who signs off on the plan is the decision-authority setting in PROFILE.md (#29, #19): under `owner-decides`, wait for approval; under `ai-decides`, record the plan at the project's decision location and proceed. Scope and product intent are the owner's under both; technical choices inside the plan are not a question for the owner under `ai-decides`.
+
 ### Step 4 — Implement
 
 - Use the shared systems from Step 1. Never build ad-hoc.
@@ -96,6 +98,8 @@ Run each of the project's verification commands from `References.md § Commands`
 <test command>        # must exit 0, all tests passing including new ones
 <build command>       # must exit 0
 ```
+
+Then run `scripts/validate-profile.sh` from the project root: a deferral whose trigger the facts in PROFILE.md have made true is blocking, and a missing profile is reported as the strictest reading (#30). Before an action that changes exposure (inviting a user, importing real data, enabling payments, publishing), refresh the facts and run it with `--strict`, where an unknown fact is an error.
 
 Do NOT proceed to Step 7 if any gate is red. Fix the issue. Do not paper over with skipped tests, lint-suppression comments, or casts to an untyped escape hatch.
 

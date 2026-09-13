@@ -16,7 +16,7 @@ Phase 4 has three distinct modes, each with its own trigger. Don't conflate them
 - Framework version currency (run `./archetype/update.sh` status)
 
 **How:**
-1. Run the automated gates first — `scripts/validate-develop.sh` + `scripts/validate-maintain.sh` + `scripts/validate-framework.sh`.
+1. Run the automated gates first — `scripts/validate-develop.sh` + `scripts/validate-maintain.sh` + `scripts/validate-profile.sh` + `scripts/validate-framework.sh`.
 2. For anything they don't catch (judgment calls, doc narrative drift, architecture fit), manually audit per the checklist below.
 3. Log findings in `TECHNICAL-DEBT.md` using `templates/technical-debt.md` format.
 4. Append a row to `feature-tree.md` § Audit Log with date, scope, findings count, and pointer to the tech-debt entries.
@@ -24,6 +24,7 @@ Phase 4 has three distinct modes, each with its own trigger. Don't conflate them
 **Audit checklist:**
 - [ ] `scripts/validate-develop.sh` — 0 errors
 - [ ] `scripts/validate-maintain.sh` — 0 errors
+- [ ] `scripts/validate-profile.sh` — 0 errors (once PROFILE.md exists, `--strict` for operational projects; until then, create it from templates/profile.md); every DEFERRED line still has a future trigger; every UNVERIFIED fact has a plan to learn it
 - [ ] `scripts/validate-framework.sh` — 0 errors (framework itself OK)
 - [ ] The project's test command (`References.md § Commands`) — all green
 - [ ] Every feature directory has matching `feature-tree.md` row and `docs/features/{name}.md` entry (names align)
@@ -67,6 +68,8 @@ Applied during Mode 1 audits. Per entry in `open` status:
 - Age ≥ 2× threshold: MUST be force-fixed or marked `won't-fix`. No more deferral.
 
 Threshold is project-specific — 180 days is a reasonable default for mid-velocity projects. `scripts/validate-maintain.sh` flags stale entries.
+
+Deferrals (`Kind: deferral`, #30) follow their trigger, not the age threshold: when the facts in PROFILE.md make the `Due-before` trigger true, the entry is blocking and `scripts/validate-profile.sh` fails until it is fixed. Renewing `Review-by`, relabeling the stage, or `won't-fix` does not clear a triggered deferral. A deferral whose `Review-by` has passed without the trigger firing gets a fresh review and a new date, with the reason written down.
 
 ## Documentation Maintenance
 

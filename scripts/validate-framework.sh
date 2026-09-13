@@ -14,6 +14,9 @@
 #      (delegates to scripts/validate-timeless.sh)
 #  11. Self-claims: counts, engine paths, and convention references in the
 #      shipped docs match the tree (delegates to scripts/validate-claims.sh)
+#  12. Profile vocabulary: the stages, triggers, and floor items that
+#      scripts/validate-profile.sh evaluates are the ones the profile and debt
+#      templates and convention #30 name
 # Exit 0 on pass, 1 on any error. Warnings do not fail the check.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -68,7 +71,7 @@ group 2 "Convention count consistency"
 CLAIMED=$(grep -oE 'all [0-9]+ convention' Conventions.md | head -1 | grep -oE '[0-9]+')
 ACTUAL=$(find conventions -maxdepth 1 -type f -name '[0-9]*.md' | wc -l | tr -d ' ')
 if [ -z "$CLAIMED" ]; then
-  warn "Conventions.md has no 'all N convention' count claim"
+  pass "Conventions.md states no convention count (the index names them; group 11 checks the counts it knows about)"
 elif [ "$CLAIMED" != "$ACTUAL" ]; then
   fail "Conventions.md claims 'all $CLAIMED' but found $ACTUAL numbered convention files"
 else
@@ -246,6 +249,60 @@ if [ -f "$SCRIPT_DIR/validate-claims.sh" ]; then
   fi
 else
   fail "scripts/validate-claims.sh missing"
+fi
+
+# ----------------------------------------------------------------------
+group 12 "Profile vocabulary (validator, templates, and convention #30 agree)"
+# ----------------------------------------------------------------------
+PV="$SCRIPT_DIR/validate-profile.sh"
+if [ ! -f "$PV" ]; then
+  fail "scripts/validate-profile.sh missing"
+else
+  VOCAB_FAILS=0
+  vocab_words() { sed -n "s/^$1=\"\(.*\)\"\$/\1/p" "$PV" | head -1; }
+  # Split a list on commas and slashes into one word per line, trimmed.
+  norm() { tr ',/' '  ' | tr -s ' \n' '\n' | sed -e 's/^ *//' -e 's/ *$//' -e '/^$/d'; }
+  in_set() { local x; for x in $2; do [ "$x" = "$1" ] && return 0; done; return 1; }
+  compare_sets() {
+    # $1 label, $2 source file, $3 validator words, $4 words the source names
+    local label="$1" src="$2" exp="$3" got="$4" w
+    [ -z "$exp" ] && { fail "validate-profile.sh defines no $label list"; VOCAB_FAILS=$((VOCAB_FAILS + 1)); return; }
+    [ -z "$got" ] && { fail "$src names no $label where the contract lists them"; VOCAB_FAILS=$((VOCAB_FAILS + 1)); return; }
+    for w in $exp; do
+      in_set "$w" "$got" || { fail "$src does not name $label \"$w\", which validate-profile.sh evaluates"; VOCAB_FAILS=$((VOCAB_FAILS + 1)); }
+    done
+    for w in $got; do
+      in_set "$w" "$exp" || { fail "$src names $label \"$w\", which validate-profile.sh does not evaluate"; VOCAB_FAILS=$((VOCAB_FAILS + 1)); }
+    done
+  }
+  T_V="$(vocab_words TRIGGERS)"; S_V="$(vocab_words STAGES)"; F_V="$(vocab_words FLOOR)"
+  T_PROFILE="$(sed -n 's/^- Review: .*expected: *//p' templates/profile.md | sed 's/\].*//' | norm | tr '\n' ' ')"
+  S_PROFILE="$(sed -n 's/^- Operating stage: *\[//p' templates/profile.md | sed 's/\].*//' | norm | tr '\n' ' ')"
+  T_DEBT="$(sed -n 's/^- \*\*Due-before:\*\* .*PROFILE\.md (//p' templates/technical-debt.md | head -1 | sed 's/).*//' | norm | tr '\n' ' ')"
+  F_DEBT="$(sed -n 's/^- \*\*Control:\*\* .*floor: *//p' templates/technical-debt.md | head -1 | sed 's/).*//' | norm | tr '\n' ' ')"
+  T_CONV="$(sed -n 's/^- Triggers are named and evaluated from the recorded facts: *//p' conventions/30-operating-profile.md | sed 's/\. .*//' | tr -d '\140' | norm | tr '\n' ' ')"
+  compare_sets "trigger" templates/profile.md "$T_V" "$T_PROFILE"
+  compare_sets "stage" templates/profile.md "$S_V" "$S_PROFILE"
+  compare_sets "trigger" templates/technical-debt.md "$T_V" "$T_DEBT"
+  compare_sets "floor item" templates/technical-debt.md "$F_V" "$F_DEBT"
+  compare_sets "trigger" conventions/30-operating-profile.md "$T_V" "$T_CONV"
+  # The validator's key set and the template's facts block must match exactly.
+  K_V="$(sed -n 's/^KEYS=(\(.*\))$/\1/p' "$PV" | sed -e 's/" "/\n/g' -e 's/^"//' -e 's/"$//' | sort)"
+  K_T="$(awk '/^## / { exit } /^- [^:]+:/ { s = $0; sub(/^- /, "", s); sub(/:.*/, "", s); print s }' templates/profile.md | sort)"
+  if [ -z "$K_V" ] || [ -z "$K_T" ]; then
+    fail "could not read the profile key set from validate-profile.sh or templates/profile.md"
+    VOCAB_FAILS=$((VOCAB_FAILS + 1))
+  else
+    while IFS= read -r k; do
+      [ -z "$k" ] && continue
+      fail "templates/profile.md lacks key \"$k\", which validate-profile.sh requires"; VOCAB_FAILS=$((VOCAB_FAILS + 1))
+    done < <(comm -23 <(printf '%s\n' "$K_V") <(printf '%s\n' "$K_T"))
+    while IFS= read -r k; do
+      [ -z "$k" ] && continue
+      fail "templates/profile.md has key \"$k\", which validate-profile.sh does not know"; VOCAB_FAILS=$((VOCAB_FAILS + 1))
+    done < <(comm -13 <(printf '%s\n' "$K_V") <(printf '%s\n' "$K_T"))
+  fi
+  [ "$VOCAB_FAILS" -eq 0 ] && pass "profile vocabulary agrees in both directions across validator, templates, and convention #30 (stages, triggers, floor items, keys)"
 fi
 
 # ----------------------------------------------------------------------

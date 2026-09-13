@@ -64,6 +64,8 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 
 **The AI adjusts to your experience level.** A bakery owner gets a managed platform with zero server management. A developer gets managed cloud. An enterprise team gets full infrastructure control.
 
+**Two facts every session reads first.** `PROFILE.md` records how careful the project must be (its operating stage, derived from facts such as who uses it, whether the data is real, and whether anyone depends on it) and who decides technical questions (the owner, or the AI with a written record). Deferred work carries the trigger that ends the deferral, and a short floor is never deferred. Conventions #29 and #30 define both; `templates/profile.md` is the template and `scripts/validate-profile.sh` checks the record.
+
 ## What's Inside
 
 ```
@@ -71,7 +73,7 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 ├── Conventions.md             # Convention lookup index
 ├── conventions/               # Framework-agnostic convention docs
 │   ├── 00-reusability.md      # Meta: everything built once, configured for context
-│   ├── 01-28.md               # Project setup, git, architecture, components, state,
+│   ├── 01-30.md               # Project setup, git, architecture, components, state,
 │   │                          # styling, types, errors, API, contract, authentication,
 │   │                          # testing, performance, accessibility, CI/CD, documentation,
 │   │                          # context management, verification, steering,
@@ -92,6 +94,8 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
     ├── references-frontend.md  # Project context template (frontend)
     ├── references-backend.md   # Project context template (backend)
     ├── references-mobile.md    # Project context template (mobile)
+    ├── profile.md              # Operating stage, facts, and decision authority (PROFILE.md)
+    ├── technical-debt.md       # Shortcuts and deferrals with triggers
     ├── feature-tree.md         # Living project map template
     ├── feature-doc-template.md # Feature documentation template
     ├── hooks-spec.md           # Auto-documentation hooks

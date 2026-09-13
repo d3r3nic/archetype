@@ -33,6 +33,7 @@ Notes:
 - Not all systems apply to every project. Backend projects skip Theme, Routing, Components. Remove rows that don't apply.
 - Add project-specific systems below row 15 using ordinal numbering (16, 17, ...). Use `—` in the Convention column when no framework convention applies.
 - Do not bold cells in the `#` column; the inspector matches literal digits and skips bolded rows.
+- A system the operating stage defers (#30) keeps its row with Status `deferred (TD-N)` and a docs/systems/ page that says what is deferred and until which trigger.
 
 ## Features
 

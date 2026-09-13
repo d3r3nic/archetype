@@ -7,6 +7,10 @@ Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses t
 - Name: [project name]
 - Purpose: [one-line description]
 - Stage: [development / staging / production]
+- Profile: PROFILE.md (operating stage and decision authority per #30 and #29)
+- Owner channel: [where escalations go and how quickly the owner usually answers]
+- Decision location: [architecture decision records path, or "References.md § Decisions" until one exists]
+- Reporting pace: [every session / every release / on request]
 - Platforms: [iOS / Android / both]
 
 ## Tech Stack
