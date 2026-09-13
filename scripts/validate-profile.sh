@@ -464,7 +464,13 @@ else
       }
       return ""
     }
-    function strayname(s,   found, m, t, s0, rest, lab, lab2, op, full, unclosed, tail) {
+    # Remove tags, code marks, and emphasis marks from a span; with spaces = 1 the marks become spaces.
+    function decode(x, spaces) {
+      gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", x); gsub(/[\[\]()]/, " ", x)
+      if (spaces) gsub(/[`*_]/, " ", x); else gsub(/[`*_]/, "", x)
+      return x
+    }
+    function strayname(s,   found, m, t, s0, rest, lab, op, full, unclosed, tail) {
       s = tolower(s); s0 = s; found = ""
       # An emphasized or tagged span at the start of the line (after an optional list marker and
       # markup-free leading words) is decoded, parentheses and punctuation included, and a governed
@@ -479,19 +485,23 @@ else
         # line. Link destinations, values, and annotations after the label stay outside it.
         full = op rest
         lab = substr(full, 1, labelend(full))
-        # A label fused to the word that follows it ("**note**Kind**") is extended through that word.
-        if (LABCLOSED && substr(full, length(lab) + 1) ~ /^[^ \t]/) { tail = substr(full, length(lab) + 1); sub(/[ \t].*$/, "", tail); lab = lab tail }
-        # The label is decoded twice: once with tags, code marks, and emphasis marks removed without
-        # adding a space ("K<span>ind</span>" and "K*ind*" read "kind"), once with the marks turned
-        # into spaces ("**note**Kind**" reads "note kind"); brackets and parentheses become spaces in
-        # both. A governed name found in either decoding counts.
-        gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", lab); gsub(/[\[\]()]/, " ", lab)
-        lab2 = lab; gsub(/[`*_]/, "", lab); gsub(/[`*_]/, " ", lab2)
         unclosed = !LABCLOSED
-        m = labelname(lab, unclosed); if (m == "") m = labelname(lab2, unclosed)
+        # A word fused to a closed label ("**note**Kind**", "<span>note</span>Control") is taken as a
+        # separate trailing word; a link destination that follows the label is not part of it.
+        tail = ""
+        if (LABCLOSED && substr(full, length(lab) + 1) ~ /^[^ \t(]/) { tail = substr(full, length(lab) + 1); sub(/[ \t].*$/, "", tail); sub(/\(.*$/, "", tail) }
+        # The label is decoded in more than one way and a governed name found in any of them counts:
+        # with tags, code marks, and emphasis marks removed without adding a space ("K<span>ind</span>"
+        # and "K*ind*" read "kind"), with the marks turned into spaces ("**note**Kind**" reads "note
+        # kind"), and with the fused word decoded on its own and joined by a space ("**note**K*ind***"
+        # reads "note kind"); brackets and parentheses become spaces throughout.
+        m = labelname(decode(lab, 0), unclosed)
+        if (m == "") m = labelname(decode(lab, 1), unclosed)
+        if (m == "" && tail != "") m = labelname(decode(lab, 0) " " decode(tail, 0), unclosed)
+        if (m == "" && tail != "") m = labelname(decode(lab, 1) " " decode(tail, 0), unclosed)
         if (m != "") {
           found = " " canon(m)
-          s = substr(s, length(s) - length(rest) + length(lab) + 1)
+          s = substr(s, length(s) - length(rest) + length(lab) + length(tail) + 1)
         }
       }
       # A governed name followed by a colon anywhere, with any markup between the name and the colon.
@@ -530,8 +540,9 @@ else
     function idtext(t) {
       gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", t)
       while (t ~ /^([ \t]|[*_`\[]|<[^ \t>]*[ \t])/) sub(/^([ \t]+|[*_`\[]+|<[^ \t>]*[ \t]+)/, "", t)
-      # Inline markup inside the identifier itself ("**TD**-903", "T*D*-903") is removed too.
-      gsub(/[*_`\[\]]/, "", t); sub(/^[ \t]+/, "", t)
+      # Inline markup inside the identifier itself ("**TD**-903", "T*D*-903", "[TD](#x)-903") is
+      # removed too: link destinations first, then markers and brackets.
+      gsub(/\]\(([^()]|\([^()]*\))*\)/, "]", t); gsub(/[*_`\[\]]/, "", t); sub(/^[ \t]+/, "", t)
       # The identifier prefix is read in any letter case and reported as TD-.
       if (tolower(substr(t, 1, 3)) == "td-") t = "TD-" substr(t, 4)
       return t

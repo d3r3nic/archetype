@@ -1189,6 +1189,32 @@ class ValidateProfileTests(unittest.TestCase):
                 code, out = self.run_validator(profile_text(), entry)
                 self.assert_fail(out, code, "TD-178: field label(s) found on lines the validator does not read as fields: Control")
 
+    def test_linked_and_fused_split_labels_fail_loudly(self):
+        forms = ("[**note {n}**](#field) {v}", "**note**{first}*{tail}*** {v}", "<span>note</span>{n} {v}")
+        for form in forms:
+            with self.subTest(form=form):
+                lines = ["- " + form.format(n=name, first=name[0], tail=name[1:], v=value) for name, value in (
+                    ("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
+                    ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))]
+                entry = "## TD-179 — linked and fused\n\n" + "\n".join(lines) + "\n"
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assertEqual(code, 1, out)
+                self.assertIn("TD-179: field label(s) found on lines the validator does not read as fields", out)
+                self.assertNotIn("has no deferrals", out)
+        for line in ("- [**note Control**](#field) floor secrets", "- **note**C*ontrol*** floor secrets", "- <span>note</span>Control floor secrets"):
+            with self.subTest(line=line):
+                entry = "## TD-180 — floor\n\n- **Status:** open\n- **Kind:** shortcut\n" + line + "\n"
+                code, out = self.run_validator(profile_text(), entry)
+                self.assert_fail(out, code, "TD-180: field label(s) found on lines the validator does not read as fields: Control")
+
+    def test_link_inside_the_identifier_is_read(self):
+        entry = "## [TD](#issue)-181 floor shortcut\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-181: a floor item (secrets) is never postponed")
+        entry = "[TD](#issue)-182 underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)
