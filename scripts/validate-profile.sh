@@ -406,7 +406,7 @@ else
     # character as its length covers, so "**note *Kind***" closes both at once.
     function stacklast(st) { sub(/,$/, "", st); sub(/^.*,/, "", st); return st + 0 }
     function stackpop(st) { sub(/,$/, "", st); if (st ~ /,/) sub(/,[^,]*$/, ",", st); else st = ""; return st }
-    function labelend(r,   i, j, c, ch, q, n, runlen, prev, nxt, canopen, canclose, opened, brackets, tags, emopen, stk, tagtxt, tname, L, t) {
+    function labelend(r,   i, j, c, ch, q, n, runlen, prev, nxt, canopen, canclose, opened, brackets, tags, emopen, stk, tagtxt, tname, L, t, k, m2, found_close) {
       n = length(r); i = 1; opened = 0; brackets = 0; tags = 0; emopen = 0; LABCLOSED = 0
       split("", stk)
       while (i <= n) {
@@ -421,11 +421,25 @@ else
           i = j + 1
         } else if (c == "[") { brackets++; opened = 1; i++ }
         else if (c == "]") { if (brackets > 0) brackets--; i++ }
-        else if (c == "*" || c == "_" || c == "`") {
+        else if (c == "`") {
+          # A code span: a backtick run closed by the next run of the same length, contents opaque,
+          # padding allowed. Without a closer the run is literal text.
+          j = i; while (j <= n && substr(r, j, 1) == c) j++
+          runlen = j - i; k = j; found_close = 0
+          while (k <= n) {
+            if (substr(r, k, 1) == "`") { m2 = k; while (m2 <= n && substr(r, m2, 1) == "`") m2++; if (m2 - k == runlen) { found_close = 1; break } k = m2 } else k++
+          }
+          if (found_close) { if (i == 1) { opened = 1; i = k + runlen; if (brackets + tags + emopen <= 0) { LABCLOSED = 1; return i - 1 } } else i = k + runlen }
+          else i = j
+        }
+        else if (c == "*" || c == "_") {
           j = i; while (j <= n && substr(r, j, 1) == c) j++
           runlen = j - i; prev = (i == 1) ? " " : substr(r, i - 1, 1); nxt = (j > n) ? " " : substr(r, j, 1)
           canopen = (nxt !~ /[ \t]/) && (nxt !~ /[[:punct:]]/ || prev ~ /[ \t[:punct:]]/)
           canclose = (prev !~ /[ \t]/) && (prev !~ /[[:punct:]]/ || nxt ~ /[ \t[:punct:]]/)
+          # A run that could both open and close may not close an opener when the two lengths add up
+          # to a multiple of three unless both are multiples of three; it opens instead.
+          if (canclose && canopen && stk[c] != "") { t = stacklast(stk[c]); if ((t + runlen) % 3 == 0 && !(t % 3 == 0 && runlen % 3 == 0)) canclose = 0 }
           if (canclose && stk[c] != "") {
             L = runlen
             while (L > 0 && stk[c] != "") {
@@ -439,7 +453,18 @@ else
       }
       return n
     }
-    function strayname(s,   found, m, t, s0, rest, lab, nwords, words, op, full, unclosed) {
+    # In a closed label the governed name must be the first or the last word of a short span ("Kind,
+    # if any", "note Kind", "(Kind)", at most four words); a bold sentence that mentions the word is
+    # prose. An unclosed label is malformed markup, so a governed name anywhere in it is reported
+    # rather than risked. Returns the lower-case name found, or "".
+    function labelname(lab, unclosed,   nwords, words, m) {
+      gsub(/^[^a-z]+|[^a-z]+$/, "", lab); nwords = split(lab, words, /[ \t]+/)
+      if ((unclosed && match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) || (nwords <= 4 && (match(lab, /^(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) || match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)$/)))) {
+        m = substr(lab, RSTART, RLENGTH); gsub(/[^a-z-]/, "", m); return m
+      }
+      return ""
+    }
+    function strayname(s,   found, m, t, s0, rest, lab, lab2, op, full, unclosed, tail) {
       s = tolower(s); s0 = s; found = ""
       # An emphasized or tagged span at the start of the line (after an optional list marker and
       # markup-free leading words) is decoded, parentheses and punctuation included, and a governed
@@ -454,18 +479,18 @@ else
         # line. Link destinations, values, and annotations after the label stay outside it.
         full = op rest
         lab = substr(full, 1, labelend(full))
-        # Decoding keeps word boundaries as written: tags, code marks, and emphasis marks vanish without
-        # adding a space ("K<span>ind</span>" and "K*ind*" stay "kind"), while brackets and parentheses
-        # become spaces.
-        gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", lab); gsub(/[`*_]/, "", lab); gsub(/[\[\]()]/, " ", lab)
-        # In a closed label the governed name must be the first or the last word of a short span
-        # ("Kind, if any", "note Kind", "(Kind)", at most four words); a bold sentence that mentions
-        # the word is prose. An unclosed label is malformed markup, so a governed name anywhere in it
-        # is reported rather than risked.
+        # A label fused to the word that follows it ("**note**Kind**") is extended through that word.
+        if (LABCLOSED && substr(full, length(lab) + 1) ~ /^[^ \t]/) { tail = substr(full, length(lab) + 1); sub(/[ \t].*$/, "", tail); lab = lab tail }
+        # The label is decoded twice: once with tags, code marks, and emphasis marks removed without
+        # adding a space ("K<span>ind</span>" and "K*ind*" read "kind"), once with the marks turned
+        # into spaces ("**note**Kind**" reads "note kind"); brackets and parentheses become spaces in
+        # both. A governed name found in either decoding counts.
+        gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", lab); gsub(/[\[\]()]/, " ", lab)
+        lab2 = lab; gsub(/[`*_]/, "", lab); gsub(/[`*_]/, " ", lab2)
         unclosed = !LABCLOSED
-        gsub(/^[^a-z]+|[^a-z]+$/, "", lab); nwords = split(lab, words, /[ \t]+/)
-        if ((unclosed && match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) || (nwords <= 4 && (match(lab, /^(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) || match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)$/)))) {
-          m = substr(lab, RSTART, RLENGTH); gsub(/[^a-z-]/, "", m); found = " " canon(m)
+        m = labelname(lab, unclosed); if (m == "") m = labelname(lab2, unclosed)
+        if (m != "") {
+          found = " " canon(m)
           s = substr(s, length(s) - length(rest) + length(lab) + 1)
         }
       }
@@ -505,6 +530,8 @@ else
     function idtext(t) {
       gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", t)
       while (t ~ /^([ \t]|[*_`\[]|<[^ \t>]*[ \t])/) sub(/^([ \t]+|[*_`\[]+|<[^ \t>]*[ \t]+)/, "", t)
+      # Inline markup inside the identifier itself ("**TD**-903", "T*D*-903") is removed too.
+      gsub(/[*_`\[\]]/, "", t); sub(/^[ \t]+/, "", t)
       # The identifier prefix is read in any letter case and reported as TD-.
       if (tolower(substr(t, 1, 3)) == "td-") t = "TD-" substr(t, 4)
       return t

@@ -1156,6 +1156,39 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(), entry)
         self.assert_fail(out, code, "TD-173: field label(s) found on lines the validator does not read as fields: Control")
 
+    def test_fused_leading_word_does_not_hide_a_no_colon_label(self):
+        entry = "## TD-174 — fused\n\n- **Status:** open\n- **note**Kind** deferral\n- **Control**value floor secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-174: field label(s) found on lines the validator does not read as fields: Kind Control")
+
+    def test_markup_inside_the_identifier_is_read(self):
+        for heading in ("## **TD**-175 floor shortcut", "## T*D*-175 floor shortcut", "## <strong>TD</strong>-175 floor shortcut", "## `TD`-175 floor shortcut"):
+            with self.subTest(heading=heading):
+                entry = heading + "\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
+                code, out = self.run_validator(profile_text(), entry)
+                self.assert_fail(out, code, "TD-175: a floor item (secrets) is never postponed")
+        entry = "**TD**-176 underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
+
+    def test_reversed_nesting_and_code_span_labels_fail_loudly(self):
+        forms = ("*{first}**{tail}*** {v}", "` {n} ` {v} (**review note here**)", "`` {n} `` {v}")
+        for form in forms:
+            with self.subTest(form=form):
+                lines = ["- " + form.format(n=name, first=name[0], tail=name[1:], v=value) for name, value in (
+                    ("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
+                    ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))]
+                entry = "## TD-177 — reversed and code\n\n" + "\n".join(lines) + "\n"
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assertEqual(code, 1, out)
+                self.assertIn("TD-177: field label(s) found on lines the validator does not read as fields", out)
+                self.assertNotIn("has no deferrals", out)
+        for line in ("- *C**ontrol*** floor secrets", "- ` Control ` floor secrets (**review note here**)"):
+            with self.subTest(line=line):
+                entry = "## TD-178 — floor\n\n- **Status:** open\n- **Kind:** shortcut\n" + line + "\n"
+                code, out = self.run_validator(profile_text(), entry)
+                self.assert_fail(out, code, "TD-178: field label(s) found on lines the validator does not read as fields: Control")
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)
