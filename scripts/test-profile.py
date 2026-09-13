@@ -636,6 +636,46 @@ class ValidateProfileTests(unittest.TestCase):
                 code, out = self.run_validator(profile_text(), entry)
                 self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
 
+    def test_tab_indented_field_block_fails_loudly(self):
+        fields = "\n".join("\t" + l for l in debt_entry(96, control="floor: secrets").splitlines()[2:] if l)
+        entry = "## TD-096 — tab indented\n\n" + fields + "\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-096: field label(s) found on lines the validator does not read as fields:")
+        self.assertIn("Kind", out)
+        self.assertNotIn("has no deferrals", out)
+
+    def test_label_in_running_text_fails_loudly(self):
+        entry = "## TD-097 — prose\n\n- **Status:** open\n\nWe set **Kind:** deferral here and **Control:** #23 later.\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-097: field label(s) found on lines the validator does not read as fields: Kind")
+
+    def test_kind_with_value_on_next_line_fails(self):
+        entry = ("## TD-098 — wrapped\n\n- **Status:** open\n- **Kind:**\n  deferral\n- **Control:** #23 rate limiting\n"
+                 "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assert_fail(out, code, "TD-098: Kind is present but has no value on its line")
+        self.assertNotIn("has no deferrals", out)
+
+    def test_ordered_list_and_underscore_bold_fields_are_read(self):
+        for kind_line in ("1. **Kind:** deferral", "2) **Kind:** deferral", "- __Kind:__ deferral", "- __Kind__: deferral"):
+            with self.subTest(kind_line=kind_line):
+                entry = ("## TD-099 — other markers\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
+                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assert_fail(out, code, "TD-099: trigger first-outside-participant is true")
+
+    def test_underlined_td_heading_with_fields_fails(self):
+        for underline in ("---", "==="):
+            with self.subTest(underline=underline):
+                entry = "TD-100 — underlined\n" + underline + "\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
+                code, out = self.run_validator(profile_text(), entry)
+                self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
+
+    def test_governed_label_in_follow_up_prose_fails_loudly(self):
+        entry = debt_entry(101, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\n**Status:** A prose summary.\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assert_fail(out, code, "TD-101: field label(s) found on lines the validator does not read as fields: Status")
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)

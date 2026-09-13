@@ -15,10 +15,12 @@
 #      Closure-evidence; Control names a convention, a backend rule, or a floor item; Due-before is
 #      a known trigger or a real date; a floor item is never a deferral; each of the six fields this
 #      script reads (Status, Kind, Control, Due-before, Review-by, Closure-evidence) appears once
-#      per entry and the first value wins; ids are unique; an entry runs from its "## TD-" heading
-#      to the next one or a level-one heading; a TD heading at another level fails if it carries
-#      entry fields and warns otherwise; fenced examples are skipped with fence length respected,
-#      and an unclosed code fence fails (it would hide every entry after it)
+#      per entry and the first value wins; a Kind line with no value fails; ids are unique; an entry
+#      runs from its "## TD-" heading to the next one or a level-one heading; a TD heading of any
+#      other shape (another level, no space, underlined) fails if it carries entry fields and
+#      warns otherwise; a field is a list item with a bold label, and a governed label on a line
+#      that is not a list item fails rather than vanishing; fenced examples are skipped with fence
+#      length respected, and an unclosed code fence fails (it would hide every entry after it)
 #   4. Triggered deferrals fail: a Due-before trigger the facts make true, or a Due-before date
 #      reached (inclusive), blocks until the entry is fixed; won't-fix does not clear it
 #   5. A Review-by date in the past warns
@@ -271,7 +273,7 @@ else
   SEEN=0
   SUPPRESS_PASS=0
   SEEN_IDS=" "
-  while IFS="$US" read -r id status kind control due review closure dups; do
+  while IFS="$US" read -r id status kind control due review closure dups strays kindpresent; do
     [ -z "$id" ] && continue
     if [ "$id" = "UNCLOSED-FENCE" ]; then
       fail "TECHNICAL-DEBT.md has a code fence that never closes (opened at line $status); every entry after it is hidden from this check"
@@ -293,6 +295,15 @@ else
     esac
     if [ -n "$dups" ]; then
       fail "$id: field(s) repeated inside the entry:$dups; one value each"
+    fi
+    if [ -n "$strays" ]; then
+      fail "$id: field label(s) found on lines the validator does not read as fields:$strays; write each as a list item such as \"- **Kind:** deferral\""
+      SUPPRESS_PASS=1
+    fi
+    if [ -z "$kind" ] && [ "$kindpresent" = "1" ]; then
+      fail "$id: Kind is present but has no value on its line; write \"- **Kind:** shortcut\" or \"- **Kind:** deferral\""
+      SUPPRESS_PASS=1
+      continue
     fi
     case "$kind" in
       ""|shortcut) continue ;;
@@ -352,15 +363,24 @@ else
     fi
   done < <(awk -v US="$US" '
     function flush() {
-      if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", id, US, status, US, kind, US, control, US, due, US, review, US, closure, US, dups
+      if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%d\n", id, US, status, US, kind, US, control, US, due, US, review, US, closure, US, dups, US, strays, US, kindpresent
       if (odd != "") printf "ODD-HEADING%s%s%s%d\n", US, odd, US, oddfields
     }
-    function reset() { id = ""; status = ""; kind = ""; control = ""; due = ""; review = ""; closure = ""; dups = ""; odd = ""; oddfields = 0; split("", seen) }
+    function reset() { id = ""; status = ""; kind = ""; control = ""; due = ""; review = ""; closure = ""; dups = ""; strays = ""; odd = ""; oddfields = 0; kindpresent = 0; split("", seen) }
+    # A governed label that appears on a line the list-item rule does not read (a tab-indented or
+    # deeply indented block, a label in running text) is a stray: the entry fails instead of the
+    # field vanishing.
+    function strayname(s) { if (match(s, /(\*\*|__)(Status|Kind|Control|Due-before|Review-by|Closure-evidence):?(\*\*|__)/)) { s = substr(s, RSTART + 2, RLENGTH - 4); sub(/:$/, "", s); return s } return "" }
     function governed(n) { return (n == "Status" || n == "Kind" || n == "Control" || n == "Due-before" || n == "Review-by" || n == "Closure-evidence") }
-    # A field line is a list item (marker "-", "*", or "+", indented at most three spaces, followed by
-    # spaces or tabs) whose text starts with a bold label: "**Name:** value" or "**Name**: value".
-    function fieldname(s) { sub(/^ ? ? ?[-*+][ \t]+/, "", s); if (s !~ /^\*\*[A-Za-z][A-Za-z -]*:?\*\*:?/) return ""; sub(/^\*\*/, "", s); sub(/:?\*\*.*$/, "", s); return s }
-    function val(s) { sub(/^ ? ? ?[-*+][ \t]+\*\*[A-Za-z][A-Za-z -]*:?\*\*:?[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
+    # A field line is a list item (marker "-", "*", "+", or an ordered marker such as "1." or "1)",
+    # indented at most three spaces, followed by spaces or tabs) whose text starts with a bold label
+    # in either bold syntax and either colon placement: "**Name:** value", "**Name**: value",
+    # "__Name:__ value". The list marker is required; a bold label in running text is not a field.
+    function fieldname(s) {
+      if (s !~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)[A-Za-z][A-Za-z -]*:?(\*\*|__):?/) return ""
+      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)/, "", s); sub(/:?(\*\*|__).*$/, "", s); return s
+    }
+    function val(s) { sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+(\*\*|__)[A-Za-z][A-Za-z -]*:?(\*\*|__):?[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
     { sub(/\r$/, "") }
     # Fenced examples are skipped. A fence opens with three or more backticks or tildes indented by
     # at most three spaces and closes only with a run of the same character at least as long,
@@ -377,6 +397,10 @@ else
       next
     }
     infence { next }
+    # A "TD-" line underlined with dashes or equals signs is a setext heading the parser does not
+    # read as an entry; it is recorded like a wrong-level heading so its fields cannot vanish.
+    /^ ? ? ?(---+|===+)[ \t]*$/ && prevtd != "" { flush(); reset(); odd = prevtd; prevtd = ""; next }
+    { if ($0 ~ /^ ? ? ?TD-[0-9]/) prevtd = $0; else prevtd = "" }
     # Headings: up to three spaces of indentation, one to six marks, then whitespace. An entry starts
     # at a level-two "TD-" heading and runs until the next one or a level-one heading; other headings
     # inside it, such as "### Follow-up" or a stray "## Follow-up", stay part of it, so fields written
@@ -398,8 +422,9 @@ else
         next
       }
     }
-    odd != "" { name = fieldname($0); if (name != "" && governed(name)) oddfields = 1; next }
+    odd != "" { name = fieldname($0); if ((name != "" && governed(name)) || strayname($0) != "") oddfields = 1; next }
     id == "" { next }
+    fieldname($0) == "" && strayname($0) != "" { strays = strays " " strayname($0); next }
     fieldname($0) != "" {
       name = fieldname($0)
       if (!governed(name)) next
@@ -407,7 +432,7 @@ else
       if (seen[name] > 1) next
       v = val($0)
       if (name == "Status") status = v
-      else if (name == "Kind") kind = v
+      else if (name == "Kind") { kind = v; kindpresent = 1 }
       else if (name == "Control") control = v
       else if (name == "Due-before") due = v
       else if (name == "Review-by") review = v
