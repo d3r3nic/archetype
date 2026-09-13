@@ -276,6 +276,7 @@ else
   while IFS="$US" read -r id status kind control due review closure dups strays kindpresent metapresent; do
     [ -z "$id" ] && continue
     ENTRY_ERRORS=$ERRORS
+    PENDING_DEFER=""
     if [ "$id" = "UNCLOSED-FENCE" ]; then
       fail "TECHNICAL-DEBT.md has a code fence that never closes (opened at line $status); every entry after it is hidden from this check"
       SUPPRESS_PASS=1
@@ -355,14 +356,14 @@ else
       if is_date "$due"; then
         if [[ "$due" < "$TODAY" ]] || [ "$due" = "$TODAY" ]; then
           fail "$id: Due-before date $due reached; the deferral is blocking until fixed (status: $status)"
-        elif [ "$ERRORS" -eq "$ENTRY_ERRORS" ]; then
-          defer "$id until $due"
+        else
+          PENDING_DEFER="$id until $due"
         fi
       elif is_trigger "$due"; then
         state="$(trigger_state "$due")"
         case "$state" in
           true) fail "$id: trigger $due is true per PROFILE.md; the deferral is blocking until fixed (status: $status; won't-fix does not clear it)" ;;
-          false) [ "$ERRORS" -eq "$ENTRY_ERRORS" ] && defer "$id until $due" ;;
+          false) PENDING_DEFER="$id until $due" ;;
           unknown) unver "$id is due before $due, which rests on a fact recorded as unknown" ;;
         esac
       else
@@ -376,6 +377,8 @@ else
         fail "$id: Review-by \"$review\" is not a real calendar date YYYY-MM-DD"
       fi
     fi
+    # The DEFERRED line is printed only for an entry that passed every check above.
+    if [ -n "$PENDING_DEFER" ] && [ "$ERRORS" -eq "$ENTRY_ERRORS" ]; then defer "$PENDING_DEFER"; fi
   done < <(awk -v US="$US" '
     function flush(   mp) {
       mp = (("Control" in seen) || ("Due-before" in seen) || ("Review-by" in seen) || ("Closure-evidence" in seen)) ? 1 : 0
@@ -426,21 +429,28 @@ else
     # by removing every marker and tag before the name is compared, so "**Kind:**", "**Kind**:",
     # "***Control***:", "**_Control_**:", "**`Kind`:**", "[**Kind**](#k):" all read as the field.
     # A plain "Kind: value" list item carries no markup and is left to the stray rule.
+    # Link destinations and HTML tags may contain colons, so they are removed before the label
+    # delimiter (the first remaining colon) is found; the label must still carry some inline markup.
     function fieldname(s,   label) {
       if (s !~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/) return ""
       sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/, "", s)
+      gsub(/\]\([^)]*\)/, "]", s); gsub(/<[^>]*>/, "**", s)
       if (s !~ /:/) return ""
       label = s; sub(/:.*$/, "", label)
       if (label !~ /[*_`<\[]/) return ""
-      gsub(/<[^>]*>/, "", label); sub(/\]\([^)]*\)/, "", label); gsub(/[*_`\[\]()#]/, "", label)
+      gsub(/[*_`\[\]()#]/, "", label)
       sub(/^[ \t]+/, "", label); sub(/[ \t]+$/, "", label)
       if (label !~ /^[A-Za-z][A-Za-z \t-]*$/) return ""
+      # A label that is not a governed name but contains one as a word ("oops Kind", "Kind value") is
+      # not read as some other field; it is left to the stray rule, which fails it loudly.
+      if (!governed(label) && tolower(label) ~ /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) return ""
       return label
     }
     function val(s) {
-      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/, "", s); sub(/^[^:]*:/, "", s)
-      while (s ~ /^([ \t]|\*\*|__|\*|_|<[^>]*>)/) { sub(/^([ \t]|\*\*|__|\*|_|<[^>]*>)/, "", s) }
-      sub(/[ \t]+$/, "", s); return s
+      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/, "", s); gsub(/\]\([^)]*\)/, "]", s); gsub(/<[^>]*>/, "**", s); sub(/^[^:]*:/, "", s)
+      # Markers that close the label sit right after the colon; strip them, then the whitespace, and
+      # leave the value itself alone.
+      sub(/^(\*|_|`|<[^>]*>)*/, "", s); sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s
     }
     { sub(/\r$/, "") }
     # Fenced examples are skipped. Fences are classified on the raw line, before any HTML rewriting. A fence opens with three or more backticks or tildes indented by

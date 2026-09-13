@@ -877,6 +877,35 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(), debt_entry(132, kind="shortcut", control="floor:"))
         self.assert_fail(out, code, "TD-132: Control says floor but names no floor item")
 
+    def test_extra_words_in_a_label_fail_loudly(self):
+        for line in ("- oops **Kind**: deferral", "- note **Control**: floor: secrets", "- **Kind** value: deferral", "- **Kind** and **Control**: floor: secrets"):
+            with self.subTest(line=line):
+                entry = "## TD-133 — extra words\n\n- **Status:** open\n" + line + "\n- **Due-before:** first-outside-participant\n"
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assertEqual(code, 1, out)
+                self.assertIn("TD-133: field label(s) found on lines the validator does not read as fields", out)
+                self.assertNotIn("has no deferrals", out)
+
+    def test_value_markup_is_left_alone(self):
+        code, out = self.run_validator(profile_text(), debt_entry(134, kind="*deferral*"))
+        self.assert_fail(out, code, 'TD-134: Kind is "*deferral*"; expected shortcut or deferral')
+
+    def test_full_url_links_in_labels_are_read(self):
+        entry = "## TD-135 — url label\n\n- **Status:** open\n- **Kind:** shortcut\n- **[Control](https://example.com/control):** floor: secrets\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assert_fail(out, code, "TD-135: a floor item (secrets) is never postponed")
+        entry = ("## TD-136 — every label linked\n\n- **[Status](https://x.test/s):** open\n- **[Kind](https://x.test/k):** deferral\n"
+                 "- **[Control](https://x.test/c):** #23 rate limiting\n- **[Due-before](https://x.test/d):** first-outside-participant\n"
+                 "- **[Review-by](https://x.test/r):** 2027-01-01\n- **[Closure-evidence](https://x.test/e):** a test\n")
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assert_fail(out, code, "TD-136: trigger first-outside-participant is true")
+
+    def test_invalid_review_by_prints_no_deferred_line(self):
+        code, out = self.run_validator(profile_text(), debt_entry(137, due="2027-01-01", review="not-a-date"))
+        self.assert_fail(out, code, 'TD-137: Review-by "not-a-date" is not a real calendar date')
+        self.assertNotIn("DEFERRED: TD-137", out)
+        self.assertIn("Deferred: 0", out)
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)
