@@ -13,9 +13,12 @@
 #      regulated data contradicts synthetic-only data
 #   3. Deferrals are well-formed: Kind: deferral needs Control, Due-before, Review-by, and
 #      Closure-evidence; Control names a convention, a backend rule, or a floor item; Due-before is
-#      a known trigger or a real date; a floor item is never a deferral; every bold field appears
-#      once per entry; ids are unique; fenced examples are skipped with fence length respected, and
-#      an unclosed code fence fails (it would hide every entry after it)
+#      a known trigger or a real date; a floor item is never a deferral; each of the six fields this
+#      script reads (Status, Kind, Control, Due-before, Review-by, Closure-evidence) appears once
+#      per entry and the first value wins; ids are unique; an entry runs from its "## TD-" heading
+#      to the next one or a level-one heading; a TD heading at another level fails if it carries
+#      entry fields and warns otherwise; fenced examples are skipped with fence length respected,
+#      and an unclosed code fence fails (it would hide every entry after it)
 #   4. Triggered deferrals fail: a Due-before trigger the facts make true, or a Due-before date
 #      reached (inclusive), blocks until the entry is fixed; won't-fix does not clear it
 #   5. A Review-by date in the past warns
@@ -276,7 +279,11 @@ else
       continue
     fi
     if [ "$id" = "ODD-HEADING" ]; then
-      warn "TECHNICAL-DEBT.md: \"$status\" is not a level-two heading, so it is not read as an entry; entries start with \"## TD-\""
+      if [ "$kind" = "1" ]; then
+        fail "TECHNICAL-DEBT.md: \"$status\" carries entry fields but is not a level-two heading, so it would not be checked; entries start with \"## TD-\""
+      else
+        warn "TECHNICAL-DEBT.md: \"$status\" is not a level-two heading, so it is not read as an entry; entries start with \"## TD-\""
+      fi
       continue
     fi
     case "$SEEN_IDS" in
@@ -343,17 +350,23 @@ else
       fi
     fi
   done < <(awk -v US="$US" '
-    function flush() { if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", id, US, status, US, kind, US, control, US, due, US, review, US, closure, US, dups }
-    function reset() { id = ""; status = ""; kind = ""; control = ""; due = ""; review = ""; closure = ""; dups = ""; split("", seen) }
+    function flush() {
+      if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", id, US, status, US, kind, US, control, US, due, US, review, US, closure, US, dups
+      if (odd != "") printf "ODD-HEADING%s%s%s%d\n", US, odd, US, oddfields
+    }
+    function reset() { id = ""; status = ""; kind = ""; control = ""; due = ""; review = ""; closure = ""; dups = ""; odd = ""; oddfields = 0; split("", seen) }
+    function governed(n) { return (n == "Status" || n == "Kind" || n == "Control" || n == "Due-before" || n == "Review-by" || n == "Closure-evidence") }
     function val(s) { sub(/^- \*\*[A-Za-z-]+:?\*\*:?[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
     { sub(/\r$/, "") }
-    # Fenced examples are skipped. A fence opens with three or more backticks or tildes at column
-    # one and closes only with a run of the same character at least as long, followed by nothing
-    # but whitespace; a shorter or different run inside the fence is content.
-    /^(```|~~~)/ {
-      c = substr($0, 1, 1); n = 0
-      while (substr($0, n + 1, 1) == c) n++
-      rest = substr($0, n + 1)
+    # Fenced examples are skipped. A fence opens with three or more backticks or tildes indented by
+    # at most three spaces and closes only with a run of the same character at least as long,
+    # indented by at most three spaces, followed by nothing but whitespace; a shorter or different
+    # run inside the fence, or one indented four spaces or more, is content.
+    /^ ? ? ?(```|~~~)/ {
+      body = $0; sub(/^ ? ? ?/, "", body)
+      c = substr(body, 1, 1); n = 0
+      while (substr(body, n + 1, 1) == c) n++
+      rest = substr(body, n + 1)
       if (!infence) { infence = 1; fchar = c; flen = n; fence_line = NR }
       else if (c == fchar && n >= flen && rest ~ /^[ \t]*$/) { infence = 0 }
       next
@@ -363,12 +376,15 @@ else
     # other headings inside it, such as "### Follow-up" or a stray "## Follow-up", stay part of it, so
     # fields written under them are still read and a repeated field still fails.
     /^## TD-/ { flush(); reset(); id = $2; sub(/[^A-Za-z0-9-].*$/, "", id); next }
-    /^#+ TD-/ { printf "ODD-HEADING%s%s\n", US, $0; next }
+    /^#+ TD-/ { flush(); reset(); odd = $0; next }
     /^# / { flush(); reset(); next }
+    odd != "" && /^- \*\*[A-Za-z-]+:?\*\*:?/ { name = $0; sub(/^- \*\*/, "", name); sub(/:?\*\*.*$/, "", name); if (governed(name)) oddfields = 1; next }
     id == "" { next }
     /^- \*\*[A-Za-z-]+:?\*\*:?/ {
       name = $0; sub(/^- \*\*/, "", name); sub(/:?\*\*.*$/, "", name)
+      if (!governed(name)) next
       seen[name]++; if (seen[name] == 2) dups = dups " " name
+      if (seen[name] > 1) next
       v = val($0)
       if (name == "Status") status = v
       else if (name == "Kind") kind = v

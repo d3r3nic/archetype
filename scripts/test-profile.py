@@ -518,10 +518,23 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(), entry)
         self.assert_fail(out, code, "TD-063: field(s) repeated inside the entry: Kind Control")
 
-    def test_any_repeated_bold_field_fails(self):
+    def test_repeated_ungoverned_field_is_not_an_error(self):
         entry = debt_entry(64).rstrip("\n") + "\n- **Logged:** 2026-09-02 by someone else\n\n"
         code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-064: field(s) repeated inside the entry: Logged")
+        self.assert_clean(out, code)
+
+    def test_trailing_section_under_a_level_one_heading_is_not_part_of_the_entry(self):
+        debt = debt_entry(68) + "# Audit history\n\n- **Logged:** 2026-09-01\n- **Logged:** 2026-09-02\n- **Kind:** shortcut\n"
+        code, out = self.run_validator(profile_text(), debt)
+        self.assert_clean(out, code)
+        self.assertIn("DEFERRED: TD-068 until first-outside-participant", out)
+
+    def test_repeated_governed_field_keeps_the_first_value(self):
+        entry = debt_entry(69, due="first-outside-participant").rstrip("\n") + "\n- **Due-before:** 2030-01-01\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assert_fail(out, code, "TD-069: field(s) repeated inside the entry: Due-before")
+        self.assertIn("TD-069: trigger first-outside-participant is true", out)
+        self.assertNotIn("DEFERRED: TD-069", out)
 
     def test_trailing_comma_and_spaced_letters_in_effects_fail(self):
         code, out = self.run_validator(profile_text(OPERATIONAL, {"External effects": "money,"}))
@@ -543,11 +556,38 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_clean(out, code)
         self.assertIn("DEFERRED: TD-066 until public-access", out)
 
-    def test_entry_heading_at_wrong_level_warns(self):
+    def test_entry_heading_at_wrong_level_fails_when_it_carries_fields(self):
         entry = "### TD-067 — wrong level\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
         code, out = self.run_validator(profile_text(), entry)
-        self.assertEqual(code, 0, out)
-        self.assertIn('WARN: TECHNICAL-DEBT.md: "### TD-067 — wrong level" is not a level-two heading', out)
+        self.assert_fail(out, code, '"### TD-067 — wrong level" carries entry fields but is not a level-two heading')
+
+    def test_entry_heading_at_wrong_level_without_fields_warns(self):
+        debt = "### TD-070 — just a note\n\nNothing structured here.\n\n" + debt_entry(71)
+        code, out = self.run_validator(profile_text(), debt)
+        self.assert_clean(out, code)
+        self.assertIn('WARN: TECHNICAL-DEBT.md: "### TD-070 — just a note" is not a level-two heading', out)
+        self.assertIn("DEFERRED: TD-071 until first-outside-participant", out)
+
+    def test_mixed_fence_indentation_cannot_hide_an_entry(self):
+        first = "  ```\nexample one\n```\n\n"
+        second = "```\nexample two\n  ```\n\n"
+        debt = "# Technical Debt Log\n\n" + first + debt_entry(72, due="first-outside-participant") + second
+        code, out = self.run_validator(profile_text(TRIAL), debt, strict=True)
+        self.assert_fail(out, code, "TD-072: trigger first-outside-participant is true")
+
+    def test_indented_fenced_sample_is_ignored(self):
+        sample = "  ```\n  ## TD-073 — indented sample\n  - **Kind:** deferral\n  - **Control:** floor: secrets\n  ```\n\n"
+        debt = "# Technical Debt Log\n\n" + sample + debt_entry(74)
+        code, out = self.run_validator(profile_text(), debt)
+        self.assert_clean(out, code)
+        self.assertNotIn("TD-073", out)
+        self.assertIn("DEFERRED: TD-074 until first-outside-participant", out)
+
+    def test_four_space_indented_fence_marker_is_content(self):
+        debt = "# Technical Debt Log\n\n```\n    ```\nstill inside the example\n```\n\n" + debt_entry(75)
+        code, out = self.run_validator(profile_text(), debt)
+        self.assert_clean(out, code)
+        self.assertIn("DEFERRED: TD-075 until first-outside-participant", out)
 
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:

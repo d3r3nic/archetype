@@ -30,7 +30,7 @@ Append-only log of known issues, shortcuts, and convention violations deferred r
 
 ## Rules
 
-- **Append-only during the log's lifetime.** Never edit past entries except to update `Status` or add notes in a `### Follow-up` subsection (level three: a level-two heading starts a new section, and only `## TD-` headings start entries).
+- **Append-only during the log's lifetime.** Never edit past entries except to update `Status` or add notes in a `### Follow-up` subsection. An entry runs from its `## TD-` heading to the next `## TD-` heading; a level-two heading other than `## TD-` stays part of the entry, and only a level-one heading ends it, so anything written after the last entry that is not part of it (an audit history, notes) starts with a level-one heading.
 - **Status transitions:** open → in-progress (when someone starts work) → fixed (when verified) OR won't-fix (with justification in a `Rationale` note).
 - **Pruning:** remove `fixed` entries only during explicit maintenance cycles; keep them at least one cycle for history. Never remove `open` or `in-progress` entries.
 - **Escalation:** entries in `open` status for more than N cycles (project-specific threshold, typically 3-6 months) either get severity bumped OR explicitly force-fixed. See `development/MAINTAIN-RED-FLAGS.md` #2 for why.
