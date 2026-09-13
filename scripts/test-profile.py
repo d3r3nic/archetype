@@ -1095,6 +1095,33 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(), entry)
         self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
 
+    def test_paired_delimiters_bound_the_no_colon_label(self):
+        for form in ("[**{n}**](#field) {v} (**review note here**)", "<span>**note <span>{n}</span>**</span> {v}", "**K<span>{tail}</span>** {v}", "**K`{tail}`** {v}"):
+            with self.subTest(form=form):
+                lines = []
+                for name, value in (("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
+                                    ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test")):
+                    if "{tail}" in form:
+                        if name != "Kind":
+                            lines.append(f"- **{name}** {value}")
+                            continue
+                        lines.append("- " + form.format(tail="ind", v=value))
+                    else:
+                        lines.append("- " + form.format(n=name, v=value))
+                entry = "## TD-168 — paired delimiters\n\n" + "\n".join(lines) + "\n"
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assertEqual(code, 1, out)
+                self.assertIn("TD-168: field label(s) found on lines the validator does not read as fields", out)
+                self.assertNotIn("has no deferrals", out)
+
+    def test_split_label_with_colon_is_read(self):
+        for kind_line in ("- **K<span>ind</span>:** deferral", "- **K`ind`:** deferral"):
+            with self.subTest(kind_line=kind_line):
+                entry = ("## TD-169 — split with colon\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
+                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assert_fail(out, code, "TD-169: trigger first-outside-participant is true")
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)

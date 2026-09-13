@@ -396,7 +396,33 @@ else
     # followed by a colon anywhere on the line, plus a label wrapped in emphasis at the start of the
     # line (after indentation or a list marker) even without a colon. Mid-sentence italics of an
     # everyday word are not labels.
-    function strayname(s,   found, m, t, s0, rest, lab, nwords, words, op, oc, on, pos, closed, run, k) {
+    # Position where the markup opened at the start of r has all closed again (inclusive), or the end
+    # of r when something never closes. Tags nest; brackets pair; an emphasis run toggles its character.
+    function labelend(r,   i, j, c, ch, q, depth, star, under, tick, tagtxt, n) {
+      n = length(r); depth = 0; star = 0; under = 0; tick = 0; i = 1
+      while (i <= n) {
+        c = substr(r, i, 1)
+        if (c == "<") {
+          j = i + 1; q = ""
+          while (j <= n) { ch = substr(r, j, 1); if (q != "") { if (ch == q) q = "" } else if (ch == "\"" || ch == "\047") q = ch; else if (ch == ">") break; j++ }
+          if (j > n) return n
+          tagtxt = substr(r, i, j - i + 1)
+          if (tagtxt ~ /^<\//) depth--; else if (tagtxt !~ /\/>$/) depth++
+          i = j + 1
+        } else if (c == "[") { depth++; i++ }
+        else if (c == "]") { depth--; i++ }
+        else if (c == "*" || c == "_" || c == "`") {
+          j = i; while (j <= n && substr(r, j, 1) == c) j++
+          if (c == "*") { if (star) { star = 0; depth-- } else { star = 1; depth++ } }
+          else if (c == "_") { if (under) { under = 0; depth-- } else { under = 1; depth++ } }
+          else { if (tick) { tick = 0; depth-- } else { tick = 1; depth++ } }
+          i = j
+        } else i++
+        if (depth <= 0) return i - 1
+      }
+      return n
+    }
+    function strayname(s,   found, m, t, s0, rest, lab, nwords, words, op, full) {
       s = tolower(s); s0 = s; found = ""
       # An emphasized or tagged span at the start of the line (after an optional list marker and
       # markup-free leading words) is decoded, parentheses and punctuation included, and a governed
@@ -405,20 +431,15 @@ else
       if (match(s, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<\[]*[ \t])?)?([*_`\[]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)+/)) {
         op = substr(s, RSTART, RLENGTH); sub(/^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<\[]*[ \t])?)?/, "", op)
         rest = substr(s, RSTART + RLENGTH)
-        # The label ends at the run that closes the opening run: for a tag, the next tag; otherwise the
-        # next run holding at least as many of the first marker character of the opening run. Inner markup
-        # ("**note _Kind_**") stays inside the label; markup after the value stays outside it; an
-        # unclosed label runs to the end of the line.
-        lab = rest; pos = 0; closed = 0
-        if (op ~ /^</) { if (match(rest, /<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/)) { lab = substr(rest, 1, RSTART - 1); closed = 1 } }
-        else {
-          oc = substr(op, 1, 1); on = countchar(op, oc)
-          while (!closed && match(substr(rest, pos + 1), /([*_`\]]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)+/)) {
-            run = substr(rest, pos + RSTART, RLENGTH); k = countchar(run, oc)
-            if (k >= on) { lab = substr(rest, 1, pos + RSTART - 1); closed = 1 } else pos = pos + RSTART - 1 + RLENGTH
-          }
-        }
-        gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, " ", lab); gsub(/[*_`\[\]()]/, " ", lab)
+        # The label is the span from the opening markup to the point where every bracket, tag, and
+        # emphasis opened inside it has closed again (brackets pair with brackets, tags with their closing
+        # tags, emphasis runs with runs of the same character); an unclosed label runs to the end of the
+        # line. Link destinations, values, and annotations after the label stay outside it.
+        full = op rest
+        lab = substr(full, 1, labelend(full))
+        # Decoding keeps word boundaries as written: tags and code marks vanish without adding a space
+        # ("K<span>ind</span>" stays "kind"), while emphasis marks, brackets, and parentheses become spaces.
+        gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", lab); gsub(/`/, "", lab); gsub(/[*_\[\]()]/, " ", lab)
         # The governed name must be the first or the last word of a short decoded span ("Kind, if
         # any", "note Kind", "(Kind)", at most four words); a bold sentence that mentions the word is
         # prose, whichever position it holds.
