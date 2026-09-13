@@ -906,6 +906,32 @@ class ValidateProfileTests(unittest.TestCase):
         self.assertNotIn("DEFERRED: TD-137", out)
         self.assertIn("Deferred: 0", out)
 
+    def test_leading_words_before_an_emphasized_label_without_colon_fail_loudly(self):
+        entry = "## TD-138 — words then label\n\n- **Status:** open\n- note **Kind** deferral\n- note **Control** floor secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-138: field label(s) found on lines the validator does not read as fields: Kind Control")
+
+    def test_extra_words_inside_the_emphasis_fail_loudly(self):
+        entry = "## TD-139 — phrase label\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control value:** floor: secrets\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assert_fail(out, code, "TD-139: field label(s) found on lines the validator does not read as fields: Control")
+        entry = ("## TD-140 — every label padded\n\n- **Status value:** open\n- **Kind value:** deferral\n- **Control value:** #23\n"
+                 "- **Due-before value:** first-outside-participant\n- **Review-by value:** 2027-01-01\n- **Closure-evidence value:** a test\n")
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("TD-140: field label(s) found on lines the validator does not read as fields", out)
+
+    def test_link_destination_with_balanced_parentheses_is_read(self):
+        entry = "## TD-141 — parens\n\n- **Status:** open\n- **Kind:** shortcut\n- **[Control](https://example.com/(section)#policy):** floor: secrets\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assert_fail(out, code, "TD-141: a floor item (secrets) is never postponed")
+
+    def test_value_links_are_preserved(self):
+        entry = debt_entry(142, due="public-access", closure="the [suite](https://ci.test/(runs)/1) passes")
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assert_clean(out, code)
+        self.assertIn("DEFERRED: TD-142 until public-access", out)
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)

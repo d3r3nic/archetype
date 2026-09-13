@@ -399,12 +399,16 @@ else
     function strayname(s,   found, m, t) {
       s = tolower(s); found = ""
       # An emphasized or tagged label at the start of the line, even without a colon.
-      if (match(s, /^[ \t]*([-*+]|[0-9]+[.)])?[ \t]*([*_`\[]|<[^>]*>)+[ \t]*(status|kind|control|due-before|review-by|closure-evidence)[ \t]*([*_`\]]|<[^>]*>)+/)) {
-        m = substr(s, RSTART, RLENGTH); sub(/^[ \t]*([-*+]|[0-9]+[.)])?[ \t]*/, "", m); gsub(/<[^>]*>/, "", m); gsub(/[^a-z-]/, "", m); sub(/^-+/, "", m); found = " " canon(m)
+      # Leading plain words are allowed only on a list item ("- note **Kind** deferral"); a prose
+      # sentence with an italic everyday word is not a label.
+      if (match(s, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([a-z][a-z ]*[ \t]+)?)?([*_`\[]|<[^>]*>)+[ \t]*(status|kind|control|due-before|review-by|closure-evidence)[ \t]*([*_`\]]|<[^>]*>)+/)) {
+        m = substr(s, RSTART, RLENGTH); gsub(/<[^>]*>/, "", m)
+        if (match(m, /(status|kind|control|due-before|review-by|closure-evidence)[ \t]*[*_`\]]+[ \t]*$/)) m = substr(m, RSTART, RLENGTH)
+        gsub(/[^a-z-]/, "", m); found = " " canon(m)
         s = substr(s, RSTART + RLENGTH)
       }
       # A governed name followed by a colon anywhere, with any markup between the name and the colon.
-      t = s; gsub(/<[^>]*>/, "", t); sub(/\]\([^)]*\)/, "", t); gsub(/[*_`\[\]]/, "", t)
+      t = s; gsub(/<[^>]*>/, "", t); gsub(/\]\(([^()]|\([^()]*\))*\)/, "", t); gsub(/[*_`\[\]]/, "", t)
       while (match(t, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)[ \t]*:/)) {
         m = substr(t, RSTART, RLENGTH); sub(/^[^a-z]/, "", m); sub(/[ \t]*:$/, "", m)
         if (index(found, " " canon(m)) == 0) found = found " " canon(m)
@@ -429,27 +433,42 @@ else
     # by removing every marker and tag before the name is compared, so "**Kind:**", "**Kind**:",
     # "***Control***:", "**_Control_**:", "**`Kind`:**", "[**Kind**](#k):" all read as the field.
     # A plain "Kind: value" list item carries no markup and is left to the stray rule.
-    # Link destinations and HTML tags may contain colons, so they are removed before the label
-    # delimiter (the first remaining colon) is found; the label must still carry some inline markup.
-    function fieldname(s,   label) {
+    # The label delimiter is the first colon that sits outside parentheses (link destinations, which
+    # may nest one level) and outside HTML tags, so "https:" inside a link never splits a label.
+    function delimpos(s,   i, c, depth, intag) {
+      depth = 0; intag = 0
+      for (i = 1; i <= length(s); i++) {
+        c = substr(s, i, 1)
+        if (intag) { if (c == ">") intag = 0; continue }
+        if (c == "<") { intag = 1; continue }
+        if (c == "(") { depth++; continue }
+        if (c == ")") { if (depth > 0) depth--; continue }
+        if (c == ":" && depth == 0) return i
+      }
+      return 0
+    }
+    # The label must carry some inline markup; every marker, tag, and link destination is removed
+    # from it before the name is compared. A label that is not a governed name but contains one as a
+    # word ("oops Kind", "Control value") is recorded in mixedlabel so the caller fails it loudly.
+    function fieldname(s,   pos, label) {
+      mixedlabel = ""
       if (s !~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/) return ""
       sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/, "", s)
-      gsub(/\]\([^)]*\)/, "]", s); gsub(/<[^>]*>/, "**", s)
-      if (s !~ /:/) return ""
-      label = s; sub(/:.*$/, "", label)
+      pos = delimpos(s); if (pos == 0) return ""
+      label = substr(s, 1, pos - 1)
       if (label !~ /[*_`<\[]/) return ""
-      gsub(/[*_`\[\]()#]/, "", label)
+      gsub(/<[^>]*>/, "", label); gsub(/\]\(([^()]|\([^()]*\))*\)/, "]", label); gsub(/[*_`\[\]()#]/, "", label)
       sub(/^[ \t]+/, "", label); sub(/[ \t]+$/, "", label)
       if (label !~ /^[A-Za-z][A-Za-z \t-]*$/) return ""
-      # A label that is not a governed name but contains one as a word ("oops Kind", "Kind value") is
-      # not read as some other field; it is left to the stray rule, which fails it loudly.
-      if (!governed(label) && tolower(label) ~ /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) return ""
+      if (!governed(label) && match(tolower(label), /(status|kind|control|due-before|review-by|closure-evidence)/)) { mixedlabel = canon(substr(tolower(label), RSTART, RLENGTH)); return "" }
       return label
     }
-    function val(s) {
-      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/, "", s); gsub(/\]\([^)]*\)/, "]", s); gsub(/<[^>]*>/, "**", s); sub(/^[^:]*:/, "", s)
-      # Markers that close the label sit right after the colon; strip them, then the whitespace, and
-      # leave the value itself alone.
+    # The value is everything after the delimiter, with the markers that closed the label stripped,
+    # then whitespace; the value itself, links and all, is left alone.
+    function val(s,   pos) {
+      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/, "", s)
+      pos = delimpos(s); if (pos == 0) return ""
+      s = substr(s, pos + 1)
       sub(/^(\*|_|`|<[^>]*>)*/, "", s); sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s
     }
     { sub(/\r$/, "") }
@@ -508,11 +527,16 @@ else
         next
       }
     }
-    odd != "" { name = fieldname($0); if ((name != "" && governed(name)) || strayname($0) != "") oddfields = 1; next }
+    odd != "" { name = fieldname($0); if ((name != "" && governed(name)) || mixedlabel != "" || strayname($0) != "") oddfields = 1; next }
     id == "" { next }
-    fieldname($0) == "" && strayname($0) != "" { strays = strays " " strayname($0); next }
-    fieldname($0) != "" {
+    {
       name = fieldname($0)
+      if (name == "") {
+        st = strayname($0)
+        if (st == "" && mixedlabel != "") st = mixedlabel
+        if (st != "") strays = strays " " st
+        next
+      }
       if (!governed(name)) next
       name = canon(name)
       seen[name]++; if (seen[name] == 2) dups = dups " " name
