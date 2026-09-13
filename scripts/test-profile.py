@@ -1122,6 +1122,23 @@ class ValidateProfileTests(unittest.TestCase):
                 code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
                 self.assert_fail(out, code, "TD-169: trigger first-outside-participant is true")
 
+    def test_stray_inner_marker_does_not_close_a_no_colon_label_early(self):
+        entry = "## TD-170 — malformed nesting\n\n- **Status:** open\n- **note *Kind** deferral\n- **note *Control** floor secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-170: field label(s) found on lines the validator does not read as fields: Kind Control")
+
+    def test_same_character_nesting_and_void_elements_in_no_colon_labels(self):
+        for form in ("**note *{n}*** {v}", "__note _{n}___ {v}", "*note **{n}*** {v}", "**note ]{n}** {v}", "<span>note <wbr>{n}</span> {v} (**review note here**)", "<span>note <br>{n}</span> {v}"):
+            with self.subTest(form=form):
+                entry = ("## TD-171 — nesting\n\n" + "\n".join(
+                    "- " + form.format(n=name, v=value) for name, value in (
+                        ("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
+                        ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))) + "\n")
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assertEqual(code, 1, out)
+                self.assertIn("TD-171: field label(s) found on lines the validator does not read as fields", out)
+                self.assertNotIn("has no deferrals", out)
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)

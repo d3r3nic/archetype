@@ -397,32 +397,45 @@ else
     # line (after indentation or a list marker) even without a colon. Mid-sentence italics of an
     # everyday word are not labels.
     # Position where the markup opened at the start of r has all closed again (inclusive), or the end
-    # of r when something never closes. Tags nest; brackets pair; an emphasis run toggles its character.
-    function labelend(r,   i, j, c, ch, q, depth, star, under, tick, tagtxt, n) {
-      n = length(r); depth = 0; star = 0; under = 0; tick = 0; i = 1
+    # of r when something never closes. Brackets pair with brackets (a stray "]" is content); tags
+    # nest and close with their closing tags, void elements open nothing; an emphasis run opens when
+    # it follows whitespace, an opening bracket, or the start, and otherwise closes as much of the
+    # open runs of its character as its length covers (so "**note *Kind***" closes both at once).
+    function stacklast(st) { sub(/,$/, "", st); sub(/^.*,/, "", st); return st + 0 }
+    function stackpop(st) { sub(/,$/, "", st); if (st ~ /,/) sub(/,[^,]*$/, ",", st); else st = ""; return st }
+    function labelend(r,   i, j, c, ch, q, n, runlen, prev, opened, brackets, tags, emopen, stk, tagtxt, tname, L, t, key) {
+      n = length(r); i = 1; opened = 0; brackets = 0; tags = 0; emopen = 0; LABCLOSED = 0
+      split("", stk)
       while (i <= n) {
         c = substr(r, i, 1)
         if (c == "<") {
           j = i + 1; q = ""
           while (j <= n) { ch = substr(r, j, 1); if (q != "") { if (ch == q) q = "" } else if (ch == "\"" || ch == "\047") q = ch; else if (ch == ">") break; j++ }
           if (j > n) return n
-          tagtxt = substr(r, i, j - i + 1)
-          if (tagtxt ~ /^<\//) depth--; else if (tagtxt !~ /\/>$/) depth++
+          tagtxt = substr(r, i, j - i + 1); tname = tolower(tagtxt); sub(/^<\/?[ \t]*/, "", tname); sub(/[^a-z0-9].*$/, "", tname)
+          if (tagtxt ~ /^<\//) { if (tags > 0) tags-- }
+          else if (tagtxt !~ /\/>$/ && tname !~ /^(area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)$/) { tags++; opened = 1 }
           i = j + 1
-        } else if (c == "[") { depth++; i++ }
-        else if (c == "]") { depth--; i++ }
+        } else if (c == "[") { brackets++; opened = 1; i++ }
+        else if (c == "]") { if (brackets > 0) brackets--; i++ }
         else if (c == "*" || c == "_" || c == "`") {
           j = i; while (j <= n && substr(r, j, 1) == c) j++
-          if (c == "*") { if (star) { star = 0; depth-- } else { star = 1; depth++ } }
-          else if (c == "_") { if (under) { under = 0; depth-- } else { under = 1; depth++ } }
-          else { if (tick) { tick = 0; depth-- } else { tick = 1; depth++ } }
+          runlen = j - i; prev = (i == 1) ? " " : substr(r, i - 1, 1)
+          if (prev ~ /[ \t(\[<]/ || stk[c] == "") { stk[c] = stk[c] runlen ","; emopen++; opened = 1 }
+          else {
+            L = runlen
+            while (L > 0 && stk[c] != "") {
+              t = stacklast(stk[c]); stk[c] = stackpop(stk[c]); emopen--
+              if (t > L) { stk[c] = stk[c] (t - L) ","; emopen++; L = 0 } else L -= t
+            }
+          }
           i = j
         } else i++
-        if (depth <= 0) return i - 1
+        if (opened && brackets + tags + emopen <= 0) { LABCLOSED = 1; return i - 1 }
       }
       return n
     }
-    function strayname(s,   found, m, t, s0, rest, lab, nwords, words, op, full) {
+    function strayname(s,   found, m, t, s0, rest, lab, nwords, words, op, full, unclosed) {
       s = tolower(s); s0 = s; found = ""
       # An emphasized or tagged span at the start of the line (after an optional list marker and
       # markup-free leading words) is decoded, parentheses and punctuation included, and a governed
@@ -440,11 +453,13 @@ else
         # Decoding keeps word boundaries as written: tags and code marks vanish without adding a space
         # ("K<span>ind</span>" stays "kind"), while emphasis marks, brackets, and parentheses become spaces.
         gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", lab); gsub(/`/, "", lab); gsub(/[*_\[\]()]/, " ", lab)
-        # The governed name must be the first or the last word of a short decoded span ("Kind, if
-        # any", "note Kind", "(Kind)", at most four words); a bold sentence that mentions the word is
-        # prose, whichever position it holds.
+        # In a closed label the governed name must be the first or the last word of a short span
+        # ("Kind, if any", "note Kind", "(Kind)", at most four words); a bold sentence that mentions
+        # the word is prose. An unclosed label is malformed markup, so a governed name anywhere in it
+        # is reported rather than risked.
+        unclosed = !LABCLOSED
         gsub(/^[^a-z]+|[^a-z]+$/, "", lab); nwords = split(lab, words, /[ \t]+/)
-        if (nwords <= 4 && (match(lab, /^(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) || match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)$/))) {
+        if ((unclosed && match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) || (nwords <= 4 && (match(lab, /^(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) || match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)$/)))) {
           m = substr(lab, RSTART, RLENGTH); gsub(/[^a-z-]/, "", m); found = " " canon(m)
           s = substr(s, length(s) - length(rest) + length(lab) + 1)
         }
