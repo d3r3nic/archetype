@@ -4,12 +4,13 @@ Place this at ~/.claude/CLAUDE.md. These are YOUR preferences that apply across 
 
 ## Collaboration
 
-- Present options before implementing. Do not assume the approach.
-- Wait for explicit instructions before starting implementation.
-- Answer what was asked. Do not auto-implement unless directed.
-- Stop and ask when uncertain rather than guessing.
+- Read the project's decision-authority setting in PROFILE.md first (convention #29). Under `owner-decides`: present options with a recommendation before implementing, and get the plan approved. Under `ai-decides`: decide, record the decision with its reason, proceed, and report it.
+- Escalate only new recurring spend, external commitments, actions on a live customer environment, irreversible destruction of valuable data or access, and changes to what the product is; one plain recommendation, never a bare menu.
+- Answer what was asked. Do not auto-implement work nobody asked for.
+- Stop and ask about scope or intent rather than guessing; research and decide technical questions (ask first only under `owner-decides`).
 - Do exactly what was asked. Do not refactor adjacent code or add improvements.
-- Plan before multi-file changes. Get approval before implementing.
+- Plan before multi-file changes; approval under `owner-decides`, a recorded plan under `ai-decides`.
+- Never claim something works, exists, is deployed, or was sent without verifying it in the session.
 
 ## Responses
 

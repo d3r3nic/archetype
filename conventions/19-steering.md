@@ -10,7 +10,7 @@ Create steering artifacts that the team reuses:
 - A specification template for defining features before implementation: what to build, why, acceptance criteria, and explicitly what is out of scope
 - A plan template for implementation: which files change, in what order, what approach
 - Persistent planning files that survive context resets so AI agents can restore context when starting a new session
-- A decision record (#16, #29) that holds every technical decision with its reason and the alternatives rejected, so a later session restores the why, not only the what
+- A decision record (#16, #29) that holds every consequential technical decision with its reason and the alternatives rejected, so a later session restores the why, not only the what
 
 ## Rules
 

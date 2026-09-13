@@ -24,7 +24,7 @@ Phase 4 has three distinct modes, each with its own trigger. Don't conflate them
 **Audit checklist:**
 - [ ] `scripts/validate-develop.sh` — 0 errors
 - [ ] `scripts/validate-maintain.sh` — 0 errors
-- [ ] `scripts/validate-profile.sh` — 0 errors (`--strict` for operational projects); every DEFERRED line still has a future trigger; every UNVERIFIED fact has a plan to learn it
+- [ ] `scripts/validate-profile.sh` — 0 errors (once PROFILE.md exists, `--strict` for operational projects; until then, create it from templates/profile.md); every DEFERRED line still has a future trigger; every UNVERIFIED fact has a plan to learn it
 - [ ] `scripts/validate-framework.sh` — 0 errors (framework itself OK)
 - [ ] The project's test command (`References.md § Commands`) — all green
 - [ ] Every feature directory has matching `feature-tree.md` row and `docs/features/{name}.md` entry (names align)

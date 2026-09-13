@@ -78,7 +78,7 @@ Everything built once, configured for context. Governs how all other conventions
 - #17 Context Management — file size, session hygiene, lost-in-the-middle → conventions/17-context.md
 - #18 Verification — TDD for AI, run tests after every change, build gates → conventions/18-verification.md
 - #19 AI Steering — specs before code, drift prevention, scope discipline; approval rules read the #29 setting → conventions/19-steering.md
-- #29 Decision Authority & Escalation — owner decides the product, AI decides and records everything technical; four escalation categories, one recommendation; no unverified claims; owner safety rails → conventions/29-decision-authority.md
+- #29 Decision Authority & Escalation — owner decides the product, AI decides and records everything technical; the escalation categories, one recommendation; no unverified claims; owner safety rails → conventions/29-decision-authority.md
 - #30 Operating Profile & Deferral — stage derived from facts (isolated, trial, operational), the floor no stage may defer, trigger-linked deferrals in TECHNICAL-DEBT.md, PROFILE.md → conventions/30-operating-profile.md
 
 ### Specialized

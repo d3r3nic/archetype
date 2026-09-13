@@ -30,7 +30,7 @@ Read `References.md` in full before building anything:
 ## Stage rule (operating profile)
 
 Read `PROFILE.md` with References.md. The stage (#30) decides what this scaffold may defer:
-- `isolated`: may defer remote deployment, capacity engineering, operational dashboards, integrations for capabilities the experiment does not exercise, and detailed research for unused systems. May not defer protected configuration, the trust boundary of anything reachable, reproducible verification, containment of the experiment from live systems, or the smoke test.
+- `isolated`: may defer remote deployment, capacity engineering, operational dashboards, integrations for capabilities the experiment does not exercise, and detailed research for unused systems. May not defer the recorded purpose and success criteria (References.md), protected configuration, the trust boundary of anything reachable, reproducible verification, containment of the experiment from live systems, or the smoke test.
 - `trial`: adds boundary, integration, permission, and recovery checks for everything the participants can reach.
 - `operational`: nothing is deferred without a recorded reason and a trigger.
 
