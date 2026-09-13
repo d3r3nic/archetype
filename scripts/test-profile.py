@@ -1029,15 +1029,15 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(), entry)
         self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
 
-    def test_bold_prose_bullet_mentioning_a_governed_word_midway_is_fine(self):
+    def test_bold_prose_bullets_are_prose(self):
         entry = debt_entry(158, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\n- **Note the control flow changed while waiting**\n- **Status of the kind request is unknown for now** (prose)\n\n"
         code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assertEqual(code, 1, out)
-        self.assertIn("TD-158: field label(s) found on lines the validator does not read as fields: Status", out)
-        entry = debt_entry(159, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\n- **Note the control flow changed while waiting**\n\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry)
         self.assert_clean(out, code)
-        self.assertIn("DEFERRED: TD-159 until public-access", out)
+        self.assertIn("DEFERRED: TD-158 until public-access", out)
+        entry = debt_entry(159, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\n- **Status now**\n- **the Kind**\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assertEqual(code, 1, out)
+        self.assertIn("TD-159: field label(s) found on lines the validator does not read as fields: Status Kind", out)
 
     def test_nested_inner_markup_in_no_colon_labels_fails_loudly(self):
         for form in ("**note _{n}_**", "**note <span>{n}</span>**", "**_{n}_ value**"):
@@ -1067,6 +1067,33 @@ class ValidateProfileTests(unittest.TestCase):
                 entry = "## TD-163 — inline code line\n\n- **Status:** open\n- **Kind:** shortcut\n" + ticks + "Control" + ticks + ": floor: secrets\n"
                 code, out = self.run_validator(profile_text(), entry)
                 self.assert_fail(out, code, "TD-163: field label(s) found on lines the validator does not read as fields: Control")
+
+    def test_bold_sentence_ending_in_a_governed_word_is_prose(self):
+        entry = debt_entry(164, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\n- **We must still review the control**\n- **Decide the kind**\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assertEqual(code, 1, out)
+        self.assertIn("TD-164: field label(s) found on lines the validator does not read as fields: Kind", out)
+        self.assertNotIn("Control", out.split("TD-164: field label(s)")[1].split("\n")[0])
+
+    def test_annotation_after_the_value_does_not_hide_a_no_colon_label(self):
+        entry = ("## TD-165 — annotated\n\n" + "\n".join(
+            f"- **note {name}** {value} (**note**)" for name, value in (
+                ("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
+                ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))) + "\n")
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("TD-165: field label(s) found on lines the validator does not read as fields", out)
+        self.assertNotIn("has no deferrals", out)
+
+    def test_lowercase_identifier_prefix_is_read(self):
+        for heading in ("## td-166 floor shortcut", "## Td-166 floor shortcut", "## tD-166 floor shortcut"):
+            with self.subTest(heading=heading):
+                entry = heading + "\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
+                code, out = self.run_validator(profile_text(), entry)
+                self.assert_fail(out, code, "TD-166: a floor item (secrets) is never postponed")
+        entry = "td-167 underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
 
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:

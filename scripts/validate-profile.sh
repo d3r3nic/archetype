@@ -396,24 +396,34 @@ else
     # followed by a colon anywhere on the line, plus a label wrapped in emphasis at the start of the
     # line (after indentation or a list marker) even without a colon. Mid-sentence italics of an
     # everyday word are not labels.
-    function strayname(s,   found, m, t, s0, rest, lab) {
+    function strayname(s,   found, m, t, s0, rest, lab, nwords, words, op, oc, on, pos, closed, run, k) {
       s = tolower(s); s0 = s; found = ""
       # An emphasized or tagged span at the start of the line (after an optional list marker and
       # markup-free leading words) is decoded, parentheses and punctuation included, and a governed
       # name found in it as a whole word is a stray even without a colon. A prose sentence with an
       # italic everyday word has no list marker and no leading markup, so it is not a label.
       if (match(s, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<\[]*[ \t])?)?([*_`\[]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)+/)) {
+        op = substr(s, RSTART, RLENGTH); sub(/^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<\[]*[ \t])?)?/, "", op)
         rest = substr(s, RSTART + RLENGTH)
-        # The label runs to the last markup run on the line, so nested inner markup ("**note _Kind_**")
-        # is decoded as part of it; an unclosed label runs to the end of the line.
-        lab = rest; lastrun = 0
-        while (match(substr(lab, lastrun + 1), /([*_`\]]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)+/)) lastrun = lastrun + RSTART - 1 + RLENGTH
-        if (lastrun > 0) { lab = substr(rest, 1, lastrun); sub(/([*_`\]]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)+$/, "", lab) }
+        # The label ends at the run that closes the opening run: for a tag, the next tag; otherwise the
+        # next run holding at least as many of the first marker character of the opening run. Inner markup
+        # ("**note _Kind_**") stays inside the label; markup after the value stays outside it; an
+        # unclosed label runs to the end of the line.
+        lab = rest; pos = 0; closed = 0
+        if (op ~ /^</) { if (match(rest, /<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/)) { lab = substr(rest, 1, RSTART - 1); closed = 1 } }
+        else {
+          oc = substr(op, 1, 1); on = countchar(op, oc)
+          while (!closed && match(substr(rest, pos + 1), /([*_`\]]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)+/)) {
+            run = substr(rest, pos + RSTART, RLENGTH); k = countchar(run, oc)
+            if (k >= on) { lab = substr(rest, 1, pos + RSTART - 1); closed = 1 } else pos = pos + RSTART - 1 + RLENGTH
+          }
+        }
         gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, " ", lab); gsub(/[*_`\[\]()]/, " ", lab)
-        # The governed name must be the first or the last word of the decoded span ("Kind, if any",
-        # "note Kind", "(Kind)"); a bold sentence that merely mentions the word mid-way is prose.
-        gsub(/^[^a-z]+|[^a-z]+$/, "", lab)
-        if (match(lab, /^(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) || match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)$/)) {
+        # The governed name must be the first or the last word of a short decoded span ("Kind, if
+        # any", "note Kind", "(Kind)", at most four words); a bold sentence that mentions the word is
+        # prose, whichever position it holds.
+        gsub(/^[^a-z]+|[^a-z]+$/, "", lab); nwords = split(lab, words, /[ \t]+/)
+        if (nwords <= 4 && (match(lab, /^(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) || match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)$/))) {
           m = substr(lab, RSTART, RLENGTH); gsub(/[^a-z-]/, "", m); found = " " canon(m)
           s = substr(s, length(s) - length(rest) + length(lab) + 1)
         }
@@ -449,9 +459,13 @@ else
     # Heading identifier normalization, shared by ATX and underlined headings: closed HTML tags are
     # removed (so "<span>TD</span>-12" reads TD-12), then whitespace, emphasis markers, brackets, and
     # an unclosed tag start ("<span TD-12") are peeled off in turn.
+    # Literal character count (markers are regex metacharacters, so gsub cannot count them).
+    function countchar(str, ch,   i, n) { n = 0; for (i = 1; i <= length(str); i++) if (substr(str, i, 1) == ch) n++; return n }
     function idtext(t) {
       gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", t)
       while (t ~ /^([ \t]|[*_`\[]|<[^ \t>]*[ \t])/) sub(/^([ \t]+|[*_`\[]+|<[^ \t>]*[ \t]+)/, "", t)
+      # The identifier prefix is read in any letter case and reported as TD-.
+      if (tolower(substr(t, 1, 3)) == "td-") t = "TD-" substr(t, 4)
       return t
     }
     function delimpos(s,   i, c, depth, intag, q) {
@@ -513,7 +527,7 @@ else
       # A backtick run followed by more backticks on the same line is inline code, not a fence: the
       # line is left for the ordinary rules instead of being skipped.
       if (!infence) {
-        if (c == "`" && rest ~ /`/) { inline_code = 1 } else { infence = 1; fchar = c; flen = n; fence_line = NR; next }
+        if (!(c == "`" && rest ~ /`/)) { infence = 1; fchar = c; flen = n; fence_line = NR; next }
       }
       else if (c == fchar && n >= flen && rest ~ /^[ \t]*$/) { infence = 0; next }
       else next
