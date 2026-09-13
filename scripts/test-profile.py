@@ -615,6 +615,27 @@ class ValidateProfileTests(unittest.TestCase):
         self.assertNotIn("TD-092", out)
         self.assertIn("DEFERRED: TD-093 until first-outside-participant", out)
 
+    def test_field_list_formatting_variants_are_read(self):
+        variants = ["-  **Kind:** deferral", "-\t**Kind:** deferral", "* **Kind:** deferral", "+ **Kind:** deferral", "   - **Kind:** deferral"]
+        for kind_line in variants:
+            with self.subTest(kind_line=kind_line):
+                entry = ("## TD-094 — formatting\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
+                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assert_fail(out, code, "TD-094: trigger first-outside-participant is true")
+
+    def test_indented_field_block_is_read(self):
+        entry = "## TD-095 — indented fields\n\n" + "\n".join("  " + l for l in debt_entry(95, control="floor: secrets").splitlines()[2:] if l) + "\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-095: a floor item (secrets) is never a deferral")
+
+    def test_td_heading_with_too_many_marks_or_no_space_fails_when_it_carries_fields(self):
+        for heading in ("####### TD-088 — seven marks", "##TD-089 — no space"):
+            with self.subTest(heading=heading):
+                entry = heading + "\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
+                code, out = self.run_validator(profile_text(), entry)
+                self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)

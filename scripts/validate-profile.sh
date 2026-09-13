@@ -269,19 +269,19 @@ if [ ! -f "$TD" ]; then
 else
   BEFORE=$ERRORS
   SEEN=0
-  FENCE_BAD=0
+  SUPPRESS_PASS=0
   SEEN_IDS=" "
   while IFS="$US" read -r id status kind control due review closure dups; do
     [ -z "$id" ] && continue
     if [ "$id" = "UNCLOSED-FENCE" ]; then
       fail "TECHNICAL-DEBT.md has a code fence that never closes (opened at line $status); every entry after it is hidden from this check"
-      FENCE_BAD=1
+      SUPPRESS_PASS=1
       continue
     fi
     if [ "$id" = "ODD-HEADING" ]; then
       if [ "$kind" = "1" ]; then
         fail "TECHNICAL-DEBT.md: \"$status\" carries entry fields but is not a level-two heading, so it would not be checked; entries start with \"## TD-\""
-        FENCE_BAD=1
+        SUPPRESS_PASS=1
       else
         warn "TECHNICAL-DEBT.md: \"$status\" is not a level-two heading, so it is not read as an entry; entries start with \"## TD-\""
       fi
@@ -357,7 +357,10 @@ else
     }
     function reset() { id = ""; status = ""; kind = ""; control = ""; due = ""; review = ""; closure = ""; dups = ""; odd = ""; oddfields = 0; split("", seen) }
     function governed(n) { return (n == "Status" || n == "Kind" || n == "Control" || n == "Due-before" || n == "Review-by" || n == "Closure-evidence") }
-    function val(s) { sub(/^- \*\*[A-Za-z-]+:?\*\*:?[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
+    # A field line is a list item (marker "-", "*", or "+", indented at most three spaces, followed by
+    # spaces or tabs) whose text starts with a bold label: "**Name:** value" or "**Name**: value".
+    function fieldname(s) { sub(/^ ? ? ?[-*+][ \t]+/, "", s); if (s !~ /^\*\*[A-Za-z][A-Za-z -]*:?\*\*:?/) return ""; sub(/^\*\*/, "", s); sub(/:?\*\*.*$/, "", s); return s }
+    function val(s) { sub(/^ ? ? ?[-*+][ \t]+\*\*[A-Za-z][A-Za-z -]*:?\*\*:?[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
     { sub(/\r$/, "") }
     # Fenced examples are skipped. A fence opens with three or more backticks or tildes indented by
     # at most three spaces and closes only with a run of the same character at least as long,
@@ -381,22 +384,24 @@ else
     # is recorded so the shell can fail or warn about it.
     /^ ? ? ?#/ {
       h = $0; sub(/^ ? ? ?/, "", h)
+      level = 0; while (substr(h, level + 1, 1) == "#") level++
+      text = substr(h, level + 1); sub(/^[ \t]+/, "", text)
+      if (text ~ /^TD-/) {
+        # A TD heading of any shape: level two with a space is an entry; anything else (another
+        # level, seven or more marks, no space after the marks) is recorded for the shell.
+        flush(); reset()
+        if (level == 2 && h ~ /^##[ \t]/) { id = text; sub(/[^A-Za-z0-9-].*$/, "", id) } else { odd = $0 }
+        next
+      }
       if (h ~ /^#+([ \t]|$)/) {
-        level = 0; while (substr(h, level + 1, 1) == "#") level++
-        text = substr(h, level + 1); sub(/^[ \t]+/, "", text)
-        if (level <= 6 && text ~ /^TD-/) {
-          flush(); reset()
-          if (level == 2) { id = text; sub(/[^A-Za-z0-9-].*$/, "", id) } else { odd = $0 }
-          next
-        }
-        if (level == 1) { flush(); reset(); next }
+        if (level == 1) { flush(); reset() }
         next
       }
     }
-    odd != "" && /^- \*\*[A-Za-z-]+:?\*\*:?/ { name = $0; sub(/^- \*\*/, "", name); sub(/:?\*\*.*$/, "", name); if (governed(name)) oddfields = 1; next }
+    odd != "" { name = fieldname($0); if (name != "" && governed(name)) oddfields = 1; next }
     id == "" { next }
-    /^- \*\*[A-Za-z-]+:?\*\*:?/ {
-      name = $0; sub(/^- \*\*/, "", name); sub(/:?\*\*.*$/, "", name)
+    fieldname($0) != "" {
+      name = fieldname($0)
       if (!governed(name)) next
       seen[name]++; if (seen[name] == 2) dups = dups " " name
       if (seen[name] > 1) next
@@ -410,7 +415,7 @@ else
     }
     END { flush(); if (infence) printf "UNCLOSED-FENCE%s%d\n", US, fence_line }
   ' "$TD")
-  if [ "$FENCE_BAD" -eq 1 ]; then
+  if [ "$SUPPRESS_PASS" -eq 1 ]; then
     :
   elif [ "$SEEN" -eq 0 ]; then
     pass "TECHNICAL-DEBT.md has no deferrals"
