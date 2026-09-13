@@ -275,6 +275,7 @@ else
   SEEN_IDS=" "
   while IFS="$US" read -r id status kind control due review closure dups strays kindpresent metapresent; do
     [ -z "$id" ] && continue
+    ENTRY_ERRORS=$ERRORS
     if [ "$id" = "UNCLOSED-FENCE" ]; then
       fail "TECHNICAL-DEBT.md has a code fence that never closes (opened at line $status); every entry after it is hidden from this check"
       SUPPRESS_PASS=1
@@ -311,7 +312,7 @@ else
       lc_control="$(printf '%s' "$control" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]*:[[:space:]]*/:/; s/^[[:space:]]+//; s/[[:space:]]+$//')"
       case "$lc_control" in
         \[*) fail "$id: Control still holds a template placeholder"; SUPPRESS_PASS=1 ;;
-        floor)
+        floor|floor:)
           fail "$id: Control says floor but names no floor item; floor items: ${FLOOR// /, }"; SUPPRESS_PASS=1 ;;
         floor:*)
           item="${lc_control#floor:}"; item="${item%% *}"
@@ -354,14 +355,14 @@ else
       if is_date "$due"; then
         if [[ "$due" < "$TODAY" ]] || [ "$due" = "$TODAY" ]; then
           fail "$id: Due-before date $due reached; the deferral is blocking until fixed (status: $status)"
-        else
+        elif [ "$ERRORS" -eq "$ENTRY_ERRORS" ]; then
           defer "$id until $due"
         fi
       elif is_trigger "$due"; then
         state="$(trigger_state "$due")"
         case "$state" in
           true) fail "$id: trigger $due is true per PROFILE.md; the deferral is blocking until fixed (status: $status; won't-fix does not clear it)" ;;
-          false) defer "$id until $due" ;;
+          false) [ "$ERRORS" -eq "$ENTRY_ERRORS" ] && defer "$id until $due" ;;
           unknown) unver "$id is due before $due, which rests on a fact recorded as unknown" ;;
         esac
       else
@@ -392,17 +393,19 @@ else
     # followed by a colon anywhere on the line, plus a label wrapped in emphasis at the start of the
     # line (after indentation or a list marker) even without a colon. Mid-sentence italics of an
     # everyday word are not labels.
-    function strayname(s,   found, m) {
-      s = tolower(s); gsub(/`/, "", s); gsub(/\]\([^)]*\)/, "", s); gsub(/[\[\]]/, "", s)
-      found = ""
-      if (match(s, /^[ \t]*([-*+]|[0-9]+[.)])?[ \t]*(\*\*|__|\*|_)[ \t]*(status|kind|control|due-before|review-by|closure-evidence)[ \t]*(\*\*|__|\*|_)/)) {
-        m = substr(s, RSTART, RLENGTH); sub(/^[ \t]*([-*+]|[0-9]+[.)])?[ \t]*(\*\*|__|\*|_)[ \t]*/, "", m); sub(/[ \t]*(\*\*|__|\*|_)$/, "", m); found = " " canon(m)
+    function strayname(s,   found, m, t) {
+      s = tolower(s); found = ""
+      # An emphasized or tagged label at the start of the line, even without a colon.
+      if (match(s, /^[ \t]*([-*+]|[0-9]+[.)])?[ \t]*([*_`\[]|<[^>]*>)+[ \t]*(status|kind|control|due-before|review-by|closure-evidence)[ \t]*([*_`\]]|<[^>]*>)+/)) {
+        m = substr(s, RSTART, RLENGTH); sub(/^[ \t]*([-*+]|[0-9]+[.)])?[ \t]*/, "", m); gsub(/<[^>]*>/, "", m); gsub(/[^a-z-]/, "", m); sub(/^-+/, "", m); found = " " canon(m)
         s = substr(s, RSTART + RLENGTH)
       }
-      while (match(s, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)[ \t]*(\*\*|__|\*|_)?[ \t]*:/)) {
-        m = substr(s, RSTART, RLENGTH); sub(/^[^a-z]/, "", m); sub(/[ \t]*(\*\*|__|\*|_)?[ \t]*:$/, "", m)
+      # A governed name followed by a colon anywhere, with any markup between the name and the colon.
+      t = s; gsub(/<[^>]*>/, "", t); sub(/\]\([^)]*\)/, "", t); gsub(/[*_`\[\]]/, "", t)
+      while (match(t, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)[ \t]*:/)) {
+        m = substr(t, RSTART, RLENGTH); sub(/^[^a-z]/, "", m); sub(/[ \t]*:$/, "", m)
         if (index(found, " " canon(m)) == 0) found = found " " canon(m)
-        s = substr(s, RSTART + RLENGTH)
+        t = substr(t, RSTART + RLENGTH)
       }
       sub(/^ /, "", found); return found
     }
@@ -418,16 +421,27 @@ else
     # indented at most three spaces, followed by spaces or tabs) whose text starts with a bold label
     # in either bold syntax and either colon placement: "**Name:** value", "**Name**: value",
     # "__Name:__ value". The list marker is required; a bold label in running text is not a field.
-    # The label between the bold markers may be wrapped in a code span or a link, or the bold itself
-    # may sit inside a link; those wrappers are removed before the name is compared.
-    function fieldname(s) {
-      if (s !~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+\[?(\*\*|__)[^*_]+(\*\*|__)(\]\([^)]*\))?:?/) return ""
-      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+\[?(\*\*|__)/, "", s); sub(/(\*\*|__).*$/, "", s)
-      gsub(/`/, "", s); sub(/\]\([^)]*\)/, "", s); gsub(/[\[\]]/, "", s); sub(/[ \t]*:[ \t]*$/, "", s); sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s)
-      if (s !~ /^[A-Za-z][A-Za-z \t-]*$/) return ""
-      return s
+    # A field line is a list item whose text up to the first colon is a label carrying some inline
+    # markup (bold, italic, code, a link, an HTML tag, nested in any order). The label is normalized
+    # by removing every marker and tag before the name is compared, so "**Kind:**", "**Kind**:",
+    # "***Control***:", "**_Control_**:", "**`Kind`:**", "[**Kind**](#k):" all read as the field.
+    # A plain "Kind: value" list item carries no markup and is left to the stray rule.
+    function fieldname(s,   label) {
+      if (s !~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/) return ""
+      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/, "", s)
+      if (s !~ /:/) return ""
+      label = s; sub(/:.*$/, "", label)
+      if (label !~ /[*_`<\[]/) return ""
+      gsub(/<[^>]*>/, "", label); sub(/\]\([^)]*\)/, "", label); gsub(/[*_`\[\]()#]/, "", label)
+      sub(/^[ \t]+/, "", label); sub(/[ \t]+$/, "", label)
+      if (label !~ /^[A-Za-z][A-Za-z \t-]*$/) return ""
+      return label
     }
-    function val(s) { sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+\[?(\*\*|__)[^*_]+(\*\*|__)(\]\([^)]*\))?:?[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
+    function val(s) {
+      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/, "", s); sub(/^[^:]*:/, "", s)
+      while (s ~ /^([ \t]|\*\*|__|\*|_|<[^>]*>)/) { sub(/^([ \t]|\*\*|__|\*|_|<[^>]*>)/, "", s) }
+      sub(/[ \t]+$/, "", s); return s
+    }
     { sub(/\r$/, "") }
     # Fenced examples are skipped. Fences are classified on the raw line, before any HTML rewriting. A fence opens with three or more backticks or tildes indented by
     # at most three spaces and closes only with a run of the same character at least as long,
