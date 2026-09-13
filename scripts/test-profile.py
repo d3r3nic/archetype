@@ -346,7 +346,7 @@ class ValidateProfileTests(unittest.TestCase):
 
     def test_malformed_review_by_fails(self):
         code, out = self.run_validator(profile_text(), debt_entry(10, review="next quarter"))
-        self.assert_fail(out, code, 'Review-by "next quarter" is not a date')
+        self.assert_fail(out, code, 'Review-by "next quarter" is not a real calendar date')
 
     def test_legacy_entry_without_kind_is_untouched(self):
         legacy = "# Technical Debt Log\n\n## TD-020 — old entry\n\n- **Status:** open\n- **Severity:** low\n"
@@ -390,6 +390,144 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(None, None, strict=True)
         self.assertEqual(code, 1, out)
         self.assertIn("strict mode", out)
+
+    # ---- hardening after the independent audit ------------------------------------
+
+    def test_repeated_field_in_entry_fails(self):
+        entry = debt_entry(30, due="first-outside-participant") .rstrip("\n") + "\n- **Kind:** shortcut\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assert_fail(out, code, "TD-030: field(s) repeated inside the entry: Kind")
+
+    def test_fields_under_a_later_heading_do_not_belong_to_the_entry(self):
+        entry = debt_entry(31, due="first-outside-participant") + "## Separate summary\n\n- **Kind:** shortcut\n- **Due-before:** 2030-01-01\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assert_fail(out, code, "TD-031: trigger first-outside-participant is true")
+
+    def test_duplicate_entry_id_fails(self):
+        code, out = self.run_validator(profile_text(), debt_entry(32) + debt_entry(32, due="2030-01-01"))
+        self.assert_fail(out, code, "TD-032 appears more than once")
+
+    def test_uppercase_floor_label_fails(self):
+        code, out = self.run_validator(profile_text(), debt_entry(33, control="FLOOR: secrets"))
+        self.assert_fail(out, code, "a floor item (secrets) is never a deferral")
+
+    def test_unknown_floor_item_fails(self):
+        code, out = self.run_validator(profile_text(), debt_entry(34, control="floor: vibes"))
+        self.assert_fail(out, code, 'Control names unknown floor item "vibes"')
+
+    def test_control_must_name_a_convention_rule_or_floor_item(self):
+        code, out = self.run_validator(profile_text(), debt_entry(35, control="something later"))
+        self.assert_fail(out, code, 'Control is "something later"; name a convention')
+        for ok in ("#23 rate limiting", "B3 middleware order", "b5 queue retries"):
+            with self.subTest(control=ok):
+                code, out = self.run_validator(profile_text(), debt_entry(35, control=ok))
+                self.assert_clean(out, code)
+
+    def test_placeholder_control_and_closure_fail(self):
+        code, out = self.run_validator(profile_text(), debt_entry(36, control="[convention or floor item]"))
+        self.assert_fail(out, code, "TD-036: Control still holds a template placeholder")
+        code, out = self.run_validator(profile_text(), debt_entry(36, closure="[what proves it closed]"))
+        self.assert_fail(out, code, "TD-036: Closure-evidence still holds a template placeholder")
+
+    def test_impossible_calendar_dates_fail(self):
+        code, out = self.run_validator(profile_text(overrides={"Observed-on": "2026-02-30"}))
+        self.assert_fail(out, code, '"Observed-on" is "2026-02-30"')
+        code, out = self.run_validator(profile_text(), debt_entry(37, due="2026-99-99"))
+        self.assert_fail(out, code, 'Due-before "2026-99-99" is neither a known trigger nor a date')
+        code, out = self.run_validator(profile_text(), debt_entry(37, review="2027-02-30"))
+        self.assert_fail(out, code, 'Review-by "2027-02-30" is not a real calendar date')
+        code, out = self.run_validator(profile_text(), debt_entry(37, due="2028-02-29", review="2028-02-29"))
+        self.assert_clean(out, code)
+        self.assertIn("DEFERRED: TD-037 until 2028-02-29", out)
+
+    def test_non_iso_date_fails(self):
+        code, out = self.run_validator(profile_text(), debt_entry(38, due="2030/01/01"))
+        self.assert_fail(out, code, 'Due-before "2030/01/01" is neither a known trigger nor a date')
+
+    def test_empty_external_effects_items_fail(self):
+        code, out = self.run_validator(profile_text(OPERATIONAL, {"External effects": ", ,"}))
+        self.assert_fail(out, code, '"External effects" contains an empty item')
+        code, out = self.run_validator(profile_text(OPERATIONAL, {"External effects": "money,,records"}))
+        self.assert_fail(out, code, '"External effects" contains an empty item')
+        code, out = self.run_validator(profile_text(OPERATIONAL, {"External effects": "money, records"}))
+        self.assert_clean(out, code)
+
+    def test_crlf_input_is_accepted(self):
+        profile = profile_text(TRIAL).replace("\n", "\r\n")
+        debt = debt_entry(39, due="public-access").replace("\n", "\r\n")
+        code, out = self.run_validator(profile, debt)
+        self.assert_clean(out, code)
+        self.assertIn("DEFERRED: TD-039 until public-access", out)
+
+    def test_key_with_trailing_space_is_unknown(self):
+        code, out = self.run_validator(profile_text(extra_lines=["- Audience : public"], drop=("Audience",)))
+        self.assert_fail(out, code, 'unknown key "Audience "')
+        self.assertIn('missing or empty key "Audience"', out)
+
+    def test_heading_on_first_fact_line_is_reported_once(self):
+        text = "## Facts\n" + profile_text()
+        code, out = self.run_validator(text)
+        self.assert_fail(out, code, "PROFILE.md has no facts block")
+        self.assertNotIn('missing or empty key "Schema"', out)
+
+    def test_unclosed_fence_fails_instead_of_hiding_entries(self):
+        debt = "# Technical Debt Log\n\n```js\nexample without a closing fence\n\n" + debt_entry(50, control="floor: secrets")
+        code, out = self.run_validator(profile_text(TRIAL), debt)
+        self.assert_fail(out, code, "TECHNICAL-DEBT.md has a code fence that never closes (opened at line 3)")
+        self.assertNotIn("has no deferrals", out)
+
+    def test_tilde_fenced_example_is_ignored(self):
+        debt = "# Technical Debt Log\n\n~~~\n" + debt_entry(51, control="floor: secrets") + "~~~\n\n" + debt_entry(52)
+        code, out = self.run_validator(profile_text(), debt)
+        self.assert_clean(out, code)
+        self.assertNotIn("TD-051", out)
+        self.assertIn("DEFERRED: TD-052 until first-outside-participant", out)
+
+    def test_colon_outside_bold_markers_still_parses(self):
+        entry = ("## TD-053 — mis-emphasized\n\n- **Status**: open\n- **Kind**: deferral\n- **Control**: floor: secrets\n"
+                 "- **Due-before**: public-access\n- **Review-by**: 2027-01-01\n- **Closure-evidence**: a test\n")
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-053: a floor item (secrets) is never a deferral")
+
+    def test_strict_mode_via_environment_variable(self):
+        with tempfile.TemporaryDirectory() as root:
+            Path(root, "PROFILE.md").write_text(profile_text(overrides={"Audience": "unknown", "Fallback": "no"}))
+            env = dict(os.environ, VALIDATE_PROFILE_TODAY=TODAY, VALIDATE_PROFILE_STRICT="1")
+            proc = subprocess.run(["bash", str(SCRIPT)], cwd=root, env=env, capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 1, proc.stdout)
+        self.assertIn("Mode: strict", proc.stdout)
+        self.assertIn("strict mode: 1 unverified result(s) count as errors", ANSI.sub("", proc.stdout))
+
+    def test_help_exits_zero(self):
+        with tempfile.TemporaryDirectory() as root:
+            proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0)
+        self.assertIn("Validates the operating profile", proc.stdout)
+
+    def test_regulated_data_alone_fires_the_commitment_trigger(self):
+        profile = profile_text(TRIAL, {"Data": "personal", "Regulated data": "yes"})
+        code, out = self.run_validator(profile, debt_entry(54, due="regulated-data-or-commitment"))
+        self.assert_fail(out, code, "trigger regulated-data-or-commitment is true")
+
+    def test_trigger_names_are_case_sensitive(self):
+        code, out = self.run_validator(profile_text(), debt_entry(40, due="Public-Access"))
+        self.assert_fail(out, code, 'Due-before "Public-Access" is neither a known trigger nor a date')
+
+    def test_reordered_fields_and_colon_values_pass(self):
+        entry = ("## TD-041 — reordered\n\n- **Closure-evidence:** test passes: limiter present\n- **Due-before:** public-access\n"
+                 "- **Kind:** deferral\n- **Review-by:** 2027-01-01\n- **Control:** #23 rate limiting: public routes\n- **Status:** in-progress\n")
+        code, out = self.run_validator(profile_text(TRIAL, {"Stage reason": "testers: a dozen, fallback: spreadsheet"}), entry)
+        self.assert_clean(out, code)
+        self.assertIn("DEFERRED: TD-041 until public-access", out)
+
+    def test_stage_triggers_are_false_at_isolated_and_trial_stage_fires_at_operational(self):
+        for trigger in ("trial-stage", "operational-stage"):
+            with self.subTest(trigger=trigger):
+                code, out = self.run_validator(profile_text(), debt_entry(42, due=trigger))
+                self.assert_clean(out, code)
+                self.assertIn(f"DEFERRED: TD-042 until {trigger}", out)
+        code, out = self.run_validator(profile_text(OPERATIONAL), debt_entry(42, due="trial-stage"))
+        self.assert_fail(out, code, "trigger trial-stage is true")
 
     def test_unknown_argument_is_rejected(self):
         with tempfile.TemporaryDirectory() as root:

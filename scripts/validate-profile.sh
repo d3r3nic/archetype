@@ -12,7 +12,9 @@
 #      commitments; a trial is not public, not relied upon, and has a fallback not recorded as no;
 #      regulated data contradicts synthetic-only data
 #   3. Deferrals are well-formed: Kind: deferral needs Control, Due-before, Review-by, and
-#      Closure-evidence; Due-before is a known trigger or a date; a floor item is never a deferral
+#      Closure-evidence; Control names a convention, a backend rule, or a floor item; Due-before is
+#      a known trigger or a real date; a floor item is never a deferral; fields appear once per
+#      entry; ids are unique; an unclosed code fence fails (it would hide every entry after it)
 #   4. Triggered deferrals fail: a Due-before trigger the facts make true, or a Due-before date
 #      reached (inclusive), blocks until the entry is fixed; won't-fix does not clear it
 #   5. A Review-by date in the past warns
@@ -72,7 +74,17 @@ STAGES="isolated trial operational"
 FLOOR="secrets trust-boundary irreversible-effects personal-data authorized-reuse honest-completion"
 KEYS=("Schema" "Operating stage" "Stage reason" "Decision authority" "Authority source" "Audience" "Data" "External effects" "Operational reliance" "Valuable records" "Fallback" "Contributors" "Regulated data" "Customer commitments" "Monthly running-cost ceiling" "AI spend envelope" "Observed-on" "Review")
 
-is_date() { [[ "$1" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; }
+is_date() {
+  # A real calendar date in YYYY-MM-DD form.
+  [[ "$1" =~ ^([0-9]{4})-([0-9]{2})-([0-9]{2})$ ]] || return 1
+  local y=$((10#${BASH_REMATCH[1]})) m=$((10#${BASH_REMATCH[2]})) d=$((10#${BASH_REMATCH[3]})) dim=31
+  [ "$m" -ge 1 ] && [ "$m" -le 12 ] || return 1
+  case "$m" in
+    4|6|9|11) dim=30 ;;
+    2) dim=28; if [ $((y % 4)) -eq 0 ] && { [ $((y % 100)) -ne 0 ] || [ $((y % 400)) -eq 0 ]; }; then dim=29; fi ;;
+  esac
+  [ "$d" -ge 1 ] && [ "$d" -le "$dim" ]
+}
 in_list() { local w; for w in $2; do [ "$w" = "$1" ] && return 0; done; return 1; }
 is_trigger() { in_list "$1" "$TRIGGERS"; }
 is_known_key() { local k; for k in "${KEYS[@]}"; do [ "$k" = "$1" ] && return 0; done; return 1; }
@@ -80,10 +92,10 @@ is_known_key() { local k; for k in "${KEYS[@]}"; do [ "$k" = "$1" ] && return 0;
 # The facts block is everything before the first "## " heading. Plain awk on the file, so the
 # reader does not depend on the shell's grep.
 get() {
-  awk -v k="$1" '/^## / { exit } index($0, "- " k ":") == 1 { v = substr($0, length(k) + 4); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); print v; exit }' "$PROFILE"
+  awk -v k="$1" '{ sub(/\r$/, "") } /^## / { exit } index($0, "- " k ":") == 1 { v = substr($0, length(k) + 4); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); print v; exit }' "$PROFILE"
 }
-count_key() { awk -v k="$1" '/^## / { exit } index($0, "- " k ":") == 1 { n++ } END { print n + 0 }' "$PROFILE"; }
-fact_keys() { awk '/^## / { exit } /^- [^:]+:/ { s = $0; sub(/^- /, "", s); sub(/:.*/, "", s); print s }' "$PROFILE"; }
+count_key() { awk -v k="$1" '{ sub(/\r$/, "") } /^## / { exit } index($0, "- " k ":") == 1 { n++ } END { print n + 0 }' "$PROFILE"; }
+fact_keys() { awk '{ sub(/\r$/, "") } /^## / { exit } /^- [^:]+:/ { s = $0; sub(/^- /, "", s); sub(/:.*/, "", s); print s }' "$PROFILE"; }
 
 check_enum() {
   # $1 key, $2 value, $3 allowed words (space separated)
@@ -111,12 +123,16 @@ else
   BEFORE=$ERRORS
 
   # Every "- Key: value" line in the facts block must be a known key.
+  FACT_LINES="$(fact_keys)"
+  if [ -z "$FACT_LINES" ]; then
+    fail "PROFILE.md has no facts block: the '- Key: value' lines must come before the first '## ' heading"
+  fi
   while IFS= read -r key; do
     [ -z "$key" ] && continue
     is_known_key "$key" || fail "PROFILE.md: unknown key \"$key\""
-  done < <(fact_keys)
+  done <<< "$FACT_LINES"
 
-  for k in "${KEYS[@]}"; do
+  [ -n "$FACT_LINES" ] && for k in "${KEYS[@]}"; do
     n="$(count_key "$k")"
     if [ "$n" -gt 1 ]; then
       fail "PROFILE.md: key \"$k\" appears $n times; exactly once"
@@ -155,19 +171,31 @@ else
     case "$EFF" in
       \[*|none|unknown) ;;
       *)
-        for w in $(printf '%s' "$EFF" | tr ',' ' '); do
-          in_list "$w" "money messages records health-safety-access" || fail "PROFILE.md: \"External effects\" lists \"$w\"; allowed: none, unknown, or any of money, messages, records, health-safety-access"
-        done ;;
+        EFF_COUNT=0
+        IFS=',' read -ra EFF_PARTS <<< "$EFF"
+        for part in "${EFF_PARTS[@]}"; do
+          w="${part//[[:space:]]/}"
+          if [ -z "$w" ]; then
+            fail "PROFILE.md: \"External effects\" contains an empty item; write none, unknown, or a comma-separated list"
+            continue
+          fi
+          if in_list "$w" "money messages records health-safety-access"; then
+            EFF_COUNT=$((EFF_COUNT + 1))
+          else
+            fail "PROFILE.md: \"External effects\" lists \"$w\"; allowed: none, unknown, or any of money, messages, records, health-safety-access"
+          fi
+        done
+        [ "$EFF_COUNT" -eq 0 ] && [ "${#EFF_PARTS[@]}" -eq 0 ] && fail "PROFILE.md: \"External effects\" lists nothing; write none, unknown, or a comma-separated list" ;;
     esac
   fi
   if [ -n "$OBS" ]; then
-    case "$OBS" in \[*) ;; *) is_date "$OBS" || fail "PROFILE.md: \"Observed-on\" is \"$OBS\"; expected YYYY-MM-DD" ;; esac
+    case "$OBS" in \[*) ;; *) is_date "$OBS" || fail "PROFILE.md: \"Observed-on\" is \"$OBS\"; expected a real calendar date YYYY-MM-DD" ;; esac
   fi
   if [ -n "$REVIEW" ]; then
     case "$REVIEW" in
       \[*) ;;
       *) if ! is_date "$REVIEW" && ! is_trigger "$REVIEW"; then
-           fail "PROFILE.md: \"Review\" is \"$REVIEW\"; expected a date YYYY-MM-DD or a trigger name"
+           fail "PROFILE.md: \"Review\" is \"$REVIEW\"; expected a real calendar date YYYY-MM-DD or a trigger name"
          fi ;;
     esac
   fi
@@ -239,8 +267,22 @@ if [ ! -f "$TD" ]; then
 else
   BEFORE=$ERRORS
   SEEN=0
-  while IFS="$US" read -r id status kind control due review closure; do
+  FENCE_BAD=0
+  SEEN_IDS=" "
+  while IFS="$US" read -r id status kind control due review closure dups; do
     [ -z "$id" ] && continue
+    if [ "$id" = "UNCLOSED-FENCE" ]; then
+      fail "TECHNICAL-DEBT.md has a code fence that never closes (opened at line $status); every entry after it is hidden from this check"
+      FENCE_BAD=1
+      continue
+    fi
+    case "$SEEN_IDS" in
+      *" $id "*) fail "$id appears more than once in TECHNICAL-DEBT.md; one entry per id" ;;
+      *) SEEN_IDS="$SEEN_IDS$id " ;;
+    esac
+    if [ -n "$dups" ]; then
+      fail "$id: field(s) repeated inside the entry:$dups; one value each"
+    fi
     case "$kind" in
       ""|shortcut) continue ;;
       deferral) ;;
@@ -252,11 +294,22 @@ else
     [ -z "$due" ] && fail "$id: deferral without Due-before (a trigger or a date)"
     [ -z "$review" ] && fail "$id: deferral without Review-by"
     [ -z "$closure" ] && fail "$id: deferral without Closure-evidence"
-    case "$control" in
-      [Ff]loor:*)
-        item="${control#*:}"; item="${item#"${item%%[! ]*}"}"
-        fail "$id: a floor item ($item) is never a deferral (#30)" ;;
-    esac
+    case "$closure" in \[*) fail "$id: Closure-evidence still holds a template placeholder" ;; esac
+    if [ -n "$control" ]; then
+      lc_control="$(printf '%s' "$control" | tr '[:upper:]' '[:lower:]')"
+      case "$lc_control" in
+        \[*) fail "$id: Control still holds a template placeholder" ;;
+        floor:*)
+          item="${lc_control#*:}"; item="${item#"${item%%[! ]*}"}"; item="${item%% *}"
+          if in_list "$item" "$FLOOR"; then
+            fail "$id: a floor item ($item) is never a deferral (#30)"
+          else
+            fail "$id: Control names unknown floor item \"$item\"; floor items: ${FLOOR// /, }"
+          fi ;;
+        '#'[0-9]*|b[0-9]*) ;;
+        *) fail "$id: Control is \"$control\"; name a convention (#N and the obligation), a backend rule (BN), or a floor item (floor: name)" ;;
+      esac
+    fi
     if [ "$PROFILE_PRESENT" -eq 0 ]; then
       fail "$id: a deferral cannot be evaluated without PROFILE.md; create the profile or fix the entry"
       continue
@@ -283,24 +336,31 @@ else
       if is_date "$review"; then
         if [[ "$review" < "$TODAY" ]]; then warn "$id: Review-by $review has passed; review it and write the new date with the reason"; fi
       else
-        fail "$id: Review-by \"$review\" is not a date YYYY-MM-DD"
+        fail "$id: Review-by \"$review\" is not a real calendar date YYYY-MM-DD"
       fi
     fi
   done < <(awk -v US="$US" '
-    function flush() { if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s\n", id, US, status, US, kind, US, control, US, due, US, review, US, closure }
-    function val(s) { sub(/^- \*\*[A-Za-z-]+:\*\*[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
-    /^```/ { infence = !infence; next }
+    function flush() { if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", id, US, status, US, kind, US, control, US, due, US, review, US, closure, US, dups }
+    function reset() { id = ""; status = ""; kind = ""; control = ""; due = ""; review = ""; closure = ""; dups = "" }
+    function val(s) { sub(/^- \*\*[A-Za-z-]+:?\*\*:?[ \t]*/, "", s); sub(/[ \t]+$/, "", s); return s }
+    function take(name, cur, s) { if (cur != "") dups = dups " " name; return val(s) }
+    { sub(/\r$/, "") }
+    # Fenced examples (``` or ~~~ at column one) are skipped; a fence closes only with its own marker.
+    /^(```|~~~)/ { m = substr($0, 1, 3); if (!infence) { infence = 1; marker = m; fence_line = NR } else if (m == marker) { infence = 0 } next }
     infence { next }
-    /^## TD-/ { flush(); id = $2; sub(/[^A-Za-z0-9-].*$/, "", id); status = ""; kind = ""; control = ""; due = ""; review = ""; closure = ""; next }
-    /^- \*\*Status:\*\*/ { status = val($0) }
-    /^- \*\*Kind:\*\*/ { kind = val($0) }
-    /^- \*\*Control:\*\*/ { control = val($0) }
-    /^- \*\*Due-before:\*\*/ { due = val($0) }
-    /^- \*\*Review-by:\*\*/ { review = val($0) }
-    /^- \*\*Closure-evidence:\*\*/ { closure = val($0) }
-    END { flush() }
+    /^## / { flush(); reset(); if ($0 ~ /^## TD-/) { id = $2; sub(/[^A-Za-z0-9-].*$/, "", id) } next }
+    id == "" { next }
+    /^- \*\*Status:?\*\*:?/ { status = take("Status", status, $0) }
+    /^- \*\*Kind:?\*\*:?/ { kind = take("Kind", kind, $0) }
+    /^- \*\*Control:?\*\*:?/ { control = take("Control", control, $0) }
+    /^- \*\*Due-before:?\*\*:?/ { due = take("Due-before", due, $0) }
+    /^- \*\*Review-by:?\*\*:?/ { review = take("Review-by", review, $0) }
+    /^- \*\*Closure-evidence:?\*\*:?/ { closure = take("Closure-evidence", closure, $0) }
+    END { flush(); if (infence) printf "UNCLOSED-FENCE%s%d\n", US, fence_line }
   ' "$TD")
-  if [ "$SEEN" -eq 0 ]; then
+  if [ "$FENCE_BAD" -eq 1 ]; then
+    :
+  elif [ "$SEEN" -eq 0 ]; then
     pass "TECHNICAL-DEBT.md has no deferrals"
   elif [ "$ERRORS" -eq "$BEFORE" ]; then
     pass "every deferral is well-formed and none is due"
