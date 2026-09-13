@@ -8,8 +8,8 @@ If References.md does not exist, bootstrap has not run yet. Read bootstrap/ONBOA
 
 ## Before Any Work
 
-1. Read References.md and feature-tree.md (always — these are project context)
-2. Scan Conventions.md to identify which conventions apply to the current task (it's a lookup index, not a reading list — read ONLY the relevant convention docs, not all 29)
+1. Read References.md, PROFILE.md, and feature-tree.md (always — these are project context; PROFILE.md holds the stage and who decides technical questions)
+2. Scan Conventions.md to identify which conventions apply to the current task (it's a lookup index, not a reading list — read ONLY the relevant convention docs, never the whole set)
 3. If conventions/overrides/, protocols/, or catalogs/ directories exist, check for project-specific rules relevant to the task
 4. Read CLAUDE.md.additions if present. For tracked work, read development/TASKS.md and development/FRESHNESS.md from the framework, plus the project-root protocols/task-context.md binding if present. Those protocols also cover non-code work; engineering conventions apply when the task touches code.
 
@@ -27,7 +27,7 @@ Do not skip this step. Do not write code based on the enforcement rules alone �
 
 Everything is built once, configured for context. Before building anything, check what exists. If a system exists, use it and configure it for your context. If not, build it as a reusable service, not a one-off. → conventions/00-reusability.md
 
-- If uncertain, ask. Do not guess, do not assume. → conventions/19-steering.md
+- If uncertain about scope or what the owner wants, ask. Do not guess. If uncertain about a technical choice, research, decide, and record it; ask first only under owner-decides. → conventions/19-steering.md, conventions/29-decision-authority.md
 - Never build one-off. Use existing systems or build reusable. → conventions/00-reusability.md
 - Never hardcode values that should come from configuration (colors, URLs, timeouts, dimensions, limits). → conventions/06-styling.md, conventions/01-project-setup.md
 - Never hardcode customer-facing copy, brand names, contact info, social links, integration keys, or industry-specific labels. They live in one typed config surface delivered by the template's config convention; components read through the project's config getter; defaults live in the schema, not in render output. → conventions/28-config-driven-content.md
@@ -46,7 +46,12 @@ Everything is built once, configured for context. Before building anything, chec
 - Never skip verification after changes. Run tests/build. → conventions/18-verification.md
 - Commit after every verified change. Each commit is a rollback point. → conventions/02-git.md
 - Never start multi-file changes without a plan. → conventions/19-steering.md
-- Never modify existing systems without permission. → conventions/19-steering.md
+- Never modify existing foundational systems without a recorded decision (explicit permission under owner-decides). → conventions/19-steering.md
+- Beyond the approvals owner-decides asks for, escalate to the owner only for new recurring spend, an external commitment, an action on a live customer environment, irreversible destruction of valuable data or access, or a change to what the product is; always one plain recommendation, never a menu. → conventions/29-decision-authority.md
+- Never state that something works, exists, is deployed, is green, or was sent unless verified in this session. Say unverified when it is. → conventions/29-decision-authority.md, conventions/18-verification.md
+- Never lower a gate, skip a test, or leave a placeholder to finish. Done means right. → conventions/29-decision-authority.md, conventions/18-verification.md
+- Record every consequential technical decision (a dependency, a boundary, an operational obligation, a cost, a deliberate compromise) with its reason at the project's decision location; routine implementation follows the recorded decision. → conventions/29-decision-authority.md, conventions/16-documentation.md
+- Never defer a floor obligation (secrets, trust boundaries, irreversible effects, personal data, authorized reuse, honest completion). Every other deferral gets a TECHNICAL-DEBT.md entry with a trigger. → conventions/30-operating-profile.md
 - Never modify CLAUDE.md, Conventions.md, or convention docs without explicit permission.
 - Read feature-tree.md before building anything new. Check what already exists.
 - Feature directory basename, feature-tree.md Feature column, and docs/features filename must match. If business identity differs from directory name, rename so they align. → development/MAINTAIN.md
