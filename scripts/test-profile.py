@@ -1215,6 +1215,42 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(), entry)
         self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
 
+    def test_unrecognized_line_mentioning_a_field_name_warns(self):
+        entry = debt_entry(183, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\nThe status of the retry is unchanged; see the kind note.\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assertEqual(code, 0, out)
+        self.assertIn("WARN: TD-183: line(s)", out)
+        self.assertIn("mention a field name but were not read as fields", out)
+        self.assertIn("DEFERRED: TD-183 until public-access", out)
+        entry = debt_entry(184, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\nStill waiting on the first tester.\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assert_clean(out, code)
+        self.assertNotIn("WARN", out)
+
+    def test_fused_labels_with_colons_fail_loudly(self):
+        for control_line in ("- **note**C*ontrol***: floor: secrets", "- <span>note</span>Control: floor: secrets", "- **note**Control: floor: secrets"):
+            with self.subTest(control_line=control_line):
+                entry = "## TD-185 — fused with colon\n\n- **Status:** open\n- **Kind:** shortcut\n" + control_line + "\n"
+                code, out = self.run_validator(profile_text(), entry)
+                self.assert_fail(out, code, "TD-185: field label(s) found on lines the validator does not read as fields: Control")
+        lines = ["- **note**" + n[0] + "*" + n[1:] + "***: " + v for n, v in (("Status", "open"), ("Kind", "deferral"), ("Control", "#23"), ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))]
+        entry = "## TD-186 — all fused\n\n" + "\n".join(lines) + "\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("TD-186: field label(s) found on lines the validator does not read as fields", out)
+
+    def test_quoted_link_title_in_the_identifier_is_read(self):
+        entry = '## [TD](#issue "task)")-187 floor shortcut\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n'
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-187: a floor item (secrets) is never postponed")
+
+    def test_exotic_no_colon_shapes_at_least_warn(self):
+        for line in ("- **note [Kind](#field)** deferral", "- **K[ind](#field)** deferral", "- **note**K<span class='label'>ind</span>** deferral", "- **note**` Kind ` deferral"):
+            with self.subTest(line=line):
+                entry = debt_entry(188, due="public-access").rstrip("\n") + "\n" + line + "\n\n"
+                code, out = self.run_validator(profile_text(TRIAL), entry)
+                self.assertTrue(("TD-188: field label(s) found" in out) or ("WARN: TD-188: line(s)" in out), out)
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)

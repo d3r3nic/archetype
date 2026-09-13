@@ -18,9 +18,14 @@
 #      per entry and the first value wins; a Kind line with no value fails; ids are unique; an entry
 #      runs from its "## TD-" heading to the next one or a level-one heading; a TD heading of any
 #      other shape (another level, no space, underlined) fails if it carries entry fields and
-#      warns otherwise; a field is a list item with a bold label, and a governed label on a line
-#      that is not a list item fails rather than vanishing; fenced examples are skipped with fence
-#      length respected, and an unclosed code fence fails (it would hide every entry after it)
+#      warns otherwise; a field is a list item with a bold label and the value on the same line;
+#      a field label written in another recognizable shape fails rather than vanishing; any other
+#      line inside an entry that mentions a field name warns as a possible unread field; fenced
+#      examples are skipped with fence length respected, and an unclosed code fence fails (it would
+#      hide every entry after it)
+#   The contract is the documented format. The parser recognizes many deviations and fails them; it
+#   does not parse arbitrary Markdown or HTML, so a deviation it cannot recognize is caught only by the
+#   warning above and by review.
 #   4. Triggered deferrals fail: a Due-before trigger the facts make true, or a Due-before date
 #      reached (inclusive), blocks until the entry is fixed; won't-fix does not clear it
 #   5. A Review-by date in the past warns
@@ -273,7 +278,7 @@ else
   SEEN=0
   SUPPRESS_PASS=0
   SEEN_IDS=" "
-  while IFS="$US" read -r id status kind control due review closure dups strays kindpresent metapresent; do
+  while IFS="$US" read -r id status kind control due review closure dups strays kindpresent metapresent mentions; do
     [ -z "$id" ] && continue
     ENTRY_ERRORS=$ERRORS
     PENDING_DEFER=""
@@ -301,6 +306,9 @@ else
     if [ -n "$strays" ]; then
       fail "$id: field label(s) found on lines the validator does not read as fields:$strays; write each as a list item such as \"- **Kind:** deferral\""
       SUPPRESS_PASS=1
+    fi
+    if [ -n "$mentions" ]; then
+      warn "$id: line(s)$mentions mention a field name but were not read as fields; if one of them is a field, write it as \"- **Name:** value\" (the six field names are reserved words inside an entry)"
     fi
     if [ -z "$kind" ] && [ "$kindpresent" != "1" ] && [ "$metapresent" = "1" ]; then
       fail "$id: carries deferral fields (Control, Due-before, Review-by, or Closure-evidence) but no Kind line; add \"- **Kind:** deferral\" or \"- **Kind:** shortcut\""
@@ -382,10 +390,10 @@ else
   done < <(awk -v US="$US" '
     function flush(   mp) {
       mp = (("Control" in seen) || ("Due-before" in seen) || ("Review-by" in seen) || ("Closure-evidence" in seen)) ? 1 : 0
-      if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%d%s%d\n", id, US, status, US, kind, US, control, US, due, US, review, US, closure, US, dups, US, strays, US, kindpresent, US, mp
+      if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%d%s%d%s%s\n", id, US, status, US, kind, US, control, US, due, US, review, US, closure, US, dups, US, strays, US, kindpresent, US, mp, US, mentions
       if (odd != "") printf "ODD-HEADING%s%s%s%d\n", US, odd, US, oddfields
     }
-    function reset() { id = ""; status = ""; kind = ""; control = ""; due = ""; review = ""; closure = ""; dups = ""; strays = ""; odd = ""; oddfields = 0; kindpresent = 0; split("", seen) }
+    function reset() { id = ""; status = ""; kind = ""; control = ""; due = ""; review = ""; closure = ""; dups = ""; strays = ""; mentions = ""; odd = ""; oddfields = 0; kindpresent = 0; split("", seen) }
     # A governed label that appears on a line the list-item rule does not read (a tab-indented or
     # deeply indented block, a label in running text) is a stray: the entry fails instead of the
     # field vanishing.
@@ -466,7 +474,8 @@ else
     }
     # Remove tags, code marks, and emphasis marks from a span; with spaces = 1 the marks become spaces.
     function decode(x, spaces) {
-      gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", x); gsub(/[\[\]()]/, " ", x)
+      if (spaces) gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, " ", x); else gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", x)
+      gsub(/\]\(([^()"]|"[^"]*"|\([^()]*\))*\)/, "]", x); gsub(/[\[\]()]/, " ", x)
       if (spaces) gsub(/[`*_]/, " ", x); else gsub(/[`*_]/, "", x)
       return x
     }
@@ -542,7 +551,7 @@ else
       while (t ~ /^([ \t]|[*_`\[]|<[^ \t>]*[ \t])/) sub(/^([ \t]+|[*_`\[]+|<[^ \t>]*[ \t]+)/, "", t)
       # Inline markup inside the identifier itself ("**TD**-903", "T*D*-903", "[TD](#x)-903") is
       # removed too: link destinations first, then markers and brackets.
-      gsub(/\]\(([^()]|\([^()]*\))*\)/, "]", t); gsub(/[*_`\[\]]/, "", t); sub(/^[ \t]+/, "", t)
+      gsub(/\]\(([^()"]|"[^"]*"|\([^()]*\))*\)/, "]", t); gsub(/[*_`\[\]]/, "", t); sub(/^[ \t]+/, "", t)
       # The identifier prefix is read in any letter case and reported as TD-.
       if (tolower(substr(t, 1, 3)) == "td-") t = "TD-" substr(t, 4)
       return t
@@ -567,23 +576,33 @@ else
     # The label must carry some inline markup; every marker, tag, and link destination is removed
     # from it before the name is compared. A label that is not a governed name but contains one as a
     # word ("oops Kind", "Control value") is recorded in mixedlabel so the caller fails it loudly.
-    function fieldname(s,   pos, label) {
+    function fieldname(s,   pos, label, lab0, lab1) {
       mixedlabel = ""
       if (s !~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/) return ""
       sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/, "", s)
       pos = delimpos(s); if (pos == 0) return ""
       label = substr(s, 1, pos - 1)
       if (label !~ /[*_`<\[]/) return ""
-      gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", label); gsub(/\]\(([^()]|\([^()]*\))*\)/, "]", label); gsub(/[*_`\[\]()#]/, "", label)
-      sub(/^[ \t]+/, "", label); sub(/[ \t]+$/, "", label)
-      if (governed(label)) return label
+      # Two decodings: marks and tags removed ("K<span>ind</span>" reads Kind), and marks and tags
+      # turned into spaces ("**note**Control" reads "note Control").
+      lab0 = decode(label, 0); gsub(/#/, "", lab0); sub(/^[ \t]+/, "", lab0); sub(/[ \t]+$/, "", lab0)
+      lab1 = decode(label, 1); gsub(/#/, "", lab1); gsub(/[ \t]+/, " ", lab1); sub(/^ /, "", lab1); sub(/ $/, "", lab1)
+      if (governed(lab0)) return lab0
+      if (governed(lab1)) return lab1
       # A governed name as a whole word among other words or punctuation ("Control / rule",
-      # "Control, if any", "Control v2") is recorded so the caller fails it; "Controller" is not.
-      if (match(tolower(label), /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) {
-        mixedlabel = substr(tolower(label), RSTART, RLENGTH); gsub(/[^a-z-]/, "", mixedlabel); mixedlabel = canon(mixedlabel); return ""
+      # "Control, if any", "note Control") in either decoding is recorded so the caller fails it.
+      if (match(tolower(lab0), /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) || match(tolower(lab1), /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) {
+        mixedlabel = substr(tolower(lab0 " " lab1), RSTART, RLENGTH); if (mixedlabel !~ /(status|kind|control|due-before|review-by|closure-evidence)/) { match(tolower(lab0 " " lab1), /(status|kind|control|due-before|review-by|closure-evidence)/); mixedlabel = substr(tolower(lab0 " " lab1), RSTART, RLENGTH) }
+        gsub(/[^a-z-]/, "", mixedlabel); mixedlabel = canon(mixedlabel); return ""
       }
-      if (label !~ /^[A-Za-z][A-Za-z \t-]*$/) return ""
-      return label
+      # A label that markup splits into several parts and that holds a governed name inside
+      # ("**note**C*ontrol***" reads "notecontrol" one way and "note c ontrol" the other) is not a
+      # clean field name either; "Controller" has no split and stays free.
+      if (lab1 ~ / / && match(tolower(lab0), /(status|kind|control|due-before|review-by|closure-evidence)/)) {
+        mixedlabel = canon(substr(tolower(lab0), RSTART, RLENGTH)); return ""
+      }
+      if (lab0 !~ /^[A-Za-z][A-Za-z \t-]*$/) return ""
+      return lab0
     }
     # The value is everything after the delimiter, with the markers that closed the label stripped,
     # then whitespace; the value itself, links and all, is left alone.
@@ -658,6 +677,19 @@ else
         st = strayname($0)
         if (st == "" && mixedlabel != "") st = mixedlabel
         if (st != "") strays = strays " " st
+        else {
+          # The broad net: a line that is not a field and not a recognized stray but still mentions a
+          # field name, in any letter case and under any markup, is reported as a possible field the
+          # validator did not read. Prose that merely uses the word is warned about, not failed.
+          lw = tolower(decode($0, 0)); lw1 = tolower(decode($0, 1))
+          if (match(lw, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) || match(lw1, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) mentions = mentions " " FNR
+          else {
+            # A word split by markup ("K[ind](#f)", "K<span>ind</span>") shows as a letter touching a
+            # marker, bracket, or tag; then the letters alone are searched for a field name.
+            lw2 = tolower($0)
+            if (lw2 ~ /[a-z]([*_`\[<]|\]\()|([*_`\]>])[a-z]/) { lw2 = decode(lw2, 0); gsub(/[^a-z]/, "", lw2); if (lw2 ~ /(status|kind|control|due-before|review-by|closure-evidence|duebefore|reviewby|closureevidence)/) mentions = mentions " " FNR }
+          }
+        }
         next
       }
       if (!governed(name)) next

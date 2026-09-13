@@ -49,7 +49,7 @@ What a project owes is the union of this floor, its stage's baseline, the requir
 
 ## What the validator cannot see
 
-It reads declarations and checks their consistency. It does not observe users, data, or money; it cannot tell whether a stated fact is true; it has no memory of earlier profiles, so a downgrade that also rewrites the facts is caught by review, not by the script; it knows a deferral is a floor item only when the entry labels the control as one, so whether a postponed piece of a security convention was rate limiting (deferrable) or input validation (floor) is a judgment the independent audit makes; and it stands at no action boundary. The playbooks name where to run it. Nothing here claims automatic prevention.
+It reads declarations and checks their consistency. It does not observe users, data, or money; it cannot tell whether a stated fact is true; it has no memory of earlier profiles, so a downgrade that also rewrites the facts is caught by review, not by the script; it knows a deferral is a floor item only when the entry labels the control as one, so whether a postponed piece of a security convention was rate limiting (deferrable) or input validation (floor) is a judgment the independent audit makes; and it stands at no action boundary. It reads the documented entry format (a list item, a bold label, the value on the same line, the six field names exact) and fails the deviations it can recognize; it does not parse arbitrary Markdown or HTML, so a field written in a shape it cannot recognize is reported only as a warning that a line mentions a field name, and the review reads the entry. The playbooks name where to run it. Nothing here claims automatic prevention.
 
 ## Violations
 
