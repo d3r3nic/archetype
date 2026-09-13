@@ -398,17 +398,19 @@ else
     # everyday word are not labels.
     function strayname(s,   found, m, t) {
       s = tolower(s); found = ""
+      # Parenthesized asides inside a label ("**Kind (see note)**") do not hide the label.
+      gsub(/\([^()]*\)/, "", s)
       # An emphasized or tagged label at the start of the line, even without a colon.
       # Leading plain words are allowed only on a list item ("- note **Kind** deferral"); a prose
       # sentence with an italic everyday word is not a label.
-      if (match(s, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([a-z][a-z ]*[ \t]+)?)?([*_`\[]|<[^>]*>)+[ \t]*(status|kind|control|due-before|review-by|closure-evidence)[ \t]*([*_`\]]|<[^>]*>)+/)) {
+      if (match(s, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<\[]*[ \t])?)?([*_`\[]|<[^>]*>)+[ \t]*(status|kind|control|due-before|review-by|closure-evidence)[ \t]*([*_`\]]|<[^>]*>)+/)) {
         m = substr(s, RSTART, RLENGTH); gsub(/<[^>]*>/, "", m)
         if (match(m, /(status|kind|control|due-before|review-by|closure-evidence)[ \t]*[*_`\]]+[ \t]*$/)) m = substr(m, RSTART, RLENGTH)
         gsub(/[^a-z-]/, "", m); found = " " canon(m)
         s = substr(s, RSTART + RLENGTH)
       }
       # A governed name followed by a colon anywhere, with any markup between the name and the colon.
-      t = s; gsub(/<[^>]*>/, "", t); gsub(/\]\(([^()]|\([^()]*\))*\)/, "", t); gsub(/[*_`\[\]]/, "", t)
+      t = s; gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", t); gsub(/\]\(([^()]|\([^()]*\))*\)/, "", t); gsub(/[*_`\[\]]/, "", t)
       while (match(t, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)[ \t]*:/)) {
         m = substr(t, RSTART, RLENGTH); sub(/^[^a-z]/, "", m); sub(/[ \t]*:$/, "", m)
         if (index(found, " " canon(m)) == 0) found = found " " canon(m)
@@ -435,11 +437,16 @@ else
     # A plain "Kind: value" list item carries no markup and is left to the stray rule.
     # The label delimiter is the first colon that sits outside parentheses (link destinations, which
     # may nest one level) and outside HTML tags, so "https:" inside a link never splits a label.
-    function delimpos(s,   i, c, depth, intag) {
-      depth = 0; intag = 0
+    function delimpos(s,   i, c, depth, intag, q) {
+      depth = 0; intag = 0; q = ""
       for (i = 1; i <= length(s); i++) {
         c = substr(s, i, 1)
-        if (intag) { if (c == ">") intag = 0; continue }
+        if (intag) {
+          if (q != "") { if (c == q) q = ""; continue }
+          if (c == "\"" || c == "\047") { q = c; continue }
+          if (c == ">") intag = 0
+          continue
+        }
         if (c == "<") { intag = 1; continue }
         if (c == "(") { depth++; continue }
         if (c == ")") { if (depth > 0) depth--; continue }
@@ -457,10 +464,15 @@ else
       pos = delimpos(s); if (pos == 0) return ""
       label = substr(s, 1, pos - 1)
       if (label !~ /[*_`<\[]/) return ""
-      gsub(/<[^>]*>/, "", label); gsub(/\]\(([^()]|\([^()]*\))*\)/, "]", label); gsub(/[*_`\[\]()#]/, "", label)
+      gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", label); gsub(/\]\(([^()]|\([^()]*\))*\)/, "]", label); gsub(/[*_`\[\]()#]/, "", label)
       sub(/^[ \t]+/, "", label); sub(/[ \t]+$/, "", label)
+      if (governed(label)) return label
+      # A governed name as a whole word among other words or punctuation ("Control / rule",
+      # "Control, if any", "Control v2") is recorded so the caller fails it; "Controller" is not.
+      if (match(tolower(label), /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) {
+        mixedlabel = substr(tolower(label), RSTART, RLENGTH); gsub(/[^a-z-]/, "", mixedlabel); mixedlabel = canon(mixedlabel); return ""
+      }
       if (label !~ /^[A-Za-z][A-Za-z \t-]*$/) return ""
-      if (!governed(label) && match(tolower(label), /(status|kind|control|due-before|review-by|closure-evidence)/)) { mixedlabel = canon(substr(tolower(label), RSTART, RLENGTH)); return "" }
       return label
     }
     # The value is everything after the delimiter, with the markers that closed the label stripped,

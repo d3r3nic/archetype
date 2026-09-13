@@ -932,6 +932,38 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_clean(out, code)
         self.assertIn("DEFERRED: TD-142 until public-access", out)
 
+    def test_non_letter_leading_words_and_parenthesized_labels_fail_loudly(self):
+        entry = "## TD-143 — odd leads\n\n- **Status:** open\n- 1st **Kind** deferral\n- 2nd **Control** floor secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_fail(out, code, "TD-143: field label(s) found on lines the validator does not read as fields: Kind Control")
+        entry = "## TD-144 — parenthesized\n\n- **Status:** open\n- **Kind (see: note)** deferral\n- **Control (see: note)** floor: secrets\n"
+        code, out = self.run_validator(profile_text(), entry)
+        self.assertEqual(code, 1, out)
+        self.assertIn("TD-144: field label(s) found on lines the validator does not read as fields", out)
+
+    def test_punctuated_labels_containing_a_governed_word_fail_loudly(self):
+        for line in ("- **Control / rule:** floor: secrets", "- **Control, if any:** floor: secrets", "- **Control v2:** floor: secrets"):
+            with self.subTest(line=line):
+                entry = "## TD-145 — punctuated\n\n- **Status:** open\n- **Kind:** shortcut\n" + line + "\n"
+                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+                self.assert_fail(out, code, "TD-145: field label(s) found on lines the validator does not read as fields: Control")
+        entry = ("## TD-146 — every label padded\n\n- **Status, if any:** open\n- **Kind, if any:** deferral\n- **Control, if any:** #23\n"
+                 "- **Due-before, if any:** first-outside-participant\n- **Review-by, if any:** 2027-01-01\n- **Closure-evidence, if any:** a test\n")
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("TD-146: field label(s) found on lines the validator does not read as fields", out)
+
+    def test_quoted_angle_bracket_inside_a_label_tag_is_read(self):
+        entry = '## TD-147 — quoted tag\n\n- **Status:** open\n- **Kind:** shortcut\n- **<span title="greater > value: x">Control</span>:** floor: secrets\n'
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assert_fail(out, code, "TD-147: a floor item (secrets) is never postponed")
+
+    def test_labels_that_merely_contain_a_governed_substring_are_free(self):
+        entry = debt_entry(148, due="public-access").rstrip("\n") + "\n- **Controller:** the API gateway\n- **Statuspage:** not affected\n- **Unkind:** no\n\n"
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assert_clean(out, code)
+        self.assertIn("DEFERRED: TD-148 until public-access", out)
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)
