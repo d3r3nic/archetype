@@ -164,6 +164,7 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         for name in ('LICENSE', 'NOTICE'):
             self.assertEqual((engine / name).read_bytes(), (remote / name).read_bytes())
+        self.assertNotIn('LICENSE and NOTICE you already had', result.stdout)
 
     def test_update_keeps_an_owned_license_and_skips_its_pair(self):
         self.inject()
@@ -176,7 +177,8 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual((engine / 'LICENSE').read_text(), 'Project-owned license\n')
         self.assertFalse((engine / 'NOTICE').exists())
         self.assertIn('KEPT', result.stdout)
-        self.assertIn('SKIPPED', result.stdout)
+        self.assertIn('not added while the other file of the pair is present', result.stdout)
+        self.assertIn('LICENSE and NOTICE you already had', result.stdout)
 
     def test_update_says_nothing_about_a_license_that_already_matches(self):
         self.inject()
@@ -293,6 +295,7 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         root_agents = self.project / 'AGENTS.md'
         legacy_root_agents = root_agents.read_bytes() if root_agents.exists() else None
+        legacy_license = {name: (self.project / 'archetype' / name).exists() for name in ('LICENSE', 'NOTICE')}
         remote, env = self.update_source()
         command = ['bash', str(self.project / 'archetype/update.sh')]
         result = self.run_command(command, input='y\n', env=env, cwd=self.project)
@@ -302,7 +305,8 @@ class Entrypoints(unittest.TestCase):
         if legacy_root_agents is None:
             self.assertFalse(root_agents.exists())
         for name in ('LICENSE', 'NOTICE'):
-            self.assertFalse((self.project / 'archetype' / name).exists())
+            if not legacy_license[name]:
+                self.assertFalse((self.project / 'archetype' / name).exists())
         result = self.run_command(command, input='y\n', env=env, cwd=self.project)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual((self.project / 'AGENTS.md').read_bytes(), (remote / 'AGENTS.md').read_bytes())

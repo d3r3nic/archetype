@@ -127,7 +127,7 @@ your-project/
     └── features/              # Feature code (self-contained, plugs into shared)
 ```
 
-An engine installed with inject.sh keeps the framework files, LICENSE, and NOTICE inside the engine folder (`archetype/` by default).
+inject.sh installs the framework files into the engine folder (`archetype/` by default), LICENSE and NOTICE with them. The managed AGENTS.md and CLAUDE.md entry points are also written to the project root and carry the same license.
 
 ## Key Principles
 
@@ -142,6 +142,6 @@ An engine installed with inject.sh keeps the framework files, LICENSE, and NOTIC
 
 Apache License 2.0. See LICENSE and NOTICE.
 
-The license covers the framework files in this repository, the engine folder they install into a project, and framework files copied out of that folder. It does not cover the project you build with them: your project's code, content, and data stay yours.
+The license covers the framework files in this repository, the engine folder they install into a project, and verbatim copies of framework files placed elsewhere in a project. It does not cover the project you build with them: your project's code, content, and data stay yours, and a template you copy and fill in with your project's facts is your content, not a framework file.
 
 Keep LICENSE and NOTICE with the framework files when a project that carries them is shared. The installer places both inside the engine folder. The updater adds them only when both are missing, never replaces a copy you changed, and in a full-clone layout installs them as LICENSE-ARCHETYPE and NOTICE-ARCHETYPE so your own license file is never touched. An engine installed before this release receives them on the update run after its updater has replaced itself (see the two-step note above).

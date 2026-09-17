@@ -66,7 +66,7 @@ license_target() {
 }
 license_display() {
   target="$(license_target "$1")"
-  echo "${target#$PROJECT_ROOT/}"
+  printf '%s\n' "${target#"$PROJECT_ROOT"/}"
 }
 for file in $UNIVERSAL_FILES update.sh; do
   if [ -L "$ARCHETYPE_DIR/$file" ] || { [ -e "$ARCHETYPE_DIR/$file" ] && [ ! -f "$ARCHETYPE_DIR/$file" ]; }; then
@@ -188,7 +188,7 @@ for file in $LICENSE_FILES; do
       LICENSE_REPORT="$LICENSE_REPORT  KEPT: $(license_display "$file") (your copy, not replaced)
 "
     else
-      LICENSE_REPORT="$LICENSE_REPORT  SKIPPED: $(license_display "$file") (not added beside a copy you own)
+      LICENSE_REPORT="$LICENSE_REPORT  SKIPPED: $(license_display "$file") (not added while the other file of the pair is present)
 "
     fi
   fi
@@ -398,7 +398,9 @@ echo "  - Phase docs (bootstrap, scaffold, develop, maintain)"
 echo "  - Templates"
 echo ""
 echo "What was NOT touched:"
-echo "  - LICENSE and NOTICE you already had (the engine's own copies are only added when both are missing)"
+if [ "$LICENSE_ACTION" != "install" ]; then
+  echo "  - LICENSE and NOTICE you already had (the engine's own copies are only added when both are missing)"
+fi
 echo "  - References.md (project-specific)"
 echo "  - feature-tree.md (project-specific)"
 echo "  - conventions/overrides/ (project-specific)"
