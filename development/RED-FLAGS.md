@@ -68,6 +68,12 @@ When the language's strict type config fights a library's generic signatures (e.
 
 **Defense:** refactor the call site, don't escape-hatch the type system. If `where: condition ? {...} : undefined` fights `exactOptionalPropertyTypes`, use a conditional spread (`where: { ...(condition && { ... }) }`) or build the args object imperatively. Never `as any`. Never `new` a fresh client to dodge one call's type friction. CLAUDE.md rule: *"Never escape-hatch the type system with casts, ignore comments, or re-instantiation to dodge a single call site. Refactor the call site."* Type friction is a signal that the API surface is wrong for the data, not a signal that the type system is wrong.
 
+## 10. Undesigned screen shipped
+
+Agent codes a screen or a state (an error, an empty list, a confirm dialog) the artifact never showed, because the artifact was silent and the feature was due. Tests pass, the build succeeds, and the interface has one more improvised pattern; the next feature copies it. Convention #27 exists to prevent exactly this, and a design tool run without the artifact as its brief produces the same drift one step earlier.
+
+**Defense:** DEVELOP.md Step 1 names the artifact in the inventory and lists the screens and states it covers; a gap is designed first, with the owner's pick where a direction is open (#27, #29). The feature doc's Design line records which artifact entry and revision the code implements. Nothing checks that line's truth: `validate-develop.sh` does not read the artifact, and the maintain audit's drift item is the only later catch.
+
 ---
 
 ## How to use this file

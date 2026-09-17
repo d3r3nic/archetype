@@ -36,6 +36,12 @@ Example inventory for a "record-session" feature:
 - env (src/shared/config/env.ts) — not needed directly (used via auth and db)
 - types — will use (validation schema at the HTTP boundary)
 
+A feature with a screen also names the design artifact (`References.md § Design Artifact`) as a system it will use, and lists the screens and states the artifact covers. A screen or state the artifact does not cover is designed first, through the project's design tool, with the owner's pick where a direction is open (#27, #29), and coded after. Do not improvise a screen because the artifact is silent; that is red flag #10.
+
+Example for a feature with a screen:
+
+- design (the artifact named in References.md § Design Artifact) — will use (the list screen with its empty, loading, and error states is designed; the confirm dialog is not, so it is designed first)
+
 If you find yourself wanting to `new` up a class that's already wrapped in `src/shared/`, STOP — that's red flag #2 (see `development/RED-FLAGS.md`). Use the getter.
 
 ### Step 2 — Route conventions before coding
@@ -139,6 +145,7 @@ Each feature gets a doc at `docs/features/{feature-name}.md`:
 - DB: [how used]
 - Auth: [permission requirements]
 - Logger: [what gets logged]
+- Design: [the artifact entry and revision implemented and the states covered; features with a screen only]
 
 ## API Shape
 - **Route(s):** [method + path]
