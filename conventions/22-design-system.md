@@ -24,7 +24,7 @@ Create a design system foundation that establishes:
 - The wrapper layer is where theme enforcement happens. If a component needs project-specific styling or defaults, that goes in the wrapper. Features get a clean, consistent API.
 - Before building any new component, check feature-tree.md and the shared component directory. AI builds duplicate components at a very high rate because it doesn't check what exists.
 - Never install a second component library for a single widget. Find a component within the existing foundation or find a standalone one that integrates with the project's theme. Build from scratch only when neither exists, and then inside the wrapper layer with the same API conventions.
-- These rules govern code. A mockup or artboard draws its controls as markup because it cannot import the foundation; that is design content under #27, not a hand-built component. The code that implements it uses the foundation, and a control the mockup shows that the foundation lacks is a wrapper to add, not a one-off.
+- These rules govern code. A canvas or artboard format that cannot import the foundation draws its controls as markup; that is design content under #27, not a hand-built component. A preview built from the repository's own components is code and imports the wrapper layer like any other. The code that implements a mockup uses the foundation, and a control the mockup shows that the foundation lacks is a wrapper to add, not a one-off.
 
 ## Violations
 

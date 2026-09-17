@@ -40,7 +40,7 @@ deploy:    [command to deploy]
 
 ## Design Artifact
 
-Convention #27 anchor: **AI consults the artifact first. When silent, AI asks. AI never invents UX.** Any design skill, plugin, canvas, or workspace that runs in this project reads this section first: it is the brief. One `- Label: value` line per field, labels exact; `scripts/validate-framework.sh` checks that this template carries every label.
+Convention #27 anchor: **AI consults the artifact first. When silent, AI asks. AI never invents UX.** Any design skill, plugin, canvas, or workspace that runs in this project reads this section first: it is the brief. One `- Label: value` line per field, labels exact. The framework's self-test keeps this list and convention #27 in step; nothing checks this file's own lines, so the session and the independent review do. Where the recorded direction makes two lines the same place (under `workspace-first` the artifact and the published view; under `repository-first` the artifact and the tokens source or the catalog), write `same as <label>`.
 
 - Primary tool: [category: a visual design tool / a design-system-as-code repository / an AI design canvas in the working session / an AI design workspace; the product's name and version, a dated fact, on this line]
 - Direction of truth: [repository-first (the token source, specifications, and component previews in the repository are the artifact; a workspace or canvas is a published view or a proposal) / workspace-first (the workspace or canvas is the artifact; the token source and catalog follow it)]
@@ -49,8 +49,8 @@ Convention #27 anchor: **AI consults the artifact first. When silent, AI asks. A
 - Tokens source: [path of the token file or module the code derives its theme from (#6)]
 - Component catalog: [path or URL, or none yet]
 - Brand book: [path or URL of the brand and content guidelines, or none]
-- Design working files: [folder for artboards, layout manifests, images, and sync configuration; committed; generated bundles ignored]
-- Sync: [the command or publish step that moves changes in the recorded direction; who runs it; when (after each design change, before each UI feature)]
+- Design working files: [folder for artboards, layout manifests, images, and sync configuration, a folder a tool fixes for itself recorded as it is; committed; generated bundles ignored; or none]
+- Sync: [the step that keeps the two places in step in the recorded direction: the publish under repository-first, the read-back into the repository under workspace-first; who runs it; when (after each design change, before each UI feature); or none when there is only one place]
 - Brand decided: [yes / deferred to downstream projects / not yet, directions pending the owner's pick]
 - Every UI state designed: [yes / the gaps: empty, loading, error, success, disabled, per screen]
 - Update responsibility: [who owns artifact edits; how code follow-ups trigger]

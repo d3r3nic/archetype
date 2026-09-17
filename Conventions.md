@@ -11,7 +11,7 @@ This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFO
 | Any new feature | #0, #3, #19 | #1 if new folders needed; #28 if UI text/values are involved |
 | UI component work | #4, #6, #22, #28 | #14 (accessibility), #27 (check design artifact first) |
 | Customer-facing copy / brand values | #28 | #6 (theme tokens), #16 (CONFIG.md) |
-| Any UI design decision (states, interactions, hierarchy) | #27, #6, #22 | ask developer if artifact is silent |
+| Any UI design decision (states, interactions, hierarchy) | #27, #6, #22 | propose and ask the owner if the artifact is silent |
 | Design session (mockups, a canvas, a design tool or plugin run, a design-system sync) | #27, #29 | #6, #22 (what the code derives from the design), #14 (the floor design content keeps) |
 | Forms | #20, #4, #6 | #7 (validation schemas) |
 | API consumption (client-side — fetching from an external API) | #9, #10, #8 | #7 (response types) |

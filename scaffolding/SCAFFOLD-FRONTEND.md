@@ -60,7 +60,7 @@ Build:
 - **Dark mode from day 1.** Theme has both light and dark variants wired.
 - UI library selected and CONFIGURED with the theme, OR thin wrappers over HTML primitives if the project chose no UI library. Either way, features never import raw UI-library components directly — they import from `src/shared/ui/`. Document the choice in References.md § Convention Overrides.
 - Theme provider mounted at the app root. Signals: detects system preference, persists user override, toggles via class/attribute (never media-query-only — blocks user override). Research current APIs for the chosen framework + styling system.
-- Token values come from the `Tokens source` named in `References.md § Design Artifact` when `Brand decided` is yes. Otherwise build every layer with neutral placeholder values (platform color keywords, inherited typography, relative sizing) so the owner's pick lands as a value change, not a rewrite; the semantic layer is complete either way (#27).
+- Token values come from the artifact in the recorded direction of truth (`References.md § Design Artifact`) when `Brand decided` is yes: the `Tokens source` under `repository-first`; the artifact itself under `workspace-first`, adopted into the tokens source in the same change. Otherwise build every layer with neutral placeholder values (platform color keywords, inherited typography, relative sizing) so the owner's pick lands as a value change, not a rewrite; the semantic layer is complete either way (#27).
 
 **Verify:** a test page renders with light tokens by default, switches to dark on toggle, and no component hardcodes a color.
 
