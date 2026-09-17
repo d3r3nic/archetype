@@ -71,6 +71,8 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 ```
 ├── CLAUDE.md                 # Shared enforcer with convention routing
 ├── Conventions.md             # Convention lookup index
+├── LICENSE                    # Apache License 2.0
+├── NOTICE                     # Copyright and the scope of the license
 ├── conventions/               # Framework-agnostic convention docs
 │   ├── 00-reusability.md      # Meta: everything built once, configured for context
 │   ├── 01-30.md               # Project setup, git, architecture, components, state,
@@ -131,3 +133,9 @@ your-project/
 - **Conventions describe WHAT, not HOW.** The bootstrapping AI researches the latest patterns for your specific tech stack.
 - **Feature tree as living map.** Every system and feature tracked. New AI agents read it to understand the project instantly.
 - **Documentation flows with code.** Not after. System docs, feature docs, and feature tree updated as you build.
+
+## License
+
+Apache License 2.0. See LICENSE and NOTICE.
+
+The license covers the framework files here and the engine folder they install into a project. It does not cover the project you build with them: your project's code, content, and data stay yours. Keep LICENSE and NOTICE with the engine folder when a project that carries them is shared.

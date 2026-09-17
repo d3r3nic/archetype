@@ -48,7 +48,7 @@ else
 fi
 
 # Validate destinations before network access, prompts, or writes.
-UNIVERSAL_FILES="AGENTS.md CLAUDE.md Conventions.md README.md inject.sh"
+UNIVERSAL_FILES="AGENTS.md CLAUDE.md Conventions.md README.md LICENSE NOTICE inject.sh"
 UNIVERSAL_DIRS="conventions backend frontend bootstrap scaffolding development templates scripts"
 for file in $UNIVERSAL_FILES update.sh; do
   if [ -L "$ARCHETYPE_DIR/$file" ] || { [ -e "$ARCHETYPE_DIR/$file" ] && [ ! -f "$ARCHETYPE_DIR/$file" ]; }; then
