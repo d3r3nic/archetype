@@ -138,4 +138,4 @@ your-project/
 
 Apache License 2.0. See LICENSE and NOTICE.
 
-The license covers the framework files here and the engine folder they install into a project. It does not cover the project you build with them: your project's code, content, and data stay yours. Keep LICENSE and NOTICE with the engine folder when a project that carries them is shared.
+The license covers the framework files here and the engine folder they install into a project. It does not cover the project you build with them: your project's code, content, and data stay yours. Keep LICENSE and NOTICE with the engine folder when a project that carries them is shared. The updater installs both once and never overwrites a copy you changed.

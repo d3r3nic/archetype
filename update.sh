@@ -48,9 +48,11 @@ else
 fi
 
 # Validate destinations before network access, prompts, or writes.
-UNIVERSAL_FILES="AGENTS.md CLAUDE.md Conventions.md README.md LICENSE NOTICE inject.sh"
+UNIVERSAL_FILES="AGENTS.md CLAUDE.md Conventions.md README.md inject.sh"
+# Installed once and never overwritten: a project that replaced them owns its choice.
+LICENSE_FILES="LICENSE NOTICE"
 UNIVERSAL_DIRS="conventions backend frontend bootstrap scaffolding development templates scripts"
-for file in $UNIVERSAL_FILES update.sh; do
+for file in $UNIVERSAL_FILES $LICENSE_FILES update.sh; do
   if [ -L "$ARCHETYPE_DIR/$file" ] || { [ -e "$ARCHETYPE_DIR/$file" ] && [ ! -f "$ARCHETYPE_DIR/$file" ]; }; then
     echo "Error: engine $file must be a regular file."
     exit 1
@@ -129,6 +131,13 @@ for file in $UNIVERSAL_FILES; do
   fi
 done
 
+for file in $LICENSE_FILES; do
+  if [ -f "$TEMP_DIR/$file" ] && [ ! -f "$ARCHETYPE_DIR/$file" ]; then
+    echo "  NEW: $file"
+    NEW_FILES=$((NEW_FILES + 1))
+  fi
+done
+
 # update.sh is handled separately (atomic self-replace at end)
 if [ -f "$TEMP_DIR/update.sh" ] && [ -f "$ARCHETYPE_DIR/update.sh" ]; then
   if ! diff -q "$TEMP_DIR/update.sh" "$ARCHETYPE_DIR/update.sh" > /dev/null 2>&1; then
@@ -192,6 +201,17 @@ for file in $UNIVERSAL_FILES; do
   if [ -f "$TEMP_DIR/$file" ]; then
     cp "$TEMP_DIR/$file" "$ARCHETYPE_DIR/$file"
     echo "  updated: archetype/$file"
+  fi
+done
+
+for file in $LICENSE_FILES; do
+  if [ -f "$TEMP_DIR/$file" ]; then
+    if [ ! -f "$ARCHETYPE_DIR/$file" ]; then
+      cp "$TEMP_DIR/$file" "$ARCHETYPE_DIR/$file"
+      echo "  installed: archetype/$file"
+    elif ! diff -q "$TEMP_DIR/$file" "$ARCHETYPE_DIR/$file" > /dev/null 2>&1; then
+      echo "  kept: archetype/$file (local copy preserved, not overwritten)"
+    fi
   fi
 done
 
