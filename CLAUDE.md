@@ -34,6 +34,7 @@ Everything is built once, configured for context. Before building anything, chec
 - Never import directly from third-party libraries without project wrappers. → conventions/22-design-system.md, conventions/03-architecture.md
 - Never instantiate a shared getter's underlying client yourself (for example constructing a new database client when the shared getter already exists). Use the getter. Type imports and namespace imports from the library are OK. → conventions/00-reusability.md
 - Never hand-build a standard UI component (button, input, modal, table) that the project's component foundation provides. If the project has no foundation, do not start one ad hoc: check References.md for the recorded decision, or scaffold the foundation first. → conventions/22-design-system.md
+- Design work, including any design skill, plugin, canvas, or design workspace: the artifact, the token source, the catalog, and PROFILE.md are the brief, found through References.md § Design Artifact. Design content follows the design discipline and is exempt from the code-construction rules; code follows the tokens and never inherits a mockup's literal values. The owner picks the direction from proposed directions. → conventions/27-design-foundation.md
 - Never scatter error handling. Use the centralized error system. → conventions/08-errors.md
 - Never create ad-hoc API calls. Use the API layer. → conventions/09-api.md
 - Never extract auth from JWT directly. Use the auth utility. → conventions/11-auth-security.md
