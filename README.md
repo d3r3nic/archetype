@@ -33,6 +33,8 @@ cd /tmp/archetype
 
 The framework lands in `your-project/archetype/`. Run the existing-project bootstrap from there.
 
+A full clone brings the framework's LICENSE and NOTICE with it. They cover the framework files. If your project needs its own license, rename them to LICENSE-ARCHETYPE and NOTICE-ARCHETYPE and add yours.
+
 Then tell your AI assistant:
 
 > Read bootstrap/ONBOARD.md and help me set up this project. I want to build [describe your idea].
@@ -71,6 +73,8 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 ```
 ├── CLAUDE.md                 # Shared enforcer with convention routing
 ├── Conventions.md             # Convention lookup index
+├── LICENSE                    # Apache License 2.0
+├── NOTICE                     # Copyright and license attribution
 ├── conventions/               # Framework-agnostic convention docs
 │   ├── 00-reusability.md      # Meta: everything built once, configured for context
 │   ├── 01-30.md               # Project setup, git, architecture, components, state,
@@ -123,6 +127,8 @@ your-project/
     └── features/              # Feature code (self-contained, plugs into shared)
 ```
 
+inject.sh installs the framework files into the engine folder (`archetype/` by default), LICENSE and NOTICE with them. The managed AGENTS.md and CLAUDE.md entry points are also written to the project root and carry the same license.
+
 ## Key Principles
 
 - **Everything built once, configured for context.** One error system, one API layer, one theme, one auth system. Features plug in.
@@ -131,3 +137,11 @@ your-project/
 - **Conventions describe WHAT, not HOW.** The bootstrapping AI researches the latest patterns for your specific tech stack.
 - **Feature tree as living map.** Every system and feature tracked. New AI agents read it to understand the project instantly.
 - **Documentation flows with code.** Not after. System docs, feature docs, and feature tree updated as you build.
+
+## License
+
+Apache License 2.0. See LICENSE and NOTICE.
+
+The license covers the framework files in this repository, the engine folder they install into a project, and verbatim copies of framework files placed elsewhere in a project. It does not cover the project you build with them: your project's code, content, and data stay yours, and a template you copy and fill in with your project's facts is your content, not a framework file.
+
+Keep LICENSE and NOTICE with the framework files when a project that carries them is shared. The installer places both inside the engine folder. The updater adds them only when both are missing, never replaces a copy you changed, and in a full-clone layout installs them as LICENSE-ARCHETYPE and NOTICE-ARCHETYPE so your own license file is never touched. An engine installed before this release receives them on the update run after its updater has replaced itself (see the two-step note above).

@@ -137,6 +137,93 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual((clone / 'AGENTS.md').read_bytes(), (remote / 'AGENTS.md').read_bytes())
         self.assertTrue((clone / 'VERSION-LOG.md').is_file())
 
+    def update_project(self, env):
+        return self.run_command(['bash', str(self.project / 'archetype/update.sh')],
+                                input='y\n', env=env, cwd=self.project)
+
+    def full_clone(self, remote, name):
+        clone = self.root / name
+        result = self.run_command(['git', 'clone', str(remote), str(clone)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        (clone / 'AGENTS.md').write_text(MARKER + '\nOld managed rules\n')
+        return clone
+
+    def test_install_carries_license_and_notice_into_the_engine(self):
+        self.inject()
+        engine = self.project / 'archetype'
+        for name in ('LICENSE', 'NOTICE'):
+            self.assertEqual((engine / name).read_bytes(), (SOURCE / name).read_bytes())
+
+    def test_update_installs_license_pair_when_both_are_missing(self):
+        self.inject()
+        engine = self.project / 'archetype'
+        (engine / 'LICENSE').unlink()
+        (engine / 'NOTICE').unlink()
+        remote, env = self.update_source()
+        result = self.update_project(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for name in ('LICENSE', 'NOTICE'):
+            self.assertEqual((engine / name).read_bytes(), (remote / name).read_bytes())
+        self.assertNotIn('LICENSE and NOTICE you already had', result.stdout)
+
+    def test_update_keeps_an_owned_license_and_skips_its_pair(self):
+        self.inject()
+        engine = self.project / 'archetype'
+        (engine / 'LICENSE').write_text('Project-owned license\n')
+        (engine / 'NOTICE').unlink()
+        _, env = self.update_source()
+        result = self.update_project(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((engine / 'LICENSE').read_text(), 'Project-owned license\n')
+        self.assertFalse((engine / 'NOTICE').exists())
+        self.assertIn('KEPT', result.stdout)
+        self.assertIn('not added while the other file of the pair is present', result.stdout)
+        self.assertIn('LICENSE and NOTICE you already had', result.stdout)
+
+    def test_update_says_nothing_about_a_license_that_already_matches(self):
+        self.inject()
+        _, env = self.update_source()
+        result = self.update_project(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('KEPT:', result.stdout)
+        self.assertNotIn('NEW: archetype/LICENSE', result.stdout)
+        self.assertNotIn('SKIPPED:', result.stdout)
+
+    def test_update_leaves_a_non_regular_license_path_alone(self):
+        self.inject()
+        engine = self.project / 'archetype'
+        outside = self.root / 'outside-license'
+        (engine / 'LICENSE').unlink()
+        (engine / 'LICENSE').symlink_to(outside)
+        (engine / 'NOTICE').unlink()
+        _, env = self.update_source()
+        result = self.update_project(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue((engine / 'LICENSE').is_symlink())
+        self.assertFalse(outside.exists())
+        self.assertFalse((engine / 'NOTICE').exists())
+
+    def test_full_clone_update_adds_nothing_when_the_license_came_with_the_clone(self):
+        remote, env = self.update_source()
+        clone = self.full_clone(remote, 'full-clone-licensed')
+        result = self.run_command(['bash', str(clone / 'update.sh')], input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((clone / 'LICENSE').read_bytes(), (remote / 'LICENSE').read_bytes())
+        self.assertFalse((clone / 'LICENSE-ARCHETYPE').exists())
+        self.assertFalse((clone / 'NOTICE-ARCHETYPE').exists())
+
+    def test_full_clone_update_never_touches_the_project_license(self):
+        remote, env = self.update_source()
+        clone = self.full_clone(remote, 'full-clone-owned-license')
+        (clone / 'LICENSE').write_text('Project-owned license\n')
+        (clone / 'NOTICE').unlink()
+        result = self.run_command(['bash', str(clone / 'update.sh')], input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((clone / 'LICENSE').read_text(), 'Project-owned license\n')
+        self.assertFalse((clone / 'NOTICE').exists())
+        self.assertEqual((clone / 'LICENSE-ARCHETYPE').read_bytes(), (remote / 'LICENSE').read_bytes())
+        self.assertEqual((clone / 'NOTICE-ARCHETYPE').read_bytes(), (remote / 'NOTICE').read_bytes())
+
     def test_update_refuses_symlink_before_any_project_changes(self):
         self.inject()
         outside = self.root / 'shared-guidance.md'
@@ -203,17 +290,28 @@ class Entrypoints(unittest.TestCase):
 
     @unittest.skipUnless(LEGACY_SOURCE, 'set ARCHETYPE_LEGACY_SOURCE for release-to-release verification')
     def test_previous_injected_release_upgrades_in_two_steps(self):
-        (self.project / 'AGENTS.md').unlink()  # Previous product had no AGENTS entry point.
+        (self.project / 'AGENTS.md').unlink()  # A previous release may have had no root AGENTS entry point.
         result = self.run_command(['bash', str(Path(LEGACY_SOURCE) / 'inject.sh'), str(self.project)])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        root_agents = self.project / 'AGENTS.md'
+        legacy_root_agents = root_agents.read_bytes() if root_agents.exists() else None
+        legacy_license = {name: (self.project / 'archetype' / name).exists() for name in ('LICENSE', 'NOTICE')}
         remote, env = self.update_source()
         command = ['bash', str(self.project / 'archetype/update.sh')]
         result = self.run_command(command, input='y\n', env=env, cwd=self.project)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertFalse((self.project / 'AGENTS.md').exists())
+        # Step one only replaces the updater itself; what the new updater adds waits for step two.
+        self.assertEqual((self.project / 'archetype/update.sh').read_bytes(), (remote / 'update.sh').read_bytes())
+        if legacy_root_agents is None:
+            self.assertFalse(root_agents.exists())
+        for name in ('LICENSE', 'NOTICE'):
+            if not legacy_license[name]:
+                self.assertFalse((self.project / 'archetype' / name).exists())
         result = self.run_command(command, input='y\n', env=env, cwd=self.project)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual((self.project / 'AGENTS.md').read_bytes(), (remote / 'AGENTS.md').read_bytes())
+        for name in ('LICENSE', 'NOTICE'):
+            self.assertEqual((self.project / 'archetype' / name).read_bytes(), (remote / name).read_bytes())
         self.assertEqual((self.project / 'CLAUDE.md.pre-archetype').read_bytes(), self.local['CLAUDE.md'])
         self.assertEqual((self.project / 'References.md').read_bytes(), self.local['References.md'])
 

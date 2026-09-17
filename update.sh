@@ -50,6 +50,24 @@ fi
 # Validate destinations before network access, prompts, or writes.
 UNIVERSAL_FILES="AGENTS.md CLAUDE.md Conventions.md README.md inject.sh"
 UNIVERSAL_DIRS="conventions backend frontend bootstrap scaffolding development templates scripts"
+# The engine's own license and notice. Installed only when BOTH are missing, so a
+# project-owned license never gains a notice that contradicts it, and never
+# overwritten, whatever shape the existing path has. In a full-clone layout the
+# engine folder IS the project root, so they are installed under engine-specific
+# names there and the project's own LICENSE and NOTICE are left alone.
+LICENSE_FILES="LICENSE NOTICE"
+if [ "$PROJECT_ROOT" = "$ARCHETYPE_DIR" ]; then
+  LICENSE_SUFFIX="-ARCHETYPE"
+else
+  LICENSE_SUFFIX=""
+fi
+license_target() {
+  echo "$ARCHETYPE_DIR/$1$LICENSE_SUFFIX"
+}
+license_display() {
+  target="$(license_target "$1")"
+  printf '%s\n' "${target#"$PROJECT_ROOT"/}"
+}
 for file in $UNIVERSAL_FILES update.sh; do
   if [ -L "$ARCHETYPE_DIR/$file" ] || { [ -e "$ARCHETYPE_DIR/$file" ] && [ ! -f "$ARCHETYPE_DIR/$file" ]; }; then
     echo "Error: engine $file must be a regular file."
@@ -129,6 +147,58 @@ for file in $UNIVERSAL_FILES; do
   fi
 done
 
+# License and notice: decided as a pair, never overwritten.
+LICENSE_ACTION="none"
+LICENSE_SOURCE_COMPLETE=1
+LICENSE_ANY_PRESENT=0
+for file in $LICENSE_FILES; do
+  [ -f "$TEMP_DIR/$file" ] || LICENSE_SOURCE_COMPLETE=0
+  target="$(license_target "$file")"
+  if [ -e "$target" ] || [ -L "$target" ]; then
+    LICENSE_ANY_PRESENT=1
+  fi
+done
+# A full clone already carries the engine license at its root under the plain name.
+LICENSE_ALREADY_CARRIED=0
+if [ -n "$LICENSE_SUFFIX" ] && [ -f "$TEMP_DIR/LICENSE" ] && [ -f "$ARCHETYPE_DIR/LICENSE" ] && \
+   diff -q "$TEMP_DIR/LICENSE" "$ARCHETYPE_DIR/LICENSE" > /dev/null 2>&1; then
+  LICENSE_ALREADY_CARRIED=1
+fi
+if [ "$LICENSE_SOURCE_COMPLETE" = 1 ] && [ "$LICENSE_ALREADY_CARRIED" = 0 ]; then
+  if [ "$LICENSE_ANY_PRESENT" = 0 ]; then
+    LICENSE_ACTION="install"
+  else
+    LICENSE_ACTION="keep"
+  fi
+fi
+
+# Report only what the run will actually do. A copy identical to the source is
+# already correct and says nothing.
+LICENSE_REPORT=""
+for file in $LICENSE_FILES; do
+  target="$(license_target "$file")"
+  if [ "$LICENSE_ACTION" = "install" ]; then
+    LICENSE_REPORT="$LICENSE_REPORT  NEW: $(license_display "$file")
+"
+    NEW_FILES=$((NEW_FILES + 1))
+  elif [ "$LICENSE_ACTION" = "keep" ]; then
+    if [ -f "$target" ] && [ ! -L "$target" ] && diff -q "$TEMP_DIR/$file" "$target" > /dev/null 2>&1; then
+      continue
+    elif [ -e "$target" ] || [ -L "$target" ]; then
+      LICENSE_REPORT="$LICENSE_REPORT  KEPT: $(license_display "$file") (your copy, not replaced)
+"
+    else
+      LICENSE_REPORT="$LICENSE_REPORT  SKIPPED: $(license_display "$file") (not added while the other file of the pair is present)
+"
+    fi
+  fi
+done
+if [ -n "$LICENSE_REPORT" ]; then
+  echo ""
+  echo "--- License and notice (installed only when missing, never overwritten) ---"
+  printf '%s' "$LICENSE_REPORT"
+fi
+
 # update.sh is handled separately (atomic self-replace at end)
 if [ -f "$TEMP_DIR/update.sh" ] && [ -f "$ARCHETYPE_DIR/update.sh" ]; then
   if ! diff -q "$TEMP_DIR/update.sh" "$ARCHETYPE_DIR/update.sh" > /dev/null 2>&1; then
@@ -194,6 +264,13 @@ for file in $UNIVERSAL_FILES; do
     echo "  updated: archetype/$file"
   fi
 done
+
+if [ "$LICENSE_ACTION" = "install" ]; then
+  for file in $LICENSE_FILES; do
+    cp "$TEMP_DIR/$file" "$(license_target "$file")"
+    echo "  installed: $(license_display "$file")"
+  done
+fi
 
 for dir in $UNIVERSAL_DIRS; do
   if [ -d "$TEMP_DIR/$dir" ]; then
@@ -321,6 +398,9 @@ echo "  - Phase docs (bootstrap, scaffold, develop, maintain)"
 echo "  - Templates"
 echo ""
 echo "What was NOT touched:"
+if [ "$LICENSE_ACTION" != "install" ]; then
+  echo "  - LICENSE and NOTICE you already had (the engine's own copies are only added when both are missing)"
+fi
 echo "  - References.md (project-specific)"
 echo "  - feature-tree.md (project-specific)"
 echo "  - conventions/overrides/ (project-specific)"
