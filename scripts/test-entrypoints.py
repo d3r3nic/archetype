@@ -178,6 +178,15 @@ class Entrypoints(unittest.TestCase):
         self.assertIn('KEPT', result.stdout)
         self.assertIn('SKIPPED', result.stdout)
 
+    def test_update_says_nothing_about_a_license_that_already_matches(self):
+        self.inject()
+        _, env = self.update_source()
+        result = self.update_project(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('KEPT:', result.stdout)
+        self.assertNotIn('NEW: archetype/LICENSE', result.stdout)
+        self.assertNotIn('SKIPPED:', result.stdout)
+
     def test_update_leaves_a_non_regular_license_path_alone(self):
         self.inject()
         engine = self.project / 'archetype'
@@ -279,17 +288,26 @@ class Entrypoints(unittest.TestCase):
 
     @unittest.skipUnless(LEGACY_SOURCE, 'set ARCHETYPE_LEGACY_SOURCE for release-to-release verification')
     def test_previous_injected_release_upgrades_in_two_steps(self):
-        (self.project / 'AGENTS.md').unlink()  # Previous product had no AGENTS entry point.
+        (self.project / 'AGENTS.md').unlink()  # A previous release may have had no root AGENTS entry point.
         result = self.run_command(['bash', str(Path(LEGACY_SOURCE) / 'inject.sh'), str(self.project)])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        root_agents = self.project / 'AGENTS.md'
+        legacy_root_agents = root_agents.read_bytes() if root_agents.exists() else None
         remote, env = self.update_source()
         command = ['bash', str(self.project / 'archetype/update.sh')]
         result = self.run_command(command, input='y\n', env=env, cwd=self.project)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertFalse((self.project / 'AGENTS.md').exists())
+        # Step one only replaces the updater itself; what the new updater adds waits for step two.
+        self.assertEqual((self.project / 'archetype/update.sh').read_bytes(), (remote / 'update.sh').read_bytes())
+        if legacy_root_agents is None:
+            self.assertFalse(root_agents.exists())
+        for name in ('LICENSE', 'NOTICE'):
+            self.assertFalse((self.project / 'archetype' / name).exists())
         result = self.run_command(command, input='y\n', env=env, cwd=self.project)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual((self.project / 'AGENTS.md').read_bytes(), (remote / 'AGENTS.md').read_bytes())
+        for name in ('LICENSE', 'NOTICE'):
+            self.assertEqual((self.project / 'archetype' / name).read_bytes(), (remote / name).read_bytes())
         self.assertEqual((self.project / 'CLAUDE.md.pre-archetype').read_bytes(), self.local['CLAUDE.md'])
         self.assertEqual((self.project / 'References.md').read_bytes(), self.local['References.md'])
 

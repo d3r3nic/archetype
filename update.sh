@@ -172,20 +172,31 @@ if [ "$LICENSE_SOURCE_COMPLETE" = 1 ] && [ "$LICENSE_ALREADY_CARRIED" = 0 ]; the
   fi
 fi
 
-if [ "$LICENSE_ACTION" != "none" ]; then
+# Report only what the run will actually do. A copy identical to the source is
+# already correct and says nothing.
+LICENSE_REPORT=""
+for file in $LICENSE_FILES; do
+  target="$(license_target "$file")"
+  if [ "$LICENSE_ACTION" = "install" ]; then
+    LICENSE_REPORT="$LICENSE_REPORT  NEW: $(license_display "$file")
+"
+    NEW_FILES=$((NEW_FILES + 1))
+  elif [ "$LICENSE_ACTION" = "keep" ]; then
+    if [ -f "$target" ] && [ ! -L "$target" ] && diff -q "$TEMP_DIR/$file" "$target" > /dev/null 2>&1; then
+      continue
+    elif [ -e "$target" ] || [ -L "$target" ]; then
+      LICENSE_REPORT="$LICENSE_REPORT  KEPT: $(license_display "$file") (your copy, not replaced)
+"
+    else
+      LICENSE_REPORT="$LICENSE_REPORT  SKIPPED: $(license_display "$file") (not added beside a copy you own)
+"
+    fi
+  fi
+done
+if [ -n "$LICENSE_REPORT" ]; then
   echo ""
   echo "--- License and notice (installed only when missing, never overwritten) ---"
-  for file in $LICENSE_FILES; do
-    target="$(license_target "$file")"
-    if [ "$LICENSE_ACTION" = "install" ]; then
-      echo "  NEW: $(license_display "$file")"
-      NEW_FILES=$((NEW_FILES + 1))
-    elif [ -e "$target" ] || [ -L "$target" ]; then
-      echo "  KEPT: $(license_display "$file") (your copy, not replaced)"
-    else
-      echo "  SKIPPED: $(license_display "$file") (not added beside a copy you own)"
-    fi
-  done
+  printf '%s' "$LICENSE_REPORT"
 fi
 
 # update.sh is handled separately (atomic self-replace at end)
