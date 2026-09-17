@@ -27,6 +27,7 @@ Create a production-grade theme system that establishes:
 - Mobile-first responsive design: base styles for small screens, progressively enhance for larger screens.
 - Respect user preferences: honor system dark mode preference and reduced motion preference.
 - All interactive elements must have adequate touch target size for mobile (minimum 44x44 points).
+- These rules govern code. Design content a design tool produces (a mockup, an artboard, a preview) carries literal values by nature and follows #27; a value it introduces reaches code only through the token source.
 
 ## Violations
 
@@ -36,6 +37,7 @@ Create a production-grade theme system that establishes:
 - A single-scheme theme with no recorded decision, or any theme without a semantic layer to swap
 - Dark mode implemented by duplicating color values instead of swapping semantic tokens
 - Components referencing "gray-50" or "red-600" directly instead of semantic tokens like "bg-surface" or "color-error"
+- A mockup's literal value copied into component code instead of a token added to the theme first
 
 ## Wrong vs Right
 

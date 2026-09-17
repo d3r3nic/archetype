@@ -14,6 +14,7 @@ Phase 4 has three distinct modes, each with its own trigger. Don't conflate them
 - Convention violations in features/
 - Tech-debt log pruning (entries to escalate, fix, or close)
 - Framework version currency (run `./archetype/update.sh` status)
+- Artifact-versus-code drift (`References.md § Design Artifact`): the code's tokens equal the tokens source, every implemented screen has its artifact entry, under `repository-first` the published view is not older than the source, and under `workspace-first` the tokens source and the committed working files are not older than the artifact's current revision (#27)
 
 **How:**
 1. Run the automated gates first — `scripts/validate-develop.sh` + `scripts/validate-maintain.sh` + `scripts/validate-profile.sh` + `scripts/validate-framework.sh`.
@@ -31,6 +32,7 @@ Phase 4 has three distinct modes, each with its own trigger. Don't conflate them
 - [ ] Every doc's referenced types still exist in source
 - [ ] Convention Overrides in `References.md` still apply
 - [ ] Critical Lessons in `References.md` still apply
+- [ ] Artifact-versus-code drift: tokens in code equal the `Tokens source`, every implemented screen has its artifact entry, under `repository-first` the published view is not older than the source, and under `workspace-first` the tokens source and the committed working files are not older than the artifact's current revision (#27)
 - [ ] Tech-debt entries older than threshold: escalated OR force-fixed OR explicitly continue-deferred with fresh reason
 
 ## Mode 2 — Incident response (event-triggered)

@@ -134,6 +134,7 @@ inject.sh installs the framework files into the engine folder (`archetype/` by d
 - **Everything built once, configured for context.** One error system, one API layer, one theme, one auth system. Features plug in.
 - **Prefer an established component foundation.** Don't reinvent buttons and modals when a fitting library exists. Configure it with your theme, wrap, export.
 - **Every color scheme from day one.** The theme swaps schemes at the token layer; light and dark are the default pair.
+- **Design before code; the look is the owner's pick.** The artifact, the tokens, and the profile are the brief for any design tool that runs in the project. Mockups follow the design discipline; code follows the tokens.
 - **Conventions describe WHAT, not HOW.** The bootstrapping AI researches the latest patterns for your specific tech stack.
 - **Feature tree as living map.** Every system and feature tracked. New AI agents read it to understand the project instantly.
 - **Documentation flows with code.** Not after. System docs, feature docs, and feature tree updated as you build.

@@ -11,6 +11,7 @@
 - Error system: [how errors are handled in this feature]
 - API layer: [which endpoints this feature uses]
 - Theme: [any feature-specific tokens or styles]
+- Design: [the artifact entry and revision this feature implements (#27); the states it covers]
 - Auth: [permission requirements]
 - Forms: [if applicable - which forms and validation]
 - State: [what state this feature manages]
