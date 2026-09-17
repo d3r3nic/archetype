@@ -40,16 +40,23 @@ deploy:    [command to deploy]
 
 ## Design Artifact
 
-Convention #27 anchor: **AI consults the artifact first. When silent, AI asks. AI never invents UX.**
+Convention #27 anchor: **AI consults the artifact first. When silent, AI asks. AI never invents UX.** Any design skill, plugin, canvas, or workspace that runs in this project reads this section first: it is the brief. One `- Label: value` line per field, labels exact; `scripts/validate-framework.sh` checks that this template carries every label.
 
-- Primary tool: [AI researches the current best-in-class design-artifact tool at bootstrap time — visual design, design-system-as-code, AI-driven design assistant, or hybrid]
-- Artifact location: [URL or path; `[to be created]` if not yet produced]
-- Token pipeline (if design-system-as-code): [how tokens flow between artifact and code — e.g., plugin + repo + CI sync]
+- Primary tool: [category: a visual design tool / a design-system-as-code repository / an AI design canvas in the working session / an AI design workspace; the product's name and version, a dated fact, on this line]
+- Direction of truth: [repository-first (the token source, specifications, and component previews in the repository are the artifact; a workspace or canvas is a published view or a proposal) / workspace-first (the workspace or canvas is the artifact; the token source and catalog follow it)]
+- Artifact location: [path or URL; `[to be created]` until first published]
+- Published view: [URL of the published view, or none]
+- Tokens source: [path of the token file or module the code derives its theme from (#6)]
+- Component catalog: [path or URL, or none yet]
+- Brand book: [path or URL of the brand and content guidelines, or none]
+- Design working files: [folder for artboards, layout manifests, images, and sync configuration; committed; generated bundles ignored]
+- Sync: [the command or publish step that moves changes in the recorded direction; who runs it; when (after each design change, before each UI feature)]
+- Brand decided: [yes / deferred to downstream projects / not yet, directions pending the owner's pick]
+- Every UI state designed: [yes / the gaps: empty, loading, error, success, disabled, per screen]
 - Update responsibility: [who owns artifact edits; how code follow-ups trigger]
-- Every UI state is designed: empty, loading, error, success, disabled
-- Complementary tools (exploration only, never source-of-truth): [list]
+- Complementary tools: [exploration only, never source of truth; list or none]
 
-If the artifact is silent on a UI decision, AI flags it to the developer — it does not invent visual or interaction patterns.
+If the artifact is silent on a UI decision, AI proposes and asks the owner; it does not invent visual or interaction patterns. The owner picks the visual direction from proposed directions (#29); after the pick the artifact governs.
 
 ## Foundational Systems
 

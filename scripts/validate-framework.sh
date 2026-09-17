@@ -172,15 +172,72 @@ for REF in templates/references-frontend.md templates/references-backend.md temp
   fi
 done
 
-# UI-centric templates must include the Design Artifact section (convention #27 pipeline).
+# UI-centric templates must carry the labelled Design Artifact section (convention #27):
+# every design tool, every session, and the maintain audit read the same fields. The
+# label list below is the contract; the mobile template adds Platform parity. Convention
+# #27 must name every common label, so the vocabulary is checked in both directions.
+DA_LABELS="Primary tool
+Direction of truth
+Artifact location
+Published view
+Tokens source
+Component catalog
+Brand book
+Design working files
+Sync
+Brand decided
+Every UI state designed
+Update responsibility
+Complementary tools"
+DA_CONV="conventions/27-design-foundation.md"
 for REF in templates/references-frontend.md templates/references-mobile.md; do
   [ -f "$REF" ] || continue
-  if grep -qE '^## Design Artifact' "$REF"; then
-    pass "$(basename "$REF") has Design Artifact section (conv #27)"
-  else
+  if ! grep -qE '^## Design Artifact' "$REF"; then
     fail "$(basename "$REF") must include a '## Design Artifact' section (conv #27 pipeline). Bootstrap relies on this placeholder."
+    continue
   fi
+  DA_SECTION="$(awk '/^## Design Artifact/{flag=1;next} /^## /{flag=0} flag' "$REF")"
+  DA_EXTRA=""
+  case "$REF" in *references-mobile.md) DA_EXTRA="Platform parity";; esac
+  DA_MISSING=""
+  DA_UNKNOWN=""
+  OLD_IFS="$IFS"; IFS='
+'
+  for label in $DA_LABELS $DA_EXTRA; do
+    [ -n "$label" ] || continue
+    printf '%s\n' "$DA_SECTION" | grep -qE "^- ${label}:" || DA_MISSING="$DA_MISSING $label,"
+  done
+  for found in $(printf '%s\n' "$DA_SECTION" | sed -n 's/^- \([^:]*\):.*/\1/p'); do
+    case "
+$DA_LABELS
+$DA_EXTRA
+" in *"
+$found
+"*) ;; *) DA_UNKNOWN="$DA_UNKNOWN $found,";; esac
+  done
+  IFS="$OLD_IFS"
+  if [ -z "$DA_MISSING" ] && [ -z "$DA_UNKNOWN" ]; then
+    pass "$(basename "$REF") Design Artifact section carries every label of the contract (conv #27)"
+  fi
+  [ -n "$DA_MISSING" ] && fail "$(basename "$REF") Design Artifact section lacks label(s):${DA_MISSING%,} (conv #27 contract; a design tool reads these lines first)"
+  [ -n "$DA_UNKNOWN" ] && fail "$(basename "$REF") Design Artifact section has label(s) the contract does not know:${DA_UNKNOWN%,} (add to DA_LABELS in validate-framework.sh and to conv #27, or remove)"
 done
+if [ -f "$DA_CONV" ]; then
+  DA_CONV_MISSING=""
+  OLD_IFS="$IFS"; IFS='
+'
+  for label in $DA_LABELS; do
+    grep -qF "\`${label}\`" "$DA_CONV" || DA_CONV_MISSING="$DA_CONV_MISSING $label,"
+  done
+  IFS="$OLD_IFS"
+  if [ -z "$DA_CONV_MISSING" ]; then
+    pass "$DA_CONV names every Design Artifact label the templates carry"
+  else
+    fail "$DA_CONV does not name label(s):${DA_CONV_MISSING%,} (the convention and the templates must agree)"
+  fi
+else
+  fail "$DA_CONV missing; the Design Artifact contract has no convention to agree with"
+fi
 
 # ----------------------------------------------------------------------
 group 8 "No project artifacts inside the framework folder"
