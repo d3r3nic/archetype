@@ -1,8 +1,4 @@
 Archetype
 Copyright 2026 Derenic B.
 
-Licensed under the Apache License, Version 2.0 (the "License"); see the
-LICENSE file in this directory. This license covers the Archetype framework
-files distributed here, including the engine folder it installs into a
-project. It does not cover the project built with them: that project's own
-code, content, and data belong to its owner.
+Licensed under the Apache License, Version 2.0.

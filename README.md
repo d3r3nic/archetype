@@ -33,6 +33,8 @@ cd /tmp/archetype
 
 The framework lands in `your-project/archetype/`. Run the existing-project bootstrap from there.
 
+A full clone brings the framework's LICENSE and NOTICE with it. They cover the framework files. If your project needs its own license, rename them to LICENSE-ARCHETYPE and NOTICE-ARCHETYPE and add yours.
+
 Then tell your AI assistant:
 
 > Read bootstrap/ONBOARD.md and help me set up this project. I want to build [describe your idea].
@@ -125,6 +127,8 @@ your-project/
     └── features/              # Feature code (self-contained, plugs into shared)
 ```
 
+An engine installed with inject.sh keeps the framework files, LICENSE, and NOTICE inside the engine folder (`archetype/` by default).
+
 ## Key Principles
 
 - **Everything built once, configured for context.** One error system, one API layer, one theme, one auth system. Features plug in.
@@ -138,4 +142,6 @@ your-project/
 
 Apache License 2.0. See LICENSE and NOTICE.
 
-The license covers the framework files here and the engine folder they install into a project. It does not cover the project you build with them: your project's code, content, and data stay yours. Keep LICENSE and NOTICE with the engine folder when a project that carries them is shared. The updater installs both once and never overwrites a copy you changed.
+The license covers the framework files in this repository, the engine folder they install into a project, and framework files copied out of that folder. It does not cover the project you build with them: your project's code, content, and data stay yours.
+
+Keep LICENSE and NOTICE with the framework files when a project that carries them is shared. The installer places both inside the engine folder. The updater adds them only when both are missing, never replaces a copy you changed, and in a full-clone layout installs them as LICENSE-ARCHETYPE and NOTICE-ARCHETYPE so your own license file is never touched. An engine installed before this release receives them on the update run after its updater has replaced itself (see the two-step note above).

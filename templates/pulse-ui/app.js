@@ -1,3 +1,4 @@
+// Archetype pulse UI. Copyright 2026 Derenic B. Licensed under the Apache License, Version 2.0.
 // Pulse UI v1 — reads .pulse-state.json, renders 5 sections.
 // Data contract: see docs/systems/pulse-monitor.md and conventions/26-pulse-monitor.md
 // The UI is expirable; the contract is durable. Redesign freely.
