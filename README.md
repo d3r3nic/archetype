@@ -74,7 +74,7 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 ├── CLAUDE.md                 # Shared enforcer with convention routing
 ├── Conventions.md             # Convention lookup index
 ├── LICENSE                    # Apache License 2.0
-├── NOTICE                     # Copyright and the scope of the license
+├── NOTICE                     # Copyright and license attribution
 ├── conventions/               # Framework-agnostic convention docs
 │   ├── 00-reusability.md      # Meta: everything built once, configured for context
 │   ├── 01-30.md               # Project setup, git, architecture, components, state,
