@@ -132,6 +132,7 @@ Foundation decision: [established library chosen, or "project-owned" with the re
 Component-size limit: [lines per component before it must be composed (#4)]
 Import rule: [import convention]
 Platform-specific: [components that differ between iOS/Android]
+Accessibility target: [the level the project commits to, chosen at bootstrap per #14; sets the contrast floor design content keeps (#27)]
 Usage: [how features use shared components]
 
 ### Form System (#20) [if applicable]

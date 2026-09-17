@@ -132,6 +132,7 @@ Accessible components: [path to modal, dialog, dropdown with proper keyboard/ARI
 Component catalog: [catalog URL or equivalent, if applicable]
 Icons: [exception rule if any]
 A11y testing: [which tools are configured]
+Accessibility target: [the level the project commits to, chosen at bootstrap per #14; sets the contrast floor design content keeps (#27)]
 
 ### Form System (#20)
 Location: [e.g., src/shared/forms/]

@@ -178,8 +178,9 @@ done
 # label list below is the contract; the mobile template adds Platform parity. The section
 # is closed: a bullet whose label is not in the contract fails, so a note belongs outside
 # the section. Presence only: a label with an empty value passes; the placeholders'
-# content is reviewed, not parsed. Labels are matched literally (no regex, no glob), so a
-# label may carry any character. Convention #27 must name every label, mobile included,
+# content is reviewed, not parsed. Labels are matched literally (no regex, no glob); a
+# label may carry any character except a backslash, which awk -v would expand. Convention
+# #27 must name every label, mobile included,
 # inside its "Design tools" section, so the vocabulary is checked in both directions.
 DA_LABELS="Primary tool
 Direction of truth
