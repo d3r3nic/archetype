@@ -10,12 +10,12 @@ Telling a session not to read everything does not work; a session that does not 
 
 A playbook that works this way carries one line near its top, `Step ledger: <id>`, a short lower-case name for its steps in a project's ledger (`Step ledger: <id> (per feature)` when the steps run again for every feature). Each step is a heading, `## Step 3: Title` or `### Step 2.4: Title`, and directly under it:
 
-- `Read:` what to read for this step, separated by semicolons: a convention by number (`#8`, or `#8 § Rules` for one section), an engine file by its path, a project file as `project: References.md § Commands`, or `none`. Only these. A convention another step needs is that step's reading.
+- `Read:` what to read for this step, separated by semicolons (so a section name holds none): a convention by number (`#8`, or `#8 § Rules` for one section), an engine file by its path, a project file as `project: References.md § Commands`, or `none`. Only these. A convention another step needs is that step's reading.
 - `Produces:` the files and the labelled lines the step leaves behind.
-- `Check:` how the step closes. `run scripts/<script> [arguments]` for a check a script performs, run from the project root; otherwise `evidence:` and what is recorded, in whose words (`evidence: the owner's answers to this group, quoted`).
-- `Required: yes` on a step that may not be skipped. Without it, a step that does not apply is skipped with its reason recorded.
+- `Check:` how the step closes. `run scripts/<script> [arguments]` for a check a script performs, run from the project root, passing when it exits 0; otherwise `evidence:` and what is recorded, in whose words (`evidence: the owner's answers to this group, quoted`).
+- `Skip when:` the one condition under which the step does not apply (`Skip when: the build approach is a platform`). A step without this line cannot be skipped: skipping is the exception the playbook's author foresaw, never the session's own idea.
 
-The body under those lines is the doing, written as fully as it needs. A step with sub-steps (2 with 2.1 and 2.2) is a container: only its sub-steps open and close.
+These lines sit directly under the heading, before any sub-heading. The body under them is the doing, written as fully as it needs. A step with sub-steps (2 with 2.1 and 2.2) is a container: only its sub-steps open and close.
 
 ## The ledger
 
@@ -25,11 +25,11 @@ A project carries `PROGRESS.md`, from templates/progress.md: the playbooks it fo
 
 - with no arguments, names the first open step, its playbook and line, its reading, what it produces, and its check;
 - `--close <id>` closes that step: it runs the step's check and writes the line only when the check passes; a step that closes on evidence needs `--evidence` with the text; steps close in order;
-- `--skip <id> --reason <text>` records a step that does not apply, and refuses a required one;
-- `--unit <name>` selects one run of a repeating playbook (one feature);
+- `--skip <id> --reason <text>` records a step that does not apply, with the playbook's condition and how it holds here; it refuses a step whose playbook names no condition. A skipped step's check is never run;
+- `--unit <name>` selects one run of a repeating playbook (one feature; a plain name, the feature's folder name);
 - `--list` shows every step with its state.
 
-Every run first re-runs the checks of the steps the ledger says are closed. If one fails, the script says which step is reopened and names no next step until it passes again. A tick is a check that passes now, not a claim made once.
+It runs from the project root or any folder under it. Every run in a project, whatever was asked, first re-runs the checks behind the steps the ledger says are closed, in every unit. If one fails, the script says which step is reopened, and it names, closes, and skips nothing until that check passes again. A tick is a check that passes now, not a claim made once. The command always comes from the playbook; nothing in the ledger is ever run.
 
 Work that began before the ledger existed closes its finished steps one at a time, oldest first; each check still has to pass, and the evidence says the step predates the ledger.
 
@@ -39,4 +39,4 @@ A conversation cannot be checked by a script. A step that turns on one (a group 
 
 ## What the framework checks, and what it cannot
 
-`scripts/next-step.sh --lint`, which the framework self-test runs, checks every playbook that declares a step ledger: each step has exactly one `Read:`, `Produces:`, and `Check:` line, every engine path and convention number under `Read:` exists, every `run` check names an engine script that exists and nothing else, and no step id repeats. It does not check a playbook that has not declared a ledger, and no script checks that a session read what a step named, that a step was done well, that quoted evidence is what the owner said, or that nobody edited the ledger by hand. The independent review reads the ledger (#29).
+`scripts/next-step.sh --lint`, which the framework self-test runs, checks every playbook that declares a step ledger: each step has exactly one `Read:`, `Produces:`, and `Check:` line, every engine path and convention number under `Read:` exists, every `run` check names an engine script that exists and nothing else, no step id repeats, no ledger id is declared by two files, and no heading that opens with "Step" fails to parse as one. It does not check a playbook that has not declared a ledger, and no script checks that a session read what a step named, that a step was done well, that quoted evidence is what the owner said, that a skip's reason is true, or that nobody edited the ledger by hand. The independent review reads the ledger (#29).

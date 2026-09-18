@@ -31,12 +31,12 @@ Body of step one.
 Read: #8 § Principle; templates/thing.md; project: References.md
 Produces: the audience answers
 Check: evidence: the owner's answers to this group, quoted
-Required: yes
 
 ### Step 2.2 — Optional extras
 Read: none
 Produces: nothing when it does not apply
 Check: evidence: what was set up
+Skip when: the project has no extras
 
 ```
 ## Step 99: a heading inside a code fence is not a step
@@ -46,7 +46,6 @@ Check: evidence: what was set up
 Read: conventions/08-errors.md
 Produces: flag.txt
 Check: run scripts/check-flag.sh
-Required: yes
 
 ## Checklist
 
@@ -119,7 +118,7 @@ class Steps(unittest.TestCase):
     def test_lint_names_a_step_without_a_check(self):
         result = self.lint_with('Check: run scripts/check-flag.sh\n', '')
         self.assertEqual(result.returncode, 1)
-        self.assertRegex(result.stdout, r"BOOT\.md:\d+ \(boot\.3\): needs exactly one 'Check:' line \(found 0\)")
+        self.assertRegex(result.stdout, r"BOOT\.md:\d+ \(boot\.3\): needs exactly one 'Check:' line directly under the heading \(found 0\)")
 
     def test_lint_names_a_read_path_that_does_not_exist(self):
         result = self.lint_with('templates/thing.md', 'templates/gone.md')
@@ -138,12 +137,39 @@ class Steps(unittest.TestCase):
                 result = self.lint_with('Check: run scripts/check-flag.sh\n', 'Check: %s\n' % check)
                 self.assertEqual(result.returncode, 1, result.stdout)
 
-    def test_lint_names_a_repeated_step_id_and_a_bad_required(self):
+    def test_lint_names_a_repeated_step_id(self):
         result = self.lint_with('## Step 3 - Generate', '## Step 1: Again')
         self.assertRegex(result.stdout, r'\(boot\.1\): the step id appears twice')
-        self.setUp()
-        result = self.lint_with('Required: yes\n\n### Step 2.2', 'Required: maybe\n\n### Step 2.2')
-        self.assertRegex(result.stdout, r"'Required:' is yes or no, not 'maybe'")
+
+    def test_lint_fails_on_a_heading_that_looks_like_a_step_and_is_not(self):
+        for heading in ('## Step : Missing id', '##  Step 4: Two spaces', '#### Step 5: Too deep', '## Step'):
+            with self.subTest(heading=heading):
+                self.setUp()
+                result = self.lint_with('## Checklist', heading + '\nRead: none\nProduces: x\nCheck: evidence: x\n\n## Checklist')
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertRegex(result.stdout, r"BOOT\.md:\d+: a heading that opens with 'Step' is not a step")
+
+    def test_lint_leaves_ordinary_headings_alone(self):
+        result = self.lint_with('## Checklist', '## Next Step\n\n## Steps to take\n\n## Checklist')
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_lint_refuses_one_ledger_id_in_two_files(self):
+        (self.engine / 'scaffolding' / 'SCAF.md').write_text('# S\n\nStep ledger: boot\n\n## Step 40: Other\nRead: none\nProduces: x\nCheck: evidence: x\n')
+        result = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("ledger id 'boot' is also declared by", result.stdout)
+
+    def test_a_ledger_line_shown_inside_a_code_fence_declares_nothing(self):
+        (self.engine / 'development' / 'FORMAT.md').write_text('# Format\n\n```\nStep ledger: example\n```\n')
+        result = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_playbook_with_carriage_returns_is_read(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_bytes(path.read_text().replace('\n', '\r\n').encode())
+        result = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('OK: 6 steps', result.stdout)
 
     def test_lint_of_the_real_engine_passes(self):
         result = subprocess.run(['bash', str(SOURCE / 'scripts' / 'next-step.sh'), '--lint'],
@@ -181,7 +207,7 @@ class Steps(unittest.TestCase):
         self.assertIn('  - conventions/08-errors.md § Principle', result.stdout)
         self.assertIn('  - templates/thing.md', result.stdout)
         self.assertIn('  - project: References.md', result.stdout)
-        self.assertIn('Required:  yes', result.stdout)
+        self.assertIn('Skip when: never', result.stdout)
         self.assertNotIn('Step 99', self.run_tool('--list').stdout)
 
     def test_evidence_step_needs_evidence(self):
@@ -197,17 +223,17 @@ class Steps(unittest.TestCase):
         self.assertIn('the next open step is boot.1', result.stdout)
         self.assertEqual(self.closed(), [])
 
-    def test_required_step_cannot_be_skipped_and_a_skip_needs_a_reason(self):
+    def test_a_step_is_skipped_only_where_its_playbook_allows_and_with_a_reason(self):
         self.ledger()
         self.run_tool('--close', 'boot.1', '--evidence', 'done')
         refused = self.run_tool('--skip', 'boot.2.1', '--reason', 'the owner was busy')
         self.assertEqual(refused.returncode, 1)
-        self.assertIn('required', refused.stdout)
+        self.assertIn('cannot be skipped', refused.stdout)
         self.run_tool('--close', 'boot.2.1', '--evidence', 'Owner: "line cooks and managers, about forty people"')
         self.assertEqual(self.run_tool('--skip', 'boot.2.2').returncode, 1)
         skipped = self.run_tool('--skip', 'boot.2.2', '--reason', 'no extras on this project')
         self.assertEqual(skipped.returncode, 0, skipped.stdout)
-        self.assertRegex(self.closed()[-1], r'^- \[-\] boot\.2\.2 \| \d{4}-\d\d-\d\d \| rev \S+ \| skipped: no extras on this project$')
+        self.assertRegex(self.closed()[-1], r'^- \[-\] boot\.2\.2 \| \d{4}-\d\d-\d\d \| rev \S+ \| skipped \(allowed when: the project has no extras\): no extras on this project$')
 
     def close_up_to_three(self):
         self.ledger()
@@ -243,7 +269,7 @@ class Steps(unittest.TestCase):
         self.ledger()
         with open(self.project / 'PROGRESS.md', 'a') as f:
             f.write('- [x] boot.1 | 2026-01-01 | rev - | evidence: x\n- [x] boot.2.1 | 2026-01-01 | rev - | evidence: x\n'
-                    '- [-] boot.2.2 | 2026-01-01 | rev - | skipped: x\n- [x] boot.3 | 2026-01-01 | rev - | check passed: scripts/check-flag.sh\n')
+                    '- [-] boot.2.2 | 2026-01-01 | rev - | skipped (allowed when: x): x\n- [x] boot.3 | 2026-01-01 | rev - | check passed: scripts/check-flag.sh\n')
         result = self.run_tool()
         self.assertEqual(result.returncode, 1)
         self.assertIn('REOPENED: boot.3', result.stdout)
@@ -263,12 +289,100 @@ class Steps(unittest.TestCase):
         self.assertIn("'dev' repeats", bare.stdout)
         first = self.run_tool('--unit', 'board')
         self.assertIn('Next step: dev.1 @board  Inventory', first.stdout)
-        self.assertIn('--close dev.1 --unit "board"', first.stdout)
+        self.assertIn('--close dev.1 --unit board', first.stdout)
         self.run_tool('--close', 'dev.1', '--unit', 'board', '--evidence', 'errors, api')
         self.assertIn('Next step: dev.2 @board', self.run_tool('--unit', 'board').stdout)
         self.assertIn('Next step: dev.1 @profile', self.run_tool('--unit', 'profile').stdout)
         self.run_tool('--close', 'dev.2', '--unit', 'board')
         self.assertIn('Every step is closed', self.run_tool('--unit', 'board').stdout)
+
+    def close_all_of_boot(self):
+        self.close_up_to_three()
+        (self.project / 'flag.txt').write_text('x')
+        self.assertEqual(self.run_tool('--close', 'boot.3').returncode, 0)
+
+    def test_nothing_closes_skips_or_lists_clean_over_a_failing_tick(self):
+        self.ledger('boot, dev')
+        (self.engine / 'bootstrap' / 'BOOT.md').write_text(BOOT.replace('Check: evidence: the folder\'s path', 'Check: run scripts/check-flag.sh'))
+        (self.project / 'flag.txt').write_text('x')
+        self.assertEqual(self.run_tool('--close', 'boot.1').returncode, 0)
+        (self.project / 'flag.txt').unlink()
+        closing = self.run_tool('--close', 'boot.2.1', '--evidence', 'quoted')
+        self.assertEqual(closing.returncode, 1)
+        self.assertIn('REOPENED: boot.1', closing.stdout)
+        self.assertEqual(len(self.closed()), 1)
+        listing = self.run_tool('--list')
+        self.assertEqual(listing.returncode, 1)
+        self.assertIn('REOPENED: boot.1', listing.stdout)
+
+    def test_a_tick_of_any_unit_is_checked_whatever_unit_is_asked_for(self):
+        self.close_all_of_boot()
+        self.run_tool('--close', 'dev.1', '--unit', 'board', '--evidence', 'errors')
+        self.assertEqual(self.run_tool('--close', 'dev.2', '--unit', 'board').returncode, 0)
+        (self.project / 'flag.txt').unlink()
+        for args in ((), ('--unit', 'profile'), ('--unit', 'board')):
+            with self.subTest(args=args):
+                result = self.run_tool(*args)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn('dev.2 @board', result.stdout)
+
+    def test_a_check_that_is_not_an_engine_script_is_never_run(self):
+        self.close_all_of_boot()
+        outside = Path(self.temp.name) / 'outside.sh'
+        outside.write_text('#!/bin/bash\ntouch "%s"\nexit 0\n' % (Path(self.temp.name) / 'ran'))
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Check: run scripts/check-flag.sh', 'Check: run ../outside.sh'))
+        result = self.run_tool()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('not an engine script', result.stdout)
+        self.assertFalse((Path(self.temp.name) / 'ran').exists())
+
+    def test_unit_names_are_plain(self):
+        self.close_all_of_boot()
+        for unit in ('board|x', 'board ', 'a\tb', 'a\nb', 'a b', '@x', '*'):
+            with self.subTest(unit=unit):
+                before = len(self.closed())
+                result = self.run_tool('--close', 'dev.1', '--unit', unit, '--evidence', 'x')
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(len(self.closed()), before)
+
+    def test_unit_that_is_a_prefix_of_another_keeps_its_own_ticks(self):
+        self.close_all_of_boot()
+        self.run_tool('--close', 'dev.1', '--unit', 'board-2', '--evidence', 'x')
+        self.assertIn('Next step: dev.1 @board ', self.run_tool('--unit', 'board').stdout)
+
+    def test_ledger_without_a_final_newline_keeps_the_new_line(self):
+        (self.project / 'PROGRESS.md').write_text('# Progress\n\n- Playbooks: boot\n\n## Closed steps')
+        self.assertEqual(self.run_tool('--close', 'boot.1', '--evidence', 'x').returncode, 0)
+        self.assertEqual(len(self.closed()), 1)
+        self.assertIn('Next step: boot.2.1', self.run_tool().stdout)
+
+    def test_run_from_a_folder_under_the_project(self):
+        self.ledger()
+        (self.project / 'src' / 'deep').mkdir(parents=True)
+        result = self.run_tool(cwd=self.project / 'src' / 'deep')
+        self.assertIn('Next step: boot.1', result.stdout)
+
+    def test_a_failing_check_that_prints_nothing_still_says_so(self):
+        self.close_up_to_three()
+        (self.engine / 'scripts' / 'check-flag.sh').write_text('#!/bin/bash\nexit 3\n')
+        result = self.run_tool('--close', 'boot.3')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('printed nothing', result.stdout)
+
+    def test_missing_argument_values_are_refused_not_looped(self):
+        self.ledger()
+        for args in (('--close',), ('--close', '--evidence', 'x'), ('--skip',), ('--unit',)):
+            with self.subTest(args=args):
+                result = subprocess.run(['bash', str(self.engine / 'scripts' / 'next-step.sh'), *args],
+                                        cwd=self.project, text=True, capture_output=True, timeout=20)
+                self.assertEqual(len(self.closed()), 0)
+        self.assertEqual(self.run_tool('--close').returncode, 1)
+
+    def test_a_playbook_named_twice_is_walked_once(self):
+        self.ledger('boot, boot')
+        listing = self.run_tool('--list').stdout
+        self.assertEqual(listing.count('boot.1 '), 1)
 
     def test_list_shows_every_leaf_with_its_state(self):
         self.close_up_to_three()
