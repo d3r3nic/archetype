@@ -112,6 +112,41 @@ class DesignGate(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn('tasks the direction was composed for are on record', result.stdout)
 
+    def test_carriage_returns_do_not_hide_an_empty_value(self):
+        text = '# References\n\n' + section({'Captures': ''})
+        (self.project / 'References.md').write_bytes(text.replace('\n', '\r\n').encode())
+        result = self.check(None)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertRegex(result.stdout, r'placeholder or no value: Captures')
+
+    def test_filled_section_with_carriage_returns_passes(self):
+        text = '# References\n\n' + section()
+        (self.project / 'References.md').write_bytes(text.replace('\n', '\r\n').encode())
+        result = self.check(None)
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_yes_is_read_however_it_is_written(self):
+        for value in ('**yes**, the brand book records all six', 'Decided: yes', 'YES.'):
+            with self.subTest(value=value):
+                result = self.check(section({'Brand decided': value, 'First task': 'unknown; never answered'}))
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn('Brand decided is yes, but unknown: First task.', result.stdout)
+
+    def test_not_yet_is_not_yes(self):
+        result = self.check(section({'Brand decided': 'not yet, directions pending', 'First task': 'unknown; never answered'}))
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_a_note_in_the_section_is_left_alone(self):
+        result = self.check(section(extra=('- Note on the direction: [the owner picked direction two]',)))
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_project_root_wins_over_a_copy_in_the_engine_folder(self):
+        (self.project / 'archetype').mkdir()
+        (self.project / 'archetype' / 'References.md').write_text(section())
+        result = self.check(section(drop=('Density',)))
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertRegex(result.stdout, r'lacks label\(s\): Density')
+
     def test_engine_in_a_subfolder_is_found(self):
         (self.project / 'archetype').mkdir()
         (self.project / 'archetype' / 'References.md').write_text(section(drop=('Density',)))

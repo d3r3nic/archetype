@@ -19,7 +19,7 @@ Only the states that apply to this screen, from the state list in #27. For each:
 | [empty] | [nothing here yet: what this will hold] | [the one action to start] | [n/a] |
 | [error] | [what failed, in plain words] | [retry / fix / go back] | [what they typed is still there] |
 
-States that do not apply, and why: [each state of the #27 list left out of the table, with its reason: "offline: the screen is server-rendered and never opens without a connection"; none left unexplained]
+States that do not apply, and why: [each state of the #27 list left out of the table, other than disabled and overflow, which are designed on the component, with its reason: "offline: the screen is server-rendered and never opens without a connection"; none left unexplained]
 
 ## Captures
 

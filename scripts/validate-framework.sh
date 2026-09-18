@@ -225,7 +225,7 @@ $found
   done <<EOF
 $(printf '%s\n' "$DA_SECTION" | sed -n 's/^- \([^:]*\):.*/\1/p')
 EOF
-  if [ -z "$DA_MISSING" ] && [ -z "$DA_REPEATED" ] && [ -z "$DA_UNKNOWN" ]; then
+  if [ -n "$DA_LABELS" ] && [ -z "$DA_MISSING" ] && [ -z "$DA_REPEATED" ] && [ -z "$DA_UNKNOWN" ]; then
     pass "$(basename "$REF") Design Artifact section carries every label of the contract exactly once (conv #27)"
   fi
   [ -n "$DA_MISSING" ] && fail "$(basename "$REF") Design Artifact section lacks label(s):${DA_MISSING%,} (conv #27 contract; a design tool reads these lines first)"
@@ -245,7 +245,7 @@ if [ -f "$DA_CONV" ]; then
 $DA_LABELS
 $DA_MOBILE_EXTRA
 EOF
-    if [ -z "$DA_CONV_MISSING" ]; then
+    if [ -n "$DA_LABELS" ] && [ -z "$DA_CONV_MISSING" ]; then
       pass "$DA_CONV names every Design Artifact label the templates carry, in its Design tools section"
     else
       fail "$DA_CONV does not name label(s):${DA_CONV_MISSING%,} in its Design tools section (the convention and the templates must agree)"

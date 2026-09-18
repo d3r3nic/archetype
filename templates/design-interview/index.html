@@ -64,7 +64,9 @@
 <!--
   Pre-fill block. Keys are the form's field names (the answer keys of DESIGN-INTERVIEW.md, and
   color_gate, shape_gate, rules_gate for the gates). A choice takes its option's value, several
-  ticks take a comma-separated list, a scale takes 1 to 5. Leave {} when nothing is known.
+  ticks take a list or a comma-separated string, a scale takes 1 to 5. Leave {} when nothing is
+  known. A block that does not parse, or a key or option the page does not have, shows the owner
+  a line saying so and logs the names: open the page yourself first.
   Example: {"path": "pick-for-me", "business": "Shift swaps for restaurant staff", "existing": "none"}
 -->
 <script type="application/json" id="prefill">{}</script>
@@ -72,6 +74,7 @@
   <h1>How should it look?</h1>
   <p class="quiet">Answer what you care about. Anything you leave blank, or mark "you choose", I decide for you, except money: I always ask before a cost. One "no" usually skips a whole group. You will see the result before anything is built.</p>
   <noscript><p><strong>This page needs scripts to show its questions.</strong> If they are blocked here, tell me, and I will ask the same questions in our conversation.</p></noscript>
+  <p id="prefill-note" role="status" hidden></p>
 
   <form id="f">
     <fieldset>
@@ -308,12 +311,21 @@
     return lines.join('\n') + '\n';
   }
   function prefill() {
-    var data; try { data = JSON.parse(document.getElementById('prefill').textContent || '{}'); } catch (e) { return; }
-    for (var name in data) {
-      var el = form.elements[name], v = String(data[name]); if (!el) continue;
+    var data, missed = [];
+    try { data = JSON.parse(document.getElementById('prefill').textContent || '{}'); } catch (e) { data = null; }
+    for (var name in (data || {})) {
+      var el = form.elements[name], v = [].concat(data[name]).join(','), hit = false; if (!el) { missed.push(name); continue; }
       if (el.length && el[0] && (el[0].type === 'radio' || el[0].type === 'checkbox')) {
-        for (var i = 0; i < el.length; i++) el[i].checked = (', ' + v + ', ').indexOf(', ' + el[i].value + ', ') !== -1;
+        var want = ',' + v.split(',').map(function (s) { return s.replace(/^\s+|\s+$/g, ''); }).join(',') + ',';
+        for (var i = 0; i < el.length; i++) { el[i].checked = want.indexOf(',' + el[i].value + ',') !== -1; hit = hit || el[i].checked; }
+        if (!hit) missed.push(name);
       } else el.value = v;
+    }
+    if (data === null || missed.length) {
+      var note = document.getElementById('prefill-note');
+      note.textContent = 'Some answers I meant to fill in for you did not arrive' + (missed.length ? ' (' + missed.join(', ') + ')' : '') + '. Please tell me, or simply answer them here.';
+      note.hidden = false;
+      if (window.console && console.error) console.error('design interview pre-fill: ' + (data === null ? 'the block is not valid JSON' : 'no field or option for: ' + missed.join(', ')));
     }
   }
   prefill();

@@ -7,9 +7,10 @@
 # Checks:
 #   1. Every label of the contract (scripts/design-artifact-labels.txt) appears exactly once
 #   2. No line of the section still holds its template placeholder: a value that is empty or
-#      opens with "[" fails, except "[to be created]" on Artifact location, which #27 allows
-#      until the artifact is first published
-#   3. "Brand decided: yes" is refused while "First task" or "Return tasks" is unknown: a
+#      opens with "[" fails, except "[to be created]" on Artifact location, which the
+#      References templates allow until the artifact is first published. Only the contract's
+#      labels (and the mobile template's Platform parity) are read; a note is left alone
+#   3. "Brand decided" holding the word yes, however it is written, is refused while "First task" or "Return tasks" is unknown: a
 #      direction composes the screen for the first return task, so a look cannot be settled
 #      for a product whose main task nobody recorded
 #
@@ -25,8 +26,10 @@ PROJECT_ROOT="$(pwd)"
 LABELS_FILE="$SCRIPT_DIR/design-artifact-labels.txt"
 
 REFS=""
+# The project root wins: project context lives there, and a copy left inside the engine
+# folder by an older installation must not shadow it.
 for dir in "$PROJECT_ROOT" "$PROJECT_ROOT/project" "$PROJECT_ROOT/archetype"; do
-  [ -f "$dir/References.md" ] && REFS="$dir/References.md"
+  if [ -f "$dir/References.md" ]; then REFS="$dir/References.md"; break; fi
 done
 
 RED='\033[0;31m'
@@ -54,7 +57,10 @@ if ! grep -qE '^## Design Artifact' "$REFS"; then
   exit 0
 fi
 
-SECTION="$(awk '/^## Design Artifact/{flag=1;next} /^## /{flag=0} flag' "$REFS")"
+# Carriage returns are dropped first: a file saved with them must not turn an empty value
+# into a one-character value that passes.
+SECTION="$(tr -d '\r' < "$REFS" | awk '/^## Design Artifact/{flag=1;next} /^## /{flag=0} flag')"
+LABELS="$(tr -d '\r' < "$LABELS_FILE" | sed -e 's/[[:space:]]*$//' | grep -v '^#' | grep -v '^$')"
 
 # The value of a label's first line: everything after "- Label:", trimmed.
 da_value() { printf '%s\n' "$SECTION" | awk -v l="- $1:" 'index($0, l) == 1 { v = substr($0, length(l) + 1); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); print v; exit }'; }
@@ -64,21 +70,23 @@ da_count() { printf '%s\n' "$SECTION" | awk -v l="- $1:" 'index($0, l) == 1 { n+
 MISSING=""
 REPEATED=""
 while IFS= read -r label; do
-  case "$label" in ''|'#'*) continue ;; esac
+  [ -n "$label" ] || continue
   n="$(da_count "$label")"
   if [ "$n" -eq 0 ]; then MISSING="$MISSING $label,"
   elif [ "$n" -gt 1 ]; then REPEATED="$REPEATED $label,"
   fi
-done < "$LABELS_FILE"
+done <<EOF
+$LABELS
+EOF
 [ -n "$MISSING" ] && fail "Design Artifact section lacks label(s):${MISSING%,} (copy each line from the References template and fill it in; conv #27)"
 [ -n "$REPEATED" ] && fail "Design Artifact section repeats label(s):${REPEATED%,} (one line per field)"
 [ -z "$MISSING" ] && [ -z "$REPEATED" ] && pass "Every label of the contract appears exactly once"
 
-# 2. No placeholder left, on any labelled line of the section.
+# 2. No placeholder left on a line of the contract.
 UNFILLED=""
-while IFS= read -r line; do
-  case "$line" in '- '*:*) ;; *) continue ;; esac
-  label="${line#- }"; label="${label%%:*}"
+while IFS= read -r label; do
+  [ -n "$label" ] || continue
+  [ "$(da_count "$label")" -gt 0 ] || continue
   value="$(da_value "$label")"
   case "$value" in
     '') UNFILLED="$UNFILLED $label," ;;
@@ -86,7 +94,8 @@ while IFS= read -r line; do
     '['*) UNFILLED="$UNFILLED $label," ;;
   esac
 done <<EOF
-$SECTION
+$LABELS
+Platform parity
 EOF
 if [ -n "$UNFILLED" ]; then
   fail "Design Artifact line(s) still hold the template placeholder or no value:${UNFILLED%,} (record the fact, or unknown with what was assumed; a blank is not an answer)"
@@ -95,9 +104,9 @@ else
 fi
 
 # 3. A settled look needs the main task on record.
-BRAND="$(da_value "Brand decided" | tr '[:upper:]' '[:lower:]')"
-case "$BRAND" in
-  yes*)
+BRAND="$(da_value "Brand decided" | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]\n' ' ')"
+case " $BRAND " in
+  *" yes "*)
     OWED=""
     for label in "First task" "Return tasks"; do
       v="$(da_value "$label" | tr '[:upper:]' '[:lower:]')"
