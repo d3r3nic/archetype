@@ -75,7 +75,7 @@ What the framework cannot check: whether a mockup was consulted, whether the own
 
 ## Design review
 
-A screen is reviewed in this order, by someone who did not build it (#29), against the artifact, with evidence per state:
+A screen is reviewed in this order, by someone who did not build it (#29), against the artifact, with evidence per applicable state:
 
 1. Purpose: can a person do what the purpose sentence says, without help.
 2. Hierarchy: one primary action; the reading order leads to it (#31).
@@ -90,7 +90,7 @@ Evidence is one capture per applicable state per scheme per committed context, a
 
 ## The session
 
-Before any screen work a session reads, in order: References.md § Design Artifact, the brand book, the vocabulary, the tokens, the catalog, then the artifact entries for this feature. A screen the artifact covers is built from its entry. A pattern the artifact lacks is sketched first at decision fidelity (a wireframe, or a written composition: purpose, primary action, order, components, states), recorded as session-decided, then built. The session decides alone: composition within the system, component choice, spacing from the ladder, words in the vocabulary, states and their placement. It asks the owner about: identity, what a primary screen is for, a pattern the product would be recognized by. A screen is proved by its capture set before review.
+Before any screen work a session reads, in order: References.md § Design Artifact, the brand book, the vocabulary, the tokens, the catalog, then the artifact entries for this feature. A screen the artifact covers is built from its entry. A pattern the artifact lacks is sketched first at decision fidelity (a wireframe, or a written composition: purpose, primary action, order, components, states), recorded as session-decided, then built. The session decides alone: composition within the system, component choice, spacing from the ladder, words in the vocabulary, states and their placement. It asks the owner only when the gap is theirs: identity, what a primary screen is for, a pattern the product would be recognized by. A screen is proved by its capture set before review.
 
 ## Research Notes
 

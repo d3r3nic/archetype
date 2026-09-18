@@ -119,7 +119,7 @@ This distinction is not the same as #22 Design System (which is always about com
 - Should this be a desktop application, installed on a laptop or desktop?
 - Or some combination?
 - Name a well-known app in each category so the question lands with a non-technical user. Pick apps that are popular now, not ones you remember.
-- Where will people mostly use it: sitting at a computer, or on a phone while doing something else? (Fills `Primary context` in References.md § Design Artifact.)
+- Where will people mostly use it: sitting at a computer, on a phone while doing something else, on a shared screen in a room, or outdoors? Which of those is most of the time? (Fills `Primary context` in References.md § Design Artifact.)
 
 If the user says "phone app" or "works on my phone," do NOT silently pick a stack. Run the mobile disambiguation and decision tree — full detail in `bootstrap/RED-FLAGS.md` "Mobile Disambiguation" section. Three distinct choices: responsive web (cheapest), PWA (installable web + offline), native (App Store + native device APIs). Default for "I don't know" = responsive.
 

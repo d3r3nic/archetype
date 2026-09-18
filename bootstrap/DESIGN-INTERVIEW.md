@@ -42,7 +42,7 @@ Fills: the purpose sentence of the first screen and of the three primary screens
 ## Group D: how it should feel
 
 15. Show me two or three apps or sites whose feel you like, even if they do something completely different, and say in one sentence what you like about each. Then show me one you dislike, and say why.
-16. Should it feel calm, with a few things at a time, or packed with information like a spreadsheet?
+16. Should it feel calm, with a few things at a time, or packed with information like a spreadsheet? (The AI says first which it recommends from Group B's answers, and why; the owner's answer stands.)
 17. Between these pairs, where does it sit: quiet or lively; plain or warm; formal or casual; classic or modern? A word or a point between them is enough.
 18. How should it talk to people: like a colleague, like a form, like a friend? Write me one sentence you would send to a customer, in your own words.
 19. Do you want a dark appearance as well as a light one? Do you or your users use dark mode on their phones? (Both are built by default (#6); a no here is recorded with its reason.)
@@ -59,7 +59,7 @@ Fills: `Density`, the tone line of the brand set, `Color schemes`, the imagery a
 25. Does anything in your world already carry a color that means something to your users: red for urgent, green for done, a status system, a safety code, a team color? Those meanings will be kept, and the product's main color will stay away from them.
 26. Will printed material, uniforms, or signage need to match the product later?
 
-Fills: the palette inputs for the direction proposals, the reserved signal meanings (#6), and whether the brand set includes print.
+Fills: the palette inputs for the direction proposals, the reserved signal meanings (#6), and a print line in the brand book, outside the six.
 
 ## Group F: practicalities
 
@@ -92,12 +92,12 @@ What the owner is never asked after the pick: sizes, spacing, which component, w
 
 | Interview answer | Where it is recorded |
 |---|---|
-| Logo, colors, typeface, brand rules (1 to 5) | Brand book; `Brand decided`; the six lines of the brand set |
+| Logo, colors, typeface, brand rules (1 to 5) | Brand book; `Brand decided`; three of the six brand-set lines (marks, palette values, type families) |
 | Who, where, how long (6 to 8) | `Primary context`, `Committed contexts`; the density recommendation the AI brings to question 16 |
 | Users' needs (9, 10) | `Accessibility target`, `Target size`, mirroring and language notes in the brand book |
 | First thing, top three, must-not-fail (11 to 13) | Purpose sentences in the artifact; destructive-action treatment in the artifact |
 | The owner's words (14) | `Vocabulary` (the glossary file) |
 | Feel, density, tone, schemes, imagery, motion, never-look-like (15 to 22) | `Density` (question 16); brand book tone, imagery, motion lines; `Color schemes`; direction constraints |
-| Color inputs (23 to 26) | Palette proposals; reserved signals; print in the brand set |
+| Color inputs (23 to 26) | Palette proposals; reserved signals; a print line in the brand book |
 | Constraints, approver, fidelity, spend (27 to 30) | Brand book constraints; owner channel; deliverable purpose; the spend ceiling |
 | The pick | Decision location, with the artifact revision |
