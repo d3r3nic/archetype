@@ -72,7 +72,7 @@ When the language's strict type config fights a library's generic signatures (e.
 
 Agent codes a screen or a state (an error, an empty list, a confirm dialog) the artifact never showed, because the artifact was silent and the feature was due. Tests pass, the build succeeds, and the interface has one more improvised pattern; the next feature copies it. Convention #27 exists to prevent exactly this, and a design tool run without the artifact as its brief produces the same drift one step earlier.
 
-**Defense:** DEVELOP.md Step 1 names the artifact in the inventory and lists the screens and states it covers; a gap is designed first, with the owner's pick where a direction is open (#27, #29). The feature doc's Design line records which artifact entry and revision the code implements. Nothing checks that line's truth: `validate-develop.sh` does not read the artifact, and the maintain audit's drift item is the only later catch.
+**Defense:** DEVELOP.md Step 1 names the artifact in the inventory and lists the screens and states it covers; a gap is designed first by the session within the picked direction, sketched at decision fidelity, and recorded as session-decided; the owner is asked only when the gap is theirs (#27, #29). The feature doc's Design line records which artifact entry and revision the code implements. Nothing checks that line's truth: `validate-develop.sh` does not read the artifact, and the maintain audit's drift item is the only later catch.
 
 ---
 

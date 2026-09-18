@@ -14,7 +14,9 @@ Phase 4 has three distinct modes, each with its own trigger. Don't conflate them
 - Convention violations in features/
 - Tech-debt log pruning (entries to escalate, fix, or close)
 - Framework version currency (run `./archetype/update.sh` status)
-- Artifact-versus-code drift (`References.md § Design Artifact`): the code's tokens equal the tokens source, every implemented screen has its artifact entry, under `repository-first` the published view is not older than the source, and under `workspace-first` the tokens source and the committed working files are not older than the artifact's current revision (#27)
+- Artifact-versus-code drift (`References.md § Design Artifact`): the code's tokens equal the tokens source, every implemented screen has its artifact entry, under `repository-first` the published view is not older than the source, and under `workspace-first` the tokens source and the committed working files are not older than the artifact's current revision (#27); the capture sets match the shipped screens (#27)
+- Catalog hygiene: every cataloged component has a use in code or a recorded reason, every shared component is cataloged, every deprecated component has a removal trigger (#22)
+- Vocabulary drift: the words in navigation, headings, buttons, and messages match the vocabulary file (#31)
 
 **How:**
 1. Run the automated gates first — `scripts/validate-develop.sh` + `scripts/validate-maintain.sh` + `scripts/validate-profile.sh` + `scripts/validate-framework.sh`.
@@ -33,6 +35,9 @@ Phase 4 has three distinct modes, each with its own trigger. Don't conflate them
 - [ ] Convention Overrides in `References.md` still apply
 - [ ] Critical Lessons in `References.md` still apply
 - [ ] Artifact-versus-code drift: tokens in code equal the `Tokens source`, every implemented screen has its artifact entry, under `repository-first` the published view is not older than the source, and under `workspace-first` the tokens source and the committed working files are not older than the artifact's current revision (#27)
+- [ ] Capture sets match the shipped screens (#27)
+- [ ] Catalog hygiene: every cataloged component used or its reason recorded, every shared component cataloged, every deprecated component with a removal trigger (#22)
+- [ ] Vocabulary drift: interface words match the vocabulary file (#31)
 - [ ] Tech-debt entries older than threshold: escalated OR force-fixed OR explicitly continue-deferred with fresh reason
 
 ## Mode 2 — Incident response (event-triggered)

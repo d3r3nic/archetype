@@ -56,7 +56,7 @@ This pattern is hoisted to framework level because every CMS-driven consumer sit
 Conventions: #6 (styling), #22 (design system).
 
 Build:
-- Design tokens (colors, spacing, typography, shadows, breakpoints) as single source of truth.
+- Design tokens (colors per scheme, spacing, the type scale and measure, radius, shadow and z-index as shared elevation levels, motion, focus, container widths, breakpoints) as single source of truth (#6, #31).
 - **Dark mode from day 1.** Theme has both light and dark variants wired.
 - UI library selected and CONFIGURED with the theme, OR thin wrappers over HTML primitives if the project chose no UI library. Either way, features never import raw UI-library components directly — they import from `src/shared/ui/`. Document the choice in References.md § Convention Overrides.
 - Theme provider mounted at the app root. Signals: detects system preference, persists user override, toggles via class/attribute (never media-query-only — blocks user override). Research current APIs for the chosen framework + styling system.
@@ -72,7 +72,7 @@ Build:
 - Error classes (NetworkError, ValidationError, NotFoundError, AuthError, etc.).
 - Error service: catch, classify, log, report (to a crash/error reporting platform).
 - Error boundary components (per-route and app-level).
-- Error UI components: fallback, empty state, offline, loading.
+- State components for the state list in #27 (empty, no results, loading, partial, error, success, offline, stale, conflict, first run, permission denied); each says what happened, what to do, and what was kept.
 - Unified loading components (full screen, inline, skeleton).
 
 **Verify:** throwing an error inside a component is caught by the boundary and shows the fallback. Network errors display the offline UI, not a white screen.
@@ -85,8 +85,9 @@ Build:
 - Base wrapper components around the UI library (Button, Input, Modal, Dialog, Dropdown, etc.).
 - Wrappers enforce accessibility (ARIA, focus management, keyboard nav) the UI library's defaults might miss.
 - Layout primitives: Stack, Grid, Page container.
-- Component catalog in a component-explorer tool if the project is team-sized.
+- Component catalog, always (#22); the tool is the project's choice.
 - Consistent component API across wrappers (consistent prop names, variant system).
+- One icon set, recorded in References.md; the focus token wired so every wrapper shows it on every surface in every scheme (#14, #22).
 - Wrapper defaults, variants, and the catalog follow the artifact's component specifications where they exist (#27). A component the artifact shows and the foundation lacks is a wrapper to add; a spec the artifact lacks is designed first, not improvised in the wrapper.
 - **Lint-enforce the wrapper boundary.** Direct UI-library imports outside `src/shared/ui/` must fail the build. Use your linter's import-restriction mechanism — feature/app code cannot bypass the wrapper layer. Exempt `src/shared/ui/` itself. Research current linter rule for the chosen language.
 
