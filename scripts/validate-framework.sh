@@ -18,6 +18,8 @@
 #  12. Profile vocabulary: the stages, triggers, and floor items that
 #      scripts/validate-profile.sh evaluates are the ones the profile and debt
 #      templates and convention #30 name
+#  13. Stepped playbooks: every playbook that declares a step ledger is well
+#      formed (delegates to scripts/next-step.sh --lint; development/STEPS.md)
 # Exit 0 on pass, 1 on any error. Warnings do not fail the check.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -376,6 +378,23 @@ else
     done < <(comm -13 <(printf '%s\n' "$K_V") <(printf '%s\n' "$K_T"))
   fi
   [ "$VOCAB_FAILS" -eq 0 ] && pass "profile vocabulary agrees in both directions across validator, templates, and convention #30 (stages, triggers, floor items, keys)"
+fi
+
+# ----------------------------------------------------------------------
+group 13 "Stepped playbooks (each step names its reading, what it produces, and its check)"
+# ----------------------------------------------------------------------
+# development/STEPS.md. Only a playbook that declares "Step ledger:" is checked; the
+# lint says how many steps it read, or that no playbook is stepped yet.
+for path in development/STEPS.md templates/progress.md scripts/next-step.sh; do
+  [ -f "$path" ] || fail "step ledger target missing: $path"
+done
+if [ -f "$SCRIPT_DIR/next-step.sh" ]; then
+  if STEPS_OUT="$(bash "$SCRIPT_DIR/next-step.sh" --lint 2>&1)"; then
+    pass "$(printf '%s' "$STEPS_OUT" | sed 's/^OK: //')"
+  else
+    printf '%s\n' "$STEPS_OUT" | grep 'FAIL' | while IFS= read -r l; do printf '  %s\n' "$l"; done
+    fail "stepped playbooks are malformed (see lines above)"
+  fi
 fi
 
 # ----------------------------------------------------------------------
