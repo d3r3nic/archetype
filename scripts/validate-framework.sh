@@ -194,7 +194,11 @@ Sync
 Brand decided
 Every UI state designed
 Update responsibility
-Complementary tools"
+Complementary tools
+Primary context
+Committed contexts
+Density
+Vocabulary"
 DA_MOBILE_EXTRA="Platform parity"
 DA_CONV="conventions/27-design-foundation.md"
 da_count() { printf '%s\n' "$1" | awk -v l="- $2:" 'index($0, l) == 1 { n++ } END { print n + 0 }'; }
