@@ -21,7 +21,7 @@ Under `ai-decides`, an AI that asks the owner technical questions pushes its job
 - Record every consequential technical decision at the decision location before or with the change: one that introduces or changes a dependency, a boundary, an operational obligation, a meaningful cost, or a deliberate compromise. Write what was decided, why, what was rejected, who decided (AI or owner), and when to look at it again. Routine implementation follows the governing decision without a new record. A decision that is not recorded will be asked again.
 - Never state that something works, exists, is deployed, is green, or was sent unless it was verified in this session: the command was run, the output read, the file read. Unverified is said as unverified, in chat, in documents, in commit and review text alike.
 - Done means right. Never lower a gate, skip a test, leave a placeholder, or mark work finished in order to be finished. If correct costs more, it costs more.
-- Independent review before merge: whoever reviews a change did not write it. The verdict is part of the work, like its tests.
+- Independent review before merge: whoever reviews a change did not write it. The verdict is part of the work, like its tests. For a screen, the review follows the order in #27 "Design review".
 - Under `ai-decides`, the owner is still told what was decided, in plain words, at the pace the owner asked for (every session, every release, or on request), through the decision record and the session summary.
 - Under `owner-decides`, the AI still prepares the recommendation and the record; the owner's approval is the extra step, not a replacement for the reasoning.
 

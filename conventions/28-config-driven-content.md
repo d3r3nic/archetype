@@ -14,9 +14,9 @@ feature-tree.md with a one-line reason; the never-hardcode rules of #1
 A template ships once and serves many customers. Every value that
 varies between customers — copy, labels, colors, contact details,
 nav structure, integration keys — lives in a single config surface
-the customer edits without touching view code. AI agents constantly
-hardcode these values; this convention prevents that and keeps the
-template reusable.
+the customer edits without touching view code. This convention keeps the
+template reusable; the test at the end of this document is how a
+reviewer checks it, and no script does.
 
 The contract is: **edit JSON, never edit view code** to change a
 customer's brand, content, or wiring. If you find yourself writing
