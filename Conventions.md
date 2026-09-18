@@ -88,6 +88,6 @@ Everything built once, configured for context. Governs how all other conventions
 - #20 Forms — schema validation, accessible errors, multi-step → conventions/20-forms.md
 - #21 Routing — layouts, guards, URL state → conventions/21-routing.md
 - #22 Design System — UI wrappers, token-first, component catalog → conventions/22-design-system.md
-- #27 Design Foundation — design artifact is source of truth, AI consults it first; when it is silent the session designs within the picked direction and records it; design tools work from the artifact and the owner picks the direction; the state list and the design review order → conventions/27-design-foundation.md
+- #27 Design Foundation — design artifact is source of truth, AI consults it first; when it is silent the session designs within the picked direction and records it; design tools work from the artifact and the owner picks the direction or delegates the pick in words; the state list and the design review order → conventions/27-design-foundation.md
 - #28 Config-Driven Brand & Content — every brand/content value lives in one typed config surface, never in view code; templates ship reusable across customers via config-only swap; applies to templates and white-label products → conventions/28-config-driven-content.md
 - #31 Interface Craft — one purpose and one primary action per screen; type, space, color, and motion as meaning; words from the person's side in one vocabulary; the default is not a design → conventions/31-interface-craft.md

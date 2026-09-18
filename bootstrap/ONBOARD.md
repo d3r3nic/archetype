@@ -133,6 +133,9 @@ If the user says "phone app" or "works on my phone," do NOT silently pick a stac
 - Do users upload files or images?
 - Do users need to see updates in real time? (like chat, live notifications)
 - Does the app need to work without internet? (offline mode)
+- When someone opens it for the very first time, what is the one thing they should be able to do within a minute?
+- What will people come back to do most often? Name up to three.
+- How long do they stay: a quick check a few times a day, or hours at a stretch?
 
 **Group 4 - Scale and stage**
 - Is this a personal project, a startup MVP, or an enterprise product?
@@ -162,6 +165,7 @@ If the user answers vaguely ("I dunno", "not sure", "I guess not"), DEFAULT TO A
 - What have you promised the people involved about privacy, reliability, or the handling of their information?
 - What monthly running cost is comfortable, and how much extra AI spending? (Reuse the budget answer if already given.)
 - Who else will work on the code with me, now or soon? (Just you and me, or other people too?)
+- When a question needs you, where should I send it, and how quickly can you usually answer? (Fills `Owner channel` in References.md.)
 - Do you want to make the technical choices yourself, or should I make them and show you what I decided and why?
 
 The AI derives the operating stage from the answers (#30): `isolated` when only the owner uses it, with made-up data, no real effects, nobody depending on it or on its records; `trial` when identified people try it and have a workable fallback; `operational` otherwise. A vague answer stays `unknown` in PROFILE.md and is never read as "no". For audience, effects, reliance, and records, `unknown` blocks real exposure, not the contained experiment; the regulated-data question keeps its own stricter gate (`bootstrap/RED-FLAGS.md` "Deploy Gate"), which halts scaffolding and deployment until it is answered. When the regulated-data answer is vague, PROFILE.md records `Regulated data: unknown`; the default-assumed-yes lives in VERSION-LOG.md as the open pre-production gate, not in the profile. A vague answer to the last question records `Decision authority: ai-decides` with `Authority source: defaulted` (#29); see `bootstrap/RED-FLAGS.md` "Vague answer about who decides".
