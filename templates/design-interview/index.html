@@ -28,7 +28,7 @@
   legend { font-weight: 600; padding: 0 .4rem; }
   label, .q { display: block; margin: .9rem 0 .25rem; font-weight: 600; }
   .q:first-child { margin-top: 0; }
-  label.plain { display: flex; align-items: center; gap: .55rem; min-height: 2.75rem; margin: 0; font-weight: 400; }
+  label.plain { display: flex; align-items: center; gap: .55rem; min-height: 2.75rem; margin: .2rem 0; font-weight: 400; }
   label.plain input { width: 1.15rem; height: 1.15rem; margin: 0; flex: none; }
   input[type=text], textarea { width: 100%; font: inherit; color: inherit; background: transparent; border: 1px solid var(--line); border-radius: .35rem; padding: .5rem .6rem; }
   textarea { min-height: 4.5rem; resize: vertical; }
@@ -126,7 +126,7 @@
             <label class="card"><input type="radio" name="scheme" value="both"><span class="face"><span class="tick" aria-hidden="true">&#10003;</span><span class="sample"><i style="background:#f6f4ef"></i><i style="background:#1d1f23"></i></span><b>Both</b><small>People switch.</small></span></label>
             <label class="card"><input type="radio" name="scheme" value="you-choose"><span class="face"><span class="tick" aria-hidden="true">&#10003;</span><span class="sample"></span><b>You choose</b></span></label>
           </div>
-          <div data-when="existing_kinds!~colors">
+          <div data-when="existing_kinds!~colors" hidden>
             <p class="q" id="q-family">Which family feels closest?</p>
             <div class="choices" role="radiogroup" aria-labelledby="q-family">
               <label class="card"><input type="radio" name="color_family" value="warm"><span class="face"><span class="tick" aria-hidden="true">&#10003;</span><span class="sample"><i style="background:#5a3a2a"></i><i style="background:#b4532a"></i><i style="background:#d98c4a"></i><i style="background:#ecd3ad"></i></span><b>Warm</b><small>Earth, reds, oranges.</small></span></label>
@@ -280,7 +280,7 @@
     var nodes = form.querySelectorAll('[data-when]');
     for (var i = 0; i < nodes.length; i++) nodes[i].hidden = !holds(nodes[i].getAttribute('data-when'));
   }
-  var BLANK = { spend: 'ask-me', print: 'not-sure', existing: 'none', rules: 'none', business: 'unknown', words: 'unknown', existing_kinds: 'unknown', existing_links: 'unknown', photos_of: 'unknown', needs: 'unknown', languages: 'unknown', color_known: 'none', color_avoid: 'none', color_meaning: 'none', likes: 'none', never_like: 'none', voice_sample: 'none' };
+  var BLANK = { spend: 'ask-me', print: 'not-sure', existing: 'unknown', rules: 'unknown', business: 'unknown', words: 'unknown', existing_kinds: 'unknown', existing_links: 'unknown', photos_of: 'unknown', needs: 'unknown', languages: 'unknown', color_known: 'none', color_avoid: 'none', color_meaning: 'none', likes: 'none', never_like: 'none', voice_sample: 'none' };
   function shown(el) { for (var n = el; n && n !== form; n = n.parentNode) if (n.hidden) return false; return true; }
   function answers() {
     var lines = ['## Design interview answers', ''], seen = {}, els = form.elements;
