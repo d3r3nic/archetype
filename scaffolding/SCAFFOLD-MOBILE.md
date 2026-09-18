@@ -4,7 +4,7 @@ Routed from `scaffolding/SCAFFOLD.md` when the project is native mobile (install
 
 **Read `scaffolding/_preamble.md` first** — it covers the shared scaffold rules. Mobile tooling churns especially fast (SDK versions, native-module APIs, submission policies), so the zero-stale rule is particularly important here.
 
-Most Step 0-11 of `SCAFFOLD-FRONTEND.md` apply identically to mobile (project setup, types, theme, components, state, API layer, auth, forms, testing, CI). The theme step's rule holds here too: token values come from the artifact in the recorded direction of truth (`References.md § Design Artifact`), and the mobile References template's `Platform parity` line says how both platforms' states stay aligned (#27). Mobile-specific additions below.
+Most Step 0-11 of `SCAFFOLD-FRONTEND.md` apply identically to mobile (project setup, types, theme, components, state, API layer, auth, forms, testing, CI). The theme step's rule holds here too: token values come from the artifact in the recorded direction of truth (`References.md § Design Artifact`), and the mobile References template's `Platform parity` line says how both platforms' states stay aligned (#27). The component foundation step's state components, icon set, focus token, state gallery, and capture command apply here as well. Mobile-specific additions below.
 
 ## Mobile-specific additions
 

@@ -4,14 +4,14 @@
 
 A screen is good when a person can do what they came for without noticing the interface. That takes more than consistency: one purpose per screen and one primary action; type, space, color, and motion that each carry meaning and never decorate; words written from the person's side; and the removal of every default nobody chose. The design artifact (#27) says what a screen is; this convention says what makes it good. The token system (#6) and the component foundation (#22) supply the materials; this convention says how they are composed.
 
-Every rule here is applied by the session alone, within the direction the owner picked (#27, #29). The design interview (bootstrap/DESIGN-INTERVIEW.md) supplies the inputs, the owner's words for things, the density preference, the primary context; the session turns them into the decisions and records them. No rule here is a question to put to the owner.
+Every rule here is applied by the session alone, within the direction the owner picked (#27, #29). Discovery and the design interview (bootstrap/DESIGN-INTERVIEW.md) supply the inputs, the owner's words for things, the density preference, the primary context; the session turns them into the decisions and records them. No rule here is a question to put to the owner.
 
 ## Reusable System
 
 The project builds these once and every screen uses them:
 
-- A purpose sentence per screen, kept in the design artifact beside the screen's entry: what a person came here to do. It is the first thing a reviewer reads.
-- A vocabulary: one file, recorded on the `Vocabulary` line of References.md § Design Artifact, that names every thing the product has, once, with the verb that acts on it. Navigation, headings, buttons, errors, and messages use these words and no others.
+- A purpose sentence per screen, kept in the design artifact beside the screen's entry (templates/design-artifact-entry.md): what a person came here to do. It is the first thing a reviewer reads.
+- A vocabulary: one file (templates/vocabulary.md), recorded on the `Vocabulary` line of References.md § Design Artifact, that names every thing the product has, once, with the verb that acts on it. Navigation, headings, buttons, errors, and messages use these words and no others.
 - The type scale, the measure, the motion tokens, the focus token, and the container widths, in the theme system (#6), so that nothing in this convention needs a literal value in code.
 - The state components (#8, #27), so that a state is composed, not rebuilt.
 - A density decision, on the `Density` line of References.md § Design Artifact, that sets the spacing ladder's step for the whole product.
@@ -102,8 +102,8 @@ None of this convention is checked by a script. A lint can find a literal size, 
 Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
-- Record the density decision and the primary context from the design interview (bootstrap/DESIGN-INTERVIEW.md) before setting the spacing ladder's step, the row heights, and the type scale's body size; those values follow the decision, not the other way around.
+- Record the density decision (the design interview, bootstrap/DESIGN-INTERVIEW.md) and the primary context (discovery) before setting the spacing ladder's step, the row heights, and the type scale's body size; those values follow the decision, not the other way around.
 - Research the platform's conventions for reduced motion, tabular figures, and text reflow at the accessibility target's zoom level, and wire the type scale, measure, motion, focus, and container tokens into the theme system (#6) before the first screen.
-- Start the vocabulary from the owner's own words (the design interview, Group C) and add the verbs; keep it as one file the whole team edits.
+- Start the vocabulary from the owner's own words (the design interview's `words` answer) and add the verbs; keep it as one file the whole team edits.
 - Copy templates/design-review.md into the project and read it in order at every screen review.
 - The tells of a generated interface change with the tools that generate them; refresh the review's last check from what generated interfaces do at the time, and keep the rule (decoration has a job, a default is not a decision), which does not change.

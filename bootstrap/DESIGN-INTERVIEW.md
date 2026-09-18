@@ -1,103 +1,93 @@
-# Design interview: what the designer asks the owner
+# Design interview: a form with gates, and two ways through it
 
-Routed from `bootstrap/ONBOARD.md` Group 1 when the project is a product. It runs once, at product bootstrap, after discovery has established that the project is a product and not a template. Every question is written for someone who has never designed anything. The AI asks one group at a time, in plain words, and records the answers in References.md § Design Artifact and the brand book (#27). A template project skips it: templates decide no brand, and their downstream products run it at their own bootstrap.
+Routed from `bootstrap/ONBOARD.md`. It runs once for a product with a screen, at Step 4 of ONBOARD.md, after Step 3 has settled a custom build and Group 6 has given the operating stage, so nobody answers questions about the look of a product that turns out to need no custom screen. A template project skips it: templates decide no brand, and their downstream products run it at their own bootstrap. An existing product whose `Brand decided` line is not `yes` runs it with what the audit found already filled in.
 
-Three rules for asking:
+The owner decides how the product looks (#29). This interview is how the AI learns enough to make that decision easy: either the owner picks from directions, or the owner says in words "choose what fits my business" and the AI picks for them. Both ways are always offered. The answers fill References.md § Design Artifact and the brand book (#27).
 
-- Ask for things before opinions. A logo file, a photo of the shop sign, a link to a site the owner likes, a sentence they wrote to a customer: each of these is worth more than any adjective. Where a thing exists, take the fact from the thing, never from memory.
-- Never ask the owner a designer's question. Sizes, spacing, ratios, which component, whether a button is outlined, where a loading indicator goes, what a token is called: these are the session's to decide within the settled direction (#27, #31). Asking them pushes the designer's job onto the owner (#29).
-- A vague answer is recorded as "not yet", never as a default. "I don't know" about color means the AI proposes directions from what exists; it never means the AI picks a color and moves on. When nobody can answer at all, #29's no-owner rule applies: one direction grounded in what exists, the assumption stated, the alternates kept beside it, recorded for the owner's next contact. "Whatever you think" is a pick only when the owner says it about a specific proposed direction; silence adopts nothing (#29).
+## Rules for asking
 
-## Group A: what already exists
+- A form, not an interrogation. The questions reach the owner as one page they fill in at their own pace, never as a chain of chat messages. Where the session can show a page (a design tool it has, or a static page opened from the design working-files folder), it starts from `templates/design-interview/` and removes or pre-fills what is already known. The session opens the page for the owner itself where it can: the host's preview or browser, or the operating system's open command. Where it cannot open it, it tells the owner exactly what to do, in numbered plain steps: where the file is and how to open it; fill in what you care about; press "Show my answers"; press "Copy answers" and paste them into the conversation, or press "Save answers as a file", put the file in the folder named, and say it is done. Never leave the owner to find or open a file on a hint. Where no page can be shown at all, it asks the same tree in conversation, one gate at a time, and stops at the first "you choose".
+- Gates first. Every group opens with one question whose "no" answers the whole group. "Nothing exists yet" settles five questions about brand material; "no opinion, you choose" settles every color question. Never ask a question a gate already answered.
+- Every question has a "you choose" answer. A "you choose" is a decision handed to the session, recorded as session-decided (#27), never a blank to chase.
+- Never ask twice. What discovery already learned (what the product does, who uses it, where, the owner channel, the budget) is pre-filled or left out. Ask only what is still unknown.
+- Things before opinions. A logo file, a photo of the shop sign, a link to a site the owner likes, a sentence they wrote to a customer: each is worth more than any adjective. Where a thing exists, take the fact from the thing, never from memory.
+- Show what words fail at, simply. Light beside dark, four swatch strips, three corner shapes, two row densities, three kinds of lettering: a sample of a feeling with a plain label beside it, so the label alone still answers. Never a real component and never a finished screen in the form; those belong to the direction the owner sees afterwards.
+- Never ask the owner a designer's question. Sizes, spacing values, ratios, which component, where a loading indicator goes, what a token is called: these are the session's within the settled direction (#27, #31).
+- Scale to the stage (#30). For an `isolated` project the AI recommends the short way and says why; the owner may still take the long one. For `trial` and `operational` projects the owner chooses with no nudge.
 
-Gather, do not ask for opinions yet.
+## The two ways through
 
-1. Do you have a logo? Send every version you have: color, one-color, the small one, the old one. If there is none, say so; the product will set its name in plain type until one exists, and nobody will draw one for you.
-2. Do you have colors already, from the logo, a website, printed material, a sign, a uniform, packaging? Send a photo or a link. The colors will be measured from that, not guessed.
-3. Do you have a typeface, or a document template your people already use (letters, invoices, slides)? Send it.
-4. Is there a website, app, or document of yours that people already know? Link it. Should the new product look like it belongs with it, or be different on purpose?
-5. Do you have any written rules about how the brand looks or talks, even a single page? Send it.
+**Choose what fits my business.** Three short answers: what the business does and for whom, in the owner's words (pre-filled from discovery when it is already known); how it should feel, in a few words; what the owner calls the things in the product. One gate: does anything exist already (a logo, colors, a font, a site)? If yes, where it is and whether the product should belong with it. That is the whole interview. The AI then commits to one direction grounded in those answers, shows it, names the alternates it set aside in a line each, and records the decision as owner-delegated (#29). The owner changes it with one word at any later contact.
 
-Fills: `Brand book`, and three of the six parts of the brand set (marks, palette values, type families; the other three, voice and tone, imagery style, motion signature, come from Group D). `Brand decided` is yes only when all six are recorded in the brand book, each as a decision or an explicit none.
+**I have ideas.** The same opening, then the groups below, each behind its gate. The owner answers the groups they care about and leaves the rest on "you choose". The AI then proposes two to four directions and the owner picks (see "After the answers").
 
-## Group B: who uses it, and where
+Delegation is said, never inferred. An owner who skips the form has delegated nothing: the pick stays open, the scaffold builds neutral placeholder values, and no UI feature ships until the owner picks or delegates (#27). When nobody can answer at all, #29's no-owner rule applies.
 
-6. Who will use it most: you, your team, your customers, the public? Roughly how many at once?
-7. Where are they when they use it: sitting at a desk, on a phone while doing something else, on a shared screen in a room, outdoors? Which of those is most of the time?
-8. How long do they stay: a quick check a few times a day, or hours at a stretch?
-9. Do any of your users have trouble seeing small text, telling colors apart, using a mouse, or hearing? Do any work in bright sunlight, wear gloves, or use a screen reader? If you do not know, say so.
-10. Will people use it in a language other than yours, or in one written right to left?
+## The tree
 
-Fills: `Primary context`, `Committed contexts`, the accessibility target and the platform minimum for target size, the density recommendation (long hours favor a quiet palette and a dense layout), the measure and mirroring decisions.
+Each line is a gate or a question; an indented line is asked only when its gate says so.
 
-## Group C: what it is for
+1. Start: choose for me, or I have ideas. (Both paths continue with 2 and 3.)
+2. Your business in your words; how it should feel; what you call the things in it and any words you hate.
+3. Gate: does anything exist already? "Nothing yet" skips the rest of this group.
+   - Where it is: links, files, a photo. Logo in every version you have, colors, a typeface or document template, a site or app people know, written brand rules.
+   - Should the product look like it belongs with this, or different on purpose?
+   - (When colors exist, the color-family question below is never asked: the colors are measured from the thing.)
 
-11. When someone opens it for the very first time, what is the one thing they should be able to do within a minute?
-12. What do people come back to do most often, day to day? Name the top three.
-13. What must never go wrong, or would be costly to undo: sending something, paying, deleting, publishing, changing a record other people rely on?
-14. What do you call the things in your product? Cases, jobs, orders, clients, tasks, sessions. Give me the words you already use with your team and your customers, and any words you hate.
+The "I have ideas" path continues:
 
-Fills: the purpose sentence of the first screen and of the three primary screens (the artifact), the confirm-versus-undo treatment of destructive actions, and `Vocabulary` (the glossary starts from the owner's words; the AI adds the verbs).
+4. Gate: colors. "No opinion, you choose" skips the group.
+   - Light, dark, or both. (Both are built by default (#6); a "light only" or "dark only" is recorded with its reason.)
+   - Which family feels closest: warm, cool, neutral, bold, or you choose.
+   - A color people already know you by, and where it can be seen.
+   - Colors to stay away from, and why (a competitor's, a bad association).
+   - Colors that already mean something to your users (red for urgent, a status system, a safety code). Those meanings are kept and the product's accent stays away from them (#6).
+5. Gate: shape and space. "No opinion, you choose" skips the group.
+   - Corners: square, soft, or round.
+   - How much at once: roomy, or dense like a spreadsheet. (The AI says which it recommends from how long people stay and what they do, and why; the owner's answer stands.)
+   - Lettering: plain, classic, or technical.
+6. Feel and voice. Three scales (quiet to lively, plain to warm, formal to casual; the middle means "you choose"); one sentence written the way the owner would say it to a customer; apps or sites whose feel they like and one they dislike; anything it must never look like.
+7. Pictures and movement. No pictures, photos, illustrations, or you choose; for photos, of what and who takes them. Movement: keep it still, a little is nice, or you choose.
+8. The people who use it. Anyone who has trouble with small text, colors, a mouse, or hearing; bright sun, gloves, a screen reader; "I don't know" is an answer and is recorded as unknown. Other languages, or one written right to left.
+9. Gate: rules. "No rules I must follow" skips it. Otherwise: a parent brand, a law for the sector, a customer's or a government's requirements.
+10. Money: free fonts and tools only, or ask me first with the price. (Recurring spend is an escalation under #29 either way.)
 
-## Group D: how it should feel
+What the first screen is for, what people come back to do most, and what must never go wrong are product questions, not look questions: discovery Groups 1, 3, and 6 ask them. If discovery left one unanswered, ask it here before the directions are drawn; the purpose sentences of the primary screens (#31) come from those answers.
 
-15. Show me two or three apps or sites whose feel you like, even if they do something completely different, and say in one sentence what you like about each. Then show me one you dislike, and say why.
-16. Should it feel calm, with a few things at a time, or packed with information like a spreadsheet? (The AI says first which it recommends from Group B's answers, and why; the owner's answer stands.)
-17. Between these pairs, where does it sit: quiet or lively; plain or warm; formal or casual; classic or modern? A word or a point between them is enough.
-18. How should it talk to people: like a colleague, like a form, like a friend? Write me one sentence you would send to a customer, in your own words.
-19. Do you want a dark appearance as well as a light one? Do you or your users use dark mode on their phones? (Both are built by default (#6); a no here is recorded with its reason.)
-20. Photos, illustrations, or neither? If photos, of what: your people, your products, your places? Who takes them?
-21. Do animated interfaces annoy you, or do you like a little movement?
-22. Is there anything it must never look like: a competitor, an old version, a product people associate with a bad experience?
+## The answers
 
-Fills: `Density`, the tone line of the brand set, `Color schemes`, the imagery and motion lines of the brand set, and the direction constraints the AI works within.
+The page writes, and a conversation records, the same `- key: value` lines, so a session, a design tool, and a later reader parse one shape. The keys are the contract; the page is replaceable.
 
-## Group E: color, only when Group A found nothing
+`path` (pick-for-me or my-ideas), `business`, `feel_words`, `words`, `existing` (none or some), `existing_links`, `belongs`, `color` (you-choose when the gate said so), `scheme`, `color_family`, `color_known`, `color_avoid`, `color_meaning`, `shape` (you-choose when the gate said so), `density`, `type_feel`, `mood_quiet_lively`, `mood_plain_warm`, `mood_formal_casual`, `voice_sample`, `likes`, `never_like`, `imagery`, `photos_of`, `motion`, `needs`, `languages`, `rules`, `spend`.
 
-23. Is there a color your business is already known by, even informally: the sign, the van, the uniforms, the packaging, the old brochure? If yes, that is your color. Send a photo.
-24. If there is none, I will propose two to four directions in different colors and you will pick one. To make them good, tell me: colors you cannot stand; colors your competitors already own; whether it should feel warm (reds, oranges, earth tones), cool (blues, greens, grays), or neither; whether it should look restrained and expensive or bright and energetic.
-25. Does anything in your world already carry a color that means something to your users: red for urgent, green for done, a status system, a safety code, a team color? Those meanings will be kept, and the product's main color will stay away from them.
-26. Will printed material, uniforms, or signage need to match the product later?
+A key the owner never saw (behind a closed gate) is absent; a key they saw and left is `you-choose`. The answers file lives in the design working-files folder, committed, named in the brand book.
 
-Fills: the palette inputs for the direction proposals, the reserved signal meanings (#6), and a print line in the brand book, outside the six.
+## After the answers
 
-## Group F: practicalities
+Directions are shown, never only described: in the design tool the session has, or as static pages in the design working-files folder opened in a browser. Words alone ("a calm blue with soft corners") are not a direction.
 
-27. Are there rules you must follow: an industry standard, a parent company's brand, an accessibility law for your sector, a customer's or a government's style requirements?
-28. Who says yes to the design: you alone, or other people too? How quickly can you usually answer? (Reuse the owner-channel answer from ONBOARD.md if given.)
-29. Do you want to see the design as pictures before it is built, or see it working and change it after? (Fidelity follows purpose (#29); this only matters when the purpose leaves it open.)
-30. If a typeface or a design tool costs money, is that acceptable, and roughly how much? (Recurring spend is an escalation under #29; the answer sets what the AI may propose.)
-
-Fills: the constraints line of the brand book, the owner channel, the deliverable fidelity, and the spend ceiling for type and tools.
-
-## After the interview: the direction pick
-
-The owner decides how the product looks by picking from directions the AI proposes (#27, #29). Nothing in the interview replaces that pick; the interview makes the proposals good.
-
-What the AI prepares:
-
-- Two to four directions, genuinely different, not three shades of one idea. Each direction has a name, one paragraph of intent tied to the interview answers, a palette (one accent, the neutrals, the signals), the type pairing, and one composed screen: the most frequent screen from question 12, in both color schemes, with its empty state, plus three lines of copy in the direction's tone (a button, an error, a success).
-- Decision fidelity, not finished screens: enough to feel the difference, not enough to argue about a pixel.
-- One recommended, with the reason in plain words tied to the answers ("you said hours at a stretch and a team of specialists, so the quiet, dense direction").
-
-How the AI presents it to a non-designer:
-
-- Side by side, the same screen in each, no jargon. For each direction: what it is good at, and what it gives up.
-- Two questions to ask the owner: "Which one would you be proud to show a customer?" and "Which one could you live with for five years?" If the answers differ, that is the conversation.
-- The pick is recorded at the decision location with the artifact revision as evidence. After the pick the artifact governs and the AI executes without asking again; a change of mind is a new pick, not a series of tweaks.
-
-What the owner is never asked after the pick: sizes, spacing, which component, where a state goes, what a token is called, whether a button is outlined. The session decides those within the direction and records them as session-decided entries in the artifact (#27).
+- On the short way, one direction: the most frequent screen from discovery, composed, in every committed scheme, with its empty state and three lines of copy in the voice (a button, an error, a success). Beside it, one line for each alternate the AI set aside and why. Recorded at the decision location as owner-delegated, with the owner's own words as the grounds and the artifact revision as evidence.
+- On the long way, two to four directions, genuinely different, not three shades of one idea; each with a name, a paragraph of intent tied to the answers, its palette (one accent, the neutrals, the signals), its type pairing, and the same composed screen as above. One recommended, with the reason in plain words. Two questions to the owner: "Which one would you be proud to show a customer?" and "Which one could you live with for five years?" If the answers differ, that is the conversation. The pick is recorded at the decision location with the artifact revision.
+- Decision fidelity either way: enough to feel the difference, not enough to argue about a pixel. After the decision the artifact governs and the session executes without asking again; a change of mind is a new decision, not a series of tweaks.
 
 ## What the answers become
 
-| Interview answer | Where it is recorded |
+| Answers | Where they are recorded |
 |---|---|
-| Logo, colors, typeface, brand rules (1 to 5) | Brand book; `Brand decided`; three of the six brand-set lines (marks, palette values, type families) |
-| Who, where, how long (6 to 8) | `Primary context`, `Committed contexts`; the density recommendation the AI brings to question 16 |
-| Users' needs (9, 10) | `Accessibility target`, `Target size`, mirroring and language notes in the brand book |
-| First thing, top three, must-not-fail (11 to 13) | Purpose sentences in the artifact; destructive-action treatment in the artifact |
-| The owner's words (14) | `Vocabulary` (the glossary file) |
-| Feel, density, tone, schemes, imagery, motion, never-look-like (15 to 22) | `Density` (question 16); brand book tone, imagery, motion lines; `Color schemes`; direction constraints |
-| Color inputs (23 to 26) | Palette proposals; reserved signals; a print line in the brand book |
-| Constraints, approver, fidelity, spend (27 to 30) | Brand book constraints; owner channel; deliverable purpose; the spend ceiling |
-| The pick | Decision location, with the artifact revision |
+| `business`, `feel_words`, `voice_sample`, the three scales | Brand book: voice and tone; the grounds of the direction |
+| `words` | `Vocabulary` (templates/vocabulary.md; the AI adds the verbs) |
+| `existing`, `existing_links`, `belongs`, `color_known` | Brand book: marks, palette values, type families, measured from the things |
+| `scheme` | `Color schemes` in the theme section (#6) |
+| `color_family`, `color_avoid`, `color_meaning` | Palette inputs; the reserved signal meanings (#6) |
+| `shape`, `type_feel` | Inputs to the directions; session-decided when `you-choose` |
+| `density` | `Density` |
+| `imagery`, `photos_of`, `motion` | Brand book: imagery style, motion signature |
+| `needs`, `languages` | `Accessibility target`, `Target size`, mirroring and language notes in the brand book |
+| `rules`, `spend` | Brand book constraints; the spend ceiling for type and tools (#29) |
+| The decision (picked or owner-delegated) | The decision location, with the artifact revision; then `Brand decided: yes` once the brand book records all six parts of the brand set (marks, palette values, type families, voice and tone, imagery style, motion signature), each as a decision or an explicit none |
+
+`Primary context` and `Committed contexts` come from discovery Group 2, not from this form.
+
+## What the framework cannot check
+
+Whether the form was offered, whether a gate was respected, whether "choose for me" was said in words or assumed, whether the directions were shown or only described. No script reads a conversation or an answers file; the session follows this document and the independent review reads the decision record (#29).

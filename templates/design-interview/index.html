@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<!-- Archetype design interview form. Copyright 2026 Derenic B. Licensed under the Apache License, Version 2.0. -->
+<!--
+  Starter form for bootstrap/DESIGN-INTERVIEW.md. Copy this folder into the project's design
+  working-files folder, pre-fill what discovery already answered, and open it for the owner.
+  One static page: no network, no dependencies, system fonts. The page is replaceable; the
+  answer keys it writes are the contract (see DESIGN-INTERVIEW.md "The answers").
+  The visuals are samples of a feeling (a swatch strip, three corner shapes, two row densities),
+  never components or finished screens: the direction pick shows those.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How should it look?</title>
+<style>
+  :root { color-scheme: light dark; --ink: CanvasText; --ground: Canvas; --line: color-mix(in srgb, CanvasText 25%, Canvas); --quiet: color-mix(in srgb, CanvasText 65%, Canvas); --mark: Highlight; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 1rem/1.5 system-ui, sans-serif; color: var(--ink); background: var(--ground); }
+  main { max-width: 44rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+  h1 { font-size: 1.6rem; line-height: 1.2; margin: 0 0 .5rem; }
+  h2 { font-size: 1.15rem; margin: 0 0 .25rem; }
+  p { margin: 0 0 1rem; } .quiet { color: var(--quiet); }
+  fieldset { border: 1px solid var(--line); border-radius: .5rem; margin: 0 0 1.25rem; padding: 1rem; }
+  legend { font-weight: 600; padding: 0 .4rem; }
+  label { display: block; margin: .75rem 0 .25rem; font-weight: 600; }
+  label.plain { font-weight: 400; margin: .35rem 0; }
+  input[type=text], textarea { width: 100%; font: inherit; color: inherit; background: transparent; border: 1px solid var(--line); border-radius: .35rem; padding: .5rem .6rem; }
+  textarea { min-height: 4.5rem; resize: vertical; }
+  .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .6rem; margin: .4rem 0 0; }
+  .card { display: block; font-weight: 400; margin: 0; border: 1px solid var(--line); border-radius: .5rem; padding: .6rem; cursor: pointer; }
+  .card:has(input:checked) { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+  .card:has(input:focus-visible) { outline: 3px solid var(--ink); outline-offset: 1px; }
+  .card input { position: absolute; opacity: 0; }
+  .card b { display: block; margin-top: .45rem; }
+  .card small { color: var(--quiet); }
+  .sample { height: 3.2rem; border-radius: .3rem; border: 1px solid var(--line); overflow: hidden; display: flex; }
+  .sample > i { flex: 1; display: block; }
+  .rows { flex-direction: column; justify-content: space-evenly; padding: .3rem; background: transparent; }
+  .rows > i { flex: 0 0 auto; background: var(--line); border-radius: 2px; }
+  .shape { align-items: center; justify-content: center; border: 0; }
+  .shape > i { flex: 0 0 60%; height: 1.8rem; background: var(--quiet); }
+  .type { align-items: center; padding: 0 .6rem; font-size: 1.25rem; border: 0; }
+  .scale { display: grid; grid-template-columns: 6rem 1fr 6rem; gap: .5rem; align-items: center; margin: .5rem 0; }
+  .scale span:last-child { text-align: right; }
+  .scale input { width: 100%; }
+  button { font: inherit; font-weight: 600; padding: .6rem 1rem; border-radius: .4rem; border: 1px solid var(--ink); background: var(--ink); color: var(--ground); cursor: pointer; }
+  button.quiet-btn { background: transparent; color: var(--ink); }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--mark); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  #out { width: 100%; min-height: 12rem; font: .9rem/1.45 ui-monospace, monospace; margin-top: 1rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>How should it look?</h1>
+  <p class="quiet">Answer what you care about and leave the rest. Every question has a "you choose" answer, and one "no" usually skips a whole group. Nothing here is final: you will see the result before anything is built.</p>
+
+  <form id="f">
+    <fieldset>
+      <legend>Start here</legend>
+      <div class="choices">
+        <label class="card"><input type="radio" name="path" value="pick-for-me"><b>Choose what fits my business</b><small>Three short answers, then I decide and show you.</small></label>
+        <label class="card"><input type="radio" name="path" value="my-ideas"><b>I have ideas</b><small>A few groups. Skip any of them.</small></label>
+      </div>
+    </fieldset>
+
+    <fieldset data-when="path" hidden>
+      <legend>Your business, in your words</legend>
+      <label for="business">What does it do, and for whom?</label>
+      <textarea id="business" name="business"></textarea>
+      <label for="feel_words">How should it feel? A few words are enough.</label>
+      <input type="text" id="feel_words" name="feel_words" placeholder="calm, trustworthy, a bit warm">
+      <label for="words">What do you call the things in it? Any words you hate?</label>
+      <input type="text" id="words" name="words" placeholder="jobs, clients, visits; never 'tickets'">
+    </fieldset>
+
+    <fieldset data-when="path" hidden>
+      <legend>What already exists</legend>
+      <p class="quiet">A logo, colors, a font, a website, printed material, a sign.</p>
+      <label class="plain"><input type="radio" name="existing" value="none"> Nothing yet</label>
+      <label class="plain"><input type="radio" name="existing" value="some"> Some of it exists</label>
+      <div data-when="existing=some" hidden>
+        <label for="existing_links">Links, file names, or where a photo of it is. One per line.</label>
+        <textarea id="existing_links" name="existing_links"></textarea>
+        <label class="plain"><input type="radio" name="belongs" value="belongs-with-it"> The new product should look like it belongs with this</label>
+        <label class="plain"><input type="radio" name="belongs" value="different-on-purpose"> It should look different on purpose</label>
+      </div>
+    </fieldset>
+
+    <div data-when="path=my-ideas" hidden>
+      <fieldset>
+        <legend>Colors</legend>
+        <label class="plain"><input type="radio" name="color_gate" value="you-choose"> No opinion, you choose</label>
+        <label class="plain"><input type="radio" name="color_gate" value="i-have-views"> I have views</label>
+        <div data-when="color_gate=i-have-views" hidden>
+          <label>Light, dark, or both?</label>
+          <div class="choices">
+            <label class="card"><input type="radio" name="scheme" value="light"><span class="sample"><i style="background:#f6f4ef"></i></span><b>Light</b></label>
+            <label class="card"><input type="radio" name="scheme" value="dark"><span class="sample"><i style="background:#1d1f23"></i></span><b>Dark</b></label>
+            <label class="card"><input type="radio" name="scheme" value="both"><span class="sample"><i style="background:#f6f4ef"></i><i style="background:#1d1f23"></i></span><b>Both</b><small>People switch.</small></label>
+          </div>
+          <div data-when="existing!=some">
+            <label>Which family feels closest?</label>
+            <div class="choices">
+              <label class="card"><input type="radio" name="color_family" value="warm"><span class="sample"><i style="background:#5a3a2a"></i><i style="background:#b4532a"></i><i style="background:#d98c4a"></i><i style="background:#ecd3ad"></i></span><b>Warm</b><small>Earth, reds, oranges.</small></label>
+              <label class="card"><input type="radio" name="color_family" value="cool"><span class="sample"><i style="background:#22303c"></i><i style="background:#1f4e79"></i><i style="background:#3a7ca5"></i><i style="background:#b5d3e2"></i></span><b>Cool</b><small>Blues, greens, slate.</small></label>
+              <label class="card"><input type="radio" name="color_family" value="neutral"><span class="sample"><i style="background:#222"></i><i style="background:#666"></i><i style="background:#aaa"></i><i style="background:#e6e6e6"></i></span><b>Neutral</b><small>Mostly black, white, gray.</small></label>
+              <label class="card"><input type="radio" name="color_family" value="bold"><span class="sample"><i style="background:#2e294e"></i><i style="background:#d7263d"></i><i style="background:#1b998b"></i><i style="background:#f4d35e"></i></span><b>Bold</b><small>Bright and energetic.</small></label>
+              <label class="card"><input type="radio" name="color_family" value="you-choose"><span class="sample"></span><b>You choose</b></label>
+            </div>
+          </div>
+          <label for="color_known">A color people already know you by? Where can I see it?</label>
+          <input type="text" id="color_known" name="color_known" placeholder="the green on our vans; photo attached">
+          <label for="color_avoid">Colors to stay away from, and why.</label>
+          <input type="text" id="color_avoid" name="color_avoid" placeholder="our competitor's orange">
+          <label for="color_meaning">Colors that already mean something to your users.</label>
+          <input type="text" id="color_meaning" name="color_meaning" placeholder="red means urgent on our floor">
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Shape and space</legend>
+        <label class="plain"><input type="radio" name="shape_gate" value="you-choose"> No opinion, you choose</label>
+        <label class="plain"><input type="radio" name="shape_gate" value="i-have-views"> I have views</label>
+        <div data-when="shape_gate=i-have-views" hidden>
+          <label>Corners</label>
+          <div class="choices">
+            <label class="card"><input type="radio" name="shape" value="square"><span class="sample shape"><i style="border-radius:0"></i></span><b>Square</b><small>Precise, serious.</small></label>
+            <label class="card"><input type="radio" name="shape" value="soft"><span class="sample shape"><i style="border-radius:.5rem"></i></span><b>Soft</b><small>Friendly, modern.</small></label>
+            <label class="card"><input type="radio" name="shape" value="round"><span class="sample shape"><i style="border-radius:99rem"></i></span><b>Round</b><small>Playful, light.</small></label>
+          </div>
+          <label>How much at once?</label>
+          <div class="choices">
+            <label class="card"><input type="radio" name="density" value="roomy"><span class="sample rows"><i style="height:.7rem"></i><i style="height:.7rem"></i><i style="height:.7rem"></i></span><b>Roomy</b><small>A few things, calm.</small></label>
+            <label class="card"><input type="radio" name="density" value="dense"><span class="sample rows"><i style="height:.3rem"></i><i style="height:.3rem"></i><i style="height:.3rem"></i><i style="height:.3rem"></i><i style="height:.3rem"></i><i style="height:.3rem"></i></span><b>Dense</b><small>Lots to see, like a spreadsheet.</small></label>
+          </div>
+          <label>Lettering</label>
+          <div class="choices">
+            <label class="card"><input type="radio" name="type_feel" value="plain"><span class="sample type" style="font-family:system-ui,sans-serif">Aa Plain</span><b>Plain</b><small>Clean, everyday.</small></label>
+            <label class="card"><input type="radio" name="type_feel" value="classic"><span class="sample type" style="font-family:ui-serif,Georgia,serif">Aa Classic</span><b>Classic</b><small>Bookish, established.</small></label>
+            <label class="card"><input type="radio" name="type_feel" value="technical"><span class="sample type" style="font-family:ui-monospace,monospace">Aa Technical</span><b>Technical</b><small>Exact, engineered.</small></label>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Feel and voice</legend>
+        <p class="quiet">Leave a slider in the middle for "you choose".</p>
+        <div class="scale"><span>Quiet</span><input type="range" name="mood_quiet_lively" min="1" max="5" value="3" aria-label="Quiet to lively"><span>Lively</span></div>
+        <div class="scale"><span>Plain</span><input type="range" name="mood_plain_warm" min="1" max="5" value="3" aria-label="Plain to warm"><span>Warm</span></div>
+        <div class="scale"><span>Formal</span><input type="range" name="mood_formal_casual" min="1" max="5" value="3" aria-label="Formal to casual"><span>Casual</span></div>
+        <label for="voice_sample">Write one sentence the way you would say it to a customer.</label>
+        <input type="text" id="voice_sample" name="voice_sample">
+        <label for="likes">Apps or sites whose feel you like, and one you dislike. A word on why.</label>
+        <textarea id="likes" name="likes"></textarea>
+        <label for="never_like">Anything it must never look like?</label>
+        <input type="text" id="never_like" name="never_like">
+      </fieldset>
+
+      <fieldset>
+        <legend>Pictures and movement</legend>
+        <label class="plain"><input type="radio" name="imagery" value="none"> No pictures</label>
+        <label class="plain"><input type="radio" name="imagery" value="photos"> Photos</label>
+        <label class="plain"><input type="radio" name="imagery" value="illustrations"> Illustrations</label>
+        <label class="plain"><input type="radio" name="imagery" value="you-choose"> You choose</label>
+        <div data-when="imagery=photos" hidden>
+          <label for="photos_of">Photos of what, and who takes them?</label>
+          <input type="text" id="photos_of" name="photos_of">
+        </div>
+        <label style="margin-top:1rem">Movement on screen</label>
+        <label class="plain"><input type="radio" name="motion" value="still"> Keep it still, animation annoys me</label>
+        <label class="plain"><input type="radio" name="motion" value="a-little"> A little is nice</label>
+        <label class="plain"><input type="radio" name="motion" value="you-choose"> You choose</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>The people who use it</legend>
+        <label for="needs">Anyone who has trouble with small text, colors, a mouse, or hearing? Bright sun, gloves, a screen reader? "I don't know" is an answer.</label>
+        <input type="text" id="needs" name="needs">
+        <label for="languages">Other languages, or one written right to left?</label>
+        <input type="text" id="languages" name="languages">
+      </fieldset>
+
+      <fieldset>
+        <legend>Rules and money</legend>
+        <label class="plain"><input type="radio" name="rules_gate" value="none"> No rules I must follow</label>
+        <label class="plain"><input type="radio" name="rules_gate" value="some"> There are rules</label>
+        <div data-when="rules_gate=some" hidden>
+          <label for="rules">A parent brand, a law for your sector, a customer's requirements.</label>
+          <textarea id="rules" name="rules"></textarea>
+        </div>
+        <label style="margin-top:1rem">If a font or a design tool costs money</label>
+        <label class="plain"><input type="radio" name="spend" value="free-only"> Free only</label>
+        <label class="plain"><input type="radio" name="spend" value="ask-me"> Ask me first, with the price</label>
+      </fieldset>
+    </div>
+
+    <div class="actions" data-when="path" hidden>
+      <button type="button" id="make">Show my answers</button>
+      <span class="quiet">Then copy them back into the conversation, or save the file.</span>
+    </div>
+    <div id="result" hidden>
+      <textarea id="out" readonly aria-label="Your answers"></textarea>
+      <div class="actions">
+        <button type="button" id="copy">Copy answers</button>
+        <button type="button" id="save" class="quiet-btn">Save answers as a file</button>
+        <span id="said" class="quiet" role="status"></span>
+      </div>
+    </div>
+  </form>
+</main>
+<script>
+(function () {
+  var form = document.getElementById('f');
+  function value(name) {
+    var el = form.elements[name]; if (!el) return '';
+    if (el.length && el[0] && el[0].type === 'radio') { for (var i = 0; i < el.length; i++) if (el[i].checked) return el[i].value; return ''; }
+    return (el.value || '').trim();
+  }
+  function holds(rule) {
+    var not = rule.indexOf('!=') > -1, parts = rule.split(not ? '!=' : '='), v = value(parts[0]);
+    if (parts.length === 1) return v !== '';
+    return not ? v !== parts[1] : v === parts[1];
+  }
+  function refresh() {
+    var nodes = form.querySelectorAll('[data-when]');
+    for (var i = 0; i < nodes.length; i++) nodes[i].hidden = !holds(nodes[i].getAttribute('data-when'));
+  }
+  function shown(el) { for (var n = el; n && n !== form; n = n.parentNode) if (n.hidden) return false; return true; }
+  function answers() {
+    var lines = ['## Design interview answers', ''], seen = {}, els = form.elements;
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i], name = el.name;
+      if (!name || seen[name] || !shown(el)) continue; seen[name] = 1;
+      var v = value(name);
+      if (el.type === 'range') v = v === '3' ? 'you-choose' : v + ' of 5';
+      if (name.slice(-5) === '_gate') { if (v === 'you-choose' || v === 'none') lines.push('- ' + name.slice(0, -5) + ': ' + v); continue; }
+      lines.push('- ' + name + ': ' + (v ? v.replace(/\n+/g, ' | ') : 'you-choose'));
+    }
+    return lines.join('\n') + '\n';
+  }
+  form.addEventListener('change', refresh); form.addEventListener('input', refresh); refresh();
+  var out = document.getElementById('out'), said = document.getElementById('said');
+  document.getElementById('make').addEventListener('click', function () {
+    out.value = answers(); document.getElementById('result').hidden = false; out.focus(); out.select();
+  });
+  document.getElementById('copy').addEventListener('click', function () {
+    out.select();
+    var done = function () { said.textContent = 'Copied. Paste it into the conversation.'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(out.value).then(done, function () { document.execCommand('copy'); done(); });
+    else { document.execCommand('copy'); done(); }
+  });
+  document.getElementById('save').addEventListener('click', function () {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([out.value], { type: 'text/markdown' }));
+    a.download = 'design-answers.md'; document.body.appendChild(a); a.click(); a.remove();
+    said.textContent = 'Saved as design-answers.md. Put it in the design working-files folder.';
+  });
+})();
+</script>
+</body>
+</html>

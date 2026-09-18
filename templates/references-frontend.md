@@ -36,6 +36,7 @@ test:      [command to run tests]
 typecheck: [command to run type checker]
 lint:      [command to lint]
 deploy:    [command to deploy]
+capture:   [command that saves the capture set: each screen in each applicable state, per scheme and committed context (#27)]
 ```
 
 ## Design Artifact
@@ -55,12 +56,12 @@ Convention #27 anchor: **AI consults the artifact first. When silent, the sessio
 - Every UI state designed: [yes / the gaps per screen, against the state list in #27]
 - Update responsibility: [who owns artifact edits; how code follow-ups trigger]
 - Complementary tools: [exploration only, never source of truth; list or none]
-- Primary context: [where people use it most of the time: a desk, a phone, a shared screen, outdoors, or two of these equally; from the design interview]
+- Primary context: [where people use it most of the time: a desk, a phone, a shared screen, outdoors, or two of these equally; from discovery]
 - Committed contexts: [every context the product is verified in, each with its own captures (#27)]
 - Density: [roomy / dense, with the reason; sets the spacing ladder's step for the whole product (#31)]
-- Vocabulary: [path of the glossary: every thing named once with its verb (#31); starts from the owner's words]
+- Vocabulary: [path of the glossary, from templates/vocabulary.md: every thing named once with its verb (#31); starts from the owner's words]
 
-If the artifact is silent on a UI decision, the session designs it within the picked direction from the artifact's own patterns and #31, records the entry as session-decided, and shows it; the owner is asked only for identity and what a screen is for (#27, #29). The owner picks the visual direction from proposed directions; after the pick the artifact governs.
+If the artifact is silent on a UI decision, the session designs it within the picked direction from the artifact's own patterns and #31, records the entry as session-decided, and shows it; the owner is asked only for identity and what a screen is for (#27, #29). The owner picks the visual direction from proposed directions, or delegates the pick in words (#29); after the decision the artifact governs.
 
 ## Foundational Systems
 

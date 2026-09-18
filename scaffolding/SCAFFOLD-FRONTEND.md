@@ -88,10 +88,11 @@ Build:
 - Component catalog, always (#22); the tool is the project's choice.
 - Consistent component API across wrappers (consistent prop names, variant system).
 - One icon set, recorded in References.md; the focus token wired so every wrapper shows it on every surface in every scheme (#14, #22).
+- A state gallery: a dev-only route, or the catalog, that renders every state component and each feature screen in each applicable state from fixtures, in every committed scheme; and a capture command, recorded in `References.md § Commands`, that saves the capture set the design review reads (#27). Production builds exclude the gallery.
 - Wrapper defaults, variants, and the catalog follow the artifact's component specifications where they exist (#27). A component the artifact shows and the foundation lacks is a wrapper to add; a spec the artifact lacks is designed first, not improvised in the wrapper.
 - **Lint-enforce the wrapper boundary.** Direct UI-library imports outside `src/shared/ui/` must fail the build. Use your linter's import-restriction mechanism — feature/app code cannot bypass the wrapper layer. Exempt `src/shared/ui/` itself. Research current linter rule for the chosen language.
 
-**Verify:** a test page built from wrappers only (no raw HTML, no direct UI library imports) renders correctly. Running the lint rule against a direct import fails.
+**Verify:** a test page built from wrappers only (no raw HTML, no direct UI library imports) renders correctly. Running the lint rule against a direct import fails. The capture command saves a capture of every state component in every committed scheme.
 
 ## Step 5 — State management
 
