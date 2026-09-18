@@ -21,7 +21,7 @@ Copy this file per screen review (for example into `docs/reviews/design/`), or k
 
 ## Captures
 
-One capture per state per scheme per committed context. A state without a capture is not done.
+One capture per applicable state per scheme per committed context. An applicable state without a capture is not done.
 
 | State | Scheme | Context | Capture |
 |---|---|---|---|

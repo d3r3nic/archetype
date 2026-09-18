@@ -72,7 +72,7 @@ Build:
 - Error classes (NetworkError, ValidationError, NotFoundError, AuthError, etc.).
 - Error service: catch, classify, log, report (to a crash/error reporting platform).
 - Error boundary components (per-route and app-level).
-- State components for the state list in #27 (empty, no results, loading, partial, error, success, offline, stale, conflict, first run, permission denied); each says what happened, what to do, and what was kept.
+- State components for every state in the list in #27, one shared component per state; each says what happened, what to do, and what was kept.
 - Unified loading components (full screen, inline, skeleton).
 
 **Verify:** throwing an error inside a component is caught by the boundary and shows the fallback. Network errors display the offline UI, not a white screen.

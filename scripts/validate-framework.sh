@@ -179,7 +179,7 @@ done
 # is closed: a bullet whose label is not in the contract fails, so a note belongs outside
 # the section. Presence only: a label with an empty value passes; the placeholders'
 # content is reviewed, not parsed. Labels are matched literally (no regex, no glob); a
-# label may carry any character except a backslash, which awk -v would expand. Convention
+# label may carry any character except a backslash, which awk -v would expand, or a colon, which the reverse extraction reads as the label's end. Convention
 # #27 must name every label, mobile included,
 # inside its "Design tools" section, so the vocabulary is checked in both directions.
 DA_LABELS="Primary tool

@@ -2,7 +2,7 @@
 
 ## Principle
 
-A design artifact exists before features are built and stays in sync with the code. UI decisions — including empty, loading, error, success, and disabled states; interaction feedback; primary vs secondary actions; visual hierarchy — come from the artifact, not the AI's improvisation. AI consults the artifact first. When it does not cover something, the session designs the missing piece within the picked direction, from the artifact's own patterns and #31, and records it; the owner is asked only when the gap is theirs (#29). AI never improvises a screen outside the system.
+A design artifact exists before features are built and stays in sync with the code. UI decisions — every state in the list under Rules; interaction feedback; primary vs secondary actions; visual hierarchy — come from the artifact, not the AI's improvisation. AI consults the artifact first. When it does not cover something, the session designs the missing piece within the picked direction, from the artifact's own patterns and #31, and records it; the owner is asked only when the gap is theirs (#29). AI never improvises a screen outside the system.
 
 Design is upstream of #6 (tokens) and #22 (components). This convention governs the discipline; tools are chosen per project. A design tool that runs in the project (a design skill, a plugin, a canvas, a design workspace) works from the artifact and the token source, never around them; the section "Design tools" below says what governs its output and who decides.
 
@@ -53,7 +53,7 @@ This is a TIMING rule, not just a scoping rule:
 | Template project bootstrap (project type: template) | Nobody decides brand UI/UX | Template ships structural primitives with neutral placeholder tokens. AI must NOT invent colors, type, iconography. Design Artifact is deferred. |
 | Template project scaffolding | Nobody decides brand UI/UX | Structural components (Button, Input, Dialog, etc.) get API + tokens wiring only. No brand values land here. |
 | **Product project bootstrap (project type: product)** | **This is where UI/UX is decided** | AI researches the tool and records the direction of truth. Artifact gets authored. Brand primitives committed, or the directions are prepared and the pick stays open: the scaffold builds neutral placeholder values and no UI feature ships until the owner picks. |
-| Product project feature work | UI/UX decisions come from the Artifact | AI consults the artifact first; asks when silent; never invents. |
+| Product project feature work | UI/UX decisions come from the Artifact | AI consults the artifact first; a gap is designed by the session within the picked direction and recorded as session-decided; the owner is asked only when the gap is theirs. |
 
 So: any "change the button color" / "add an icon" / "tweak the hover state" prompt belongs at the product-bootstrap or product-feature stage. At template or framework level, the same prompt should be deflected: "this template is brand-neutral; UI/UX decisions land when a product spawns from it."
 
@@ -86,11 +86,11 @@ A screen is reviewed in this order, by someone who did not build it (#29), again
 7. Every committed scheme and every committed context, each with its own captures.
 8. Aesthetics, last: the tells of a generated interface (#31 "The default is not a design").
 
-Evidence is one capture per state per scheme per committed context, attached to the feature doc. A state without a capture is not done. "Done" for a screen: the eight checks pass with evidence, and the artifact entry, the code, and the captures agree. A decision the review changes is recorded at the decision location with its reason. The project copies templates/design-review.md and reads it in this order. Nothing checks a capture by script; the reviewer reads it.
+Evidence is one capture per applicable state per scheme per committed context, attached to the feature doc. An applicable state without a capture is not done. "Done" for a screen: the eight checks pass with evidence, and the artifact entry, the code, and the captures agree. A decision the review changes is recorded at the decision location with its reason. The project copies templates/design-review.md and reads it in this order. Nothing checks a capture by script; the reviewer reads it.
 
 ## The session
 
-Before any screen work a session reads, in order: References.md § Design Artifact, the brand book, the vocabulary, the tokens, the catalog, then the artifact entries for this feature. A screen the artifact covers is built from its entry. A pattern the artifact lacks is sketched first at decision fidelity (a wireframe, or a written composition: purpose, primary action, order, components, states), recorded as session-decided, then built. The session decides alone: composition within the system, component choice, spacing from the ladder, words in the vocabulary, states and their placement. It shows the owner: identity, what a primary screen is for, a pattern the product would be recognized by. A screen is proved by its capture set before review.
+Before any screen work a session reads, in order: References.md § Design Artifact, the brand book, the vocabulary, the tokens, the catalog, then the artifact entries for this feature. A screen the artifact covers is built from its entry. A pattern the artifact lacks is sketched first at decision fidelity (a wireframe, or a written composition: purpose, primary action, order, components, states), recorded as session-decided, then built. The session decides alone: composition within the system, component choice, spacing from the ladder, words in the vocabulary, states and their placement. It asks the owner about: identity, what a primary screen is for, a pattern the product would be recognized by. A screen is proved by its capture set before review.
 
 ## Research Notes
 

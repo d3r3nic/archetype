@@ -4,7 +4,7 @@
 
 A screen is good when a person can do what they came for without noticing the interface. That takes more than consistency: one purpose per screen and one primary action; type, space, color, and motion that each carry meaning and never decorate; words written from the person's side; and the removal of every default nobody chose. The design artifact (#27) says what a screen is; this convention says what makes it good. The token system (#6) and the component foundation (#22) supply the materials; this convention says how they are composed.
 
-Every rule here is applied by the session alone, within the direction the owner picked (#27, #29). None of it is an owner question.
+Every rule here is applied by the session alone, within the direction the owner picked (#27, #29). The design interview (bootstrap/DESIGN-INTERVIEW.md) supplies the inputs, the owner's words for things, the density preference, the primary context; the session turns them into the decisions and records them. No rule here is a question to put to the owner.
 
 ## Reusable System
 
@@ -33,7 +33,7 @@ The project builds these once and every screen uses them:
 - Hierarchy uses at most the levels a screen needs, separated by size, weight, and space together, never by size alone. Two adjacent levels that cannot be told apart are one level.
 - Measure is a token. Reading text never exceeds it, whatever the viewport; a form or a column of text at desk width sits inside it.
 - At most two families, each with a job (text and display, or text and code). A third family needs a recorded reason.
-- Numbers that align in columns use tabular figures where the family offers them; a column of numbers aligns on the decimal. In a text-led product the scale is the identity and the accent is rare.
+- Numbers that align in columns use tabular figures where the family offers them; a column of numbers aligns on the decimal.
 
 ### Space and alignment
 

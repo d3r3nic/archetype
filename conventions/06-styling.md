@@ -2,7 +2,7 @@
 
 ## Principle
 
-All visual values flow from a single theme system. No color, spacing, shadow, typography, or dimension value is ever written directly in code. A design token hierarchy ensures consistency and enables theming, dark mode, and responsive behavior from one source of truth. The theme is the only place a visual value is written; the lint rule the project configures under #25 catches a literal value in code, and review reads the rest.
+All visual values flow from a single theme system. No color, spacing, shadow, typography, or dimension value is ever written directly in code. A design token hierarchy ensures consistency and enables theming, dark mode, and responsive behavior from one source of truth. The theme is the only place a visual value is written; a lint can find a literal value in code where this convention forbids one, and review reads the rest.
 
 The theme is built to swap color schemes from day one, because a scheme cannot be bolted on later without touching every component. Light and dark are the default pair for user-facing products; the project records its committed scheme set in References.md. A project that commits to a single scheme records why and still builds the semantic layer, so a second scheme costs configuration, not a rewrite. The theme system detects the user's platform preference and allows manual override.
 

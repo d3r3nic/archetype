@@ -6,7 +6,7 @@ Three rules for asking:
 
 - Ask for things before opinions. A logo file, a photo of the shop sign, a link to a site the owner likes, a sentence they wrote to a customer: each of these is worth more than any adjective. Where a thing exists, take the fact from the thing, never from memory.
 - Never ask the owner a designer's question. Sizes, spacing, ratios, which component, whether a button is outlined, where a loading indicator goes, what a token is called: these are the session's to decide within the settled direction (#27, #31). Asking them pushes the designer's job onto the owner (#29).
-- A vague answer is recorded as "not yet", never as a default. "I don't know" about color means the AI proposes directions from what exists; it never means the AI picks a color and moves on. "Whatever you think" is a pick only when the owner says it about a specific proposed direction; silence adopts nothing (#29).
+- A vague answer is recorded as "not yet", never as a default. "I don't know" about color means the AI proposes directions from what exists; it never means the AI picks a color and moves on. When nobody can answer at all, #29's no-owner rule applies: one direction grounded in what exists, the assumption stated, the alternates kept beside it, recorded for the owner's next contact. "Whatever you think" is a pick only when the owner says it about a specific proposed direction; silence adopts nothing (#29).
 
 ## Group A: what already exists
 
@@ -18,7 +18,7 @@ Gather, do not ask for opinions yet.
 4. Is there a website, app, or document of yours that people already know? Link it. Should the new product look like it belongs with it, or be different on purpose?
 5. Do you have any written rules about how the brand looks or talks, even a single page? Send it.
 
-Fills: `Brand book`, the marks, palette values, and type families of the brand set, and `Brand decided` (yes only when all six parts of the brand set are answered, here or in Group D).
+Fills: `Brand book`, and three of the six parts of the brand set (marks, palette values, type families; the other three, voice and tone, imagery style, motion signature, come from Group D). `Brand decided` is yes only when all six are recorded in the brand book, each as a decision or an explicit none.
 
 ## Group B: who uses it, and where
 
@@ -45,7 +45,7 @@ Fills: the purpose sentence of the first screen and of the three primary screens
 16. Should it feel calm, with a few things at a time, or packed with information like a spreadsheet?
 17. Between these pairs, where does it sit: quiet or lively; plain or warm; formal or casual; classic or modern? A word or a point between them is enough.
 18. How should it talk to people: like a colleague, like a form, like a friend? Write me one sentence you would send to a customer, in your own words.
-19. Do you want a dark appearance as well as a light one? Do you or your users use dark mode on their phones? (The product builds both unless you say no and give a reason (#6); the question confirms, it does not decide.)
+19. Do you want a dark appearance as well as a light one? Do you or your users use dark mode on their phones? (Both are built by default (#6); a no here is recorded with its reason.)
 20. Photos, illustrations, or neither? If photos, of what: your people, your products, your places? Who takes them?
 21. Do animated interfaces annoy you, or do you like a little movement?
 22. Is there anything it must never look like: a competitor, an old version, a product people associate with a bad experience?
@@ -93,11 +93,11 @@ What the owner is never asked after the pick: sizes, spacing, which component, w
 | Interview answer | Where it is recorded |
 |---|---|
 | Logo, colors, typeface, brand rules (1 to 5) | Brand book; `Brand decided`; the six lines of the brand set |
-| Who, where, how long (6 to 8) | `Primary context`, `Committed contexts`, `Density` |
+| Who, where, how long (6 to 8) | `Primary context`, `Committed contexts`; the density recommendation the AI brings to question 16 |
 | Users' needs (9, 10) | `Accessibility target`, `Target size`, mirroring and language notes in the brand book |
 | First thing, top three, must-not-fail (11 to 13) | Purpose sentences in the artifact; destructive-action treatment in the artifact |
 | The owner's words (14) | `Vocabulary` (the glossary file) |
-| Feel, tone, schemes, imagery, motion, never-look-like (15 to 22) | Brand book tone, imagery, motion lines; `Color schemes`; direction constraints |
+| Feel, density, tone, schemes, imagery, motion, never-look-like (15 to 22) | `Density` (question 16); brand book tone, imagery, motion lines; `Color schemes`; direction constraints |
 | Color inputs (23 to 26) | Palette proposals; reserved signals; print in the brand set |
 | Constraints, approver, fidelity, spend (27 to 30) | Brand book constraints; owner channel; deliverable purpose; the spend ceiling |
 | The pick | Decision location, with the artifact revision |

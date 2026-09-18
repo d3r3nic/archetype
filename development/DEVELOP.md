@@ -107,7 +107,7 @@ Run each of the project's verification commands from `References.md § Commands`
 
 Then run `scripts/validate-profile.sh` from the project root: a deferral whose trigger the facts in PROFILE.md have made true is blocking, and a missing profile is reported as the strictest reading (#30). Before an action that changes exposure (inviting a user, importing real data, enabling payments, publishing), refresh the facts and run it with `--strict`, where an unknown fact is an error.
 
-For a feature with a screen, the capture set is a gate: one capture per state per scheme per committed context, attached to the feature doc. A state without a capture is not done (#27 "Design review").
+For a feature with a screen, the capture set is a gate: one capture per applicable state per scheme per committed context, attached to the feature doc. An applicable state without a capture is not done (#27 "Design review").
 
 Do NOT proceed to Step 7 if any gate is red. Fix the issue. Do not paper over with skipped tests, lint-suppression comments, or casts to an untyped escape hatch.
 
