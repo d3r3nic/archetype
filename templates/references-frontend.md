@@ -41,7 +41,7 @@ capture:   [command that saves the capture set: each screen in each applicable s
 
 ## Design Artifact
 
-Convention #27 anchor: **AI consults the artifact first. When silent, the session designs within the picked direction and records it; the owner is asked only for identity and what a screen is for.** Any design skill, plugin, canvas, or workspace that runs in this project reads this section first: it is the brief. One `- Label: value` line per field, labels exact. The framework's self-test keeps this list and convention #27 in step; nothing checks this file's own lines, so the session and the independent review do. Where the recorded direction makes two lines the same place (under `workspace-first` the artifact and the published view; under `repository-first` the artifact and the tokens source or the catalog), write `same as <label>`.
+Convention #27 anchor: **AI consults the artifact first. When silent, the session designs within the picked direction and records it; the owner is asked only for identity and what a screen is for.** Any design skill, plugin, canvas, or workspace that runs in this project reads this section first: it is the brief. One `- Label: value` line per field, labels exact. The framework's self-test keeps this list and convention #27 in step; `scripts/validate-design.sh` fails a line that is missing, repeated, or still a placeholder, and the independent review reads whether a recorded value is true. Where the recorded direction makes two lines the same place (under `workspace-first` the artifact and the published view; under `repository-first` the artifact and the tokens source or the catalog), write `same as <label>`.
 
 - Primary tool: [category: a visual design tool / a design-system-as-code repository / an AI design canvas in the working session / an AI design workspace; the product's name and version, a dated fact, on this line]
 - Direction of truth: [repository-first (the token source, specifications, and component previews in the repository are the artifact; a workspace or canvas is a published view or a proposal) / workspace-first (the workspace or canvas is the artifact; the token source and catalog follow it)]
@@ -60,8 +60,10 @@ Convention #27 anchor: **AI consults the artifact first. When silent, the sessio
 - Committed contexts: [every context the product is verified in, each with its own captures (#27)]
 - Density: [roomy / dense, with the reason; sets the spacing ladder's step for the whole product (#31)]
 - Vocabulary: [path of the glossary, from templates/vocabulary.md: every thing named once with its verb (#31); starts from the owner's words]
-
-If the artifact is silent on a UI decision, the session designs it within the picked direction from the artifact's own patterns and #31, records the entry as session-decided, and shows it; the owner is asked only for identity and what a screen is for (#27, #29). The owner picks the visual direction from proposed directions, or delegates the pick in words (#29); after the decision the artifact governs.
+- First task: [the one thing a person should be able to do within a minute of first opening it, in the owner's words; from discovery; unknown only with what was assumed]
+- Return tasks: [up to three things people come back to do most, first one first; the directions and the first screen are composed for the first (bootstrap/DESIGN-INTERVIEW.md); unknown only with what was assumed]
+- Session length: [a quick check a few times a day / hours at a stretch / between; from discovery; the density recommendation is built from it]
+- Captures: [folder the capture set lives in, committed; regenerated in place by the `capture:` command, never kept by date, so the set does not grow with every run (#27)]
 
 ## Foundational Systems
 

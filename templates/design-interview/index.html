@@ -2,7 +2,8 @@
 <!-- Archetype design interview form. Copyright 2026 Derenic B. Licensed under the Apache License, Version 2.0. -->
 <!--
   Starter form for bootstrap/DESIGN-INTERVIEW.md. Copy this folder into the project's design
-  working-files folder, pre-fill what discovery already answered, and open it for the owner.
+  working-files folder, put what discovery already answered into the pre-fill block at the
+  top of the body (the only part of this page a session edits), and open it for the owner.
   One static page: no network, no dependencies, the platform's own fonts. The page is
   replaceable; the answer keys it writes are the contract (see DESIGN-INTERVIEW.md "The answers").
   The visuals are samples of a feeling (a swatch strip, three corner shapes, two row densities),
@@ -60,6 +61,13 @@
 </style>
 </head>
 <body>
+<!--
+  Pre-fill block. Keys are the form's field names (the answer keys of DESIGN-INTERVIEW.md, and
+  color_gate, shape_gate, rules_gate for the gates). A choice takes its option's value, several
+  ticks take a comma-separated list, a scale takes 1 to 5. Leave {} when nothing is known.
+  Example: {"path": "pick-for-me", "business": "Shift swaps for restaurant staff", "existing": "none"}
+-->
+<script type="application/json" id="prefill">{}</script>
 <main>
   <h1>How should it look?</h1>
   <p class="quiet">Answer what you care about. Anything you leave blank, or mark "you choose", I decide for you, except money: I always ask before a cost. One "no" usually skips a whole group. You will see the result before anything is built.</p>
@@ -299,6 +307,16 @@
     }
     return lines.join('\n') + '\n';
   }
+  function prefill() {
+    var data; try { data = JSON.parse(document.getElementById('prefill').textContent || '{}'); } catch (e) { return; }
+    for (var name in data) {
+      var el = form.elements[name], v = String(data[name]); if (!el) continue;
+      if (el.length && el[0] && (el[0].type === 'radio' || el[0].type === 'checkbox')) {
+        for (var i = 0; i < el.length; i++) el[i].checked = (', ' + v + ', ').indexOf(', ' + el[i].value + ', ') !== -1;
+      } else el.value = v;
+    }
+  }
+  prefill();
   form.addEventListener('change', refresh); form.addEventListener('input', refresh); refresh();
   var out = document.getElementById('out'), said = document.getElementById('said');
   document.getElementById('make').addEventListener('click', function () {

@@ -82,7 +82,7 @@ Build:
 Conventions: #4 (components), #22 (design system), #14 (accessibility).
 
 Build:
-- Base wrapper components around the UI library (Button, Input, Modal, Dialog, Dropdown, etc.).
+- Base wrapper components around the UI library: the ones the artifact specifies and the ones the state components, the layouts, and the smoke-test feature use, each with its catalog entry. Any other wrapper is added in the change that first uses it; a wrapper nothing uses is not built, so the catalog never opens with an unused component (#22).
 - Wrappers enforce accessibility (ARIA, focus management, keyboard nav) the UI library's defaults might miss.
 - Layout primitives: Stack, Grid, Page container.
 - Component catalog, always (#22); the tool is the project's choice.

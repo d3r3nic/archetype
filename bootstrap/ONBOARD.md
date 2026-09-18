@@ -83,7 +83,7 @@ I want to build: [describe your idea in plain English, even one sentence is fine
 
 ### Discovery Process (for the AI assistant):
 
-Before choosing any technology or generating any files, interview the user with these questions. Ask them one group at a time. These are designed for people who may not know technical terms. Skip any question an earlier answer already settled, and say what you inferred instead of asking it. When the owner pushes back on the number of questions, say how many rounds remain, state what you will assume, and compress the rest into one round; never drop the four that cannot be inferred and cost the most to learn late: the regulated-data question (Group 5), the comfortable monthly cost (Group 6), the first minute and what people come back to do most (Group 3), and who makes the technical choices (Group 6).
+Before choosing any technology or generating any files, interview the user with these questions. Ask them one group at a time. These are designed for people who may not know technical terms. Skip any question an earlier answer already settled, and say what you inferred instead of asking it. When the owner pushes back on the number of questions, say how many rounds remain, state what you will assume, and compress the rest into one round. What cannot be compressed away is whatever has a line a gate reads: PROFILE.md's facts (`scripts/validate-profile.sh`) and, for a project with a screen, the `First task`, `Return tasks`, and `Session length` lines of References.md § Design Artifact (`scripts/validate-design.sh`). An answer the owner declines is recorded as unknown with what was assumed; a question never asked leaves a placeholder, and the gate fails on it.
 
 **Group 1 - What is it?**
 - What does your app do? Describe it like you're explaining to a friend.
@@ -135,6 +135,7 @@ If the user says "phone app" or "works on my phone," do NOT silently pick a stac
 - When someone opens it for the very first time, what is the one thing they should be able to do within a minute?
 - What will people come back to do most often? Name up to three.
 - How long do they stay: a quick check a few times a day, or hours at a stretch?
+- (The last three answers are recorded on the `First task`, `Return tasks`, and `Session length` lines of References.md § Design Artifact; the directions and the first screen are built from them.)
 
 **Group 4 - Scale and stage**
 - Is this a personal project, a startup MVP, or an enterprise product?
@@ -462,6 +463,7 @@ After bootstrap, verify:
 - [ ] References.md generated (use `references-platform.md` for platform choice, or the matching custom template: `references-frontend.md`, `references-backend.md`, `references-mobile.md`)
 - [ ] feature-tree.md initialized (use `feature-tree-platform.md` for platform choice, `feature-tree.md` for custom)
 - [ ] PROFILE.md generated from templates/profile.md with an operating stage, the decision-authority setting and its source, and Observed-on (per #30; unknown facts stay unknown); `scripts/validate-profile.sh` passes
+- [ ] **For a project with a screen:** every line of References.md § Design Artifact filled in (a path the scaffold will create is recorded as the path it will have); `scripts/validate-design.sh` passes
 - [ ] VERSION-LOG.md bootstrap entry written (with `Type: platform / {name}` or `Type: custom`)
 - [ ] **For CUSTOM BUILDS ONLY:** docs/systems/ directory created
 - [ ] **For CUSTOM BUILDS ONLY:** docs/features/ directory created

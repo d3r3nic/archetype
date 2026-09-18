@@ -1,0 +1,28 @@
+# Design Artifact label contract (convention #27). Read by scripts/validate-framework.sh
+# (group 7: the UI References templates and convention #27 carry these labels) and by
+# scripts/validate-design.sh (a project's References.md carries them, filled in).
+#
+# One label per line, matched literally. A label never holds a colon or a backslash.
+# The mobile template adds "Platform parity"; that one label stays in the two scripts
+# because it belongs to one template only.
+Primary tool
+Direction of truth
+Artifact location
+Published view
+Tokens source
+Component catalog
+Brand book
+Design working files
+Sync
+Brand decided
+Every UI state designed
+Update responsibility
+Complementary tools
+Primary context
+Committed contexts
+Density
+Vocabulary
+First task
+Return tasks
+Session length
+Captures

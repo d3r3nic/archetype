@@ -175,7 +175,8 @@ done
 
 # UI-centric templates must carry the labelled Design Artifact section (convention #27):
 # every design tool, every session, and the maintain audit read the same fields. The
-# label list below is the contract; the mobile template adds Platform parity. The section
+# label list in scripts/design-artifact-labels.txt is the contract (validate-design.sh
+# reads the same file for a project's section); the mobile template adds Platform parity. The section
 # is closed: a bullet whose label is not in the contract fails, so a note belongs outside
 # the section. Presence only: a label with an empty value passes; the placeholders'
 # content is reviewed, not parsed. Labels are matched literally (no regex, no glob); a
@@ -183,23 +184,11 @@ done
 # colon, which the reverse extraction reads as the label's end. Convention #27 must
 # name every label, mobile included, inside its "Design tools" section, so the
 # vocabulary is checked in both directions.
-DA_LABELS="Primary tool
-Direction of truth
-Artifact location
-Published view
-Tokens source
-Component catalog
-Brand book
-Design working files
-Sync
-Brand decided
-Every UI state designed
-Update responsibility
-Complementary tools
-Primary context
-Committed contexts
-Density
-Vocabulary"
+DA_LABELS_FILE="$SCRIPT_DIR/design-artifact-labels.txt"
+if [ ! -f "$DA_LABELS_FILE" ]; then
+  fail "scripts/design-artifact-labels.txt missing; the Design Artifact contract has no label list"
+fi
+DA_LABELS="$(grep -v '^#' "$DA_LABELS_FILE" 2>/dev/null | grep -v '^[[:space:]]*$')"
 DA_MOBILE_EXTRA="Platform parity"
 DA_CONV="conventions/27-design-foundation.md"
 da_count() { printf '%s\n' "$1" | awk -v l="- $2:" 'index($0, l) == 1 { n++ } END { print n + 0 }'; }
@@ -241,7 +230,7 @@ EOF
   fi
   [ -n "$DA_MISSING" ] && fail "$(basename "$REF") Design Artifact section lacks label(s):${DA_MISSING%,} (conv #27 contract; a design tool reads these lines first)"
   [ -n "$DA_REPEATED" ] && fail "$(basename "$REF") Design Artifact section repeats label(s):${DA_REPEATED%,} (one line per field)"
-  [ -n "$DA_UNKNOWN" ] && fail "$(basename "$REF") Design Artifact section has label(s) the contract does not know:${DA_UNKNOWN%,} (add to DA_LABELS in validate-framework.sh and to conv #27, or move the line out of the section)"
+  [ -n "$DA_UNKNOWN" ] && fail "$(basename "$REF") Design Artifact section has label(s) the contract does not know:${DA_UNKNOWN%,} (add to scripts/design-artifact-labels.txt and to conv #27, or move the line out of the section)"
 done
 if [ -f "$DA_CONV" ]; then
   DA_CONV_SECTION="$(awk '/^## Design tools/{flag=1;next} /^## /{flag=0} flag' "$DA_CONV")"
