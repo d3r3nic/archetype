@@ -83,7 +83,7 @@ I want to build: [describe your idea in plain English, even one sentence is fine
 
 ### Discovery Process (for the AI assistant):
 
-Before choosing any technology or generating any files, interview the user with these questions. Ask them one group at a time. These are designed for people who may not know technical terms.
+Before choosing any technology or generating any files, interview the user with these questions. Ask them one group at a time. These are designed for people who may not know technical terms. Skip any question an earlier answer already settled, and say what you inferred instead of asking it. When the owner pushes back on the number of questions, say how many rounds remain, state what you will assume, and compress the rest into one round; never drop the four that cannot be inferred and cost the most to learn late: the regulated-data question (Group 5), the comfortable monthly cost (Group 6), the first minute and what people come back to do most (Group 3), and who makes the technical choices (Group 6).
 
 **Group 1 - What is it?**
 - What does your app do? Describe it like you're explaining to a friend.
