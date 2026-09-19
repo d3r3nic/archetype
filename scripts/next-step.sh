@@ -11,6 +11,8 @@
 #   scripts/next-step.sh --skip ID --reason TEXT        record a step that does not apply; only a step
 #                                                       whose playbook says when it may be skipped
 #   add --unit NAME for a playbook that repeats (one run of its steps per feature)
+#   add --verify to re-run the project's own commands behind closed steps now (they are
+#   otherwise re-run whenever a step closes or is skipped; engine scripts are re-run every time)
 # Run from the engine:
 #   scripts/next-step.sh --lint                   every stepped playbook is well formed (the self-test runs this)
 #
@@ -32,11 +34,12 @@ ENGINE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 START_DIR="$(pwd)"
 SEP="$(printf '\037')"
 
-MODE="next"; ID=""; UNIT=""; EVIDENCE=""; REASON=""
+MODE="next"; ID=""; UNIT=""; EVIDENCE=""; REASON=""; VERIFY=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --lint) MODE="lint" ;;
     --list) MODE="list" ;;
+    --verify) VERIFY=1 ;;
     --close) MODE="close"; ID="${2:-}"; [ $# -gt 1 ] && shift ;;
     --skip) MODE="skip"; ID="${2:-}"; [ $# -gt 1 ] && shift ;;
     --unit) UNIT="${2:-}"; [ $# -gt 1 ] && shift ;;
@@ -149,22 +152,73 @@ resolve_read() {
   esac
 }
 
-# The check's command, when the check is one: "run scripts/x.sh --flag" gives "scripts/x.sh --flag".
-check_command() { case "$1" in 'run '*) printf '%s' "${1#run }" ;; esac; }
+# "path § Section": true when the file has a heading that opens with the section's name
+# (a heading may say more after it), or when no section is named.
+has_section() {
+  case "$1" in *' § '*) ;; *) return 0 ;; esac
+  local file="${1%% § *}" want="${1#* § }"
+  [ -f "$ENGINE_DIR/$file" ] || return 0
+  tr -d '\r' < "$ENGINE_DIR/$file" | W="$want" awk '/^```/ { fence = !fence; next } fence { next }
+    /^#+ / { h = $0; sub(/^#+ +/, "", h); if (index(h, ENVIRON["W"]) == 1) { found = 1; exit } } END { exit !found }'
+}
+
+# A Check line is "run <command>", "evidence: <what is recorded>", or both: "run <command>; evidence: <...>".
+# The command is an engine script ("scripts/x.sh --flag") or the project's own recorded commands
+# ("project: typecheck, lint, test": labels of References.md, section Commands).
+check_command() { case "$1" in 'run '*) local c="${1#run }"; printf '%s' "${c%%; evidence: *}" ;; esac; }
+check_evidence() { case "$1" in 'evidence: '*) printf '%s' "${1#evidence: }" ;; *'; evidence: '*) printf '%s' "${1#*; evidence: }" ;; esac; }
+is_project_command() { case "$1" in 'project: '*) return 0 ;; esac; return 1; }
 valid_command() {
+  if is_project_command "$1"; then
+    printf '%s' "$1" | grep -qE '^project: [a-z][a-z0-9_-]*(, *[a-z][a-z0-9_-]*)*$'; return $?
+  fi
   printf '%s' "$1" | grep -qE '^scripts/[A-Za-z0-9._-]+\.(sh|py)( [-A-Za-z0-9=._/ ]+)?$' || return 1
   case " ${1#* }" in *' /'*|*'..'*) return 1 ;; esac
   return 0
 }
+command_exists() { is_project_command "$1" || [ -f "$ENGINE_DIR/${1%% *}" ]; }
+
+# The project's recorded command for a label: the "label: command" line of References.md, section Commands.
+project_command() {
+  local refs="" dir
+  for dir in "$PROJECT_ROOT" "$PROJECT_ROOT/project" "$PROJECT_ROOT/archetype"; do
+    if [ -f "$dir/References.md" ]; then refs="$dir/References.md"; break; fi
+  done
+  [ -n "$refs" ] || return 1
+  tr -d '\r' < "$refs" | L="$1" awk '/^## Commands/ { f = 1; next } /^## / { f = 0 }
+    f { l = ENVIRON["L"] ":"; if (index($0, l) == 1) { v = substr($0, length(l) + 1); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); print v; exit } }'
+}
 
 CHECK_OUT=""
 run_check() {
-  local cmd="$1" script args runner
+  local cmd="$1" script args runner label value labels OLDIFS
+  if is_project_command "$cmd"; then
+    CHECK_OUT=""
+    labels="${cmd#project: }"
+    OLDIFS="$IFS"; IFS=","
+    for label in $labels; do
+      IFS="$OLDIFS"
+      label="$(trim "$label")"
+      value="$(project_command "$label")"
+      case "$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')" in
+        ''|'['*) CHECK_OUT="FAIL: References.md, section Commands, records no command for '$label' (write the command, or none when the project has no such command)"; return 1 ;;
+        none*|n/a*) IFS=","; continue ;;
+      esac
+      if ! CHECK_OUT="$(cd "$PROJECT_ROOT" && ARCHETYPE_STEP_UNIT="$UNIT" bash -c "$value" 2>&1)"; then
+        CHECK_OUT="FAIL: the project's $label command failed: $value
+$CHECK_OUT"
+        return 1
+      fi
+      IFS=","
+    done
+    IFS="$OLDIFS"
+    return 0
+  fi
   script="${cmd%% *}"; args=""
   [ "$script" != "$cmd" ] && args="${cmd#* }"
   case "$script" in *.py) runner="python3" ;; *) runner="bash" ;; esac
   # shellcheck disable=SC2086
-  CHECK_OUT="$(cd "$PROJECT_ROOT" && $runner "$ENGINE_DIR/$script" $args 2>&1)"
+  CHECK_OUT="$(cd "$PROJECT_ROOT" && ARCHETYPE_STEP_UNIT="$UNIT" $runner "$ENGINE_DIR/$script" $args 2>&1)"
 }
 show_check_output() {
   local lines
@@ -240,9 +294,10 @@ $pid.$sid"
           ''|none|'project: '*) ;;
           '#'[0-9]*)
             r="$(resolve_read "$entry")"
-            case "$r" in conventions/*) ;; *) bad "$where: Read names $entry and no convention file has that number" ;; esac ;;
+            case "$r" in conventions/*) has_section "$r" || bad "$where: Read names $entry, and ${r%% § *} has no heading that opens with '${r#* § }'" ;; *) bad "$where: Read names $entry and no convention file has that number" ;; esac ;;
           *)
             path="${entry%% § *}"
+            [ -e "$ENGINE_DIR/$path" ] && { has_section "$entry" || bad "$where: Read names '$entry', and $path has no heading that opens with '${entry#* § }'"; }
             [ -e "$ENGINE_DIR/$path" ] || bad "$where: Read names '$path', which is not in the engine (a project file is written 'project: <file>'; entries are separated by semicolons, so a section name holds none)" ;;
         esac
         IFS=";"
@@ -253,11 +308,12 @@ $pid.$sid"
       case "$ck" in
         'run '*)
           cmd="$(check_command "$ck")"
-          if ! valid_command "$cmd"; then bad "$where: Check runs '$cmd'; only an engine script under scripts/ with plain arguments can be run"
-          elif [ ! -f "$ENGINE_DIR/${cmd%% *}" ]; then bad "$where: Check runs ${cmd%% *}, which does not exist"
-          fi ;;
+          if ! valid_command "$cmd"; then bad "$where: Check runs '$cmd'; it may run an engine script under scripts/ with plain arguments, or 'project: <labels>' naming commands recorded in References.md"
+          elif ! command_exists "$cmd"; then bad "$where: Check runs ${cmd%% *}, which does not exist"
+          fi
+          case "$ck" in *'; evidence: ') bad "$where: Check asks for evidence and does not say what" ;; esac ;;
         'evidence: '?*) ;;
-        *) bad "$where: Check is 'run scripts/<script> [arguments]' or 'evidence: <what is recorded, in whose words>'" ;;
+        *) bad "$where: Check is 'run scripts/<script> [arguments]', 'run project: <labels>', 'evidence: <what is recorded, in whose words>', or a run followed by '; evidence: <...>'" ;;
       esac
     fi
   done <<EOF
@@ -348,18 +404,20 @@ IFS="$OLDIFS"
 REVERIFY_OK=1
 done_cmds=""
 FAILED_KEYS=""
+PROJECT_CHECKS_WAITING=0
 while IFS="$SEP" read -r pid mode sid title file line rd pr ck sw rc pc cc kind; do
   [ "$kind" = "leaf" ] || continue
   cmd="$(check_command "$ck")"
   [ -n "$cmd" ] || continue
   keys="$(closed_keys_of "$pid.$sid")"
   [ -n "$keys" ] || continue
+  if is_project_command "$cmd" && [ "$MODE" != "close" ] && [ "$MODE" != "skip" ] && [ "$VERIFY" != "1" ]; then PROJECT_CHECKS_WAITING=1; continue; fi
   keys_line="$(printf '%s' "$keys" | tr '\n' ',' | sed 's/,/, /g')"
-  if ! valid_command "$cmd" || [ ! -f "$ENGINE_DIR/${cmd%% *}" ]; then
+  if ! valid_command "$cmd" || ! command_exists "$cmd"; then
     REVERIFY_OK=0
     FAILED_KEYS="$FAILED_KEYS
 $keys"
-    echo "REOPENED: $keys_line: the playbook's check '$cmd' is not an engine script that can be run (run --lint in the engine)"
+    echo "REOPENED: $keys_line: the playbook's check '$cmd' is not a check that can be run (run --lint in the engine)"
     continue
   fi
   case "
@@ -421,10 +479,9 @@ if [ "$MODE" = "next" ]; then
   echo "Check:     $NEXT_CHECK"
   if [ -n "$NEXT_SKIP" ]; then echo "Skip when: $NEXT_SKIP"; else echo "Skip when: never"; fi
   UNIT_ARG=""; [ -n "$UNIT" ] && UNIT_ARG=" --unit $UNIT"
-  case "$NEXT_CHECK" in
-    'run '*) echo "Close it:  $SELF --close $NEXT_ID$UNIT_ARG" ;;
-    *)       echo "Close it:  $SELF --close $NEXT_ID$UNIT_ARG --evidence \"<what the check asks for>\"" ;;
-  esac
+  if [ -n "$(check_evidence "$NEXT_CHECK")" ]; then echo "Close it:  $SELF --close $NEXT_ID$UNIT_ARG --evidence \"<what the check asks for>\""
+  else echo "Close it:  $SELF --close $NEXT_ID$UNIT_ARG"; fi
+  [ "$PROJECT_CHECKS_WAITING" = "1" ] && echo "Note:      closed steps that ran the project's own commands are re-run when a step closes, or now with --verify."
   exit 0
 fi
 
@@ -458,7 +515,9 @@ fi
 EVIDENCE="$(clean "$EVIDENCE")"
 CMD="$(check_command "$NEXT_CHECK")"
 if [ -n "$CMD" ]; then
-  if ! valid_command "$CMD" || [ ! -f "$ENGINE_DIR/${CMD%% *}" ]; then echo "Refused: the playbook's check '$CMD' cannot be run (run --lint in the engine)."; exit 1; fi
+  if ! valid_command "$CMD" || ! command_exists "$CMD"; then echo "Refused: the playbook's check '$CMD' cannot be run (run --lint in the engine)."; exit 1; fi
+  WANTED="$(check_evidence "$NEXT_CHECK")"
+  if [ -n "$WANTED" ] && [ -z "$EVIDENCE" ]; then echo "Refused: besides its command, $NEXT_KEY closes on evidence ($WANTED). Give it with --evidence."; exit 1; fi
   if ! run_check "$CMD"; then
     echo "Refused: $NEXT_KEY stays open, its check fails: $CMD"
     show_check_output
@@ -467,7 +526,7 @@ if [ -n "$CMD" ]; then
   RESULT="check passed: $CMD"
   [ -n "$EVIDENCE" ] && RESULT="$RESULT | evidence: $EVIDENCE"
 else
-  if [ -z "$EVIDENCE" ]; then echo "Refused: $NEXT_KEY closes on evidence (${NEXT_CHECK#evidence: }). Give it with --evidence."; exit 1; fi
+  if [ -z "$EVIDENCE" ]; then echo "Refused: $NEXT_KEY closes on evidence ($(check_evidence "$NEXT_CHECK")). Give it with --evidence."; exit 1; fi
   RESULT="evidence: $EVIDENCE"
 fi
 append "- [x] $NEXT_KEY | $TODAY | rev $REV | $RESULT"

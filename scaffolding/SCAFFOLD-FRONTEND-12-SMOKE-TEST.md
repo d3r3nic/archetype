@@ -1,0 +1,19 @@
+# Frontend scaffold: smoke-test feature (the integration proof)
+
+Part of the frontend scaffold playbook (scaffolding/SCAFFOLD-FRONTEND.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step. Before building, read the conventions it names and write how the system will be built in its References.md section (scaffolding/_preamble.md); when it lands, update its feature-tree.md row and its docs/systems/ page.
+
+## Step 12: Smoke-test feature (the integration proof)
+Read: #12; scaffolding/RED-FLAGS.md § 11. Scaffold-complete without integration proof
+Produces: one minimal feature that goes through every shared system that was built, with its integration test
+Check: run project: typecheck, lint, test, build; evidence: the feature's path, and each shared system it goes through
+
+Build a minimal feature that exercises EVERY shared system. Typical choice: a `/profile` or `/settings` page that:
+- Auth-protected (Step 7)
+- Fetches from API (Step 6)
+- Uses state management (Step 5)
+- Renders through the component foundation (Step 4)
+- Has a form (Step 9 if present)
+- Has an integration test (Step 10)
+- Passes a11y checks
+
+This is end-to-end integration proof. Without it, scaffold can be "complete" with misconfigured wiring. See `scaffolding/RED-FLAGS.md` "Scaffold-complete without integration proof."

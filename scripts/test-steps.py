@@ -84,7 +84,7 @@ class Steps(unittest.TestCase):
             (self.engine / folder).mkdir(parents=True)
         shutil.copy(SOURCE / 'scripts' / 'next-step.sh', self.engine / 'scripts' / 'next-step.sh')
         (self.engine / 'scripts' / 'check-flag.sh').write_text(CHECK_FLAG)
-        (self.engine / 'conventions' / '08-errors.md').write_text('# Errors\n')
+        (self.engine / 'conventions' / '08-errors.md').write_text('# Errors\n\n## Principle\n\ntext\n\n## Rules\n\ntext\n')
         (self.engine / 'templates' / 'thing.md').write_text('# Thing\n')
         (self.engine / 'bootstrap' / 'BOOT.md').write_text(BOOT)
         (self.engine / 'development' / 'FEATURE.md').write_text(FEATURE)
@@ -129,6 +129,17 @@ class Steps(unittest.TestCase):
         result = self.lint_with('#8 § Principle', '#77')
         self.assertEqual(result.returncode, 1)
         self.assertRegex(result.stdout, r'Read names #77 and no convention file has that number')
+
+    def test_lint_names_a_section_that_does_not_exist(self):
+        (self.engine / 'conventions' / '08-errors.md').write_text('# Errors\n\n## Principle and more\n\ntext\n\n```\n## Fenced\n```\n')
+        self.assertEqual(self.run_tool('--lint', cwd=self.engine).returncode, 0)  # "Principle" opens the heading
+        for entry in ('#8 § Rules', 'conventions/08-errors.md § Fenced'):
+            with self.subTest(entry=entry):
+                self.setUp()
+                (self.engine / 'conventions' / '08-errors.md').write_text('# Errors\n\n## Principle\n\n```\n## Fenced\n```\n')
+                result = self.lint_with('#8 § Principle', entry)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn('has no heading that opens with', result.stdout)
 
     def test_lint_refuses_a_check_that_is_not_an_engine_script(self):
         for check in ('run rm -rf .', 'run scripts/../evil.sh', 'run scripts/check-flag.sh; echo x', 'run scripts/absent.sh', 'looks fine to me'):
@@ -399,7 +410,7 @@ class Steps(unittest.TestCase):
         path.write_text(path.read_text().replace('Check: run scripts/check-flag.sh', 'Check: run ../outside.sh'))
         result = self.run_tool()
         self.assertEqual(result.returncode, 1)
-        self.assertIn('not an engine script', result.stdout)
+        self.assertIn('is not a check that can be run', result.stdout)
         self.assertFalse((Path(self.temp.name) / 'ran').exists())
 
     def test_unit_names_are_plain(self):
@@ -507,6 +518,86 @@ class Steps(unittest.TestCase):
         (self.engine / 'scaffolding' / 'SCAF.md').write_text('# S\n\nStep ledger: boot\n\n## Step 40: A\nRead: none\nProduces: x\nCheck: evidence: x\n\n## Step 41: B\nRead: none\nProduces: x\nCheck: evidence: x\n')
         result = self.run_tool('--lint', cwd=self.engine)
         self.assertEqual(result.stdout.count('is also declared by'), 1)
+
+    # --- the project's own commands, and a command with evidence -----------------------
+
+    def project_playbook(self, check='run project: typecheck, test'):
+        (self.engine / 'bootstrap' / 'BOOT.md').write_text(
+            '# B\n\nStep ledger: boot\n\n## Step 1: Build\nRead: none\nProduces: code\nCheck: %s\n\n'
+            '## Step 2: More\nRead: none\nProduces: more\nCheck: evidence: what was seen\n' % check)
+        self.ledger('boot')
+
+    def commands(self, typecheck='true', test='test -f flag.txt'):
+        (self.project / 'References.md').write_text(
+            '# References\n\n## Commands\n\n```\ndev:       start\ntypecheck: %s\ntest:      %s\n```\n\n## Next\n\ntest: not this one\n' % (typecheck, test))
+
+    def test_a_step_closes_on_the_projects_own_commands(self):
+        self.project_playbook(); self.commands()
+        refused = self.run_tool('--close', 'boot.1')
+        self.assertEqual(refused.returncode, 1)
+        self.assertIn("the project's test command failed: test -f flag.txt", refused.stdout)
+        (self.project / 'flag.txt').write_text('x')
+        closed = self.run_tool('--close', 'boot.1')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+        self.assertRegex(self.closed()[-1], r'check passed: project: typecheck, test$')
+
+    def test_a_command_never_recorded_fails_and_none_is_not_applicable(self):
+        self.project_playbook(); self.commands(typecheck='[command to run type checker]')
+        (self.project / 'flag.txt').write_text('x')
+        result = self.run_tool('--close', 'boot.1')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("records no command for 'typecheck'", result.stdout)
+        self.commands(typecheck='none, the language is untyped')
+        self.assertEqual(self.run_tool('--close', 'boot.1').returncode, 0)
+
+    def test_no_references_file_fails_a_project_check(self):
+        self.project_playbook()
+        result = self.run_tool('--close', 'boot.1')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("records no command for 'typecheck'", result.stdout)
+
+    def test_project_commands_are_rerun_when_a_step_closes_not_on_a_bare_run(self):
+        self.project_playbook(); self.commands()
+        (self.project / 'flag.txt').write_text('x')
+        self.run_tool('--close', 'boot.1')
+        (self.project / 'flag.txt').unlink()
+        bare = self.run_tool()
+        self.assertEqual(bare.returncode, 0, bare.stdout)
+        self.assertIn('Next step: boot.2', bare.stdout)
+        self.assertIn('--verify', bare.stdout)
+        forced = self.run_tool('--verify')
+        self.assertEqual(forced.returncode, 1)
+        self.assertIn('REOPENED: boot.1', forced.stdout)
+        closing = self.run_tool('--close', 'boot.2', '--evidence', 'x')
+        self.assertEqual(closing.returncode, 1)
+        self.assertIn('REOPENED: boot.1', closing.stdout)
+        self.assertEqual(len(self.closed()), 1)
+
+    def test_a_command_may_also_ask_for_evidence(self):
+        self.project_playbook(check='run scripts/check-flag.sh; evidence: what the screen showed when the error was thrown')
+        (self.project / 'flag.txt').write_text('x')
+        refused = self.run_tool('--close', 'boot.1')
+        self.assertEqual(refused.returncode, 1)
+        self.assertIn('what the screen showed', refused.stdout)
+        self.assertEqual(self.run_tool('--close', 'boot.1', '--evidence', 'the fallback page').returncode, 0)
+        self.assertRegex(self.closed()[-1], r'check passed: scripts/check-flag\.sh \| evidence: the fallback page$')
+        self.assertIn('--evidence', self.run_tool().stdout)  # step 2 closes on evidence
+
+    def test_lint_knows_the_project_form_and_refuses_shell_in_it(self):
+        for check, ok in (('run project: typecheck, lint, test', True), ('run project: test; evidence: what was seen', True),
+                          ('run project: test; rm -rf .', False), ('run project: $(id)', False), ('run project:', False),
+                          ('run project: test; evidence: ', False)):
+            with self.subTest(check=check):
+                self.setUp(); self.project_playbook(check=check)
+                result = self.run_tool('--lint', cwd=self.engine)
+                self.assertEqual(result.returncode == 0, ok, result.stdout)
+
+    def test_the_unit_reaches_the_check(self):
+        self.close_all_of_boot()
+        (self.engine / 'scripts' / 'check-flag.sh').write_text('#!/bin/bash\necho "unit=$ARCHETYPE_STEP_UNIT" > seen.txt\nexit 0\n')
+        self.run_tool('--close', 'dev.1', '--unit', 'board', '--evidence', 'x')
+        self.run_tool('--close', 'dev.2', '--unit', 'board')
+        self.assertEqual((self.project / 'seen.txt').read_text().strip(), 'unit=board')
 
     def test_list_shows_every_leaf_with_its_state(self):
         self.close_up_to_three()
