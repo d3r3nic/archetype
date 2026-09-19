@@ -3,7 +3,7 @@
 Part of the frontend scaffold playbook (scaffolding/SCAFFOLD-FRONTEND.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step. Before building, read the conventions it names and write how the system will be built in its References.md section (scaffolding/_preamble.md); when it lands, update its feature-tree.md row and its docs/systems/ page.
 
 ## Step 11b: Pulse Monitor (dev-only project visibility)
-Read: #26; templates/pulse-monitor-spec.md
+Read: #26; templates/pulse-monitor-spec.md; scaffolding/_preamble.md § Convention-mapping rule
 Produces: the dev-only pulse route and docs/systems/pulse-monitor.md; nothing of it in a production build
 Check: run project: typecheck, lint, test, build; evidence: what was seen when this was tried: every section of the pulse route with real data, and the production build searched for the pulse files
 

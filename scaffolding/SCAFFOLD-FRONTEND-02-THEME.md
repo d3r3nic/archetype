@@ -3,7 +3,7 @@
 Part of the frontend scaffold playbook (scaffolding/SCAFFOLD-FRONTEND.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step. Before building, read the conventions it names and write how the system will be built in its References.md section (scaffolding/_preamble.md); when it lands, update its feature-tree.md row and its docs/systems/ page.
 
 ## Step 2: Theme system
-Read: #6; #22; #27 § Design tools; scaffolding/_preamble.md § Convention-mapping rule; project: the brand book and the tokens source named in References.md § Design Artifact
+Read: #6; #22; #31; #27 § Design tools; scaffolding/_preamble.md § Convention-mapping rule; project: the brand book and the tokens source named in References.md § Design Artifact
 Produces: the token source in every family #6 names, derived from the artifact, with every committed scheme
 Check: run project: typecheck, lint, build; evidence: what was seen when this was tried: the test page in each scheme, and the search for a hardcoded color
 

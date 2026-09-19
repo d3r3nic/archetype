@@ -3,7 +3,7 @@
 Part of the frontend scaffold playbook (scaffolding/SCAFFOLD-FRONTEND.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step. Before building, read the conventions it names and write how the system will be built in its References.md section (scaffolding/_preamble.md); when it lands, update its feature-tree.md row and its docs/systems/ page.
 
 ## Step 10: Testing
-Read: #12; #18; scaffolding/_preamble.md § Convention-mapping rule
+Read: #12; #18; scaffolding/RED-FLAGS.md § 16. Env-inlining breaks runtime env mutation in tests; scaffolding/_preamble.md § Convention-mapping rule
 Produces: the test setup, the accessibility check in it, and the test command recorded in References.md § Commands
 Check: run project: typecheck, lint, test, build; evidence: what was seen when this was tried: a sample component rendered through its wrapper, and a failing accessibility test blocking the change
 

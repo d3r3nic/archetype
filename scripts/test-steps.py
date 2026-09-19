@@ -232,6 +232,15 @@ class Steps(unittest.TestCase):
         self.assertEqual(declared.returncode, 1)
         self.assertIn("a step file carries no 'Step ledger:' line of its own", declared.stdout)
 
+    def test_a_step_file_that_lists_step_files_fails_the_lint(self):
+        self.split_playbook()
+        part = self.engine / 'bootstrap' / 'BOOT-2.md'
+        (self.engine / 'bootstrap' / 'BOOT-4.md').write_text('# More\n\n## Step 4: Hidden\nRead: none\nProduces: x\nCheck: evidence: x\n')
+        part.write_text(part.read_text().replace('# Discovery\n', '# Discovery\n\nStep files: bootstrap/BOOT-4.md\n'))
+        result = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('a step file lists no step files of its own', result.stdout)
+
     def test_a_step_file_outside_the_engine_is_never_read(self):
         self.split_playbook()
         entry = self.engine / 'bootstrap' / 'BOOT.md'
@@ -572,6 +581,35 @@ class Steps(unittest.TestCase):
         self.assertEqual(closing.returncode, 1)
         self.assertIn('REOPENED: boot.1', closing.stdout)
         self.assertEqual(len(self.closed()), 1)
+
+    def test_an_endpoint_folder_runs_its_own_recorded_commands_in_its_own_folder(self):
+        self.project_playbook(check='run project: typecheck')
+        endpoint = self.project / 'frontend'
+        endpoint.mkdir()
+        (endpoint / 'References.md').write_text('# R\n\n## Commands\n\n```\ntypecheck: test -f here.txt\n```\n')
+        (endpoint / 'here.txt').write_text('x')
+        from_root = self.run_tool('--close', 'boot.1')
+        self.assertEqual(from_root.returncode, 1)  # the root records no commands
+        closed = self.run_tool('--close', 'boot.1', cwd=endpoint)
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+
+    def test_none_means_none_and_nothing_that_merely_starts_with_it(self):
+        self.project_playbook(check='run project: typecheck'); self.commands(typecheck='nonexistent-tool --check')
+        result = self.run_tool('--close', 'boot.1')
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.commands(typecheck='None.')
+        self.assertEqual(self.run_tool('--close', 'boot.1').returncode, 0)
+
+    def test_a_listing_says_when_project_commands_were_not_rerun(self):
+        self.project_playbook(); self.commands()
+        (self.project / 'flag.txt').write_text('x')
+        self.run_tool('--close', 'boot.1')
+        (self.project / 'flag.txt').unlink()
+        listing = self.run_tool('--list')
+        self.assertIn('--verify', listing.stdout)
+        verified = self.run_tool('--list', '--verify')
+        self.assertEqual(verified.returncode, 1)
+        self.assertRegex(verified.stdout, r'(?m)^reopened\s+boot\.1\s')
 
     def test_a_command_may_also_ask_for_evidence(self):
         self.project_playbook(check='run scripts/check-flag.sh; evidence: what the screen showed when the error was thrown')

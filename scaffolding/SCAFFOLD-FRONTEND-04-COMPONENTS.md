@@ -3,7 +3,7 @@
 Part of the frontend scaffold playbook (scaffolding/SCAFFOLD-FRONTEND.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step. Before building, read the conventions it names and write how the system will be built in its References.md section (scaffolding/_preamble.md); when it lands, update its feature-tree.md row and its docs/systems/ page.
 
 ## Step 4: Design-system and component foundation
-Read: #4; #22; #14; #27 § Design review; scaffolding/_preamble.md § Convention-mapping rule
+Read: #4; #22; #14; #31; #27 § Design review; scaffolding/_preamble.md § Convention-mapping rule
 Produces: the wrappers in use, the layout primitives, the catalog, the icon set, the focus token, the state gallery, the capture command recorded in References.md § Commands, and the lint rule on the wrapper boundary
 Check: run project: typecheck, lint, build, capture; evidence: what was seen when this was tried: the wrapper-only test page, the lint rule run against a direct import, and what the captures show
 

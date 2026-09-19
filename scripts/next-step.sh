@@ -77,6 +77,7 @@ parse_steps() { # file (from the engine root), playbook id, once|unit -> one row
     /^```/ { fence = !fence; next }
     fence { next }
     /^Step ledger: / { if (part) print pid S mode S "" S "" S file S NR S "" S "" S "" S "" S 0 S 0 S 0 S "partdecl"; next }
+    /^Step files: / { if (part) print pid S mode S "" S "" S file S NR S "" S "" S "" S "" S 0 S 0 S 0 S "partfiles"; next }
     /^###? Step [A-Za-z0-9][A-Za-z0-9.]*(:| )/ {
       flush()
       h = $0; sub(/^###? Step /, "", h)
@@ -179,12 +180,24 @@ valid_command() {
 command_exists() { is_project_command "$1" || [ -f "$ENGINE_DIR/${1%% *}" ]; }
 
 # The project's recorded command for a label: the "label: command" line of References.md, section Commands.
-project_command() {
-  local refs="" dir
-  for dir in "$PROJECT_ROOT" "$PROJECT_ROOT/project" "$PROJECT_ROOT/archetype"; do
-    if [ -f "$dir/References.md" ]; then refs="$dir/References.md"; break; fi
+# The nearest one wins, from the folder the script was run in up to the ledger's folder: an
+# endpoint of a fullstack repository records its own commands, and they run in its folder.
+COMMANDS_DIR=""
+project_references() {
+  local dir="$START_DIR"
+  while :; do
+    if [ -f "$dir/References.md" ]; then COMMANDS_DIR="$dir"; printf '%s' "$dir/References.md"; return 0; fi
+    [ "$dir" = "$PROJECT_ROOT" ] || [ "$dir" = "/" ] && break
+    dir="$(dirname "$dir")"
   done
-  [ -n "$refs" ] || return 1
+  for dir in "$PROJECT_ROOT/project" "$PROJECT_ROOT/archetype"; do
+    if [ -f "$dir/References.md" ]; then COMMANDS_DIR="$PROJECT_ROOT"; printf '%s' "$dir/References.md"; return 0; fi
+  done
+  return 1
+}
+project_command() {
+  local refs
+  refs="$(project_references)" || return 1
   tr -d '\r' < "$refs" | L="$1" awk '/^## Commands/ { f = 1; next } /^## / { f = 0 }
     f { l = ENVIRON["L"] ":"; if (index($0, l) == 1) { v = substr($0, length(l) + 1); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); print v; exit } }'
 }
@@ -202,9 +215,10 @@ run_check() {
       value="$(project_command "$label")"
       case "$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')" in
         ''|'['*) CHECK_OUT="FAIL: References.md, section Commands, records no command for '$label' (write the command, or none when the project has no such command)"; return 1 ;;
-        none*|n/a*) IFS=","; continue ;;
+        none|none[\ ,.\;:]*|n/a|n/a[\ ,.\;:]*) IFS=","; continue ;;
       esac
-      if ! CHECK_OUT="$(cd "$PROJECT_ROOT" && ARCHETYPE_STEP_UNIT="$UNIT" bash -c "$value" 2>&1)"; then
+      project_references > /dev/null   # sets COMMANDS_DIR in this shell; project_command ran in a subshell
+      if ! CHECK_OUT="$(cd "${COMMANDS_DIR:-$PROJECT_ROOT}" && ARCHETYPE_STEP_UNIT="$UNIT" bash -c "$value" 2>&1)"; then
         CHECK_OUT="FAIL: the project's $label command failed: $value
 $CHECK_OUT"
         return 1
@@ -267,6 +281,7 @@ ${f#$ENGINE_DIR/}$SEP$h"
     printf '%s' "$pid" | grep -qE '^[a-z][a-z0-9-]*$' || bad "$file: ledger id '$pid' must be lower-case letters, digits, and hyphens"
     if [ "$kind" = "nopart" ]; then bad "playbook '$pid': its 'Step files:' line names $file, which is not a file in the engine"; continue; fi
     if [ "$kind" = "partdecl" ]; then bad "$file:$line: a step file carries no 'Step ledger:' line of its own; its playbook's entry file declares the ledger and lists it"; continue; fi
+    if [ "$kind" = "partfiles" ]; then bad "$file:$line: a step file lists no step files of its own; only a playbook's entry file does, and the files this one names would never be read"; continue; fi
     if [ "$kind" = "malformed" ]; then bad "$file:$line: a heading that opens with 'Step' is not a step: write '## Step <id>: Title' or '### Step <id>: Title', one space after the marks, an id of letters, digits, and dots"; continue; fi
     if [ "$kind" = "empty" ]; then bad "$file: declares a step ledger and has no 'Step' heading"; continue; fi
     where="$file:$line ($pid.$sid)"
@@ -450,6 +465,7 @@ if [ "$MODE" = "list" ]; then
   printf '%s\n' "$LISTING" | sed '/^$/d' | F="$FAILED_KEYS" awk 'BEGIN { n = split(ENVIRON["F"], f, "\n"); for (i = 1; i <= n; i++) if (f[i] != "") bad[f[i]] = 1 }
     { for (k in bad) if (index($0, "closed  " k "  ") == 1) { sub(/^closed  /, "reopened  "); break } print }'
   [ -n "$NEED_UNIT" ] && echo "(the playbook '$NEED_UNIT' repeats: add --unit NAME to list one run of it)"
+  [ "$PROJECT_CHECKS_WAITING" = "1" ] && echo "(closed steps that ran the project's own commands were not re-run for this listing: add --verify)"
   [ "$REVERIFY_OK" = "1" ] || exit 1
   exit 0
 fi
