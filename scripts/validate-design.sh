@@ -8,8 +8,10 @@
 #   1. Every label of the contract (scripts/design-artifact-labels.txt) appears exactly once
 #   2. No line of the section still holds its template placeholder: a value that is empty or
 #      opens with "[" fails, except "[to be created]" on Artifact location, which the
-#      References templates allow until the artifact is first published. Only the contract's
-#      labels (and the mobile template's Platform parity) are read; a note is left alone
+#      References templates allow until the artifact is first published. A value that only
+#      defers ("pending ...", "to be decided", "TBD", "todo") fails the same way: a line that
+#      says later is not filled in. Only the contract's labels (and the mobile template's
+#      Platform parity) are read; a note is left alone
 #   3. "Brand decided" holding the word yes, however it is written, is refused while "First task" or "Return tasks" is unknown: a
 #      direction composes the screen for the first return task, so a look cannot be settled
 #      for a product whose main task nobody recorded
@@ -92,13 +94,17 @@ while IFS= read -r label; do
     '') UNFILLED="$UNFILLED $label," ;;
     '[to be created]'*) [ "$label" = "Artifact location" ] || UNFILLED="$UNFILLED $label," ;;
     '['*) UNFILLED="$UNFILLED $label," ;;
+    *)
+      case "$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')" in
+        pending*|tbd*|todo*|'to be decided'*|'to be determined'*|'to do'*) UNFILLED="$UNFILLED $label," ;;
+      esac ;;
   esac
 done <<EOF
 $LABELS
 Platform parity
 EOF
 if [ -n "$UNFILLED" ]; then
-  fail "Design Artifact line(s) still hold the template placeholder or no value:${UNFILLED%,} (record the fact, or unknown with what was assumed; a blank is not an answer)"
+  fail "Design Artifact line(s) still hold the template placeholder, a deferral, or no value:${UNFILLED%,} (record the fact, or unknown with what was assumed; a blank or a "pending" is not an answer)"
 else
   pass "No Design Artifact line holds a template placeholder"
 fi

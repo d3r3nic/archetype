@@ -66,24 +66,33 @@ class DesignGate(unittest.TestCase):
     def test_template_placeholder_fails(self):
         result = self.check(section({'First task': '[the one thing a person should be able to do]'}))
         self.assertEqual(result.returncode, 1)
-        self.assertRegex(result.stdout, r'placeholder or no value: First task')
+        self.assertRegex(result.stdout, r'placeholder, a deferral, or no value: First task')
 
     def test_empty_value_fails(self):
         result = self.check(section({'Captures': ''}))
         self.assertEqual(result.returncode, 1)
-        self.assertRegex(result.stdout, r'placeholder or no value: Captures')
+        self.assertRegex(result.stdout, r'placeholder, a deferral, or no value: Captures')
+
+    def test_a_line_that_only_defers_is_not_filled_in(self):
+        for value in ('pending Step 4.5', 'Pending', 'TBD', 'to be decided with the owner', 'todo'):
+            with self.subTest(value=value):
+                result = self.check(section({'Tokens source': value}))
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertRegex(result.stdout, r'a deferral, or no value: Tokens source')
+        still_fine = self.check(section({'Brand decided': 'not yet, directions pending the owner\'s pick'}))
+        self.assertEqual(still_fine.returncode, 0, still_fine.stdout)
 
     def test_to_be_created_is_legal_only_on_artifact_location(self):
         allowed = self.check(section({'Artifact location': '[to be created]'}))
         self.assertEqual(allowed.returncode, 0, allowed.stdout)
         refused = self.check(section({'Tokens source': '[to be created]'}))
         self.assertEqual(refused.returncode, 1)
-        self.assertRegex(refused.stdout, r'placeholder or no value: Tokens source')
+        self.assertRegex(refused.stdout, r'placeholder, a deferral, or no value: Tokens source')
 
     def test_placeholder_on_an_extra_line_of_the_section_fails(self):
         result = self.check(section(extra=('- Platform parity: [how the two platforms are kept aligned]',)))
         self.assertEqual(result.returncode, 1)
-        self.assertRegex(result.stdout, r'placeholder or no value: Platform parity')
+        self.assertRegex(result.stdout, r'placeholder, a deferral, or no value: Platform parity')
 
     def test_placeholder_outside_the_section_is_not_read(self):
         # section() always carries one under the next heading.
@@ -117,7 +126,7 @@ class DesignGate(unittest.TestCase):
         (self.project / 'References.md').write_bytes(text.replace('\n', '\r\n').encode())
         result = self.check(None)
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertRegex(result.stdout, r'placeholder or no value: Captures')
+        self.assertRegex(result.stdout, r'placeholder, a deferral, or no value: Captures')
 
     def test_filled_section_with_carriage_returns_passes(self):
         text = '# References\n\n' + section()
@@ -162,7 +171,7 @@ class DesignGate(unittest.TestCase):
                 result = self.check(None)
                 self.assertEqual(result.returncode, 1)
                 self.assertNotIn('lacks label', result.stdout)
-                self.assertIn('placeholder or no value', result.stdout)
+                self.assertIn('placeholder, a deferral, or no value', result.stdout)
 
 
 if __name__ == '__main__':
