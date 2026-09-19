@@ -50,46 +50,86 @@ case "$ID" in --*) echo "Name the step: --close ID or --skip ID."; exit 1 ;; esa
 
 # One line per step of every stepped playbook, fields separated by the unit separator:
 # playbook id, once|unit, step id, title, file, line, Read, Produces, Check, Skip when,
-# count of Read lines, of Produces lines, of Check lines, leaf|container|empty|malformed.
-# A file whose only "Step ledger:" line sits inside a code fence declares nothing.
+# count of Read lines, of Produces lines, of Check lines, and a kind:
+# leaf|container|empty|malformed|nopart|partdecl.
+# A playbook is its entry file (the one carrying "Step ledger:") followed by the files its
+# "Step files:" line lists, in that order: a file is what a session opens, so a step, or a
+# few small ones, gets a file of its own. Lines inside a code fence declare nothing.
+playbook_head() { # entry file -> id, once|unit, the step files (semicolon-separated)
+  awk -v S="$SEP" '
+    { sub(/\r$/, "") }
+    /^```/ { fence = !fence; next }
+    fence { next }
+    /^Step ledger: / && !declared { declared = 1; pid = $3; mode = ($0 ~ /\(per [a-z]+\)/) ? "unit" : "once"; next }
+    /^Step files: / { parts = parts (parts == "" ? "" : ";") substr($0, 13) }
+    END { if (declared) print pid S mode S parts }' "$1"
+}
+parse_steps() { # file (from the engine root), playbook id, once|unit -> one row per step heading
+  awk -v file="$1" -v pid="$2" -v mode="$3" -v S="$SEP" '
+    function flush() {
+      if (sid != "") print pid S mode S sid S title S file S line S rd S pr S ck S sw S rc S pc S cc S "step"
+      sid = ""
+    }
+    { sub(/\r$/, "") }
+    /^```/ { fence = !fence; next }
+    fence { next }
+    /^Step ledger: / { if (part) print pid S mode S "" S "" S file S NR S "" S "" S "" S "" S 0 S 0 S 0 S "partdecl"; next }
+    /^###? Step [A-Za-z0-9][A-Za-z0-9.]*(:| )/ {
+      flush()
+      h = $0; sub(/^###? Step /, "", h)
+      sid = h; sub(/[ :].*$/, "", sid)
+      title = h; sub(/^[^ :]+:? */, "", title); sub(/^(—|-) */, "", title)
+      line = NR; rd = ""; pr = ""; ck = ""; sw = ""; rc = 0; pc = 0; cc = 0
+      next
+    }
+    /^#+[ \t]+Step([ \t:]|$)/ { flush(); print pid S mode S "" S "" S file S NR S "" S "" S "" S "" S 0 S 0 S 0 S "malformed"; next }
+    /^#+ / { flush(); next }
+    sid != "" && /^Read: /      { rd = substr($0, 7);  rc++; next }
+    sid != "" && /^Produces: /  { pr = substr($0, 11); pc++; next }
+    sid != "" && /^Check: /     { ck = substr($0, 8);  cc++; next }
+    sid != "" && /^Skip when: / { sw = substr($0, 12); next }
+    END { flush() }' part="$4" "$ENGINE_DIR/$1"
+}
 steps_table() {
+  local f rel head pid mode parts rows part OLDIFS
   for f in "$ENGINE_DIR"/bootstrap/*.md "$ENGINE_DIR"/scaffolding/*.md "$ENGINE_DIR"/development/*.md; do
     [ -f "$f" ] || continue
     grep -q '^Step ledger: ' "$f" || continue
-    awk -v file="${f#$ENGINE_DIR/}" -v S="$SEP" '
-      function flush() {
-        if (sid != "") { n++; a_sid[n]=sid; a_title[n]=title; a_line[n]=line; a_rd[n]=rd; a_pr[n]=pr; a_ck[n]=ck; a_sw[n]=sw; a_rc[n]=rc; a_pc[n]=pc; a_cc[n]=cc }
-        sid = ""
-      }
-      { sub(/\r$/, "") }
-      /^```/ { fence = !fence; next }
-      fence { next }
-      /^Step ledger: / { declared = 1; pid = $3; mode = ($0 ~ /\(per [a-z]+\)/) ? "unit" : "once"; next }
-      /^###? Step [A-Za-z0-9][A-Za-z0-9.]*(:| )/ {
-        flush()
-        h = $0; sub(/^###? Step /, "", h)
-        sid = h; sub(/[ :].*$/, "", sid)
-        title = h; sub(/^[^ :]+:? */, "", title); sub(/^(—|-) */, "", title)
-        line = NR; rd = ""; pr = ""; ck = ""; sw = ""; rc = 0; pc = 0; cc = 0
-        next
-      }
-      /^#+[ \t]+Step([ \t:]|$)/ { flush(); m++; m_line[m] = NR; next }
-      /^#+ / { flush(); next }
-      sid != "" && /^Read: /      { rd = substr($0, 7);  rc++; next }
-      sid != "" && /^Produces: /  { pr = substr($0, 11); pc++; next }
-      sid != "" && /^Check: /     { ck = substr($0, 8);  cc++; next }
-      sid != "" && /^Skip when: / { sw = substr($0, 12); next }
+    head="$(playbook_head "$f")"
+    [ -n "$head" ] || continue
+    rel="${f#$ENGINE_DIR/}"
+    pid="${head%%$SEP*}"; head="${head#*$SEP}"; mode="${head%%$SEP*}"; parts="${head#*$SEP}"
+    rows="$(parse_steps "$rel" "$pid" "$mode" "")"
+    OLDIFS="$IFS"; IFS=";"
+    for part in $parts; do
+      IFS="$OLDIFS"
+      part="$(printf '%s' "$part" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+      if [ -z "$part" ]; then IFS=";"; continue; fi
+      if [ -f "$ENGINE_DIR/$part" ] && case "$part" in /*|*..*) false ;; *) true ;; esac; then
+        rows="$rows
+$(parse_steps "$part" "$pid" "$mode" 1)"
+      else
+        rows="$rows
+$pid$SEP$mode$SEP$SEP$SEP$part$SEP""0$SEP$SEP$SEP$SEP$SEP""0$SEP""0$SEP""0$SEP""nopart"
+      fi
+      IFS=";"
+    done
+    IFS="$OLDIFS"
+    # A step with sub-steps anywhere in the playbook is a container; a playbook with no step is empty.
+    printf '%s\n' "$rows" | awk -F"$SEP" -v S="$SEP" -v pid="$pid" -v mode="$mode" -v file="$rel" '
+      NF < 14 { next }
+      { n++; row[n] = $0; sid[n] = $3; kind[n] = $14 }
       END {
-        if (!declared) exit
-        flush()
-        for (i = 1; i <= m; i++) print pid S mode S "" S "" S file S m_line[i] S "" S "" S "" S "" S 0 S 0 S 0 S "malformed"
-        if (n == 0) { print pid S mode S "" S "" S file S 0 S "" S "" S "" S "" S 0 S 0 S 0 S "empty"; exit }
+        steps = 0
         for (i = 1; i <= n; i++) {
-          kind = "leaf"
-          for (j = 1; j <= n; j++) if (j != i && index(a_sid[j], a_sid[i] ".") == 1) kind = "container"
-          print pid S mode S a_sid[i] S a_title[i] S file S a_line[i] S a_rd[i] S a_pr[i] S a_ck[i] S a_sw[i] S a_rc[i] S a_pc[i] S a_cc[i] S kind
+          if (kind[i] != "step") { print row[i]; continue }
+          steps++
+          k = "leaf"
+          for (j = 1; j <= n; j++) if (j != i && kind[j] == "step" && index(sid[j], sid[i] ".") == 1) k = "container"
+          sub(/step$/, k, row[i]); print row[i]
         }
-      }' "$f"
+        if (steps == 0) print pid S mode S "" S "" S file S 0 S "" S "" S "" S "" S 0 S 0 S 0 S "empty"
+      }'
   done
 }
 
@@ -143,18 +183,36 @@ if [ "$MODE" = "lint" ]; then
     echo "OK: no stepped playbook yet (none carries a 'Step ledger:' line)"
     exit 0
   fi
-  SEEN=""; OWNERS=""; COUNT=0; DUP_TOLD=""
+  SEEN=""; COUNT=0
+  # One playbook per ledger id, and a step file belongs to one playbook, once.
+  HEADS=""
+  for f in "$ENGINE_DIR"/bootstrap/*.md "$ENGINE_DIR"/scaffolding/*.md "$ENGINE_DIR"/development/*.md; do
+    [ -f "$f" ] || continue
+    grep -q '^Step ledger: ' "$f" || continue
+    h="$(playbook_head "$f")"
+    [ -n "$h" ] || continue
+    HEADS="$HEADS
+${f#$ENGINE_DIR/}$SEP$h"
+  done
+  printf '%s\n' "$HEADS" | awk -F"$SEP" '
+    NF < 3 { next }
+    { if ($2 in owner) print "ID" FS $2 FS owner[$2] FS $1; else owner[$2] = $1
+      n = split($4, parts, ";")
+      for (i = 1; i <= n; i++) { p = parts[i]; gsub(/^[ \t]+|[ \t]+$/, "", p); if (p == "") continue
+        if (p in used) print "PART" FS p FS used[p] FS $1; else used[p] = $1 } }' > "${TMPDIR:-/tmp}/next-step-lint.$$"
+  while IFS="$SEP" read -r what a b c; do
+    case "$what" in
+      ID) bad "$c: ledger id '$a' is also declared by $b; one playbook per id" ;;
+      PART) bad "$c: step file $a is already listed by $b; a step file belongs to one playbook, once" ;;
+    esac
+  done < "${TMPDIR:-/tmp}/next-step-lint.$$"
+  rm -f "${TMPDIR:-/tmp}/next-step-lint.$$"
   while IFS="$SEP" read -r pid mode sid title file line rd pr ck sw rc pc cc kind; do
     [ -n "$file" ] || continue
     if [ -z "$pid" ]; then bad "$file: the 'Step ledger:' line names no id"; continue; fi
     printf '%s' "$pid" | grep -qE '^[a-z][a-z0-9-]*$' || bad "$file: ledger id '$pid' must be lower-case letters, digits, and hyphens"
-    other="$(printf '%s\n' "$OWNERS" | awk -F"$SEP" -v p="$pid" -v f="$file" '$1 == p && $2 != f { print $2; exit }')"
-    if [ -n "$other" ]; then
-      case " $DUP_TOLD " in *" $pid "*) ;; *) bad "$file: ledger id '$pid' is also declared by $other; one playbook per id"; DUP_TOLD="$DUP_TOLD $pid" ;; esac
-      continue
-    fi
-    OWNERS="$OWNERS
-$pid$SEP$file"
+    if [ "$kind" = "nopart" ]; then bad "playbook '$pid': its 'Step files:' line names $file, which is not a file in the engine"; continue; fi
+    if [ "$kind" = "partdecl" ]; then bad "$file:$line: a step file carries no 'Step ledger:' line of its own; its playbook's entry file declares the ledger and lists it"; continue; fi
     if [ "$kind" = "malformed" ]; then bad "$file:$line: a heading that opens with 'Step' is not a step: write '## Step <id>: Title' or '### Step <id>: Title', one space after the marks, an id of letters, digits, and dots"; continue; fi
     if [ "$kind" = "empty" ]; then bad "$file: declares a step ledger and has no 'Step' heading"; continue; fi
     where="$file:$line ($pid.$sid)"

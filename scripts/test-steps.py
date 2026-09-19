@@ -171,6 +171,71 @@ class Steps(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn('OK: 6 steps', result.stdout)
 
+    # --- a playbook in several files ------------------------------------------------
+
+    def split_playbook(self):
+        (self.engine / 'bootstrap' / 'BOOT.md').write_text(
+            '# Bootstrap\n\nStep ledger: boot\nStep files: bootstrap/BOOT-2.md; bootstrap/BOOT-3.md\n\n'
+            '## Step 1: Start\nRead: none\nProduces: the folder\nCheck: evidence: the path\n\n## Step 2: Discovery\n')
+        (self.engine / 'bootstrap' / 'BOOT-2.md').write_text(
+            '# Discovery\n\n### Step 2.1: Who\nRead: bootstrap/BOOT-2.md\nProduces: answers\nCheck: evidence: quoted\n\n'
+            '### Step 2.2: Where\nRead: none\nProduces: answers\nCheck: evidence: quoted\n')
+        (self.engine / 'bootstrap' / 'BOOT-3.md').write_text(
+            '# Generate\n\n## Step 3: Generate\nRead: none\nProduces: flag.txt\nCheck: run scripts/check-flag.sh\n')
+
+    def test_steps_come_from_the_entry_file_then_its_step_files_in_order(self):
+        self.split_playbook()
+        lint = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(lint.returncode, 0, lint.stdout)
+        self.assertIn('OK: 6 steps', lint.stdout)  # boot.1, 2.1, 2.2, 3 and the two dev steps
+        self.ledger('boot')
+        listing = self.run_tool('--list').stdout
+        self.assertEqual([l.split()[1] for l in listing.splitlines()], ['boot.1', 'boot.2.1', 'boot.2.2', 'boot.3'])
+
+    def test_the_next_step_points_at_the_file_that_holds_it(self):
+        self.split_playbook()
+        self.ledger('boot')
+        self.run_tool('--close', 'boot.1', '--evidence', 'x')
+        result = self.run_tool()
+        self.assertIn('Next step: boot.2.1  Who', result.stdout)
+        self.assertIn('Playbook:  bootstrap/BOOT-2.md, line 3', result.stdout)
+
+    def test_lint_names_a_step_file_that_is_missing_listed_twice_or_self_declared(self):
+        self.split_playbook()
+        (self.engine / 'bootstrap' / 'BOOT-3.md').unlink()
+        missing = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(missing.returncode, 1)
+        self.assertIn("names bootstrap/BOOT-3.md, which is not a file in the engine", missing.stdout)
+
+        self.setUp(); self.split_playbook()
+        entry = self.engine / 'bootstrap' / 'BOOT.md'
+        entry.write_text(entry.read_text().replace('bootstrap/BOOT-3.md', 'bootstrap/BOOT-3.md; bootstrap/BOOT-2.md'))
+        twice = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(twice.returncode, 1)
+        self.assertIn('step file bootstrap/BOOT-2.md is already listed', twice.stdout)
+
+        self.setUp(); self.split_playbook()
+        part = self.engine / 'bootstrap' / 'BOOT-3.md'
+        part.write_text(part.read_text().replace('# Generate\n', '# Generate\n\nStep ledger: other\n'))
+        declared = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(declared.returncode, 1)
+        self.assertIn("a step file carries no 'Step ledger:' line of its own", declared.stdout)
+
+    def test_a_step_file_outside_the_engine_is_never_read(self):
+        self.split_playbook()
+        entry = self.engine / 'bootstrap' / 'BOOT.md'
+        entry.write_text(entry.read_text().replace('bootstrap/BOOT-3.md', '../project/PROGRESS.md'))
+        result = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('which is not a file in the engine', result.stdout)
+
+    def test_a_step_id_repeated_across_files_is_named(self):
+        self.split_playbook()
+        part = self.engine / 'bootstrap' / 'BOOT-3.md'
+        part.write_text(part.read_text().replace('## Step 3: Generate', '## Step 1: Again'))
+        result = self.run_tool('--lint', cwd=self.engine)
+        self.assertRegex(result.stdout, r'BOOT-3\.md:\d+ \(boot\.1\): the step id appears twice')
+
     def test_lint_of_the_real_engine_passes(self):
         result = subprocess.run(['bash', str(SOURCE / 'scripts' / 'next-step.sh'), '--lint'],
                                 cwd=SOURCE, text=True, capture_output=True)
