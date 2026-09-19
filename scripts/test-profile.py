@@ -398,6 +398,18 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(None, None)
         self.assertEqual(code, 0, out)
 
+    def test_profile_above_an_endpoint_folder_is_found(self):
+        with tempfile.TemporaryDirectory() as root:
+            Path(root, "PROFILE.md").write_text(profile_text())
+            endpoint = Path(root, "frontend")
+            endpoint.mkdir()
+            env = dict(os.environ, VALIDATE_PROFILE_TODAY=TODAY)
+            proc = subprocess.run(["bash", str(SCRIPT), "--declared"], cwd=endpoint, env=env, capture_output=True, text=True)
+            out = ANSI.sub("", proc.stdout + proc.stderr)
+            self.assertEqual(proc.returncode, 0, out)
+            self.assertIn("Profile source: declared", out)
+            self.assertIn("above this folder", out)
+
     # ---- hardening after the independent audit ------------------------------------
 
     def test_repeated_field_in_entry_fails(self):

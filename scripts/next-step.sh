@@ -111,7 +111,11 @@ resolve_read() {
 
 # The check's command, when the check is one: "run scripts/x.sh --flag" gives "scripts/x.sh --flag".
 check_command() { case "$1" in 'run '*) printf '%s' "${1#run }" ;; esac; }
-valid_command() { printf '%s' "$1" | grep -qE '^scripts/[A-Za-z0-9._-]+\.(sh|py)( [-A-Za-z0-9=._ ]+)?$'; }
+valid_command() {
+  printf '%s' "$1" | grep -qE '^scripts/[A-Za-z0-9._-]+\.(sh|py)( [-A-Za-z0-9=._/ ]+)?$' || return 1
+  case " ${1#* }" in *' /'*|*'..'*) return 1 ;; esac
+  return 0
+}
 
 CHECK_OUT=""
 run_check() {
@@ -139,13 +143,16 @@ if [ "$MODE" = "lint" ]; then
     echo "OK: no stepped playbook yet (none carries a 'Step ledger:' line)"
     exit 0
   fi
-  SEEN=""; OWNERS=""; COUNT=0
+  SEEN=""; OWNERS=""; COUNT=0; DUP_TOLD=""
   while IFS="$SEP" read -r pid mode sid title file line rd pr ck sw rc pc cc kind; do
     [ -n "$file" ] || continue
     if [ -z "$pid" ]; then bad "$file: the 'Step ledger:' line names no id"; continue; fi
     printf '%s' "$pid" | grep -qE '^[a-z][a-z0-9-]*$' || bad "$file: ledger id '$pid' must be lower-case letters, digits, and hyphens"
     other="$(printf '%s\n' "$OWNERS" | awk -F"$SEP" -v p="$pid" -v f="$file" '$1 == p && $2 != f { print $2; exit }')"
-    if [ -n "$other" ]; then bad "$file: ledger id '$pid' is also declared by $other; one playbook per id"; fi
+    if [ -n "$other" ]; then
+      case " $DUP_TOLD " in *" $pid "*) ;; *) bad "$file: ledger id '$pid' is also declared by $other; one playbook per id"; DUP_TOLD="$DUP_TOLD $pid" ;; esac
+      continue
+    fi
     OWNERS="$OWNERS
 $pid$SEP$file"
     if [ "$kind" = "malformed" ]; then bad "$file:$line: a heading that opens with 'Step' is not a step: write '## Step <id>: Title' or '### Step <id>: Title', one space after the marks, an id of letters, digits, and dots"; continue; fi
@@ -170,6 +177,7 @@ $pid.$sid"
       for entry in $rd; do
         IFS="$OLDIFS"
         entry="$(trim "$entry")"
+        case "$entry" in *' (when '*')') entry="$(trim "${entry%% (when *}")" ;; esac
         case "$entry" in
           ''|none|'project: '*) ;;
           '#'[0-9]*)
@@ -223,7 +231,7 @@ if [ ! -f "$LEDGER" ]; then
   exit 1
 fi
 case "$UNIT" in
-  *[!A-Za-z0-9._-]*)
+  -*|*[!A-Za-z0-9._-]*)
     echo "Refused: a unit name is letters, digits, dots, hyphens, and underscores (the feature's folder name)."
     exit 1 ;;
 esac
@@ -281,6 +289,7 @@ IFS="$OLDIFS"
 # The command always comes from the playbook, never from the ledger.
 REVERIFY_OK=1
 done_cmds=""
+FAILED_KEYS=""
 while IFS="$SEP" read -r pid mode sid title file line rd pr ck sw rc pc cc kind; do
   [ "$kind" = "leaf" ] || continue
   cmd="$(check_command "$ck")"
@@ -290,6 +299,8 @@ while IFS="$SEP" read -r pid mode sid title file line rd pr ck sw rc pc cc kind;
   keys_line="$(printf '%s' "$keys" | tr '\n' ',' | sed 's/,/, /g')"
   if ! valid_command "$cmd" || [ ! -f "$ENGINE_DIR/${cmd%% *}" ]; then
     REVERIFY_OK=0
+    FAILED_KEYS="$FAILED_KEYS
+$keys"
     echo "REOPENED: $keys_line: the playbook's check '$cmd' is not an engine script that can be run (run --lint in the engine)"
     continue
   fi
@@ -297,7 +308,8 @@ while IFS="$SEP" read -r pid mode sid title file line rd pr ck sw rc pc cc kind;
 $done_cmds
 " in *"
 $cmd$SEP"fail"
-"*) REVERIFY_OK=0; echo "REOPENED: $keys_line: closed, and its check now fails: $cmd"; continue ;;
+"*) REVERIFY_OK=0; FAILED_KEYS="$FAILED_KEYS
+$keys"; echo "REOPENED: $keys_line: closed, and its check now fails: $cmd"; continue ;;
     *"
 $cmd$SEP"pass"
 "*) continue ;;
@@ -309,6 +321,8 @@ $cmd$SEP"pass""
     done_cmds="$done_cmds
 $cmd$SEP"fail""
     REVERIFY_OK=0
+    FAILED_KEYS="$FAILED_KEYS
+$keys"
     echo "REOPENED: $keys_line: closed, and its check now fails: $cmd"
     show_check_output
   fi
@@ -317,7 +331,8 @@ $TABLE
 EOF
 
 if [ "$MODE" = "list" ]; then
-  printf '%s\n' "$LISTING" | sed '/^$/d'
+  printf '%s\n' "$LISTING" | sed '/^$/d' | F="$FAILED_KEYS" awk 'BEGIN { n = split(ENVIRON["F"], f, "\n"); for (i = 1; i <= n; i++) if (f[i] != "") bad[f[i]] = 1 }
+    { for (k in bad) if (index($0, "closed  " k "  ") == 1) { sub(/^closed  /, "reopened  "); break } print }'
   [ -n "$NEED_UNIT" ] && echo "(the playbook '$NEED_UNIT' repeats: add --unit NAME to list one run of it)"
   [ "$REVERIFY_OK" = "1" ] || exit 1
   exit 0

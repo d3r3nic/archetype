@@ -6,6 +6,8 @@ Do not assume you remember conventions from a previous session. Re-read what's r
 
 If References.md does not exist, bootstrap has not run yet. Read bootstrap/ONBOARD.md (or archetype/bootstrap/ONBOARD.md) and run bootstrap first. Do not write code without project context.
 
+If PROGRESS.md exists at the project root, run scripts/next-step.sh (or archetype/scripts/next-step.sh) before anything else. It names the open step of the playbook the project is in, where that step starts, and exactly what to read for it; read that, not the whole playbook and not the conventions other steps need. A step closes through the same script, on a check that passes or on evidence recorded in words. → development/STEPS.md
+
 ## Before Any Work
 
 1. Read References.md, PROFILE.md, and feature-tree.md (always — these are project context; PROFILE.md holds the stage and who decides technical questions)

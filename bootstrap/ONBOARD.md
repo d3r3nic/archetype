@@ -95,7 +95,7 @@ I want to build: [describe your idea in plain English, even one sentence is fine
 Before choosing any technology or generating any files, interview the user with these questions. Ask them one group at a time. These are designed for people who may not know technical terms. Skip any question an earlier answer already settled, and say what you inferred instead of asking it. When the owner pushes back on the number of questions, say how many rounds remain, state what you will assume, and compress the rest into one round. Compression changes how many messages the questions take, never which groups close: each group below is its own step, and it closes only on the owner's words for it, quoted, with each question marked answered, inferred (and from what), or declined (and what was assumed instead). A group cannot be skipped. The answers that feed a gate land on lines a script reads later: PROFILE.md's facts (`scripts/validate-profile.sh`) and, for a project with a screen, the `First task`, `Return tasks`, and `Session length` lines of References.md § Design Artifact (`scripts/validate-design.sh`).
 
 ### Step 2.1: Group 1 - What is it?
-Read: bootstrap/ONBOARD.md § Discovery Process
+Read: bootstrap/ONBOARD.md § Discovery Process; bootstrap/RED-FLAGS.md § Discovery Turn Budget
 Produces: what the product does and for whom, template or product, ship or learn, and the owner's answer to the one look question
 Check: evidence: the owner's answers to this group in their own words, quoted; a question an earlier answer settled is recorded as inferred, with the inference; a question the owner declined is recorded as declined, with what was assumed
 
@@ -124,7 +124,7 @@ Check: evidence: the owner's answers to this group in their own words, quoted; a
 This distinction is not the same as #22 Design System (which is always about component libraries) or #27 Design Foundation (always about the design-artifact discipline). It's orthogonal: a template or a product can still have both. Templates DEFER the artifact; products COMMIT it.
 
 ### Step 2.2: Group 2 - Where does it run?
-Read: bootstrap/ONBOARD.md § Discovery Process; bootstrap/RED-FLAGS.md § Mobile Disambiguation
+Read: bootstrap/ONBOARD.md § Discovery Process; bootstrap/RED-FLAGS.md § Discovery Turn Budget; bootstrap/RED-FLAGS.md § Mobile Disambiguation
 Produces: the platforms, the mobile mode when a phone is involved, and the primary context
 Check: evidence: the owner's answers to this group in their own words, quoted; a question an earlier answer settled is recorded as inferred, with the inference; a question the owner declined is recorded as declined, with what was assumed
 
@@ -144,7 +144,7 @@ If the user says "phone app" or "works on my phone," do NOT silently pick a stac
 - If ambiguous → ask explicitly. Do not guess.
 
 ### Step 2.3: Group 3 - What do users do?
-Read: bootstrap/ONBOARD.md § Discovery Process
+Read: bootstrap/ONBOARD.md § Discovery Process; bootstrap/RED-FLAGS.md § Discovery Turn Budget
 Produces: what users do in it, the first-minute task, what people come back to do most, and how long they stay
 Check: evidence: the owner's answers to this group in their own words, quoted; a question an earlier answer settled is recorded as inferred, with the inference; a question the owner declined is recorded as declined, with what was assumed
 
@@ -159,7 +159,7 @@ Check: evidence: the owner's answers to this group in their own words, quoted; a
 - (The last three answers are recorded on the `First task`, `Return tasks`, and `Session length` lines of References.md § Design Artifact; the directions and the first screen are built from them.)
 
 ### Step 2.4: Group 4 - Scale and stage
-Read: bootstrap/ONBOARD.md § Discovery Process
+Read: bootstrap/ONBOARD.md § Discovery Process; bootstrap/RED-FLAGS.md § Discovery Turn Budget
 Produces: the scale, the expected users, and any stack preference
 Check: evidence: the owner's answers to this group in their own words, quoted; a question an earlier answer settled is recorded as inferred, with the inference; a question the owner declined is recorded as declined, with what was assumed
 
@@ -168,7 +168,7 @@ Check: evidence: the owner's answers to this group in their own words, quoted; a
 - Do you have any tech preferences? (if yes, which ones; if no, that's fine)
 
 ### Step 2.5: Group 5 - Infrastructure and sensitivity
-Read: bootstrap/ONBOARD.md § Discovery Process; bootstrap/RED-FLAGS.md § Vague-Answer Rules; bootstrap/RED-FLAGS.md § Deploy Gate
+Read: bootstrap/ONBOARD.md § Discovery Process; bootstrap/RED-FLAGS.md § Discovery Turn Budget; bootstrap/RED-FLAGS.md § Vague-Answer Rules; bootstrap/RED-FLAGS.md § Deploy Gate
 Produces: the regulated-data answer (or the default with the open gate it creates), the infrastructure experience, and the ownership preference
 Check: evidence: the owner's answers to this group in their own words, quoted; a question an earlier answer settled is recorded as inferred, with the inference; a question the owner declined is recorded as declined, with what was assumed
 
@@ -185,7 +185,7 @@ If the user answers vaguely ("I dunno", "not sure", "I guess not"), DEFAULT TO A
 **Vague stack preference** ("use whatever", "I don't care"): not a choice, a deflection. Apply Step 3 default (platform if one covers 80%+, minimum-viable custom otherwise). See RED-FLAGS.md.
 
 ### Step 2.6: Group 6 - How careful, and who decides
-Read: bootstrap/ONBOARD.md § Discovery Process; #30; #29
+Read: bootstrap/ONBOARD.md § Discovery Process; bootstrap/RED-FLAGS.md § Discovery Turn Budget; #30; #29
 Produces: the facts PROFILE.md holds, the operating stage derived from them with its reason, the owner channel, and who decides technical questions
 Check: evidence: the owner's answers to this group in their own words, quoted; a question an earlier answer settled is recorded as inferred, with the inference; a question the owner declined is recorded as declined, with what was assumed
 
@@ -310,7 +310,7 @@ Some requirement combinations are incompatible, anti-pattern, or signal hidden c
 Multiple red flags = strong signal that platform Option A is correct. Do not proceed to Step 4 custom build when scale, compliance, or budget fundamentally don't fit a custom path.
 
 ## Step 3: Research Before Deciding (DO NOT SKIP)
-Read: #0 § Principle; #29
+Read: #0 § Principle; #29; bootstrap/LEARNING-PROJECTS.md (when the owner is building this to learn a technology)
 Produces: the researched options with what each costs, one recommendation, and the settled build approach: a platform, or a custom build with its stack
 Check: evidence: the recommendation as given, and the owner's decision in their own words (under ai-decides: the recommendation, and that no objection came by the stated time)
 
@@ -393,18 +393,19 @@ Once the build approach is settled per Step 3 (confirmed under `owner-decides`; 
 
 ### Step 4.1: Existing project: scan, extract, migrate
 Read: bootstrap/EXISTING-PROJECT.md
-Produces: conventions/overrides/, protocols/, catalogs/, the project-root CLAUDE.md.additions, docs/migrated/ and docs/audit/, and MIGRATION-NOTES.md saying where each piece of the original guidance lives now
+Produces: conventions/overrides/, protocols/, catalogs/, the project-root CLAUDE.md.additions, docs/migrated/ and docs/audit/, MIGRATION-NOTES.md saying where each piece of the original guidance lives now, and the References.md and feature-tree.md the migration flow generates from what it found
 Check: run scripts/validate-migration.sh
 Skip when: the project is new and has no code or guidance of its own
 
-Full migration flow (scan the codebase, extract rules, cross-reference, discover and audit documents) lives in `bootstrap/EXISTING-PROJECT.md`. Follow it end-to-end, then continue with the steps below using what it found.
+Full migration flow (scan the codebase, extract rules, cross-reference, discover and audit documents) lives in `bootstrap/EXISTING-PROJECT.md`. Follow it end-to-end; it generates References.md and feature-tree.md itself, so Step 4.2 is skipped for an existing project. PROFILE.md and the design steps below still run, with what the audit found.
 
-**Critical:** migration preserves EVERY rule. Nothing gets lost. If you find yourself summarizing, stop. The check looks for summarization, missing INDEX pointers, drifted migrated copies, and absent convention references. Any validator failure = re-extract, do not paper over.
+**Critical:** migration preserves EVERY rule. Nothing gets lost. If you find yourself summarizing, stop. The check fails on a missing INDEX.md, a migrated copy that drifted from its original, an override or an audit file without its convention header, and a missing References.md or feature-tree.md. Summarization it can only warn about (a short override file), so the source-to-destination review is still yours to do. Any validator failure = re-extract, do not paper over.
 
 ### Step 4.2: References.md and feature-tree.md
-Read: Conventions.md; templates/feature-tree.md
-Produces: References.md from the template that fits (platform, frontend, backend, or mobile); feature-tree.md; for a custom build docs/systems/, docs/features/, .gitignore, and the first commit
-Check: evidence: the template used, the foundational systems kept and the ones removed with the discovery answer behind each removal
+Read: Conventions.md; templates/references-platform.md (when the approach is a platform); templates/feature-tree-platform.md (when the approach is a platform); templates/references-frontend.md (when a custom build has a web front end); templates/references-backend.md (when a custom build has a back end); templates/references-mobile.md (when a custom build is a mobile app); templates/feature-tree.md (when the approach is a custom build)
+Produces: References.md from the template that fits, with each foundational system kept, or removed with the discovery answer behind the removal written beside it; feature-tree.md; for a custom build docs/systems/, docs/features/, .gitignore, and the first commit
+Check: run scripts/check-exists.sh References.md feature-tree.md
+Skip when: the project is an existing one and Step 4.1 generated these files
 
 The template is read as it is filled in, the one that fits and no other. Conventions.md is read here as the index that says which systems exist. A convention's full text is not bootstrap reading: the scaffold step that builds a system reads its convention then, researches current practice, and writes how the system is implemented (scaffolding/_preamble.md).
 
@@ -415,7 +416,7 @@ The framework's scaffolding phase does NOT apply. There is no tech stack to docu
 Generate:
 - `References.md` using `templates/references-platform.md` (NOT the frontend/backend/mobile templates — those are for custom builds)
 - `PROFILE.md` (Step 4.3) using `templates/profile.md`: the operating stage derived from Group 6, the facts with unknown kept unknown, the decision-authority setting with its source. A platform project still has an audience, data, effects, and an owner who decides (#30, #29).
-- `feature-tree.md` reshaped as a configuration checklist for the chosen platform (not a systems map)
+- `feature-tree.md` from `templates/feature-tree-platform.md`, reshaped as a configuration checklist for the chosen platform (not a systems map)
 - `VERSION-LOG.md` with `Type: platform / {platform-name}` in the bootstrap entry
 - No `.gitignore`, no `git init`, no `docs/systems/`, no `docs/features/` — the framework doesn't manage the platform's internals
 
@@ -451,9 +452,9 @@ Based on the discovery answers, you now know: what platforms, what features, wha
 Generate these files:
 - References.md using the appropriate template from templates/ (references-frontend.md, references-backend.md, or references-mobile.md).
   - If the project is a **TEMPLATE** (per Group 1), apply the diverging generation rules from the "Template vs product" table: Stage = `template` plus its own version number, add a `## Downstream Projects` section, keep every labelled line of `## Design Artifact` with `Brand decided: deferred to downstream projects` and a recorded working-files folder, note that any `@scope/*` packages ship with neutral placeholder tokens. Do NOT research design tooling — that decision belongs to downstream projects at their own bootstrap.
-  - If the project is a **PRODUCT**, research the design-artifact tool at bootstrap on equal terms (a visual design tool, a design-system-as-code repository, an AI design canvas available in the working session, an AI design workspace) on the criteria that matter: where the owner can see and change the design, cost (recurring spend is an escalation under #29), whether it can hold every state, whether the sync can be run from the repository. Fill every labelled line of References.md § Design Artifact: the direction of truth (`repository-first` or `workspace-first`) and the sync, the working-files folder, `Primary context` and `Committed contexts` from Group 2, and `Density`, `Vocabulary`, and `Brand decided` from the design interview and its outcome. Run the design interview now (`bootstrap/DESIGN-INTERVIEW.md`): a form with gates that the session opens for the owner, with two ways through it, the owner's pick from shown directions or the owner's delegation in words (#29); an `isolated` project is offered the short way first (#30). Record the tool and the direction at the decision location (#29). Per convention #27.
+  - If the project is a **PRODUCT**, research the design-artifact tool at bootstrap on equal terms (a visual design tool, a design-system-as-code repository, an AI design canvas available in the working session, an AI design workspace) on the criteria that matter: where the owner can see and change the design, cost (recurring spend is an escalation under #29), whether it can hold every state, whether the sync can be run from the repository. Record the tool, the direction of truth (`repository-first` or `workspace-first`), the sync, and the working-files folder on their lines of References.md § Design Artifact, and the tool decision at the decision location (#29). The interview and the rest of that section are Steps 4.4 and 4.5. Per convention #27.
 - feature-tree.md using templates/feature-tree.md. For TEMPLATE projects, mark design-derived rows (Components, Design System, Styling values, per-feature visual states) as "structural at template level; downstream projects apply brand"; do NOT leave them undefined.
-- PROFILE.md (Step 4.3, which closes on `scripts/validate-profile.sh --declared`) using templates/profile.md, every key filled: the operating stage you derived and its one-line Stage reason; Audience from Group 1 and Group 4 (who uses it, how many); Data, External effects, Operational reliance, Valuable records, Fallback, Contributors, and Customer commitments from Group 6; Regulated data from Group 5 (unknown when vague); the cost ceilings; the decision-authority setting with its source (owner-stated or defaulted); today's date as Observed-on; and a Review condition (a date or the first trigger you expect). Run `scripts/validate-profile.sh` afterwards; a placeholder left in any key fails it. Per #30.
+- PROFILE.md is Step 4.3's product, not this step's.
 - In References.md § Project, the owner channel, the decision location, and the reporting pace, per #29.
 - docs/systems/ directory (empty)
 - docs/features/ directory (empty)
@@ -469,10 +470,10 @@ For each foundational system section in References.md:
 
 ### Step 4.3: PROFILE.md
 Read: #30; templates/profile.md
-Produces: PROFILE.md at the repository root, every key filled, unknown facts kept unknown
+Produces: PROFILE.md at the repository root (above the endpoint folders in a fullstack layout), every key filled, unknown facts kept unknown
 Check: run scripts/validate-profile.sh --declared
 
-Generated as the bullet above describes, from Group 6 and the groups it draws on. One PROFILE.md per repository, never one per endpoint.
+Using templates/profile.md, every key filled: the operating stage you derived and its one-line Stage reason; Audience from Group 1 and Group 4 (who uses it, how many); Data, External effects, Operational reliance, Valuable records, Fallback, Contributors, and Customer commitments from Group 6; Regulated data from Group 5 (unknown when vague); the cost ceilings; the decision-authority setting with its source (owner-stated or defaulted); today's date as Observed-on; and a Review condition (a date or the first trigger you expect). A placeholder left in any key fails the check. Per #30. One PROFILE.md per repository, at its root, never one per endpoint: in a fullstack layout it sits above the endpoint folders, and the check finds it there from either endpoint.
 
 ### Step 4.4: The design interview
 Read: bootstrap/DESIGN-INTERVIEW.md; #27 § Design tools; #29
@@ -480,14 +481,15 @@ Produces: the answers file in the design working-files folder; the direction or 
 Check: evidence: the owner's pick or delegation in their own words with the decision record's location, or that the form was offered, when, and that the pick is still open
 Skip when: the build approach is a platform, the project is a template, or the product has no screen
 
-The interview runs here, after the build approach and the operating stage are settled, so nobody answers questions about the look of a product that turns out to need no custom screen. Everything about how it is asked lives in `bootstrap/DESIGN-INTERVIEW.md`.
+The interview runs here, after the build approach and the operating stage are settled, so nobody answers questions about the look of a product that turns out to need no custom screen. It is a form with gates that the session opens for the owner, with two ways through it: the owner's pick from shown directions, or the owner's delegation in words (#29); an `isolated` project is offered the short way first (#30). Everything about how it is asked lives in `bootstrap/DESIGN-INTERVIEW.md`.
 
 ### Step 4.5: The Design Artifact section
 Read: #27 § Design tools; templates/design-artifact-entry.md
 Produces: every labelled line of References.md § Design Artifact filled in: from discovery (`Primary context`, `Committed contexts`, `First task`, `Return tasks`, `Session length`), from the interview (`Density`, `Vocabulary`, `Brand book`, `Brand decided`), and from the tool research; a path the scaffold will create is recorded as the path it will have
 Check: run scripts/validate-design.sh
+Skip when: the project has no screen (a platform, or a back end alone)
 
-A project without a screen has no such section and the check passes with nothing to read. A template keeps every line, with `Brand decided: deferred to downstream projects`.
+A template keeps every line, with `Brand decided: deferred to downstream projects`.
 
 ### Example bootstrap conversations:
 
@@ -530,7 +532,7 @@ Hooks automatically remind the AI to update documentation and run verification. 
 ## Step 6: Log the Bootstrap
 Read: none
 Produces: the bootstrap entry in VERSION-LOG.md at the project root, with any open pre-production gate (an unanswered regulated-data question) named in it
-Check: evidence: the entry's heading and date, and each open gate it names, or none
+Check: run scripts/check-exists.sh VERSION-LOG.md
 
 After bootstrap completes, update VERSION-LOG.md (at the **project root**, not inside archetype/ — the version log is project-owned, and framework updates overwrite the engine) to record what was done. If VERSION-LOG.md doesn't exist, create it.
 

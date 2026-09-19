@@ -384,6 +384,65 @@ class Steps(unittest.TestCase):
         listing = self.run_tool('--list').stdout
         self.assertEqual(listing.count('boot.1 '), 1)
 
+    def test_list_says_reopened_not_closed_for_a_failing_tick(self):
+        self.close_all_of_boot()
+        (self.project / 'flag.txt').unlink()
+        listing = self.run_tool('--list').stdout
+        self.assertRegex(listing, r'(?m)^reopened\s+boot\.3\s')
+        self.assertNotRegex(listing, r'(?m)^closed\s+boot\.3\s')
+        self.assertRegex(listing, r'(?m)^closed\s+boot\.1\s')
+
+    def test_a_unit_is_never_an_option(self):
+        self.close_all_of_boot()
+        result = self.run_tool('--close', 'dev.1', '--unit', '--close', '--evidence', 'x')
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(len([l for l in self.closed() if 'dev.' in l]), 0)
+
+    def test_a_read_entry_may_say_when_it_applies(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Read: conventions/08-errors.md', 'Read: conventions/08-errors.md (when the build is custom); #8 § Rules (when errors matter)'))
+        self.assertEqual(self.run_tool('--lint', cwd=self.engine).returncode, 0)
+        path.write_text(path.read_text().replace('conventions/08-errors.md (when', 'conventions/gone.md (when'))
+        lint = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(lint.returncode, 1)
+        self.assertIn("Read names 'conventions/gone.md'", lint.stdout)
+
+    def test_the_condition_is_shown_with_the_reading(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Read: none\nProduces: the project folder', 'Read: templates/thing.md (when the project is new)\nProduces: the project folder'))
+        self.ledger()
+        self.assertIn('  - templates/thing.md (when the project is new)', self.run_tool().stdout)
+
+    def test_check_arguments_may_name_project_paths_and_nothing_above(self):
+        shutil.copy(SOURCE / 'scripts' / 'check-exists.sh', self.engine / 'scripts' / 'check-exists.sh')
+        good = self.lint_with('Check: run scripts/check-flag.sh\n', 'Check: run scripts/check-exists.sh docs/systems flag.txt\n')
+        self.assertEqual(good.returncode, 0, good.stdout)
+        for args in ('../flag.txt', '/etc/passwd', 'docs/../../x'):
+            with self.subTest(args=args):
+                self.setUp()
+                shutil.copy(SOURCE / 'scripts' / 'check-exists.sh', self.engine / 'scripts' / 'check-exists.sh')
+                bad = self.lint_with('Check: run scripts/check-flag.sh\n', 'Check: run scripts/check-exists.sh %s\n' % args)
+                self.assertEqual(bad.returncode, 1, bad.stdout)
+
+    def test_check_exists(self):
+        script = SOURCE / 'scripts' / 'check-exists.sh'
+        run = lambda *a: subprocess.run(['bash', str(script), *a], cwd=self.project, text=True, capture_output=True)
+        self.assertEqual(run().returncode, 1)
+        self.assertEqual(run('References.md').returncode, 1)
+        (self.project / 'References.md').write_text('')
+        self.assertIn('is empty', run('References.md').stdout)
+        (self.project / 'References.md').write_text('x')
+        (self.project / 'docs').mkdir()
+        self.assertEqual(run('References.md', 'docs').returncode, 0)
+        self.assertEqual(run('References.md', 'gone.md').returncode, 1)
+        self.assertEqual(run('../References.md').returncode, 1)
+        self.assertEqual(run('/etc/hosts').returncode, 1)
+
+    def test_one_failure_for_a_duplicated_ledger_id(self):
+        (self.engine / 'scaffolding' / 'SCAF.md').write_text('# S\n\nStep ledger: boot\n\n## Step 40: A\nRead: none\nProduces: x\nCheck: evidence: x\n\n## Step 41: B\nRead: none\nProduces: x\nCheck: evidence: x\n')
+        result = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(result.stdout.count('is also declared by'), 1)
+
     def test_list_shows_every_leaf_with_its_state(self):
         self.close_up_to_three()
         listing = self.run_tool('--list').stdout

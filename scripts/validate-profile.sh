@@ -56,6 +56,18 @@ done
 
 PROJECT_ROOT="$(pwd)"
 PROFILE="$PROJECT_ROOT/PROFILE.md"
+# One PROFILE.md per repository (#30). An endpoint folder of a fullstack layout has none of its
+# own: look above it, as far as the repository's top folder, or one folder up where the endpoints
+# are repositories of their own.
+if [ ! -f "$PROFILE" ]; then
+  TOP="$(cd "$PROJECT_ROOT" && git rev-parse --show-toplevel 2>/dev/null)"
+  d="$PROJECT_ROOT"
+  while [ -n "$TOP" ] && [ "$d" != "$TOP" ] && [ "$d" != "/" ]; do
+    d="$(dirname "$d")"
+    if [ -f "$d/PROFILE.md" ]; then PROFILE="$d/PROFILE.md"; break; fi
+  done
+  if [ ! -f "$PROFILE" ] && [ -f "$(dirname "$PROJECT_ROOT")/PROFILE.md" ]; then PROFILE="$(dirname "$PROJECT_ROOT")/PROFILE.md"; fi
+fi
 TD="$PROJECT_ROOT/TECHNICAL-DEBT.md"
 TODAY="${VALIDATE_PROFILE_TODAY:-$(date +%Y-%m-%d)}"
 
@@ -135,6 +147,7 @@ if [ ! -f "$PROFILE" ]; then
   VAL="unknown"; FALLBACK="unknown"; CONTRIB="unknown"; REG="unknown"; COMMIT="unknown"
 else
   echo "Profile source: declared"
+  [ "$PROFILE" = "$PROJECT_ROOT/PROFILE.md" ] || echo "Profile file: $PROFILE (above this folder)"
   PROFILE_PRESENT=1
   BEFORE=$ERRORS
 
