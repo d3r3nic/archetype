@@ -38,11 +38,12 @@ typecheck: [command to run type checker]
 lint:      [command to lint]
 deploy:    [command to deploy to each store]
 clean:     [command to clean build artifacts]
+capture:   [command that saves the capture set: each screen in each applicable state, per scheme and committed context (#27)]
 ```
 
 ## Design Artifact
 
-Convention #27 anchor: **AI consults the artifact first. When silent, AI asks. AI never invents UX.** Any design skill, plugin, canvas, or workspace that runs in this project reads this section first: it is the brief. One `- Label: value` line per field, labels exact. The framework's self-test keeps this list and convention #27 in step; nothing checks this file's own lines, so the session and the independent review do. Where the recorded direction makes two lines the same place (under `workspace-first` the artifact and the published view; under `repository-first` the artifact and the tokens source or the catalog), write `same as <label>`.
+Convention #27 anchor: **AI consults the artifact first. When silent, the session designs within the picked direction and records it; the owner is asked only for identity and what a screen is for.** Any design skill, plugin, canvas, or workspace that runs in this project reads this section first: it is the brief. One `- Label: value` line per field, labels exact. The framework's self-test keeps this list and convention #27 in step; `scripts/validate-design.sh` fails a line that is missing, repeated, or still a placeholder, and the independent review reads whether a recorded value is true. Where the recorded direction makes two lines the same place (under `workspace-first` the artifact and the published view; under `repository-first` the artifact and the tokens source or the catalog), write `same as <label>`.
 
 - Primary tool: [category: a visual design tool / a design-system-as-code repository / an AI design canvas in the working session / an AI design workspace; the product's name and version, a dated fact, on this line]
 - Direction of truth: [repository-first (the token source, specifications, and component previews in the repository are the artifact; a workspace or canvas is a published view or a proposal) / workspace-first (the workspace or canvas is the artifact; the token source and catalog follow it)]
@@ -50,16 +51,22 @@ Convention #27 anchor: **AI consults the artifact first. When silent, AI asks. A
 - Published view: [URL of the published view, or none]
 - Tokens source: [path of the token file or module the code derives its theme from (#6)]
 - Component catalog: [path or URL, or none yet]
-- Brand book: [path or URL of the brand and content guidelines, or none]
+- Brand book: [path or URL of the brand and content guidelines; none only while `Brand decided` is not yes]
 - Design working files: [folder for artboards, layout manifests, images, and sync configuration, a folder a tool fixes for itself recorded as it is; committed; generated bundles ignored; or none]
 - Sync: [the step that keeps the two places in step in the recorded direction: the publish under repository-first, the read-back into the repository under workspace-first; who runs it; when (after each design change, before each UI feature); or none when there is only one place]
-- Brand decided: [yes / deferred to downstream projects / not yet, directions pending the owner's pick]
+- Brand decided: [yes only when the brand book records all six, each as a decision or an explicit none: marks, palette values, type families, voice and tone, imagery style, motion signature / deferred to downstream projects / not yet, directions pending the owner's pick]
 - Platform parity: [how iOS and Android states are kept aligned in the artifact]
-- Every UI state designed: [yes / the gaps: empty, loading, error, success, disabled, per screen, platform-specific permission prompts included]
+- Every UI state designed: [yes / the gaps per screen, against the state list in #27, platform-specific permission prompts included]
 - Update responsibility: [who owns artifact edits; how code follow-ups trigger]
 - Complementary tools: [exploration only, never source of truth; list or none]
-
-If the artifact is silent on a UI decision, AI proposes and asks the owner; it does not invent visual or interaction patterns. The owner picks the visual direction from proposed directions (#29); after the pick the artifact governs.
+- Primary context: [where people use it most of the time: a desk, a phone, a shared screen, outdoors, or two of these equally; from discovery]
+- Committed contexts: [every context the product is verified in, each with its own captures (#27)]
+- Density: [roomy / dense, with the reason; sets the spacing ladder's step for the whole product (#31)]
+- Vocabulary: [path of the glossary, from templates/vocabulary.md: every thing named once with its verb (#31); starts from the owner's words]
+- First task: [the one thing a person should be able to do within a minute of first opening it, in the owner's words; from discovery; unknown only with what was assumed]
+- Return tasks: [up to three things people come back to do most, first one first; the directions and the first screen are composed for the first (bootstrap/DESIGN-INTERVIEW.md); unknown only with what was assumed]
+- Session length: [a quick check a few times a day / hours at a stretch / between; from discovery; the density recommendation is built from it]
+- Captures: [folder the capture set lives in, committed; regenerated in place by the `capture:` command, never kept by date, so the set does not grow with every run (#27)]
 
 ## Foundational Systems
 
@@ -83,6 +90,9 @@ Shared types: [path to shared type definitions]
 Location: [path to theme definition]
 Tokens: [where design tokens are defined - colors, spacing, typography]
 Color schemes: [committed set, light + dark by default; if a single scheme, the reason (#6)]
+Type scale: [the steps, each with its job; the measure token (#31)]
+Motion: [the duration scale and the easing set, with their jobs (#31)]
+Layout: [grid or none, with the reason; container widths; the elevation levels the shadow and z-index scales share (#31)]
 Platform adaptation: [how theme adapts between iOS and Android if applicable]
 Usage: [how features use theme values]
 
@@ -133,6 +143,8 @@ Component-size limit: [lines per component before it must be composed (#4)]
 Import rule: [import convention]
 Platform-specific: [components that differ between iOS/Android]
 Accessibility target: [the level the project commits to, chosen at bootstrap per #14; sets the contrast floor design content keeps (#27)]
+Icon set: [the one set, its style, its location; sizes tied to the type scale (#22)]
+Target size: [the platform minimum the project holds to, and the space between adjacent targets (#14)]
 Usage: [how features use shared components]
 
 ### Form System (#20) [if applicable]

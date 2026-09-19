@@ -125,14 +125,14 @@ TRIGGER_CASES = {
 
 
 class ValidateProfileTests(unittest.TestCase):
-    def run_validator(self, profile=None, debt=None, strict=False):
+    def run_validator(self, profile=None, debt=None, strict=False, declared=False):
         with tempfile.TemporaryDirectory() as root:
             if profile is not None:
                 Path(root, "PROFILE.md").write_text(profile)
             if debt is not None:
                 Path(root, "TECHNICAL-DEBT.md").write_text(debt)
             env = dict(os.environ, VALIDATE_PROFILE_TODAY=TODAY)
-            args = ["bash", str(SCRIPT)] + (["--strict"] if strict else [])
+            args = ["bash", str(SCRIPT)] + (["--strict"] if strict else []) + (["--declared"] if declared else [])
             proc = subprocess.run(args, cwd=root, env=env, capture_output=True, text=True)
             return proc.returncode, ANSI.sub("", proc.stdout + proc.stderr)
 
@@ -390,6 +390,25 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(None, None, strict=True)
         self.assertEqual(code, 1, out)
         self.assertIn("strict mode", out)
+
+    def test_declared_flag_fails_a_missing_profile_and_nothing_else(self):
+        code, out = self.run_validator(None, None, declared=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("--declared requires it", out)
+        code, out = self.run_validator(None, None)
+        self.assertEqual(code, 0, out)
+
+    def test_profile_above_an_endpoint_folder_is_found(self):
+        with tempfile.TemporaryDirectory() as root:
+            Path(root, "PROFILE.md").write_text(profile_text())
+            endpoint = Path(root, "frontend")
+            endpoint.mkdir()
+            env = dict(os.environ, VALIDATE_PROFILE_TODAY=TODAY)
+            proc = subprocess.run(["bash", str(SCRIPT), "--declared"], cwd=endpoint, env=env, capture_output=True, text=True)
+            out = ANSI.sub("", proc.stdout + proc.stderr)
+            self.assertEqual(proc.returncode, 0, out)
+            self.assertIn("Profile source: declared", out)
+            self.assertIn("above this folder", out)
 
     # ---- hardening after the independent audit ------------------------------------
 

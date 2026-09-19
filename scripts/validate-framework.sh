@@ -18,6 +18,8 @@
 #  12. Profile vocabulary: the stages, triggers, and floor items that
 #      scripts/validate-profile.sh evaluates are the ones the profile and debt
 #      templates and convention #30 name
+#  13. Stepped playbooks: every playbook that declares a step ledger is well
+#      formed (delegates to scripts/next-step.sh --lint; development/STEPS.md)
 # Exit 0 on pass, 1 on any error. Warnings do not fail the check.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -175,26 +177,20 @@ done
 
 # UI-centric templates must carry the labelled Design Artifact section (convention #27):
 # every design tool, every session, and the maintain audit read the same fields. The
-# label list below is the contract; the mobile template adds Platform parity. The section
+# label list in scripts/design-artifact-labels.txt is the contract (validate-design.sh
+# reads the same file for a project's section); the mobile template adds Platform parity. The section
 # is closed: a bullet whose label is not in the contract fails, so a note belongs outside
 # the section. Presence only: a label with an empty value passes; the placeholders'
 # content is reviewed, not parsed. Labels are matched literally (no regex, no glob); a
-# label may carry any character except a backslash, which awk -v would expand. Convention
-# #27 must name every label, mobile included,
-# inside its "Design tools" section, so the vocabulary is checked in both directions.
-DA_LABELS="Primary tool
-Direction of truth
-Artifact location
-Published view
-Tokens source
-Component catalog
-Brand book
-Design working files
-Sync
-Brand decided
-Every UI state designed
-Update responsibility
-Complementary tools"
+# label may carry any character except a backslash, which awk -v would expand, or a
+# colon, which the reverse extraction reads as the label's end. Convention #27 must
+# name every label, mobile included, inside its "Design tools" section, so the
+# vocabulary is checked in both directions.
+DA_LABELS_FILE="$SCRIPT_DIR/design-artifact-labels.txt"
+if [ ! -f "$DA_LABELS_FILE" ]; then
+  fail "scripts/design-artifact-labels.txt missing; the Design Artifact contract has no label list"
+fi
+DA_LABELS="$(grep -v '^#' "$DA_LABELS_FILE" 2>/dev/null | grep -v '^[[:space:]]*$')"
 DA_MOBILE_EXTRA="Platform parity"
 DA_CONV="conventions/27-design-foundation.md"
 da_count() { printf '%s\n' "$1" | awk -v l="- $2:" 'index($0, l) == 1 { n++ } END { print n + 0 }'; }
@@ -231,12 +227,12 @@ $found
   done <<EOF
 $(printf '%s\n' "$DA_SECTION" | sed -n 's/^- \([^:]*\):.*/\1/p')
 EOF
-  if [ -z "$DA_MISSING" ] && [ -z "$DA_REPEATED" ] && [ -z "$DA_UNKNOWN" ]; then
+  if [ -n "$DA_LABELS" ] && [ -z "$DA_MISSING" ] && [ -z "$DA_REPEATED" ] && [ -z "$DA_UNKNOWN" ]; then
     pass "$(basename "$REF") Design Artifact section carries every label of the contract exactly once (conv #27)"
   fi
   [ -n "$DA_MISSING" ] && fail "$(basename "$REF") Design Artifact section lacks label(s):${DA_MISSING%,} (conv #27 contract; a design tool reads these lines first)"
   [ -n "$DA_REPEATED" ] && fail "$(basename "$REF") Design Artifact section repeats label(s):${DA_REPEATED%,} (one line per field)"
-  [ -n "$DA_UNKNOWN" ] && fail "$(basename "$REF") Design Artifact section has label(s) the contract does not know:${DA_UNKNOWN%,} (add to DA_LABELS in validate-framework.sh and to conv #27, or move the line out of the section)"
+  [ -n "$DA_UNKNOWN" ] && fail "$(basename "$REF") Design Artifact section has label(s) the contract does not know:${DA_UNKNOWN%,} (add to scripts/design-artifact-labels.txt and to conv #27, or move the line out of the section)"
 done
 if [ -f "$DA_CONV" ]; then
   DA_CONV_SECTION="$(awk '/^## Design tools/{flag=1;next} /^## /{flag=0} flag' "$DA_CONV")"
@@ -251,7 +247,7 @@ if [ -f "$DA_CONV" ]; then
 $DA_LABELS
 $DA_MOBILE_EXTRA
 EOF
-    if [ -z "$DA_CONV_MISSING" ]; then
+    if [ -n "$DA_LABELS" ] && [ -z "$DA_CONV_MISSING" ]; then
       pass "$DA_CONV names every Design Artifact label the templates carry, in its Design tools section"
     else
       fail "$DA_CONV does not name label(s):${DA_CONV_MISSING%,} in its Design tools section (the convention and the templates must agree)"
@@ -382,6 +378,23 @@ else
     done < <(comm -13 <(printf '%s\n' "$K_V") <(printf '%s\n' "$K_T"))
   fi
   [ "$VOCAB_FAILS" -eq 0 ] && pass "profile vocabulary agrees in both directions across validator, templates, and convention #30 (stages, triggers, floor items, keys)"
+fi
+
+# ----------------------------------------------------------------------
+group 13 "Stepped playbooks (each step names its reading, what it produces, and its check)"
+# ----------------------------------------------------------------------
+# development/STEPS.md. Only a playbook that declares "Step ledger:" is checked; the
+# lint says how many steps it read, or that no playbook is stepped yet.
+for path in development/STEPS.md templates/progress.md scripts/next-step.sh; do
+  [ -f "$path" ] || fail "step ledger target missing: $path"
+done
+if [ -f "$SCRIPT_DIR/next-step.sh" ]; then
+  if STEPS_OUT="$(bash "$SCRIPT_DIR/next-step.sh" --lint 2>&1)"; then
+    pass "$(printf '%s' "$STEPS_OUT" | sed 's/^OK: //')"
+  else
+    printf '%s\n' "$STEPS_OUT" | grep 'FAIL' | while IFS= read -r l; do printf '  %s\n' "$l"; done
+    fail "stepped playbooks are malformed (see lines above)"
+  fi
 fi
 
 # ----------------------------------------------------------------------

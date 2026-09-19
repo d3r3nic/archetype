@@ -16,6 +16,8 @@
 #   6c. Persisted queries for mobile/public GraphQL clients (if declared)
 #   6d. Telemetry exporter configured (if References.md names the standard)
 #   7.  VERSION-LOG.md has a Scaffold entry
+#   8.  References.md § Design Artifact is filled in (delegates to validate-design.sh;
+#       a project with no such section passes)
 #
 # Exit 0 on pass, 1 on any error. Warnings do not fail.
 
@@ -380,6 +382,19 @@ if [ -f "$VLOG" ]; then
   fi
 else
   warn "VERSION-LOG.md not found"
+fi
+
+# ----------------------------------------------------------------------
+group 8 "Design Artifact section filled in (conv #27)"
+# ----------------------------------------------------------------------
+VD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/validate-design.sh"
+if [ ! -f "$VD" ]; then
+  fail "scripts/validate-design.sh missing beside this script"
+elif DESIGN_OUT="$(cd "$PROJECT_ROOT" && bash "$VD" 2>&1)"; then
+  pass "References.md Design Artifact section passes validate-design.sh (or the project has none)"
+else
+  printf '%s\n' "$DESIGN_OUT" | grep 'FAIL' | while IFS= read -r l; do printf '  %s\n' "$l"; done
+  fail "validate-design.sh reported errors (see lines above)"
 fi
 
 # ----------------------------------------------------------------------

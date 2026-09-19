@@ -36,7 +36,7 @@ Example inventory for a "record-session" feature:
 - env (src/shared/config/env.ts) — not needed directly (used via auth and db)
 - types — will use (validation schema at the HTTP boundary)
 
-A feature with a screen also names the design artifact (`References.md § Design Artifact`) as a system it will use, and lists the screens and states the artifact covers. A screen or state the artifact does not cover is designed first, through the project's design tool, with the owner's pick where a direction is open (#27, #29), and coded after. Do not improvise a screen because the artifact is silent; that is red flag #10 (see `development/RED-FLAGS.md`).
+A feature with a screen reads, in order, `References.md § Design Artifact`, the brand book, the vocabulary, the tokens, the catalog, and the artifact entries for this feature, and names the artifact as a system it will use with the screens and states the artifact covers (the state list in #27). A screen or state the artifact does not cover is sketched first at decision fidelity (a wireframe or a written composition: purpose, primary action, order, components, states), recorded in the artifact as session-decided (the entry format is `templates/design-artifact-entry.md`), and coded after; the owner is asked only when the gap is theirs (#27, #29). Do not improvise a screen because the artifact is silent; that is red flag #10 (see `development/RED-FLAGS.md`).
 
 Example for a feature with a screen:
 
@@ -107,6 +107,8 @@ Run each of the project's verification commands from `References.md § Commands`
 
 Then run `scripts/validate-profile.sh` from the project root: a deferral whose trigger the facts in PROFILE.md have made true is blocking, and a missing profile is reported as the strictest reading (#30). Before an action that changes exposure (inviting a user, importing real data, enabling payments, publishing), refresh the facts and run it with `--strict`, where an unknown fact is an error.
 
+For a feature with a screen, the capture set is a gate: one capture per applicable state per scheme per committed context, saved by the capture command in `References.md § Commands` and attached to the feature doc. An applicable state without a capture is not done (#27 "Design review").
+
 Do NOT proceed to Step 7 if any gate is red. Fix the issue. Do not paper over with skipped tests, lint-suppression comments, or casts to an untyped escape hatch.
 
 ### Step 7 — Document + cross-reference
@@ -145,7 +147,7 @@ Each feature gets a doc at `docs/features/{feature-name}.md`:
 - DB: [how used]
 - Auth: [permission requirements]
 - Logger: [what gets logged]
-- Design: [the artifact entry and revision implemented and the states covered; features with a screen only]
+- Design: [the artifact entry and revision implemented; the purpose sentence; the states covered; the session-decided entries, if any; where the capture set lives; who reviewed the screen against the artifact and when; features with a screen only]
 
 ## API Shape
 - **Route(s):** [method + path]

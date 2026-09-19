@@ -15,7 +15,7 @@ Create a component foundation that establishes:
 
 - Never import directly from the UI library. Always use project wrappers. If a wrapper doesn't exist, create it first.
 - Consistent sizing across all components. Every component that accepts size uses the same scale (for example xs, sm, md, lg, xl).
-- Consistent variants across all components. Every component that accepts variant uses the same vocabulary (for example primary, secondary, outline, ghost).
+- Consistent variants across all components. Every component that accepts variant uses the same vocabulary (for example primary, secondary, danger, quiet: named by role, never by look).
 - Consistent state props. Every component uses the same names for disabled, loading, read-only, required, and invalid states.
 - Components render UI. They do not fetch data, compute business logic, or manage complex state. That belongs in hooks or services.
 - Forward refs on all reusable components so parent components can access the underlying element for focus management and library interop.

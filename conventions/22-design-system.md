@@ -22,7 +22,12 @@ Create a design system foundation that establishes:
 - Configure the foundation's theme with the project's design tokens: colors per scheme, spacing scale, typography scale, shadows, border radius. Every committed scheme must work.
 - Wrap every component the project uses. The wrapper imports from the foundation, applies any project-specific defaults, and re-exports. Features import from the wrapper, never from the library directly.
 - The wrapper layer is where theme enforcement happens. If a component needs project-specific styling or defaults, that goes in the wrapper. Features get a clean, consistent API.
-- Before building any new component, check feature-tree.md and the shared component directory. AI builds duplicate components at a very high rate because it doesn't check what exists.
+- Before building any component, check feature-tree.md and the shared component directory; no script checks this, review does.
+- Add a shared component when the artifact specifies it or when a third use appears; before that, compose from what exists. A component built for one feature lives in that feature until the third use.
+- Name by role (what it is for), never by look or by the feature that needed it first; variants are named by role as well (primary, secondary, danger, quiet), as #6 names tokens.
+- Every shared component has a catalog entry with its states, its inputs, and its do and don't before feature code uses it; the catalog is updated in the same change as the component.
+- Deprecation: mark, point to the replacement, migrate every use, remove. A deprecated component gains no feature.
+- One icon set, one style, sized to the type scale, recorded in References.md; an icon has a label or an accessible name; emoji are not icons.
 - Never install a second component library for a single widget. Find a component within the existing foundation or find a standalone one that integrates with the project's theme. Build from scratch only when neither exists, and then inside the wrapper layer with the same API conventions.
 - These rules govern code. A canvas or artboard format that cannot import the foundation draws its controls as markup; that is design content under #27, not a hand-built component. A preview built from the repository's own components is code and imports the wrapper layer like any other. The code that implements a mockup uses the foundation, and a control the mockup shows that the foundation lacks is a wrapper to add, not a one-off.
 
@@ -34,6 +39,9 @@ Create a design system foundation that establishes:
 - Library-specific API patterns leaking into feature code
 - A foundation configured for one color scheme when the project committed to more
 - Components using hardcoded colors instead of the configured theme
+- A shared component named for its version or for the feature that first needed it
+- Two icon sets in one product
+- A cataloged component with no use in code and no recorded reason
 
 ## Wrong vs Right
 

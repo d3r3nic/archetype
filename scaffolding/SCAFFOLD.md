@@ -23,6 +23,8 @@ Determine the shape from `References.md`:
 
 Do NOT attempt to build from this router directly. The shape-specific playbooks have the ordered steps and the convention mappings.
 
+A playbook that declares a step ledger (development/STEPS.md) is walked with `scripts/next-step.sh`: add its ledger id after `bootstrap` on the Playbooks line of PROGRESS.md and the script names each step, the file that holds it, and its reading. The frontend playbook is stepped this way (`scaffold-frontend`).
+
 ## Shared rules (apply across all shapes)
 
 All shared scaffold rules live in `scaffolding/_preamble.md`. Read that file before following any shape-specific playbook — it covers:

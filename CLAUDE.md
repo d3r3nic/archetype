@@ -6,6 +6,8 @@ Do not assume you remember conventions from a previous session. Re-read what's r
 
 If References.md does not exist, bootstrap has not run yet. Read bootstrap/ONBOARD.md (or archetype/bootstrap/ONBOARD.md) and run bootstrap first. Do not write code without project context.
 
+If PROGRESS.md exists at the project root, run scripts/next-step.sh (or archetype/scripts/next-step.sh) before anything else. It names the open step of the playbook the project is in, where that step starts, and exactly what to read for it; read that, not the whole playbook and not the conventions other steps need. A step closes through the same script, on a check that passes or on evidence recorded in words. → development/STEPS.md
+
 ## Before Any Work
 
 1. Read References.md, PROFILE.md, and feature-tree.md (always — these are project context; PROFILE.md holds the stage and who decides technical questions)
@@ -34,7 +36,9 @@ Everything is built once, configured for context. Before building anything, chec
 - Never import directly from third-party libraries without project wrappers. → conventions/22-design-system.md, conventions/03-architecture.md
 - Never instantiate a shared getter's underlying client yourself (for example constructing a new database client when the shared getter already exists). Use the getter. Type imports and namespace imports from the library are OK. → conventions/00-reusability.md
 - Never hand-build a standard UI component (button, input, modal, table) that the project's component foundation provides. If the project has no foundation, do not start one ad hoc: check References.md for the recorded decision, or scaffold the foundation first. → conventions/22-design-system.md
-- Design work, including any design skill, plugin, canvas, or design workspace: the artifact, the token source, the catalog, PROFILE.md, and the project type are the brief, found through References.md § Design Artifact. A mockup, artboard, canvas file, preview, or prototype is design content: the never-hardcode, wrapper-import, no-hand-built-control, test, and lint rules govern code, not it; code follows the tokens and never inherits a mockup's literal values. The owner picks the direction from proposed directions. → conventions/27-design-foundation.md
+- Design content (a mockup, an artboard, a canvas file, a preview) follows the artifact and is exempt from the code rules; code follows the tokens and never inherits a mockup's literal value. The artifact, the token source, the catalog, PROFILE.md, and the project type are the brief for any design skill, plugin, canvas, or workspace, found through References.md § Design Artifact. → conventions/27-design-foundation.md
+- The owner picks the visual direction from proposed directions, or delegates the pick in words, and decides what each primary screen is for; within the picked direction the session decides composition, states, and words, records them in the artifact, and shows them. Never ask the owner a designer's question; never improvise a screen outside the system. → conventions/27-design-foundation.md, conventions/29-decision-authority.md
+- Every screen has one purpose and one primary action; type, space, color, and motion carry meaning, never decoration; words speak from the person's side in one vocabulary; a default nobody chose is removed. → conventions/31-interface-craft.md
 - Never scatter error handling. Use the centralized error system. → conventions/08-errors.md
 - Never create ad-hoc API calls. Use the API layer. → conventions/09-api.md
 - Never extract auth from JWT directly. Use the auth utility. → conventions/11-auth-security.md

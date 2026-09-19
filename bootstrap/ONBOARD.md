@@ -2,12 +2,20 @@
 
 Onboard a project into the framework. Run once at project creation or when adopting the framework on an existing project.
 
+Step ledger: bootstrap
+Step files: bootstrap/ONBOARD-2.1-WHAT-IS-IT.md; bootstrap/ONBOARD-2.2-WHERE-IT-RUNS.md; bootstrap/ONBOARD-2.3-WHAT-USERS-DO.md; bootstrap/ONBOARD-2.4-SCALE.md; bootstrap/ONBOARD-2.5-SENSITIVITY.md; bootstrap/ONBOARD-2.6-CARE-AND-AUTHORITY.md; bootstrap/ONBOARD-2.7-READ-TOGETHER.md; bootstrap/ONBOARD-3-RESEARCH.md; bootstrap/ONBOARD-4.1-EXISTING-PROJECT.md; bootstrap/ONBOARD-4.2-REFERENCES.md; bootstrap/ONBOARD-4.3-PROFILE.md; bootstrap/ONBOARD-4.4-DESIGN-INTERVIEW.md; bootstrap/ONBOARD-4.5-DESIGN-ARTIFACT.md; bootstrap/ONBOARD-5-HOOKS.md; bootstrap/ONBOARD-6-LOG.md
+
+This playbook is walked one step at a time (development/STEPS.md). Once Step 1 has put the engine and `PROGRESS.md` in place, run `scripts/next-step.sh` from the project root: it names the open step, the file that holds it, and what to read for it. Each step after the first is a file of its own, because a file is what a session opens: read the step's file and its reading when the script names it, not before, and close the step before opening the next.
+
 ## Prerequisites
 
 - You know what you want to build (even just "a todo app" is enough to start)
 - Tech stack chosen (or let the framework help you choose in Step 2)
 
 ## Step 1: Initialize Project
+Read: bootstrap/REPOSITORIES.md; development/STEPS.md
+Produces: the project folder with the engine in it (CLAUDE.md, Conventions.md, the conventions and playbook folders, unmodified); PROGRESS.md at the project root
+Check: evidence: where the engine sits (the project root, or which subfolder), and the repository decision with its reason
 
 Read [REPOSITORIES.md](REPOSITORIES.md) before creating a repository or installing the framework. Preserve an existing repository's history and local guidance; use the injection path when the project already exists.
 
@@ -63,442 +71,25 @@ your-project/
 └── templates/         # references, feature-tree, hooks
 ```
 
+Then create the ledger: copy `templates/progress.md` to `PROGRESS.md` at the project root and write `bootstrap` on its Playbooks line. This step is the first one the ledger closes.
+
 For fullstack: each endpoint (frontend/, backend/) is a separate project with its own copy of the framework, its own References.md, feature-tree.md, and docs/. They are separate git repos. If you prefer a monorepo, put both folders under one git repo and manage them together.
 
-## Step 2: Discovery (AI interviews you)
+## The steps
 
-Do NOT jump straight to building. The AI needs to understand what you're building first. Tell the AI to read this section and follow the discovery process.
-
-### Discovery Prompt:
-
-Give this to your AI assistant:
-
----
-
-Read bootstrap/ONBOARD.md Step 2: Discovery. Follow the discovery process before generating anything.
-
-I want to build: [describe your idea in plain English, even one sentence is fine]
-
----
-
-### Discovery Process (for the AI assistant):
-
-Before choosing any technology or generating any files, interview the user with these questions. Ask them one group at a time. These are designed for people who may not know technical terms.
-
-**Group 1 - What is it?**
-- What does your app do? Describe it like you're explaining to a friend.
-- Who uses it? Just you? Your team? The public?
-- Can you name an existing app that's similar to what you want? (even loosely)
-- Is this a product you want to ship, or a project to learn a specific technology? (If learning a technology, that's a legitimate reason to use that stack even when a platform would be simpler — but note it explicitly so Step 3 can handle it correctly.)
-- **Is this a TEMPLATE / starter kit / generator, or a PRODUCT / end deliverable?** A template is code that other projects FORK or INSTALL FROM — its audience is developers; it ships structural primitives, neutral defaults, and intentionally has no brand identity. A product is the end thing that real users interact with — it commits to a visual identity, a specific set of features, and a deployed URL. Same framework applies to both, but bootstrap generation diverges: templates defer brand/design-artifact decisions to downstream projects, ship `@scope/*` packages with placeholder tokens, and document the "downstream sites" model. Products complete those decisions at bootstrap, or prepare the directions and leave the pick open: the scaffold then builds neutral placeholder values, and no UI feature ships until the pick lands.
-- **For a PRODUCT: do you already have a look?** A logo, colors, a typeface, a site or app whose feel you want, a tone of voice. Gather what exists. If nothing exists, the AI proposes a few directions for the owner to pick from (conventions #27 and #29); it never invents the look on its own. The answer fills `Brand decided` in References.md § Design Artifact; a vague answer records `not yet, directions pending the owner's pick`, never a default look.
-
-**Proactive learning-intent detection:** If the user's OPENING message declares enterprise or complex infrastructure (container orchestration, distributed caching, distributed message queues, service mesh, multi-region, microservices, self-managed clusters) for a personal-scale or small-scale project (one user, a blog, a single-person tool, a portfolio), ask the ship-vs-learn question in your FIRST reply, not after red flags fire in later turns. Pattern: solo + enterprise-infra is nearly always learning intent. Surface it early so the rest of discovery proceeds with the right frame.
-
-**Template vs product — how generation diverges:** Discovery answer routes Step 4.
-
-| Concern | TEMPLATE | PRODUCT |
+| Step | What it settles | File |
 |---|---|---|
-| References.md § Project `Stage` | `template` plus the template's own version number | `development / staging / production` |
-| References.md § Design Artifact | Every labelled line kept: `Brand decided: deferred to downstream projects`, `Direction of truth` and `Design working files` filled so a design tool run in the template has a recorded home, `none` where a line has nothing; the section's prose says downstream projects decide their own artifact at their own bootstrap and that the template ships neutral placeholder tokens, no visual identity invented. | AI researches the tool category, fills every labelled line of the section (direction of truth, sync, working-files folder, `Brand decided` from Group 1) per convention #27. |
-| Design tools run in the project | Structure only: wireframes, layouts, states with neutral tokens; a request for brand values is deflected downstream. | Work from the artifact and the token source as the brief; the owner picks the direction from proposed directions (#27, #29). |
-| References.md new § | `## Downstream Projects` — how sites FORK or INSTALL from this template, what's shared vs local, upgrade flow. | `## Deployment` (standard). |
-| `@scope/*` packages | Built with neutral tokens (system colors, inherited typography). Convention #27 gate is about STRUCTURE, not VALUES. | Values come from design artifact per #27. |
-| feature-tree.md Design-related rows (e.g. Components, Design System) | "Structural at template level; downstream projects apply brand." | Full-fidelity, artifact-driven. |
-| VERSION-LOG.md bootstrap `Type:` | `Type: template` | `Type: product` |
-| Discovery Groups 2–5 | Still asked — stack/scale answers shape the template's structural choices. | Still asked. |
-
-This distinction is not the same as #22 Design System (which is always about component libraries) or #27 Design Foundation (always about the design-artifact discipline). It's orthogonal: a template or a product can still have both. Templates DEFER the artifact; products COMMIT it.
-
-**Group 2 - Where does it run?**
-- Should this work in a web browser?
-- Should this be a phone app, installed from an app store?
-- Should this be a desktop application, installed on a laptop or desktop?
-- Or some combination?
-- Name a well-known app in each category so the question lands with a non-technical user. Pick apps that are popular now, not ones you remember.
-
-If the user says "phone app" or "works on my phone," do NOT silently pick a stack. Run the mobile disambiguation and decision tree — full detail in `bootstrap/RED-FLAGS.md` "Mobile Disambiguation" section. Three distinct choices: responsive web (cheapest), PWA (installable web + offline), native (App Store + native device APIs). Default for "I don't know" = responsive.
-
-**Mobile decision tree — pattern:**
-- If user names a native-only capability (the OS health-data store, haptics, biometrics, Bluetooth peripherals, deep OS integration) → native.
-- If user wants installability + offline but no native-device APIs → PWA.
-- If user just wants the site to work on phones → responsive.
-- If ambiguous → ask explicitly. Do not guess.
-
-**Group 3 - What do users do?**
-- Do users need to create accounts and log in?
-- Do users fill out forms or submit data?
-- Do users upload files or images?
-- Do users need to see updates in real time? (like chat, live notifications)
-- Does the app need to work without internet? (offline mode)
-
-**Group 4 - Scale and stage**
-- Is this a personal project, a startup MVP, or an enterprise product?
-- How many users do you expect? (just you, tens, hundreds, thousands, millions)
-- Do you have any tech preferences? (if yes, which ones; if no, that's fine)
-
-**Group 5 - Infrastructure and sensitivity**
-- Does this app handle sensitive data that has legal requirements? (health records, financial data, personal information with privacy laws)
-- Do you or your team have experience managing servers and cloud infrastructure? Or would you prefer something that handles that for you?
-- How important is it that you own and control all the infrastructure vs getting something live quickly?
-
-If the user answers vaguely ("I dunno", "not sure", "I guess not"), DEFAULT TO ASSUMING REGULATED DATA. A wrong "no" generates a non-compliant stack caught only at audit; a wrong "yes" generates overkill-but-safe. Disambiguation question + full rule in `bootstrap/RED-FLAGS.md` "Vague-Answer Rules" section.
-
-**Deploy gate:** if regulated-data is default-assumed-yes and never affirmatively answered, scaffolding and deploy (Phase 2+) must halt. Record in `VERSION-LOG.md` as open pre-production gate. Deflections do not resolve. See RED-FLAGS.md "Deploy Gate" section.
-
-**Budget-vague:** parallels regulated-vague. See RED-FLAGS.md "Vague budget answer" section.
-
-**Vague stack preference** ("use whatever", "I don't care"): not a choice, a deflection. Apply Step 3 default (platform if one covers 80%+, minimum-viable custom otherwise). See RED-FLAGS.md.
-
-**Group 6 - How careful, and who decides** (fills PROFILE.md per #30 and the decision-authority setting per #29; ask only what Groups 1-5 did not already answer)
-- What should this first version prove, or let someone accomplish?
-- Will it work with made-up information, or real information? If real, is any of it about people (names, contact details, health, money)?
-- Would anything be lost for good if its records disappeared?
-- Could it move money, send messages, change important records, or affect someone's health, safety, work, or access to a service?
-- If it stopped working or gave a wrong answer, what would happen? Could people use another way meanwhile?
-- Are we testing an idea we might throw away, or preparing something people will depend on? Is there a promised date?
-- What have you promised the people involved about privacy, reliability, or the handling of their information?
-- What monthly running cost is comfortable, and how much extra AI spending? (Reuse the budget answer if already given.)
-- Who else will work on the code with me, now or soon? (Just you and me, or other people too?)
-- Do you want to make the technical choices yourself, or should I make them and show you what I decided and why?
-
-The AI derives the operating stage from the answers (#30): `isolated` when only the owner uses it, with made-up data, no real effects, nobody depending on it or on its records; `trial` when identified people try it and have a workable fallback; `operational` otherwise. A vague answer stays `unknown` in PROFILE.md and is never read as "no". For audience, effects, reliance, and records, `unknown` blocks real exposure, not the contained experiment; the regulated-data question keeps its own stricter gate (`bootstrap/RED-FLAGS.md` "Deploy Gate"), which halts scaffolding and deployment until it is answered. When the regulated-data answer is vague, PROFILE.md records `Regulated data: unknown`; the default-assumed-yes lives in VERSION-LOG.md as the open pre-production gate, not in the profile. A vague answer to the last question records `Decision authority: ai-decides` with `Authority source: defaulted` (#29); see `bootstrap/RED-FLAGS.md` "Vague answer about who decides".
-
-### How the AI decides (read the user's knowledge level):
-
-The AI should gauge the user's technical experience from how they talk. Adjust choices accordingly:
-
-**Non-technical user** (says things like "I don't know how apps work", "I heard AI can help"):
-- Choose managed / BaaS services that require zero DevOps knowledge
-- Database: a managed relational database with auth and file storage built in, or an embedded single-file database for simple single-user apps
-- Hosting: a managed frontend platform + a managed backend/app platform
-- Auth: a fully-managed drop-in auth provider
-- Category shape is what matters; research current market leaders at bootstrap time. These ARE production-level tiers — they just don't require server management knowledge.
-
-**Developer with some experience** (knows frameworks, doesn't know DevOps):
-- Choose cloud platforms with simple deployment and managed databases
-- Auth: a managed identity provider (consumer or B2B category depending on use case)
-- Migratable to self-managed cloud later as needs grow
-- Research current options at bootstrap time.
-
-**Experienced developer / team with DevOps knowledge** (mentions a cloud provider, containers, infrastructure):
-- Choose a major cloud provider with full control
-- Database: managed database service on that cloud
-- Auth: cloud-native managed auth or a compliance-certified managed auth broker
-- Infrastructure as code (reproducible, auditable)
-- CI/CD: automated pipeline to the cloud provider
-- Full monitoring, logging, alerting
-
-**Regulated data** (HIPAA, SOC2, PCI, GDPR, CCPA, financial regulations, sector-specific privacy laws):
-
-FIRST: identify the regime. Different regimes require different controls, vendor agreements, and evidence. Research current requirements and vendor options for the specific regime at bootstrap time — do NOT rely on training-data-era recommendations.
-
-SECOND: run Step 3 platform research. For most regulated domains, a compliance-ready vertical SaaS exists and clears the Step 3 coverage threshold without custom engineering. Platforms with signed BAA (HIPAA), subprocessor+attestation (SOC 2), or equivalent compliance artifacts for the regime are the first choice. Custom is the last resort for regulated data.
-
-THIRD — only if custom is genuinely required (product logic no platform offers, scale exceeds platform tier, multi-system integration):
-- Cloud provider with the right compliance certifications AND signed vendor agreement for the regime
-- Database: managed, encrypted at rest and in transit
-- Auth: compliance-certified managed auth (research current providers — enterprise auth categories include HIPAA-eligible managed auth, SAML-capable B2B auth brokers, enterprise identity providers)
-- Infrastructure as code (reproducible, auditable)
-- Audit trails, access controls, incident response — mandatory for every regime
-- Budget reality: compliance-grade infrastructure has a meaningful monthly floor (varies by regime — HIPAA minimum differs from SOC 2 Type 2 minimum differs from PCI). Research current vendor pricing. If the user cannot absorb it, platform is the only correct answer — surface this explicitly, do not scaffold custom.
-
-**Compliance regime details routed from bootstrap/RED-FLAGS.md when a specific regime is confirmed.**
-
-### How to translate answers into technical decisions:
-
-| Answer | Technical Decision |
-|--------|-------------------|
-| Web browser app | Frontend: a component-based web UI framework |
-| Phone app (confirmed native) | Mobile: one cross-platform native framework, or each platform's own native toolchain |
-| Phone app (PWA, installable from browser) | Web stack + PWA manifest + service worker |
-| Works on phone (responsive web) | Web stack, responsive design, no mobile-specific tooling |
-| Desktop app | Desktop: a web-stack desktop shell, or the OS's native UI toolkit |
-| Users log in | Auth system needed |
-| Users submit forms | Form system needed |
-| Users upload files | File storage system needed |
-| Real-time updates | WebSocket/SSE needed |
-| Works offline | Offline support needed |
-| Just me / personal | Simple stack, an embedded single-file database is fine, managed hosting |
-| Startup MVP | Modern stack, managed relational database, cloud hosting |
-| Enterprise / compliance | A major cloud provider, infrastructure as code, full monitoring |
-| Millions of users | Performance, CDN, caching, horizontal scaling |
-| No tech preferences | AI picks based on experience level (see above) |
-| Has preferences | AI respects preferences AND still runs Step 3 research. If a platform covers the use case, or scale/compliance/cost is mismatched to the preference, surface the alternatives before agreeing. User can still choose their preference — but must see the tradeoff. |
-| Sensitive data (health, finance) | Compliance-grade infrastructure, encryption, audit trails |
-| No DevOps knowledge | Managed / BaaS services category (research current market leaders) |
-| Knows cloud infrastructure | A major cloud provider with proper architecture (preferred for production) |
-
-### Proven stack shapes (for each slot, research the current mainstream, actively maintained choice in the project's language — never pick from memory):
-
-Web frontend: component UI framework + statically typed language + fast bundler + a styling system
-Content sites / blogs / docs: a static-first site generator that ships little or no client JS
-Backend API: typed server framework + a schema/ORM layer + a managed relational database
-Mobile: one cross-platform native framework, or each platform's own native toolchain
-Desktop: a web-stack desktop shell, or the OS's native UI toolkit
-
-### Handling scope changes mid-discovery
-
-If the user introduces a new requirement during discovery (multi-user after "just for me", SSO after "personal", mobile after "web", compliance after "nothing sensitive"), STOP the linear flow: acknowledge the change, re-ask affected groups, re-run Step 3 research. Full playbook + resistant-user handling in `bootstrap/RED-FLAGS.md` "Scope-Change Handler" section.
-
-Do not proceed to Step 4 (file generation) until discovery is coherent with the current scope.
-
-### Red flag combinations — surface before Step 3
-
-Some requirement combinations are incompatible, anti-pattern, or signal hidden complexity. If the user's answers hit any, surface the conflict BEFORE moving to Step 3.
-
-**Full 10-row table and per-row playbook in `bootstrap/RED-FLAGS.md`.** Categories covered:
-- Free + regulated data (compliance floor makes this impossible)
-- Offline + regulated data (device-loss compliance risk)
-- Solo user + enterprise infra (scale mismatch — unless learning, see LEARNING-PROJECTS.md)
-- Real-time + static hosting (infrastructure mismatch)
-- Multi-user team + solo stack (feature/stack mismatch)
-- "All equally important" + deadline (priority conflict)
-- Enterprise SSO + consumer auth stack (provider mismatch)
-- Compliance claim + no vendor-agreement discussion (user error)
-- Enterprise SSO + user is not admin on the IdP tenant (provisioning dependency)
-- Priority ranking refused (applies default order)
-
-Multiple red flags = strong signal that platform Option A is correct. Do not proceed to Step 4 custom build when scale, compliance, or budget fundamentally don't fit a custom path.
-
-## Step 3: Research Before Deciding (DO NOT SKIP)
-
-After discovery, the AI has the answers. But DO NOT pick a tech stack yet. First, research whether a custom build is even the right approach.
-
-### The AI must consider: does the user actually need a custom app?
-
-Many projects are better served by existing platforms than custom code. The AI must be honest about this, even though the framework exists to scaffold custom projects. Over-engineering is a violation of convention #0 (reusability — don't build what already exists, whether inside the project OR as a market-available platform).
-
-**Exception: learning projects.** If Group 1 revealed this is a project to learn a specific technology (not a product to ship), platform-vs-custom research is bypassed — the technology choice IS the point. Scale-vs-cost still matters: recommend the cheapest way to exercise the target technology (local tooling before cloud). Full flow, detection heuristics, and References.md documentation template in `bootstrap/LEARNING-PROJECTS.md`.
-
-Research and present these options to the user BEFORE committing:
-
-**Option 1: Existing platform (no custom code needed)**
-
-| User wants | Consider instead of custom code |
-|---|---|
-| Blog / content site | a hosted CMS, or a static site generator plus a headless CMS |
-| Online store | a hosted e-commerce platform |
-| Portfolio / brochure site | a hosted website builder, or a static site generator |
-| Landing pages | a hosted landing-page builder |
-| Internal forms / workflows | a no-code database, form, or internal-tool builder |
-| Booking / appointments | a hosted scheduling service |
-| Documentation site | a docs-site generator, or a hosted docs platform |
-
-Research the current market leader in each category at bootstrap; the leaders change. If an existing platform covers 80%+ of what the user needs, recommend it. Custom code should only be chosen when the user has requirements that platforms genuinely cannot meet.
-
-**Option 2: Hybrid (platform + custom pieces)**
-
-Sometimes the right answer is a platform for the core + custom code for specific features:
-- A hosted CMS for content + a custom frontend against its API (headless CMS)
-- A hosted e-commerce platform for checkout + a custom dashboard for analytics
-- A BaaS (Backend-as-a-Service) platform + custom frontend
-
-**Option 3: Full custom build (what this framework scaffolds)**
-
-Custom code is the right choice when:
-- The app has complex business logic that platforms can't handle
-- The app needs custom auth flows, HIPAA compliance, or specific security requirements
-- The app is a SaaS product, dashboard, or tool with unique workflows
-- The user has technical skills or a development team
-- No existing platform covers even 50% of the requirements
-
-### How to present the decision:
-
-Research online (if capable) for the latest platform options that match the user's use case. This choice touches recurring cost and the shape of the product, so it goes to the owner under both decision-authority settings (#29): one recommendation first, the reason and the cost with it, the alternatives after it. Then present:
-
-```
-Based on what you described, my recommendation is [option] because [reason tied to the discovery answers]; it would cost [monthly cost or "nothing"] and take about [effort]. Doing this unless you object.
-
-The alternatives I weighed:
-
-Option A: [Platform name]
-- What it does: [covers X, Y, Z of your requirements]
-- What it doesn't do: [missing A, B]
-- Cost: [pricing]
-- Effort: [timeline]
-- Best if: [use case fit]
-
-Option B: [Different platform or hybrid approach]
-- ...
-
-Option C: Custom build with [tech stack]
-- What it does: exactly what you need, fully customizable
-- What it doesn't do: nothing - but you have to build and maintain everything
-- Cost: development time + hosting
-- Effort: [timeline estimate]
-- Best if: you need full control, have complex requirements, or this is a product
-```
-
-Under `owner-decides`, wait for the owner's choice before generating anything. Under `ai-decides`, generate the project context for the recommended path if the owner does not object in the session: generating reversible context is preparation, not the decision, and the decision itself stays open; any sign-up, payment, or commitment waits for an explicit yes, because silence is not authorization (#29). Never generate a custom build when the recommendation was a platform and the owner has not chosen it.
-
-If the user chooses a platform (Option A or B), help them set it up. The Archetype framework's scaffolding phase doesn't apply — but the conventions around security (#23), documentation (#16), and git (#2) still do.
-
-Proceed to Step 4 when the build approach is settled: under `owner-decides`, when the owner confirms the custom build; under `ai-decides`, when the recommendation is a custom build and the owner has not objected.
-
-## Step 4: Generate Project Context
-
-Once the build approach is settled per Step 3 (confirmed under `owner-decides`; recommended and not objected to under `ai-decides`), the AI generates the project files. The generation path depends on whether the approach is a platform (Option A/B from Step 3) or a custom build (Option C).
-
-### If the user picked a PLATFORM (Option A or B from Step 3):
-
-The framework's scaffolding phase does NOT apply. There is no tech stack to document, no foundational systems to build, no folder structure to scaffold. The user's project is configuration and content within a third-party platform.
-
-Generate:
-- `References.md` using `templates/references-platform.md` (NOT the frontend/backend/mobile templates — those are for custom builds)
-- `PROFILE.md` using `templates/profile.md`: the operating stage derived from Group 6, the facts with unknown kept unknown, the decision-authority setting with its source. A platform project still has an audience, data, effects, and an owner who decides (#30, #29).
-- `feature-tree.md` reshaped as a configuration checklist for the chosen platform (not a systems map)
-- `VERSION-LOG.md` with `Type: platform / {platform-name}` in the bootstrap entry
-- No `.gitignore`, no `git init`, no `docs/systems/`, no `docs/features/` — the framework doesn't manage the platform's internals
-
-Conventions that still apply:
-- #2 (Git) — if the user will version-control platform config files (theme customizations, export files)
-- #16 (Documentation) — the References.md IS their documentation
-- #23 (App Security) — admin account, 2FA, PII handling within the platform
-- #24 (Authorization) — role settings within the platform
-- #29 (Decision Authority) and #30 (Operating Profile) — who decides, what is escalated, how careful the configuration must be, and what was deferred
-
-Conventions that do NOT apply: everything else (architecture, components, state, styling, types, errors, API, testing, build/CI, etc.). Those are owned by the platform.
-
-Stop after generating References.md, PROFILE.md, feature-tree.md, and VERSION-LOG.md. Help the user sign up for the platform (the sign-up and any payment wait for the owner's explicit yes, #29) and walk through initial configuration.
-
-### If the user picked a CUSTOM BUILD (Option C from Step 3):
-
-Proceed below. This is the path the framework was originally built around.
-
-### For a fullstack project (web frontend + backend API):
-
-The AI runs the generation process TWICE - once for the frontend folder using templates/references-frontend.md, and once for the backend folder using templates/references-backend.md. PROFILE.md is generated once, at the repository root, never per endpoint: stage and decision authority are project-wide (#30). Each endpoint gets its own References.md and feature-tree.md.
-
-### For a single endpoint:
-
-The AI runs once in the project folder, using the matching template (frontend, backend, or mobile).
-
-### Generation Process (for the AI assistant):
-
----
-
-Read Conventions.md to understand the convention index. Do NOT read every convention doc upfront.
-
-Based on the discovery answers, you now know: what platforms, what features, what scale, and what tech stack.
-
-Generate these files:
-- References.md using the appropriate template from templates/ (references-frontend.md, references-backend.md, or references-mobile.md).
-  - If the project is a **TEMPLATE** (per Group 1), apply the diverging generation rules from the "Template vs product" table: Stage = `template` plus its own version number, add a `## Downstream Projects` section, keep every labelled line of `## Design Artifact` with `Brand decided: deferred to downstream projects` and a recorded working-files folder, note that any `@scope/*` packages ship with neutral placeholder tokens. Do NOT research design tooling — that decision belongs to downstream projects at their own bootstrap.
-  - If the project is a **PRODUCT**, research the design-artifact tool at bootstrap on equal terms (a visual design tool, a design-system-as-code repository, an AI design canvas available in the working session, an AI design workspace) on the criteria that matter: where the owner can see and change the design, cost (recurring spend is an escalation under #29), whether it can hold every state, whether the sync can be run from the repository. Fill every labelled line of References.md § Design Artifact: the direction of truth (`repository-first` or `workspace-first`) and the sync, the working-files folder, `Brand decided` from Group 1. Record the tool and the direction at the decision location (#29). Per convention #27.
-- feature-tree.md using templates/feature-tree.md. For TEMPLATE projects, mark design-derived rows (Components, Design System, Styling values, per-feature visual states) as "structural at template level; downstream projects apply brand"; do NOT leave them undefined.
-- PROFILE.md using templates/profile.md, every key filled: the operating stage you derived and its one-line Stage reason; Audience from Group 1 and Group 4 (who uses it, how many); Data, External effects, Operational reliance, Valuable records, Fallback, Contributors, and Customer commitments from Group 6; Regulated data from Group 5 (unknown when vague); the cost ceilings; the decision-authority setting with its source (owner-stated or defaulted); today's date as Observed-on; and a Review condition (a date or the first trigger you expect). Run `scripts/validate-profile.sh` afterwards; a placeholder left in any key fails it. Per #30.
-- In References.md § Project, the owner channel, the decision location, and the reporting pace, per #29.
-- docs/systems/ directory (empty)
-- docs/features/ directory (empty)
-- .gitignore appropriate for the tech stack
-- Initialize git with an initial commit
-
-For each foundational system section in References.md:
-1. Read the corresponding convention doc (the # number is in the section header)
-2. Read its Research Notes section
-3. Research the current best practices for that convention in the chosen tech stack. If you can do web searches, search for the latest patterns. If not, use your best knowledge and note what should be verified.
-4. Describe HOW the system will be implemented
-5. Report what you found so the user can verify
-6. Leave Location fields empty (scaffolding fills them in)
-7. If a system is not needed (based on discovery), remove it from References.md and feature-tree.md
-
----
-
-### Example bootstrap conversations:
-
-**Vibe coder with a vague idea:**
-
-User: "I want to build an app for my restaurant"
-
-AI: "Great! Let me ask a few questions to understand what you need..."
-- "What should the app do? Take orders? Show the menu? Let people book tables?"
-- "Should customers use it in a browser or as a phone app?"
-- "Do customers need to create accounts?"
-- ...
-
-User: "I just want people to see our menu and book a table online"
-
-AI: "Got it. This is a web app with a frontend for customers and a backend to store menu items and bookings. Users don't need accounts for viewing the menu, but bookings need a simple form. No file uploads, no real-time, no offline needed. I'd recommend a standard web stack: a component UI framework for the pages and a small typed API behind it. Let me set it up..."
-
-**Developer who knows what they want:**
-
-User: "I'm building a healthcare SaaS. Component-framework frontend, cloud-hosted backend, managed relational database, cloud-managed auth. I know the stack."
-
-AI: "Stack noted. Before I generate files, Step 3 still applies — even with a declared stack. For healthcare SaaS specifically, HIPAA-compliant vertical platforms often cover most typical use cases (patient portals, intake, scheduling, notes) with BAAs included. Let me confirm: is the core of your product something those platforms already do, or is it unique logic on top of that (AI analysis, custom workflows, proprietary algorithms)? If it's the latter, your stack is a reasonable fit. If it's the former, start from the platform and build only the unique layer. Research current HIPAA vertical-SaaS options to make sure the recommendation is up-to-date."
-
-User: "Custom — the core is our AI analysis pipeline, no platform does that."
-
-AI: "Confirmed custom build is correct. Generating References.md with the declared stack, and I'll flag HIPAA-specific requirements inline (BAA with the cloud provider, encryption at rest, MFA on auth, audit logging, PII log-scrubbing)."
-
-**Key takeaway:** even for a confident user with a declared stack, Step 3 still runs. A 30-second confirmation ("is this custom logic or platform-served?") prevents scaffolding weeks of infra for a use case a platform already solves.
-
----
-
-### For an EXISTING project:
-
-Full migration flow — Parts A (scan codebase), B (extract rules), C (cross-reference), D (doc discovery + audit) — lives in `bootstrap/EXISTING-PROJECT.md`. Follow it end-to-end.
-
-**Critical:** migration preserves EVERY rule. Nothing gets lost. If you find yourself summarizing, stop. Run `scripts/validate-migration.sh` before committing — it checks for summarization, missing INDEX pointers, drifted migrated copies, and absent convention references. Any validator failure = re-extract, do not paper over.
-
----
-
-## Step 5: Set Up Hooks (optional - can be done later)
-
-Hooks automatically remind the AI to update documentation and run verification. See templates/hooks-spec.md for what hooks to create. This step can be deferred to scaffolding if you want to get started faster.
-
-## Checklist
-
-After bootstrap, verify:
-
-- [ ] CLAUDE.md in project root (or in archetype/ subfolder if existing project)
-- [ ] Conventions.md in project root (or in archetype/)
-- [ ] conventions/ directory with all framework convention docs (unmodified)
-- [ ] References.md generated (use `references-platform.md` for platform choice, or the matching custom template: `references-frontend.md`, `references-backend.md`, `references-mobile.md`)
-- [ ] feature-tree.md initialized (use `feature-tree-platform.md` for platform choice, `feature-tree.md` for custom)
-- [ ] PROFILE.md generated from templates/profile.md with an operating stage, the decision-authority setting and its source, and Observed-on (per #30; unknown facts stay unknown); `scripts/validate-profile.sh` passes
-- [ ] VERSION-LOG.md bootstrap entry written (with `Type: platform / {name}` or `Type: custom`)
-- [ ] **For CUSTOM BUILDS ONLY:** docs/systems/ directory created
-- [ ] **For CUSTOM BUILDS ONLY:** docs/features/ directory created
-- [ ] **For CUSTOM BUILDS ONLY:** Git initialized with .gitignore (new project only)
-- [ ] **For REGULATED DATA (yes or default-assumed):** regulated-data question explicitly answered OR logged in VERSION-LOG as a pre-production gate
-
-For existing projects, additional verification:
-- [ ] conventions/overrides/ directory with project-specific rules per convention
-- [ ] protocols/ directory with workflow protocols extracted from existing files
-- [ ] catalogs/ directory with reference catalogs extracted
-- [ ] Project-root CLAUDE.md.additions, loaded directly and preserved by updates
-- [ ] Every rule from the original CLAUDE.md is captured somewhere (not lost in summarization)
-- [ ] MIGRATION-NOTES.md explains where each piece of the original lives now
-
-## Step 6: Log the Bootstrap
-
-After bootstrap completes, update VERSION-LOG.md (at the **project root**, not inside archetype/ — the version log is project-owned, and framework updates overwrite the engine) to record what was done. If VERSION-LOG.md doesn't exist, create it.
-
-Append a bootstrap entry:
-
-```
-## Bootstrap
-
-Date: [today's date]
-Type: [template / product / existing-project-migration]
-Tech stack: [the tech stack chosen]
-Profile: [operating stage], decision authority [owner-decides / ai-decides] ([owner-stated / defaulted]), facts still unknown: [list or none]
-Files generated:
-- References.md ([word count] words)
-- PROFILE.md ([operating stage], [number of facts still unknown] unknown)
-- feature-tree.md ([number of systems] systems, [number of features] features)
-- [for existing projects] conventions/overrides/ ([number] files)
-- [for existing projects] protocols/ ([number] files)
-- [for existing projects] catalogs/ ([number] files)
-- [for existing projects] docs/migrated/ ([number] files copied)
-- [for existing projects] docs/audit/ ([number] audits, [summary: clean/minor/major/stale])
-Conventions read during bootstrap: [list which convention docs were read]
-Discovery questions asked: [list questions asked and answers received]
-Key decisions made: [any tech stack choices, systems included/excluded, overrides noted]
-```
-
-This log ensures a future AI or developer can see exactly what happened during bootstrap, what was generated, and what decisions were made.
+| 1 | The engine and the ledger are in place | this file |
+| 2.1 to 2.6 | Discovery, one question group each, closed on the owner's words | bootstrap/ONBOARD-2.1-WHAT-IS-IT.md to bootstrap/ONBOARD-2.6-CARE-AND-AUTHORITY.md, each read with bootstrap/ONBOARD-DISCOVERY.md |
+| 2.7 | The answers read together: needs, knowledge level, red-flag combinations | bootstrap/ONBOARD-2.7-READ-TOGETHER.md |
+| 3 | Research, one recommendation, the build approach | bootstrap/ONBOARD-3-RESEARCH.md |
+| 4.1 | An existing project's rules migrated (skipped for a new one) | bootstrap/ONBOARD-4.1-EXISTING-PROJECT.md |
+| 4.2 | References.md and feature-tree.md | bootstrap/ONBOARD-4.2-REFERENCES.md |
+| 4.3 | PROFILE.md | bootstrap/ONBOARD-4.3-PROFILE.md |
+| 4.4 | The design interview (a product with a screen) | bootstrap/ONBOARD-4.4-DESIGN-INTERVIEW.md |
+| 4.5 | The Design Artifact section | bootstrap/ONBOARD-4.5-DESIGN-ARTIFACT.md |
+| 5 | Hooks (may be deferred) | bootstrap/ONBOARD-5-HOOKS.md |
+| 6 | The bootstrap logged | bootstrap/ONBOARD-6-LOG.md |
 
 ## What Bootstrap Does NOT Do
 
@@ -510,4 +101,4 @@ Bootstrap generates the map. Scaffolding builds what the map describes.
 
 ## Next Step
 
-Proceed to scaffolding/SCAFFOLD.md to build the foundational systems.
+Proceed to scaffolding/SCAFFOLD.md to build the foundational systems. When the scaffold playbook for this project's shape declares a step ledger, add its id after `bootstrap` on the Playbooks line of PROGRESS.md, and `scripts/next-step.sh` carries on from there.

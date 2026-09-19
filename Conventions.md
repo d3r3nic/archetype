@@ -9,10 +9,12 @@ This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFO
 | Task type | Always read | Also read |
 |-----------|-------------|-----------|
 | Any new feature | #0, #3, #19 | #1 if new folders needed; #28 if UI text/values are involved |
-| UI component work | #4, #6, #22, #28 | #14 (accessibility), #27 (check design artifact first) |
+| UI component work | #4, #6, #22, #28 | #14 (accessibility), #27 (check design artifact first), #31 (composition, words) |
 | Customer-facing copy / brand values | #28 | #6 (theme tokens), #16 (CONFIG.md) |
-| Any UI design decision (states, interactions, hierarchy) | #27, #6, #22 | propose and ask the owner if the artifact is silent |
+| Any UI design decision (states, interactions, hierarchy) | #27, #31, #6 | #22; the session decides within the picked direction and records it (#27); the owner is asked only for identity and what a screen is for (#29) |
 | Design session (mockups, a canvas, a design tool or plugin run, a design-system sync) | #27, #29 | #6, #22 (what the code derives from the design), #14 (the floor design content keeps) |
+| Interface copy, labels, errors | #31 | #28 (where copy lives), #20 (field errors), #8 (error classes) |
+| Design review of a screen | #27 (the review order), #31 | #14, #29 (the reviewer did not build it) |
 | Forms | #20, #4, #6 | #7 (validation schemas) |
 | API consumption (client-side — fetching from an external API) | #9, #10, #8 | #7 (response types) |
 | New API endpoint (server-side — building an API) | backend/B2, #7, #8 | #11 (auth), #23 (input validation); also read backend/Conventions.md for full backend routing |
@@ -86,5 +88,6 @@ Everything built once, configured for context. Governs how all other conventions
 - #20 Forms — schema validation, accessible errors, multi-step → conventions/20-forms.md
 - #21 Routing — layouts, guards, URL state → conventions/21-routing.md
 - #22 Design System — UI wrappers, token-first, component catalog → conventions/22-design-system.md
-- #27 Design Foundation — design artifact is source of truth, AI consults it first, never invents UX; design tools work from the artifact and the owner picks the direction → conventions/27-design-foundation.md
+- #27 Design Foundation — design artifact is source of truth, AI consults it first; when it is silent the session designs within the picked direction and records it; design tools work from the artifact and the owner picks the direction or delegates the pick in words; the state list and the design review order → conventions/27-design-foundation.md
 - #28 Config-Driven Brand & Content — every brand/content value lives in one typed config surface, never in view code; templates ship reusable across customers via config-only swap; applies to templates and white-label products → conventions/28-config-driven-content.md
+- #31 Interface Craft — one purpose and one primary action per screen; type, space, color, and motion as meaning; words from the person's side in one vocabulary; the default is not a design → conventions/31-interface-craft.md
