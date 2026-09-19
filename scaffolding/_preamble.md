@@ -19,6 +19,8 @@ Every tool, SDK, version, linter rule, or vendor named in the FRAMEWORK is a ref
 
 Every step in the shape-specific playbooks names the conventions it implements (e.g., "build per convention #8 + B3"). Read those convention docs before building the step — they carry the principles, rules, and research triggers. Do not scaffold by enforcement-rule memory alone.
 
+This is where a system's convention is read, not at bootstrap. Before building a system: read its convention and the Research Notes in it, research current practice for it in the chosen stack (search where you can; where you cannot, say what should be verified), write how it will be implemented in its References.md section, and report that so the owner can verify. Bootstrap leaves each system's how and its Location empty for this moment, so that the reading happens when it is used.
+
 ## Handoff-check rule (Step 0 of every playbook)
 
 Read `References.md` in full before building anything:

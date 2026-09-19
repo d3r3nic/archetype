@@ -1,7 +1,7 @@
 #!/bin/bash
 # Validates the operating profile (PROFILE.md) and the deferrals that depend on it
 # (TECHNICAL-DEBT.md entries with Kind: deferral). Convention #30.
-# Run from the project root:  scripts/validate-profile.sh [--strict]
+# Run from the project root:  scripts/validate-profile.sh [--strict] [--declared]
 #
 # Checks:
 #   1. PROFILE.md parses: the facts block (everything before the first "## " heading) holds
@@ -37,16 +37,20 @@
 # evaluated without a profile is a FAIL, so never creating the file is not a way around deferrals.
 # --strict (or VALIDATE_PROFILE_STRICT=1): every UNVERIFIED result is an error too. Use it before
 # any action that changes exposure and in maintenance of operational projects.
+# --declared: PROFILE.md must exist; a missing profile is a FAIL, not a WARN. The bootstrap step
+# that produces the profile closes on this (bootstrap/ONBOARD.md Step 4.3).
 # Exit 1 when any check FAILs; 0 otherwise.
 # This script reads declared facts. It observes nothing about users, data, or money, cannot tell
 # whether a stated fact is true, and has no memory of earlier profiles.
 
 STRICT="${VALIDATE_PROFILE_STRICT:-0}"
+DECLARED=0
 for arg in "$@"; do
   case "$arg" in
     --strict) STRICT=1 ;;
+    --declared) DECLARED=1 ;;
     -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    *) echo "unknown argument: $arg (accepted: --strict)"; exit 2 ;;
+    *) echo "unknown argument: $arg (accepted: --strict, --declared)"; exit 2 ;;
   esac
 done
 
@@ -125,6 +129,7 @@ group 1 "PROFILE.md parses"
 # ----------------------------------------------------------------------
 if [ ! -f "$PROFILE" ]; then
   echo "Profile source: missing"
+  [ "$DECLARED" = "1" ] && fail "PROFILE.md not found, and --declared requires it: create it from templates/profile.md (#30)"
   warn "PROFILE.md not found: reading the strictest profile (operational, every fact unknown). Create it from templates/profile.md (#30)."
   STAGE="operational"; AUTH="unknown"; AUTHSRC="unknown"; AUD="unknown"; DATA="unknown"; EFF="unknown"; REL="unknown"
   VAL="unknown"; FALLBACK="unknown"; CONTRIB="unknown"; REG="unknown"; COMMIT="unknown"
