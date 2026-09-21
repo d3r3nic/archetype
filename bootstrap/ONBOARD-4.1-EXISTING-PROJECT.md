@@ -6,6 +6,7 @@ Part of the bootstrap playbook (bootstrap/ONBOARD.md), walked one step at a time
 Read: bootstrap/EXISTING-PROJECT.md
 Produces: conventions/overrides/, protocols/, catalogs/, the project-root CLAUDE.md.additions, docs/migrated/ and docs/audit/, MIGRATION-NOTES.md saying where each piece of the original guidance lives now, and the References.md and feature-tree.md the migration flow generates from what it found
 Check: run scripts/validate-migration.sh
+Depends on: bootstrap.3
 Skip when: the project is new and has no code or guidance of its own
 
 Full migration flow (scan the codebase, extract rules, cross-reference, discover and audit documents) lives in `bootstrap/EXISTING-PROJECT.md`. Follow it end-to-end; it generates References.md and feature-tree.md itself, so Step 4.2 is skipped for an existing project. PROFILE.md and the design steps below still run, with what the audit found.

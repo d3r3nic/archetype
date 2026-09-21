@@ -6,6 +6,7 @@ Part of the bootstrap playbook (bootstrap/ONBOARD.md), walked one step at a time
 Read: #0 § Principle; #29; bootstrap/LEARNING-PROJECTS.md (when the owner is building this to learn a technology)
 Produces: the researched options with what each costs, one recommendation, and the settled build approach: a platform, or a custom build with its stack
 Check: evidence: the recommendation as given, and the owner's decision in their own words (under ai-decides: the recommendation, and that no objection came by the stated time)
+Depends on: bootstrap.2.7
 
 After discovery, the AI has the answers. But DO NOT pick a tech stack yet. First, research whether a custom build is even the right approach.
 
@@ -79,3 +80,7 @@ Under `owner-decides`, wait for the owner's choice before generating anything. U
 If the user chooses a platform (Option A or B), help them set it up. The Archetype framework's scaffolding phase doesn't apply — but the conventions around security (#23), documentation (#16), and git (#2) still do.
 
 Proceed to Step 4 when the build approach is settled: under `owner-decides`, when the owner confirms the custom build; under `ai-decides`, when the recommendation is a custom build and the owner has not objected.
+
+## Record the settled basis
+
+Carry consequential build and scope choices into the single decision location selected in Step 4.2 (#16). Give stable IDs to the choices later work depends on, including the build approach and committed contexts. Keep owner requirements as the grounds of the design brief; delegating a look never replaces them. Do not create a second record when the project already uses one.

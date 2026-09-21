@@ -124,7 +124,7 @@ Build a minimal feature exercising the full mobile stack:
 
 ## Final gate
 
-Run `scripts/validate-scaffold.sh`. Fix failures before committing.
+Run `scripts/validate-scaffold.sh --required known-screen`. Fix failures before committing. A native mobile project is a known-screen route, so a missing or example-only Design Artifact section cannot close the scaffold.
 
 ## Post-scaffold output
 

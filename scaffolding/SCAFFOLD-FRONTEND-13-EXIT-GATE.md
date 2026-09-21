@@ -5,10 +5,14 @@ Part of the frontend scaffold playbook (scaffolding/SCAFFOLD-FRONTEND.md), walke
 ## Step 13: Exit gate and the scaffold record
 Read: scaffolding/SCAFFOLD.md § Post-scaffold required outputs; scaffolding/SCAFFOLD.md § VERSION-LOG Scaffold entry template; scaffolding/RED-FLAGS.md § 2. Checklist-only verification (no execution)
 Produces: every system marked in feature-tree.md with its real location or its deferral, a docs/systems/ page per system, References.md updated, and the scaffold entry in VERSION-LOG.md
-Check: run scripts/validate-scaffold.sh
+Check: run scripts/validate-scaffold.sh --required known-screen
+Depends on: scaffold-frontend.12; scaffold-frontend.11
+Basis: decisions and inputs required
 
-Run `scripts/validate-scaffold.sh`. Fix any failures before committing.
+Run `scripts/validate-scaffold.sh --required known-screen`. Fix any failures before committing. The required mode refuses a missing, duplicated, suffixed, or fenced-only Design Artifact section because this route is known to produce screens.
 
 ### What the scaffold leaves written
 
 Same as SCAFFOLD-BACKEND: every applicable system marked implemented with path, or `deferred (TD-N)` with its trigger per #30, docs/systems/ entry per system (a deferred system's page says what is deferred and until when), References.md updated, `.env.example`, VERSION-LOG entry, initial commit.
+
+Use the same current decision basis and artifact/review inputs as the smoke-test step. Keep the decision record as the source of reasons and the review as the source of observations; the progress ledger holds references and check results.

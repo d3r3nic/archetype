@@ -18,6 +18,10 @@ Create a documentation system that establishes:
 - If code is self-explanatory, no comment needed. Most code is self-explanatory.
 - Every feature has documentation that explains what it does, why it exists, and how it works from a business perspective. Updated after every change. Stale documentation is worse than no documentation.
 - Architecture decisions are recorded with context, reasoning, and trade-offs. When someone asks "why did we choose X over Y?" the answer exists in the decision record, not in someone's memory.
+- References.md names one decision location. Reuse an existing architecture decision record location; otherwise use DECISIONS.md from templates/decisions.md. Never create a second decision store.
+- Each `### DEC-NNN` entry has one non-empty line for Date, Status, Decision, Reason, Alternatives, Authority, Evidence, Review, Depends on, Supersedes, and History. IDs are stable. Status is proposed, accepted, superseded, or retired. Unknown is recorded as unknown. `Depends on` and `Supersedes` contain semicolon-separated decision IDs or none.
+- History records dated observations, reasons, and retain, supersede, retire, or unresolved outcomes. Freshness is derived from review conditions and declared input fingerprints; it is never asserted by changing a date alone.
+- Sessions review the `Review` trigger when they use a decision. The step tool checks declared dependencies, accepted supersession and content fingerprints; it does not evaluate review triggers.
 - Descriptive naming over brevity. Names that communicate purpose without requiring context. No abbreviations except universally understood ones.
 - Magic numbers have explanations. If a timeout is 3000ms, a comment explains why 3000 (the payment gateway SLA requires response within 3 seconds). The number isn't magic anymore.
 - Structured TODOs link to tracking: // TODO(scope): description [TICKET-123]. Not bare TODO comments that are never addressed.

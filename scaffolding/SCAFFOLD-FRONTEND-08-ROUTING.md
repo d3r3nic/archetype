@@ -6,6 +6,7 @@ Part of the frontend scaffold playbook (scaffolding/SCAFFOLD-FRONTEND.md), walke
 Read: #21; #11; #14; bootstrap/RED-FLAGS.md § Mobile Disambiguation (when the app is installable or the mobile mode is still open); scaffolding/_preamble.md § Convention-mapping rule; scaffolding/RED-FLAGS.md § 14. Provider composition order (frontend/mobile); scaffolding/RED-FLAGS.md § 15. Route guards forgotten on protected routes
 Produces: the routes, the layouts, the guards, and for an installable web app the service worker and the manifest
 Check: run project: typecheck, lint, build; evidence: what was seen when this was tried: a protected route opened without a session, a navigation showing the loading state of Step 3, and the install prompt when the app is installable
+Depends on: scaffold-frontend.4; scaffold-frontend.7
 
 Build:
 - Route definitions.
@@ -14,6 +15,6 @@ Build:
 - Loading and error states per route (integrated with Step 3).
 - **If PWA:** service worker + manifest. Test install flow on a real mobile browser. See `bootstrap/RED-FLAGS.md` "Mobile Disambiguation."
 
-**Provider composition order at the app root — explicit.** Wrong order silently breaks behavior (see `scaffolding/RED-FLAGS.md` #14). Outermost to innermost: **ErrorBoundary → QueryClient (server state) → Theme → Auth → Router**. Each wraps everything below. The test render wrapper (Step 10) must mirror this order exactly — drift between production entry and the test wrapper = tests pass with the wrong context, silent-failure.
+**Provider composition order at the app root: explicit.** Wrong order silently breaks behavior (see `scaffolding/RED-FLAGS.md` #14). Outermost to innermost: **ErrorBoundary → server-state provider → Theme → Auth → Router**. Each wraps everything below. The test render wrapper (Step 10) must mirror this order exactly: drift between production entry and the test wrapper = tests pass with the wrong context, silent-failure.
 
 **Verify:** a protected route redirects unauthenticated users. Navigating between routes shows loading states from Step 3. If PWA, the app is installable on a mobile browser.

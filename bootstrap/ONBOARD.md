@@ -13,7 +13,7 @@ This playbook is walked one step at a time (development/STEPS.md). Once Step 1 h
 - Tech stack chosen (or let the framework help you choose in Step 2)
 
 ## Step 1: Initialize Project
-Read: bootstrap/REPOSITORIES.md; development/STEPS.md
+Read: bootstrap/REPOSITORIES.md; development/STEPS.md; #1; #2
 Produces: the project folder with the engine in it (CLAUDE.md, Conventions.md, the conventions and playbook folders, unmodified); PROGRESS.md at the project root
 Check: evidence: where the engine sits (the project root, or which subfolder), and the repository decision with its reason
 

@@ -2,10 +2,12 @@
 """Exercise scripts/next-step.sh against a small engine and project built in a temporary folder."""
 
 from pathlib import Path
+import importlib.util
 import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 
 SOURCE = Path(__file__).resolve().parents[1]
@@ -83,6 +85,7 @@ class Steps(unittest.TestCase):
         for folder in ('scripts', 'bootstrap', 'development', 'scaffolding', 'conventions', 'templates'):
             (self.engine / folder).mkdir(parents=True)
         shutil.copy(SOURCE / 'scripts' / 'next-step.sh', self.engine / 'scripts' / 'next-step.sh')
+        shutil.copy(SOURCE / 'scripts' / 'step-recovery.py', self.engine / 'scripts' / 'step-recovery.py')
         (self.engine / 'scripts' / 'check-flag.sh').write_text(CHECK_FLAG)
         (self.engine / 'conventions' / '08-errors.md').write_text('# Errors\n\n## Principle\n\ntext\n\n## Rules\n\ntext\n')
         (self.engine / 'templates' / 'thing.md').write_text('# Thing\n')
@@ -318,7 +321,7 @@ class Steps(unittest.TestCase):
         self.assertEqual(self.run_tool('--skip', 'boot.2.2').returncode, 1)
         skipped = self.run_tool('--skip', 'boot.2.2', '--reason', 'no extras on this project')
         self.assertEqual(skipped.returncode, 0, skipped.stdout)
-        self.assertRegex(self.closed()[-1], r'^- \[-\] boot\.2\.2 \| \d{4}-\d\d-\d\d \| rev \S+ \| skipped \(allowed when: the project has no extras\): no extras on this project$')
+        self.assertRegex(self.closed()[-1], r'^- \[-\] boot\.2\.2 \| \d{4}-\d\d-\d\d \| rev \S+ \| cwd \. \| owner - \| basis none \| skipped \(allowed when: the project has no extras\): no extras on this project$')
 
     def close_up_to_three(self):
         self.ledger()
@@ -656,6 +659,227 @@ class Steps(unittest.TestCase):
         result = subprocess.run(['/bin/bash', str(self.engine / 'scripts' / 'next-step.sh')],
                                 cwd=self.project, text=True, capture_output=True)
         self.assertIn('Next step: boot.1  Start', result.stdout)
+
+    # --- append-only recovery -----------------------------------------------------
+
+    def decisions(self, reason='first direction'):
+        (self.project / 'References.md').write_text('# References\n\n- Decision location: DECISIONS.md\n')
+        (self.project / 'DECISIONS.md').write_text(
+            '# Decisions\n\n### DEC-001: Direction\nDate: 2026-09-19\nStatus: accepted\n'
+            'Decision: blue\nReason: %s\nAlternatives: red\nAuthority: owner\nEvidence: owner words\n'
+            'Review: requirement-change\nDepends on: none\nSupersedes: none\nHistory: 2026-09-19 accepted\n' % reason)
+
+    def test_reopen_follows_dependencies_including_a_skip_and_keeps_unrelated_work(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        text = path.read_text().replace('Produces: the audience answers\nCheck:', 'Produces: the audience answers\nDepends on: boot.1\nCheck:')
+        text = text.replace('Produces: nothing when it does not apply\nCheck:', 'Produces: nothing when it does not apply\nDepends on: boot.2.1\nCheck:')
+        path.write_text(text)
+        self.close_up_to_three()
+        before = self.closed()[:]
+        reopened = self.run_tool('--reopen', 'boot.1', '--reason', 'the premise changed')
+        self.assertEqual(reopened.returncode, 0, reopened.stdout)
+        self.assertIn('Reopened: boot.2.2', reopened.stdout)
+        self.assertEqual(self.closed()[:len(before)], before)
+        self.assertRegex(self.run_tool('--list').stdout, r'(?m)^reopened\s+boot\.2\.2\s')
+
+    def test_invalid_cycle_and_repeated_reopen_leave_history_unchanged(self):
+        self.close_up_to_three()
+        ledger = self.project / 'PROGRESS.md'
+        original = ledger.read_bytes()
+        unknown = self.run_tool('--reopen', 'boot.404', '--reason', 'test')
+        self.assertEqual(unknown.returncode, 1)
+        self.assertEqual(ledger.read_bytes(), original)
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nDepends on: boot.2.1\nCheck:').replace('Produces: the audience answers\nCheck:', 'Produces: the audience answers\nDepends on: boot.1\nCheck:'))
+        cycle = self.run_tool('--reopen', 'boot.1', '--reason', 'test')
+        self.assertEqual(cycle.returncode, 1)
+        self.assertEqual(ledger.read_bytes(), original)
+        path.write_text(BOOT)
+        self.assertEqual(self.run_tool('--reopen', 'boot.1', '--reason', 'test').returncode, 0)
+        after = ledger.read_bytes()
+        self.assertEqual(self.run_tool('--reopen', 'boot.1', '--reason', 'again').returncode, 1)
+        self.assertEqual(ledger.read_bytes(), after)
+
+    def test_interrupted_atomic_reopen_batch_leaves_the_ledger_unchanged(self):
+        self.ledger('boot')
+        ledger = self.project / 'PROGRESS.md'; before = ledger.read_bytes()
+        spec = importlib.util.spec_from_file_location('step_recovery_under_test', SOURCE / 'scripts' / 'step-recovery.py')
+        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+        with mock.patch.object(module.os, 'replace', side_effect=OSError('interrupted')):
+            with self.assertRaises(OSError):
+                module.append_reopen_events(ledger, 'boot.1', 'changed', '2026-09-19', ['boot.1', 'boot.2.1'])
+        self.assertEqual(ledger.read_bytes(), before)
+
+    def test_changed_decision_or_dirty_input_makes_review_evidence_stale(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions and inputs required\nCheck:'))
+        self.ledger('boot')
+        self.decisions()
+        artifact = self.project / 'review.md'
+        artifact.write_text('# Review\n\n- Decision basis: DEC-001\n')
+        closed = self.run_tool('--close', 'boot.1', '--evidence', 'reviewed', '--basis', 'DEC-001', '--input', 'review.md')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+        artifact.write_text('# Review changed\n\n- Decision basis: DEC-001\n')
+        stale = self.run_tool()
+        self.assertEqual(stale.returncode, 1, stale.stdout)
+        self.assertIn('declared decision or input basis changed', stale.stdout)
+
+    def test_markdown_input_cannot_claim_a_different_decision_basis(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions and inputs required\nCheck:'))
+        self.ledger('boot'); self.decisions()
+        (self.project / 'review.md').write_text('- Decision basis: DEC-002\n')
+        before = (self.project / 'PROGRESS.md').read_bytes()
+        result = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001', '--input', 'review.md')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('declares decision basis', result.stdout)
+        self.assertEqual((self.project / 'PROGRESS.md').read_bytes(), before)
+        malicious = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001', '--input', 'review.md;inputs=other')
+        self.assertEqual(malicious.returncode, 1)
+        self.assertEqual((self.project / 'PROGRESS.md').read_bytes(), before)
+
+    def test_reopening_a_shared_prerequisite_reopens_every_dependent_unit(self):
+        feature = self.engine / 'development' / 'FEATURE.md'
+        feature.write_text(feature.read_text().replace('Produces: the inventory\nCheck:', 'Produces: the inventory\nDepends on: boot.1\nCheck:'))
+        self.close_all_of_boot()
+        for unit in ('phone', 'desktop'):
+            self.assertEqual(self.run_tool('--close', 'dev.1', '--unit', unit, '--evidence', 'x').returncode, 0)
+        result = self.run_tool('--reopen', 'boot.1', '--reason', 'audience changed')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('dev.1 @phone', result.stdout)
+        self.assertIn('dev.1 @desktop', result.stdout)
+
+    def test_missing_cross_playbook_prerequisite_requires_explicit_migration(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nDepends on: dev.1\nCheck:'))
+        self.ledger('boot')
+        before = (self.project / 'PROGRESS.md').read_bytes()
+        result = self.run_tool('--close', 'boot.1', '--evidence', 'x')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('include its playbook', result.stdout)
+        self.assertEqual((self.project / 'PROGRESS.md').read_bytes(), before)
+
+    def test_decision_validation_rejects_unknown_duplicate_and_cycles(self):
+        self.decisions()
+        validate = lambda: subprocess.run(
+            ['python3', str(self.engine / 'scripts' / 'step-recovery.py'), 'validate-decisions', '--project', str(self.project)],
+            text=True, capture_output=True)
+        decision_path = self.project / 'DECISIONS.md'
+        original = decision_path.read_text()
+        decision_path.write_text(original.replace('Depends on: none', 'Depends on: DEC-999'))
+        self.assertIn('unknown decision', validate().stdout)
+        decision_path.write_text(original + original.split('### DEC-001', 1)[1].join(['\n### DEC-001', '']))
+        self.assertNotEqual(validate().returncode, 0)
+        second = original.replace('DEC-001', 'DEC-002').replace('Depends on: none', 'Depends on: DEC-001')
+        decision_path.write_text(original.replace('Depends on: none', 'Depends on: DEC-002') + '\n' + second)
+        self.assertIn('cycle', validate().stdout)
+        decision_path.write_text(original.replace('Decision: blue', 'Decision: **pending**'))
+        self.assertIn('template placeholder', validate().stdout)
+
+    def test_parent_decision_change_and_new_superseder_stale_child_basis(self):
+        self.ledger('boot')
+        self.decisions()
+        path = self.project / 'DECISIONS.md'
+        parent = path.read_text().replace('DEC-001', 'DEC-000').replace('Decision: blue', 'Decision: web')
+        child = path.read_text().replace('Depends on: none', 'Depends on: DEC-000')
+        path.write_text(parent + '\n' + child)
+        artifact = self.project / 'review.md'; artifact.write_text('- Decision basis: DEC-001\n')
+        self.assertEqual(self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001', '--input', 'review.md').returncode, 0)
+        path.write_text(path.read_text().replace('Decision: web', 'Decision: native'))
+        self.assertIn('basis changed', self.run_tool().stdout)
+        reopened = self.run_tool('--reopen', 'DEC-000', '--reason', 'platform changed')
+        self.assertEqual(reopened.returncode, 0, reopened.stdout)
+        self.assertIn('boot.1', reopened.stdout)
+
+        self.setUp(); self.ledger('boot'); self.decisions(); artifact = self.project / 'review.md'; artifact.write_text('- Decision basis: DEC-001\n')
+        self.assertEqual(self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001', '--input', 'review.md').returncode, 0)
+        old = (self.project / 'DECISIONS.md').read_text()
+        newer = old.replace('DEC-001', 'DEC-002').replace('Decision: blue', 'Decision: green').replace('Supersedes: none', 'Supersedes: DEC-001')
+        (self.project / 'DECISIONS.md').write_text(old + '\n' + newer)
+        self.assertIn('basis changed', self.run_tool().stdout)
+
+    def test_appending_an_unrelated_decision_does_not_stale_the_previous_last_record(self):
+        self.ledger('boot'); self.decisions()
+        artifact = self.project / 'review.md'; artifact.write_text('- Decision basis: DEC-001\n')
+        self.assertEqual(self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001', '--input', 'review.md').returncode, 0)
+        old = (self.project / 'DECISIONS.md').read_text()
+        unrelated = (old[old.index('### DEC-001'):].replace('DEC-001', 'DEC-005')
+                     .replace('Status: accepted', 'Status: proposed')
+                     .replace('Decision: blue', 'Decision: api pagination')
+                     .replace('Supersedes: none', 'Supersedes: DEC-001'))
+        (self.project / 'DECISIONS.md').write_text(old + '\n\n' + unrelated)
+        result = self.run_tool()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('Next step: boot.2.1', result.stdout)
+
+    def test_historical_checks_keep_each_units_endpoint_directory(self):
+        self.project_playbook(check='run project: typecheck')
+        playbook = self.engine / 'bootstrap' / 'BOOT.md'
+        playbook.write_text(playbook.read_text().replace('Step ledger: boot', 'Step ledger: boot (per feature)'))
+        endpoints = []
+        for name in ('one', 'two'):
+            endpoint = self.project / name; endpoint.mkdir(); endpoints.append(endpoint)
+            nested = endpoint / 'nested'; nested.mkdir()
+            (endpoint / 'References.md').write_text('# R\n\n## Commands\n\n```\ntypecheck: test -f here.txt\n```\n')
+            (endpoint / 'here.txt').write_text(name)
+            result = self.run_tool('--close', 'boot.1', '--unit', name, cwd=nested)
+            self.assertEqual(result.returncode, 0, result.stdout)
+        (endpoints[0] / 'here.txt').unlink()
+        (endpoints[0] / 'nested' / 'References.md').write_text('# R\n\n## Commands\n\n```\ntypecheck: true\n```\n')
+        verified = self.run_tool('--list', '--verify', '--unit', 'two', cwd=endpoints[1])
+        self.assertEqual(verified.returncode, 1, verified.stdout)
+        self.assertIn('boot.1 @one', verified.stdout)
+        self.assertIn("project's typecheck command failed", verified.stdout)
+
+    def test_historical_check_cache_keeps_distinct_command_owners(self):
+        self.project_playbook(check='run project: typecheck')
+        playbook = self.engine / 'bootstrap' / 'BOOT.md'
+        playbook.write_text(playbook.read_text().replace(
+            'Check: evidence: what was seen', 'Check: run project: typecheck'))
+        endpoint = self.project / 'frontend'; endpoint.mkdir()
+        nested = endpoint / 'nested'; nested.mkdir()
+        (endpoint / 'References.md').write_text(
+            '# R\n\n## Commands\n\n```\ntypecheck: true\n```\n')
+        first = self.run_tool('--close', 'boot.1', cwd=nested)
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        (nested / 'References.md').write_text(
+            '# R\n\n## Commands\n\n```\ntypecheck: test -f valid.txt\n```\n')
+        valid = nested / 'valid.txt'; valid.write_text('valid')
+        second = self.run_tool('--close', 'boot.2', cwd=nested)
+        self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
+        valid.unlink()
+        verified = self.run_tool('--list', '--verify', cwd=nested)
+        self.assertEqual(verified.returncode, 1, verified.stdout + verified.stderr)
+        self.assertRegex(verified.stdout, r'(?m)^closed\s+boot\.1\s')
+        self.assertRegex(verified.stdout, r'(?m)^reopened\s+boot\.2\s')
+        self.assertIn("the project's typecheck command failed", verified.stdout)
+
+    def test_a_skips_decision_basis_becomes_stale_when_superseded(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: nothing when it does not apply\nCheck:', 'Produces: nothing when it does not apply\nBasis: decisions required\nCheck:'))
+        self.ledger(); self.decisions()
+        self.run_tool('--close', 'boot.1', '--evidence', 'x')
+        self.run_tool('--close', 'boot.2.1', '--evidence', 'x')
+        skipped = self.run_tool('--skip', 'boot.2.2', '--reason', 'none', '--basis', 'DEC-001')
+        self.assertEqual(skipped.returncode, 0, skipped.stdout)
+        old = (self.project / 'DECISIONS.md').read_text()
+        newer = old.replace('DEC-001', 'DEC-002').replace('Supersedes: none', 'Supersedes: DEC-001')
+        (self.project / 'DECISIONS.md').write_text(old + '\n' + newer)
+        result = self.run_tool('--list')
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertRegex(result.stdout, r'(?m)^reopened\s+boot\.2\.2\s')
+
+    def test_legacy_closure_is_unverified_only_when_step_now_requires_basis(self):
+        self.ledger('boot')
+        ledger = self.project / 'PROGRESS.md'
+        with ledger.open('a') as stream:
+            stream.write('- [x] boot.1 | 2026-01-01 | rev old | evidence: old\n')
+        self.assertIn('Next step: boot.2.1', self.run_tool().stdout)
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions required\nCheck:'))
+        result = self.run_tool()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('--reopen boot.1', result.stdout)
 
 
 if __name__ == '__main__':

@@ -6,6 +6,7 @@ Part of the frontend scaffold playbook (scaffolding/SCAFFOLD-FRONTEND.md), walke
 Read: #20; #14; scaffolding/_preamble.md § Convention-mapping rule
 Produces: the form foundation: validation, field-level errors, kept drafts
 Check: run project: typecheck, lint, build; evidence: what was seen when this was tried: a sample form validating, showing field errors, and keeping its state across steps
+Depends on: scaffold-frontend.4; scaffold-frontend.5
 Skip when: the product has no form
 
 Build only if References.md lists forms beyond trivial inputs.

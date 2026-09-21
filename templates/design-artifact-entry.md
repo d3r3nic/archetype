@@ -3,8 +3,9 @@
 One entry per screen or flow in the design artifact (#27). Under `repository-first` this file lives with the specifications; under `workspace-first` the same fields sit beside the artboard. A session that designs a gap writes this entry in the same change as the code (#27 "The session").
 
 - Purpose: [one sentence: what a person came here to do (#31)]
-- Primary action: [the one action the screen leads to; none for a read-only screen]
+- Primary action: [one per independently understood region; name each region, or none for a read-only region]
 - Decided by: [owner pick / owner-delegated / session-decided], [date], [artifact revision or decision record]
+- Decision basis: [DEC-NNN IDs for the current direction and committed contexts/schemes, from the one decision location]
 - Reading order: [what the eye lands on first, second, third]
 - Components: [cataloged components used (#22); a component the catalog lacks is named here as a wrapper to add]
 - Words: [the vocabulary terms this screen uses (#31); the primary action's label]
@@ -23,4 +24,6 @@ States that do not apply, and why: [each state of the #27 list left out of the t
 
 ## Captures
 
-[this screen's folder under the `Captures` line of References.md; one per applicable state per scheme per committed context (#27 "Design review")]
+[this screen's folder under the `Captures` line of References.md; one per applicable state per scheme per committed context (#27 "Design review"); disabled and overflow belong to catalog evidence unless they change screen composition]
+
+A changed decision basis makes the dependent entry and its review due for revalidation (development/STEPS.md). Preserve the previous decision and review in version history; refresh the current capture set only after the new basis is implemented.

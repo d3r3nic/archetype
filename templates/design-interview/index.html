@@ -67,12 +67,14 @@
   ticks take a list or a comma-separated string, a scale takes 1 to 5. Leave {} when nothing is
   known. A block that does not parse, or a key or option the page does not have, shows the owner
   a line saying so and logs the names: open the page yourself first.
+  A rules fact other than none or unknown selects rules_gate=some when the gate is omitted. A
+  conflicting explicit gate warns and keeps the supplied rules visible.
   Example: {"path": "pick-for-me", "business": "Shift swaps for restaurant staff", "existing": "none"}
 -->
 <script type="application/json" id="prefill">{}</script>
 <main>
   <h1>How should it look?</h1>
-  <p class="quiet">Answer what you care about. Anything you leave blank, or mark "you choose", I decide for you, except money: I always ask before a cost. One "no" usually skips a whole group. You will see the result before anything is built.</p>
+  <p class="quiet">Answer what you know and care about. I decide any preference you leave blank or mark "you choose." I keep missing facts as unknown, and I always ask before a cost. One "no" usually skips a whole group. You will see the result before anything is built.</p>
   <noscript><p><strong>This page needs scripts to show its questions.</strong> If they are blocked here, tell me, and I will ask the same questions in our conversation.</p></noscript>
   <p id="prefill-note" role="status" hidden></p>
 
@@ -80,7 +82,7 @@
     <fieldset>
       <legend id="q-path">Start here</legend>
       <div class="choices" role="radiogroup" aria-labelledby="q-path">
-        <label class="card"><input type="radio" name="path" value="pick-for-me"><span class="face"><span class="tick" aria-hidden="true">&#10003;</span><b>Choose what fits my business</b><small>Three short answers, then I decide and show you.</small></span></label>
+        <label class="card"><input type="radio" name="path" value="pick-for-me"><span class="face"><span class="tick" aria-hidden="true">&#10003;</span><b>Choose what fits my business</b><small>You set the practical needs; I decide the style and show you.</small></span></label>
         <label class="card"><input type="radio" name="path" value="my-ideas"><span class="face"><span class="tick" aria-hidden="true">&#10003;</span><b>I have ideas</b><small>A few groups. Skip any of them.</small></span></label>
       </div>
     </fieldset>
@@ -136,6 +138,14 @@
             <label class="card"><input type="radio" name="scheme" value="dark"><span class="face"><span class="tick" aria-hidden="true">&#10003;</span><span class="sample"><i style="background:#1d1f23"></i></span><b>Dark</b></span></label>
             <label class="card"><input type="radio" name="scheme" value="both"><span class="face"><span class="tick" aria-hidden="true">&#10003;</span><span class="sample"><i style="background:#f6f4ef"></i><i style="background:#1d1f23"></i></span><b>Both</b><small>People switch.</small></span></label>
             <label class="card"><input type="radio" name="scheme" value="you-choose"><span class="face"><span class="tick" aria-hidden="true">&#10003;</span><span class="sample"></span><b>You choose</b></span></label>
+          </div>
+          <div data-when="scheme" hidden>
+            <div data-when="scheme!=both" hidden>
+              <div data-when="scheme!=you-choose" hidden>
+                <label for="scheme_reason">Why should this be the only scheme?</label>
+                <input type="text" id="scheme_reason" name="scheme_reason" placeholder="used outdoors in daylight">
+              </div>
+            </div>
           </div>
           <div data-when="existing_kinds!~colors" hidden>
             <p class="q" id="q-family">Which family feels closest?</p>
@@ -220,40 +230,43 @@
           <label class="plain"><input type="radio" name="motion" value="you-choose"> You choose</label>
         </div>
       </fieldset>
-
-      <fieldset>
-        <legend>The people who use it</legend>
-        <label for="needs">Anyone who has trouble with small text, colors, a mouse, or hearing? Bright sun, gloves, a screen reader? "I don't know" is an answer.</label>
-        <input type="text" id="needs" name="needs">
-        <label for="languages">Other languages, or one written right to left?</label>
-        <input type="text" id="languages" name="languages">
-      </fieldset>
-
-      <fieldset>
-        <legend>Rules, print, and money</legend>
-        <p class="q" id="q-rules">Rules you must follow: a parent brand, a law for your sector, a customer's requirements</p>
-        <div role="radiogroup" aria-labelledby="q-rules">
-          <label class="plain"><input type="radio" name="rules_gate" value="none"> None</label>
-          <label class="plain"><input type="radio" name="rules_gate" value="some"> There are rules</label>
-        </div>
-        <div data-when="rules_gate=some" hidden>
-          <label for="rules">Which ones? A link or a file name helps.</label>
-          <textarea id="rules" name="rules"></textarea>
-        </div>
-        <p class="q" id="q-print">Will print, uniforms, or signage need to match later?</p>
-        <div role="radiogroup" aria-labelledby="q-print">
-          <label class="plain"><input type="radio" name="print" value="no"> No</label>
-          <label class="plain"><input type="radio" name="print" value="yes"> Yes</label>
-          <label class="plain"><input type="radio" name="print" value="not-sure"> Not sure yet</label>
-        </div>
-        <p class="q" id="q-spend">If a font or a design tool costs money</p>
-        <div role="radiogroup" aria-labelledby="q-spend">
-          <label class="plain"><input type="radio" name="spend" value="free-only"> Free only</label>
-          <label class="plain"><input type="radio" name="spend" value="ask-me"> Ask me first, with the price</label>
-        </div>
-      </fieldset>
     </div>
 
+    <div data-when="path" hidden>
+    <fieldset>
+      <legend>The people who use it</legend>
+      <label for="needs">Anyone who has trouble with small text, colors, a mouse, or hearing? Bright sun, gloves, a screen reader? "I don't know" is an answer.</label>
+      <input type="text" id="needs" name="needs">
+      <label for="languages">Other languages, or one written right to left?</label>
+      <input type="text" id="languages" name="languages">
+    </fieldset>
+
+    <fieldset>
+      <legend>Rules, print, and money</legend>
+      <p class="q" id="q-rules">Rules you must follow: a parent brand, a law for your sector, a customer's requirements</p>
+      <div role="radiogroup" aria-labelledby="q-rules">
+        <label class="plain"><input type="radio" name="rules_gate" value="none"> None</label>
+        <label class="plain"><input type="radio" name="rules_gate" value="some"> There are rules</label>
+      </div>
+      <div data-when="rules_gate=some" hidden>
+        <label for="rules">Which ones? A link or a file name helps.</label>
+        <textarea id="rules" name="rules"></textarea>
+      </div>
+      <p class="q" id="q-print">Will print, uniforms, or signage need to match later?</p>
+      <div role="radiogroup" aria-labelledby="q-print">
+        <label class="plain"><input type="radio" name="print" value="no"> No</label>
+        <label class="plain"><input type="radio" name="print" value="yes"> Yes</label>
+        <label class="plain"><input type="radio" name="print" value="not-sure"> Not sure yet</label>
+      </div>
+      <p class="q" id="q-spend">If a font or a design tool costs money</p>
+      <div role="radiogroup" aria-labelledby="q-spend">
+        <label class="plain"><input type="radio" name="spend" value="free-only"> Free only</label>
+        <label class="plain"><input type="radio" name="spend" value="ask-me"> Ask me first, with the price</label>
+      </div>
+    </fieldset>
+    </div>
+
+    <p id="answer-note" role="alert" hidden></p>
     <div class="actions" data-when="path" hidden>
       <button type="button" id="make">Show my answers</button>
     </div>
@@ -311,7 +324,7 @@
     return lines.join('\n') + '\n';
   }
   function prefill() {
-    var data, missed = [];
+    var data, missed = [], conflicts = [];
     try { data = JSON.parse(document.getElementById('prefill').textContent || '{}'); } catch (e) { data = null; }
     for (var name in (data || {})) {
       var el = form.elements[name], v = [].concat(data[name]).join(','), hit = false; if (!el) { missed.push(name); continue; }
@@ -321,18 +334,42 @@
         if (!hit) missed.push(name);
       } else el.value = v;
     }
-    if (data === null || missed.length) {
+    if (data && Object.prototype.hasOwnProperty.call(data, 'rules')) {
+      var rulesFact = String(data.rules || '').trim();
+      if (rulesFact && rulesFact !== 'none' && rulesFact !== 'unknown') {
+        var rulesGate = form.elements.rules_gate;
+        if (Object.prototype.hasOwnProperty.call(data, 'rules_gate') && data.rules_gate !== 'some') {
+          conflicts.push('rules_gate conflicts with rules');
+        }
+        for (var j = 0; j < rulesGate.length; j++) rulesGate[j].checked = rulesGate[j].value === 'some';
+      }
+    }
+    if (data === null || missed.length || conflicts.length) {
       var note = document.getElementById('prefill-note');
-      note.textContent = 'Some answers I meant to fill in for you did not arrive' + (missed.length ? ' (' + missed.join(', ') + ')' : '') + '. Please tell me, or simply answer them here.';
+      var details = missed.concat(conflicts);
+      note.textContent = 'Some answers I meant to fill in for you need attention' + (details.length ? ' (' + details.join(', ') + ')' : '') + '. Please tell me, or simply answer them here.';
       note.hidden = false;
-      if (window.console && console.error) console.error('design interview pre-fill: ' + (data === null ? 'the block is not valid JSON' : 'no field or option for: ' + missed.join(', ')));
+      if (window.console && console.error) {
+        var problem = data === null ? ['the block is not valid JSON'] : [];
+        if (missed.length) problem.push('no field or option for: ' + missed.join(', '));
+        if (conflicts.length) problem.push(conflicts.join(', '));
+        console.error('design interview pre-fill: ' + problem.join('; '));
+      }
     }
   }
   prefill();
   form.addEventListener('change', refresh); form.addEventListener('input', refresh); refresh();
   var out = document.getElementById('out'), said = document.getElementById('said');
   document.getElementById('make').addEventListener('click', function () {
-    out.value = answers(); document.getElementById('result').hidden = false; out.focus(); out.select();
+    var scheme = value('scheme'), reason = document.getElementById('scheme_reason');
+    var answerNote = document.getElementById('answer-note'), result = document.getElementById('result');
+    if (shown(reason) && (scheme === 'light' || scheme === 'dark') && !value('scheme_reason')) {
+      answerNote.textContent = 'Tell me why this should be the only scheme before showing the answers.';
+      answerNote.hidden = false; reason.setAttribute('aria-invalid', 'true');
+      out.value = ''; result.hidden = true; reason.focus(); return;
+    }
+    answerNote.hidden = true; reason.removeAttribute('aria-invalid');
+    out.value = answers(); result.hidden = false; out.focus(); out.select();
   });
   document.getElementById('copy').addEventListener('click', function () {
     out.select();

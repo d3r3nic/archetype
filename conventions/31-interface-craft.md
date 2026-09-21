@@ -22,7 +22,7 @@ The project builds these once and every screen uses them:
 ### Hierarchy
 
 - Every screen has one purpose sentence. If it needs two, it is two screens, or one screen with a chosen focus and the rest a step away.
-- One primary action per screen, or per region that reads as one. Secondary actions are quieter by weight, position, or size. A destructive action is never the primary and never sits beside it without space between them.
+- One primary action per screen, or per independently understood region. A read-only screen or region may have none. Secondary actions are quieter by weight, position, or size. A destructive action is never the primary and never sits beside it without space between them.
 - Reading order is designed: the purpose first, the primary action within it, the rest in decreasing weight. Same things look the same; different things look different; nothing looks important that is not.
 - A first screen for a new person shows what this is, what to do first, and nothing that only makes sense later. It appears once.
 - Density is chosen once for the product and held on every screen, never chosen per screen or per developer.
@@ -53,7 +53,7 @@ The project builds these once and every screen uses them:
 ### Words
 
 - One vocabulary. Each thing the product has is named once, with the verb that acts on it, and carries that name everywhere. A second name for one thing is a violation.
-- Buttons and links are verbs that name the outcome, never a bare "Submit", "OK", or "Yes". A confirmation names the thing it confirms.
+- Action controls name the outcome with a verb, never a bare "Submit", "OK", or "Yes". Destination links use the vocabulary name of the place they open. A confirmation names the thing it confirms.
 - An error says what happened, what the person can do, and what was kept, in that order, without blame and without a code. The system's reasons stay in the log (#8).
 - No filler: no greeting, no marketing sentence, no explanation of what a control obviously does. A sentence whose removal changes nothing is removed.
 - Tone is the brand's, recorded once in the brand book (#28 for templates). Vocabulary discipline and error structure are not tone; they hold under every brand.

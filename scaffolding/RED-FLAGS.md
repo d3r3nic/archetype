@@ -94,12 +94,12 @@ Agent pins SDK versions based on training-data knowledge. Versions are stale by 
 
 ## 14. Provider composition order (frontend/mobile)
 
-Frontend/mobile apps mount multiple providers at the root (ErrorBoundary, QueryClient, Theme, Auth, Router, Store). Wrong order silently breaks behavior — no error, no warning, just subtly wrong runtime:
+Frontend/mobile apps mount multiple providers at the root (ErrorBoundary, server-state provider, Theme, Auth, Router, Store). Wrong order silently breaks behavior: no error, no warning, just subtly wrong runtime:
 - Router mounted ABOVE AuthProvider → route guards calling `useAuth()` read undefined context; all guards silently pass.
-- QueryClient mounted BELOW a component that uses `useQuery` → "No QueryClient set" errors at runtime, not catchable by typecheck.
+- server-state provider mounted BELOW a component that uses `useQuery` → "No server-state provider set" errors at runtime, not catchable by typecheck.
 - ThemeProvider mounted BELOW a component that reads theme tokens → FOUC or undefined tokens.
 
-**Defense:** SCAFFOLD-FRONTEND Step 8 specifies the composition order explicitly (ErrorBoundary → QueryClientProvider → ThemeProvider → AuthProvider → Router). Integration tests with the custom render wrapper catch regressions (the wrapper must match the production order).
+**Defense:** SCAFFOLD-FRONTEND Step 8 specifies the composition order explicitly (ErrorBoundary → server-state providerProvider → ThemeProvider → AuthProvider → Router). Integration tests with the custom render wrapper catch regressions (the wrapper must match the production order).
 
 ## 15. Route guards forgotten on protected routes
 

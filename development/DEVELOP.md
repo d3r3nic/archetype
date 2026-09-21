@@ -147,7 +147,7 @@ Each feature gets a doc at `docs/features/{feature-name}.md`:
 - DB: [how used]
 - Auth: [permission requirements]
 - Logger: [what gets logged]
-- Design: [the artifact entry and revision implemented; the purpose sentence; the states covered; the session-decided entries, if any; where the capture set lives; who reviewed the screen against the artifact and when; features with a screen only]
+- Design: [current decision basis; the artifact entry and revision implemented; the purpose sentence; the states covered; the session-decided entries, if any; where the capture set lives; who reviewed the screen against the artifact and when; features with a screen only]
 
 ## API Shape
 - **Route(s):** [method + path]

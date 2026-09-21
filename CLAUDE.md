@@ -10,6 +10,8 @@ If PROGRESS.md exists at the project root, run scripts/next-step.sh (or archetyp
 
 ## Before Any Work
 
+On a stepped route, its current reading line routes the project facts and conventions below. Read additions and applicable local rules at session start; reuse facts already current in this session. Unconverted work follows this full startup list.
+
 1. Read References.md, PROFILE.md, and feature-tree.md (always — these are project context; PROFILE.md holds the stage and who decides technical questions)
 2. Scan Conventions.md to identify which conventions apply to the current task (it's a lookup index, not a reading list — read ONLY the relevant convention docs, never the whole set)
 3. If conventions/overrides/, protocols/, or catalogs/ directories exist, check for project-specific rules relevant to the task

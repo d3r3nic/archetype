@@ -11,6 +11,7 @@ This playbook is walked one step at a time (development/STEPS.md). Add `scaffold
 Read: scaffolding/_preamble.md; scaffolding/RED-FLAGS.md § 1. Skipped-by-interpretation (project-shape tag); scaffolding/RED-FLAGS.md § 12. Implicit "skip if not regulated" treated as "skip because I don't want to build it"; scaffolding/RED-FLAGS.md § Handling a fired red flag; project: References.md; project: PROFILE.md; project: VERSION-LOG.md
 Produces: the inventory of the systems this project builds, and every open pre-production gate either resolved or the scaffold halted on it
 Check: evidence: the systems inventoried, and each open gate in VERSION-LOG.md with how it was resolved, or none open
+Depends on: bootstrap.6
 
 Read `References.md` in full:
 - **Compliance section** — regulated data changes auth, logging, and storage choices.

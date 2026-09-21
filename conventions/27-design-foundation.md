@@ -78,15 +78,15 @@ What the framework cannot check: whether a mockup was consulted, whether the own
 A screen is reviewed in this order, by someone who did not build it (#29), against the artifact, with evidence per applicable state:
 
 1. Purpose: can a person do what the purpose sentence says, without help.
-2. Hierarchy: one primary action; the reading order leads to it (#31).
+2. Hierarchy: one primary action per independently understood region; a read-only region may have none; the reading order leads to each action (#31).
 3. States: every applicable state present and telling what it must (the list in Rules).
-4. Words: the vocabulary, verbs that name outcomes, errors that say what happened and what to do (#31).
+4. Words: the vocabulary, outcome verbs for actions and vocabulary names for destinations, errors that say what happened and what to do (#31).
 5. System fidelity: tokens only, cataloged components only, no literal value copied from a mockup (#6, #22).
 6. The accessibility floor: focus visible on every surface, keyboard reaches everything, contrast per scheme, targets, reflow at the target's zoom level, reduced motion (#14).
 7. Every committed scheme and every committed context, each with its own captures.
 8. Aesthetics, last: the tells of a generated interface (#31 "The default is not a design").
 
-Evidence is one capture per applicable state per scheme per committed context, attached to the feature doc. An applicable state without a capture is not done, and a capture nobody opened is not evidence: the review records, per capture, what it shows, and a blank frame, the wrong language, or the wrong state is a finding. The capture set lives in the folder on the `Captures` line and is regenerated in place. "Done" for a screen: the eight checks pass with evidence, and the artifact entry, the code, and the captures agree. A decision the review changes is recorded at the decision location with its reason. The project copies templates/design-review.md and reads it in this order. Nothing checks a capture by script; the reviewer reads it.
+Evidence is one capture per applicable state per scheme per committed context, attached to the feature doc. An applicable state without a capture is not done, and a capture nobody opened is not evidence: the review records, per capture, what it shows, and a blank frame, the wrong language, or the wrong state is a finding. The capture set lives in the folder on the `Captures` line and is regenerated in place. "Done" for a screen: the eight checks pass with evidence, and the artifact entry, the code, and the captures agree. A decision the review changes is recorded at the decision location with its reason. The project copies templates/design-review.md and reads it in this order. The artifact entry and review name the current decision basis; captures are tied to that basis, artifact revision and code revision. A changed direction, context or scheme reopens dependent work through development/STEPS.md before old evidence can count again. Keyboard, focus, reduced motion and task completion have observed interaction or test evidence alongside the still captures. Nothing checks a capture by script; the reviewer reads it.
 
 ## The session
 

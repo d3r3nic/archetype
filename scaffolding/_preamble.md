@@ -52,7 +52,7 @@ One commit per foundational system per convention #2. The commit history IS the 
 
 ## Red-flags rule
 
-Before scaffolding, read `scaffolding/RED-FLAGS.md` — the catalogue of known silent-failure patterns. Consult it during each step. If a red flag fires, STOP and resolve before continuing.
+For a stepped playbook, read the sections of `scaffolding/RED-FLAGS.md` named by the current step. An unconverted playbook reads the catalogue before scaffolding. If a red flag fires, STOP and resolve before continuing.
 
 ## Machine-verifiable exit gate
 

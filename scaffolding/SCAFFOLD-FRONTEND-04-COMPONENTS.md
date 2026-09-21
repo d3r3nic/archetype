@@ -6,6 +6,8 @@ Part of the frontend scaffold playbook (scaffolding/SCAFFOLD-FRONTEND.md), walke
 Read: #4; #22; #14; #31; #27 § Design review; scaffolding/_preamble.md § Convention-mapping rule
 Produces: the wrappers in use, the layout primitives, the catalog, the icon set, the focus token, the state gallery, the capture command recorded in References.md § Commands, and the lint rule on the wrapper boundary
 Check: run project: typecheck, lint, build, capture; evidence: what was seen when this was tried: the wrapper-only test page, the lint rule run against a direct import, and what the captures show
+Depends on: scaffold-frontend.2; scaffold-frontend.3
+Basis: decisions and inputs required
 
 Build:
 - Base wrapper components around the UI library: the ones the artifact specifies and the ones the state components, the layouts, and the smoke-test feature use, each with its catalog entry. Any other wrapper is added in the change that first uses it; a wrapper nothing uses is not built, so the catalog never opens with an unused component (#22).

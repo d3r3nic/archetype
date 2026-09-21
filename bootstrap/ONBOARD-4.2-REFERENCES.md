@@ -3,9 +3,10 @@
 Part of the bootstrap playbook (bootstrap/ONBOARD.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step: read it when the script names it, with the reading it lists, and close it before opening the next.
 
 ## Step 4.2: References.md and feature-tree.md
-Read: Conventions.md; templates/references-platform.md (when the approach is a platform); templates/feature-tree-platform.md (when the approach is a platform); templates/references-frontend.md (when a custom build has a web front end); templates/references-backend.md (when a custom build has a back end); templates/references-mobile.md (when a custom build is a mobile app); templates/feature-tree.md (when the approach is a custom build)
+Read: Conventions.md; #16; templates/decisions.md; templates/references-platform.md (when the approach is a platform); templates/feature-tree-platform.md (when the approach is a platform); templates/references-frontend.md (when a custom build has a web front end); templates/references-backend.md (when a custom build has a back end); templates/references-mobile.md (when a custom build is a mobile app); templates/feature-tree.md (when the approach is a custom build)
 Produces: References.md from the template that fits, with each foundational system kept, or removed with the discovery answer behind the removal written beside it; feature-tree.md; for a custom build docs/systems/, docs/features/, .gitignore, and the first commit
-Check: run scripts/check-exists.sh References.md feature-tree.md
+Check: run scripts/validate-bootstrap.py context; evidence: discovery facts recorded in Project, with unresolved facts named and scaffold-only fields left for scaffold
+Depends on: bootstrap.3
 Skip when: the project is an existing one and Step 4.1 generated these files
 
 Once the build approach is settled per Step 3 (confirmed under `owner-decides`; recommended and not objected to under `ai-decides`), the AI generates the project files. The generation path depends on whether the approach is a platform (Option A/B from Step 3) or a custom build (Option C).
@@ -56,7 +57,7 @@ Generate these files:
   - If the project is a **PRODUCT**, research the design-artifact tool at bootstrap on equal terms (a visual design tool, a design-system-as-code repository, an AI design canvas available in the working session, an AI design workspace) on the criteria that matter: where the owner can see and change the design, cost (recurring spend is an escalation under #29), whether it can hold every state, whether the sync can be run from the repository. Record the tool, the direction of truth (`repository-first` or `workspace-first`), the sync, and the working-files folder on their lines of References.md § Design Artifact, and the tool decision at the decision location (#29). The interview and the rest of that section are Steps 4.4 and 4.5. Per convention #27.
 - feature-tree.md using templates/feature-tree.md. For TEMPLATE projects, mark design-derived rows (Components, Design System, Styling values, per-feature visual states) as "structural at template level; downstream projects apply brand"; do NOT leave them undefined.
 - PROFILE.md is Step 4.3's product, not this step's.
-- In References.md § Project, the owner channel, the decision location, and the reporting pace, per #29.
+- In References.md § Project, the owner channel, the single decision location, and the reporting pace, per #29. Preserve an existing record; otherwise create DECISIONS.md from templates/decisions.md and record the settled build/scope choices from Step 3.
 - docs/systems/ directory (empty)
 - docs/features/ directory (empty)
 - .gitignore appropriate for the tech stack

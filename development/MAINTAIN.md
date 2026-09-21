@@ -19,7 +19,7 @@ Phase 4 has three distinct modes, each with its own trigger. Don't conflate them
 - Vocabulary drift: the words in navigation, headings, buttons, and messages match the vocabulary file (#31)
 
 **How:**
-1. Run the automated gates first — `scripts/validate-develop.sh` + `scripts/validate-maintain.sh` + `scripts/validate-profile.sh` + `scripts/validate-design.sh` + `scripts/validate-framework.sh`.
+1. Run the automated gates first: `scripts/validate-develop.sh` + `scripts/validate-maintain.sh` + `scripts/validate-profile.sh` + `scripts/validate-design.sh` + `scripts/validate-framework.sh`. For a project with a screen, run the design gate as `scripts/validate-design.sh --required known-screen` so an absent section cannot be mistaken for a back end or platform.
 2. For anything they don't catch (judgment calls, doc narrative drift, architecture fit), manually audit per the checklist below.
 3. Log findings in `TECHNICAL-DEBT.md` using `templates/technical-debt.md` format.
 4. Append a row to `feature-tree.md` § Audit Log with date, scope, findings count, and pointer to the tech-debt entries.
@@ -28,7 +28,7 @@ Phase 4 has three distinct modes, each with its own trigger. Don't conflate them
 - [ ] `scripts/validate-develop.sh` — 0 errors
 - [ ] `scripts/validate-maintain.sh` — 0 errors
 - [ ] `scripts/validate-profile.sh` — 0 errors (once PROFILE.md exists, `--strict` for operational projects; until then, create it from templates/profile.md); every DEFERRED line still has a future trigger; every UNVERIFIED fact has a plan to learn it
-- [ ] `scripts/validate-design.sh`: 0 errors for a project with a screen: every Design Artifact line present and filled. After a framework update that adds a label, the failure names the lines to add; fill them from the owner's recorded answers, never from a guess (#27)
+- [ ] `scripts/validate-design.sh --required known-screen`: 0 errors for a project with a screen: exactly one live Design Artifact section, every contract line present once and filled. A project without a screen uses `scripts/validate-design.sh` without the required mode. After a framework update that adds a label, the failure names the lines to add; fill them from the owner's recorded answers, never from a guess (#27)
 - [ ] `scripts/validate-framework.sh` — 0 errors (framework itself OK)
 - [ ] The project's test command (`References.md § Commands`) — all green
 - [ ] Every feature directory has matching `feature-tree.md` row and `docs/features/{name}.md` entry (names align)

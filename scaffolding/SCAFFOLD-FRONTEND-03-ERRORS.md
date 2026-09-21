@@ -6,6 +6,7 @@ Part of the frontend scaffold playbook (scaffolding/SCAFFOLD-FRONTEND.md), walke
 Read: #8; #27 § Rules; scaffolding/_preamble.md § Convention-mapping rule; scaffolding/RED-FLAGS.md § 17. Class prototype broken on transpiled Error subclasses
 Produces: the error classes, the error service, the boundaries, and a state component for every state of the #27 list that is a surface of a screen
 Check: run project: typecheck, lint, build; evidence: what was seen when this was tried: an error thrown inside a component, and the network cut
+Depends on: scaffold-frontend.2
 
 Build:
 - Error classes (NetworkError, ValidationError, NotFoundError, AuthError, etc.).

@@ -6,6 +6,7 @@ Part of the bootstrap playbook (bootstrap/ONBOARD.md), walked one step at a time
 Read: bootstrap/RED-FLAGS.md § Red Flag Combinations; bootstrap/RED-FLAGS.md § Scope-Change Handler
 Produces: the owner's knowledge level as read from the answers, the technical needs the answers translate into, and every red-flag combination found, said to the owner before any research
 Check: evidence: the needs the answers translate into, and each red-flag combination found with what the owner said about it, or none found
+Depends on: bootstrap.2.1; bootstrap.2.2; bootstrap.2.3; bootstrap.2.4; bootstrap.2.5; bootstrap.2.6
 
 ### How the AI decides (read the user's knowledge level):
 

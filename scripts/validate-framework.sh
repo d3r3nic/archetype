@@ -301,7 +301,7 @@ if [ -f "$SCRIPT_DIR/validate-timeless.sh" ]; then
   if TIMELESS_OUT="$(bash "$SCRIPT_DIR/validate-timeless.sh" 2>&1)"; then
     pass "timeless check clean"
   else
-    printf '%s\n' "$TIMELESS_OUT" | grep -E 'FAIL' | sed 's/\x1b\[[0-9;]*m//g' | while IFS= read -r line; do
+    printf '%s\n' "$TIMELESS_OUT" | sed 's/\x1b\[[0-9;]*m//g' | while IFS= read -r line; do
       printf '  %s\n' "$line"
     done
     fail "timeless check reported violations (see lines above)"

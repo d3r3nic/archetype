@@ -2,7 +2,7 @@
 
 Framework-managed in downstream installations. Local AI must not edit this file; the next framework update overwrites it. Put project choices in References.md and propose shared changes upstream.
 
-Read [ONBOARD.md](ONBOARD.md), [project setup](../conventions/01-project-setup.md), and [Git conventions](../conventions/02-git.md). Resolve these decisions from the owner's request and existing project evidence rather than repeatedly interviewing for known answers.
+The onboarding step routes [project setup](../conventions/01-project-setup.md) and [Git conventions](../conventions/02-git.md). Reuse them when already current in this session. Resolve these decisions from the owner's request and existing project evidence rather than repeatedly interviewing for known answers.
 
 Before creation, identify the product, repository owner, visibility, lifecycle, and existing source. Check that the intended repository does not already exist and that the authorized actor can create it. A platform code repository holds the platform's implementation; repositories managed by that platform retain their own ownership and history. Repository permission is not implied by a task mentioning its name.
 

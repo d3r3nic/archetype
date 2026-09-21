@@ -11,7 +11,7 @@
 - Error system: [how errors are handled in this feature]
 - API layer: [which endpoints this feature uses]
 - Theme: [any feature-specific tokens or styles]
-- Design: [the artifact entry and revision this feature implements (#27); the purpose sentence; the states it covers; the session-decided entries, if any; where the capture set lives; who reviewed the screen against the artifact and when]
+- Design: [current decision basis; the artifact entry and revision this feature implements (#27); the purpose sentence; the states it covers; the session-decided entries, if any; where the capture set lives; who reviewed the screen against the artifact and when]
 - Auth: [permission requirements]
 - Forms: [if applicable - which forms and validation]
 - State: [what state this feature manages]

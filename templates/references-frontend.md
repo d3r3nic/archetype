@@ -9,7 +9,7 @@ Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses t
 - Stage: [development / staging / production]
 - Profile: PROFILE.md (operating stage and decision authority per #30 and #29)
 - Owner channel: [where escalations go and how quickly the owner usually answers]
-- Decision location: [architecture decision records path, or "References.md § Decisions" until one exists]
+- Decision location: [existing decision record path or section; otherwise DECISIONS.md from templates/decisions.md, one location only]
 - Reporting pace: [every session / every release / on request]
 - URL: [deployed URL if any]
 

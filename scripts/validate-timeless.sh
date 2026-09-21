@@ -145,7 +145,7 @@ done <<< "$ALLOW_ENTRIES"
 FINDINGS="$(
 for file in "${FILES[@]}"; do
   # A playbook may be several files under one ledger (development/STEPS.md): a step defined
-  # as a heading in any file of the playbook is that playbook's step in all of them.
+  # as a heading in any file of the playbook belongs to that playbook in all files.
   SIBLING_STEPS=""
   ENTRY="$(grep -l -E "^Step files: .*(^|[ ;])$file([ ;]|\$)" bootstrap/*.md scaffolding/*.md development/*.md 2>/dev/null | head -1)"
   if [ -z "$ENTRY" ] && grep -q '^Step files: ' "$file" 2>/dev/null; then ENTRY="$file"; fi
