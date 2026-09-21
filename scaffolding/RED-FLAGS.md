@@ -117,7 +117,7 @@ Mobile-specific, but applicable to any project whose bundler or transpiler subst
 
 When a TypeScript project's output target is ES5 or lower (common on mobile when the transpiler targets an older device JS engine, and on older browsers), the transpiler emits `_this = _super.call(this) || this` for class extension. This breaks the prototype chain for Error subclasses — `instanceof AppError` returns `false` for instances that ARE AppError. Silent: code compiles, errors throw, the catch block in the error middleware never matches, every error falls through to the generic 500 handler.
 
-**Defense:** CLAUDE.md rule: when the build target transpiles class inheritance, verify custom error subclasses still pass runtime type checks and record the required constructor fix in References.md; convention #8 carries the rule. For this target the fix is `Object.setPrototypeOf(this, new.target.prototype)` in the constructor (dated example; verify against the current transpiler). Test: assert `new SomeSubclass() instanceof AppError === true`.
+**Defense:** the rule in #8: when the build target transpiles class inheritance, verify custom error subclasses still pass runtime type checks and record the required constructor fix in References.md; convention #8 carries the rule. For this target the fix is `Object.setPrototypeOf(this, new.target.prototype)` in the constructor (dated example; verify against the current transpiler). Test: assert `new SomeSubclass() instanceof AppError === true`.
 
 ## 18. Package peers drift from SDK expectations
 

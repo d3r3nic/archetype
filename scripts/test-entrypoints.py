@@ -112,15 +112,155 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual((self.project / 'References.md').read_bytes(), self.local['References.md'])
         self.assertEqual((self.project / 'CLAUDE.md.additions').read_text(), 'Project-only rules\n')
 
-    def test_update_does_not_replace_unmanaged_agent_instructions(self):
+    def run_update(self, env):
+        return self.run_command(['bash', str(self.project / 'archetype/update.sh')], input='y\n', env=env, cwd=self.project)
+
+    def kept_copies(self, name):
+        return sorted(self.project.glob(name + '.pre-update-*'))
+
+    def test_update_keeps_unmanaged_agent_instructions_whole_and_proceeds(self):
         self.inject()
         (self.project / 'AGENTS.md').write_text('Unmanaged local guidance\n')
-        before = {p.relative_to(self.project): p.read_bytes() for p in self.project.rglob('*') if p.is_file()}
         _, env = self.update_source()
-        result = self.run_command(['bash', str(self.project / 'archetype/update.sh')], input='y\n', env=env, cwd=self.project)
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('KEPT: root AGENTS.md', result.stdout)
+        kept = self.kept_copies('AGENTS.md')
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(kept[0].read_text(), 'Unmanaged local guidance\n')
+        self.assertIn(MARKER, (self.project / 'AGENTS.md').read_text())
+        self.assertIn(kept[0].name, (self.project / 'CLAUDE.md.additions').read_text())
+
+    def test_update_carries_lines_the_project_added_to_the_root_rules_file(self):
+        self.inject()
+        rule = '- Never let a system path touch protected records unaudited.'
+        root = self.project / 'CLAUDE.md'
+        original = root.read_text()
+        root.write_text(original + rule + '\n')
+        (self.project / 'CLAUDE.md.additions').write_text('Existing local guidance\n')
+        remote, env = self.update_source()
+        source = remote / 'CLAUDE.md'
+        source.write_text(source.read_text() + 'A later framework line.\n')
+        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'later'])
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('CARRIED: 1 line(s)', result.stdout)
+        additions = (self.project / 'CLAUDE.md.additions').read_text()
+        self.assertTrue(additions.startswith('Existing local guidance\n'))
+        self.assertIn(rule, additions)
+        self.assertIn('audit each line', additions)
+        kept = self.kept_copies('CLAUDE.md')
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(kept[0].read_text(), original + rule + '\n')
+        self.assertNotIn(rule, root.read_text())
+        self.assertIn('A later framework line.', root.read_text())
+        again = self.run_update(env)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertEqual((self.project / 'CLAUDE.md.additions').read_text().count(rule), 1)
+        self.assertEqual(len(self.kept_copies('CLAUDE.md')), 1)
+        # The same rule put back into the root file is already in the additions file:
+        # nothing is carried, no empty audit block is written, no second copy is kept.
+        root.write_text(root.read_text() + rule + '\n')
+        before = (self.project / 'CLAUDE.md.additions').read_text()
+        third = self.run_update(env)
+        self.assertEqual(third.returncode, 0, third.stdout + third.stderr)
+        self.assertNotIn('CARRIED', third.stdout)
+        self.assertEqual((self.project / 'CLAUDE.md.additions').read_text(), before)
+        self.assertEqual(len(self.kept_copies('CLAUDE.md')), 1)
+
+    def test_update_ignores_carriage_returns_when_finding_added_lines(self):
+        self.inject()
+        rule = '- A project rule.'
+        root = self.project / 'CLAUDE.md'
+        root.write_bytes(root.read_bytes().replace(b'\n', b'\r\n') + rule.encode() + b'\r\n')
+        _, env = self.update_source()
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('CARRIED: 1 line(s)', result.stdout)
+        self.assertNotIn(MARKER, (self.project / 'CLAUDE.md.additions').read_text())
+
+    def test_update_stops_with_nothing_replaced_when_the_carry_cannot_be_written(self):
+        self.inject()
+        root = self.project / 'CLAUDE.md'
+        root.write_text(root.read_text() + '- A project rule.\n')
+        additions = self.project / 'CLAUDE.md.additions'
+        additions.write_text('Existing\n')
+        additions.chmod(0o444)
+        self.addCleanup(additions.chmod, 0o644)
+        _, env = self.update_source()
+        before = root.read_text()
+        result = self.run_update(env)
         self.assertNotEqual(result.returncode, 0)
-        after = {p.relative_to(self.project): p.read_bytes() for p in self.project.rglob('*') if p.is_file()}
-        self.assertEqual(before, after)
+        self.assertEqual(root.read_text(), before)
+
+    def test_full_clone_update_keeps_a_changed_root_file(self):
+        remote, env = self.update_source()
+        clone = self.root / 'full-clone-carry'
+        result = self.run_command(['git', 'clone', str(remote), str(clone)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        rule = '- A full-clone project rule.'
+        (clone / 'CLAUDE.md').write_text((clone / 'CLAUDE.md').read_text() + rule + '\n')
+        source = remote / 'CLAUDE.md'
+        source.write_text(source.read_text() + 'A later framework line.\n')
+        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'later'])
+        result = self.run_command(['bash', str(clone / 'update.sh')], input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        kept = sorted(clone.glob('CLAUDE.md.pre-update-*'))
+        self.assertEqual(len(kept), 1)
+        self.assertIn(rule, kept[0].read_text())
+        self.assertIn(kept[0].name, (clone / 'CLAUDE.md.additions').read_text())
+
+    def test_update_finds_added_lines_from_the_recorded_revision_without_an_engine_copy(self):
+        self.inject()
+        remote, env = self.update_source()
+        recorded = self.run_command(['git', '-C', str(remote), 'rev-parse', 'HEAD']).stdout.strip()
+        self.assertEqual(len(recorded), 40)
+        (self.project / 'VERSION-LOG.md').write_text('## Updates\n\nCommit: ' + recorded + '\n')
+        rule = '- A rule with only the recorded revision as its baseline.'
+        (self.project / 'CLAUDE.md').write_text((remote / 'CLAUDE.md').read_text() + rule + '\n')
+        (self.project / 'archetype/CLAUDE.md').unlink()
+        source = remote / 'CLAUDE.md'
+        source.write_text(source.read_text() + 'A later framework line.\n')
+        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'later'])
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('CARRIED: 1 line(s)', result.stdout)
+        self.assertIn(rule, (self.project / 'CLAUDE.md.additions').read_text())
+
+    def test_update_installs_the_pointer_and_the_rules(self):
+        self.inject()
+        (self.project / 'CLAUDE.md').write_text(MARKER + '\nold pointer\n')
+        (self.project / 'archetype/CLAUDE.md').write_text(MARKER + '\nold pointer\n')
+        remote, env = self.update_source()
+        for name in ('AGENTS.md', 'CLAUDE.md'):
+            (remote / name).write_bytes((SOURCE / name).read_bytes())
+        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'real entry files'])
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('## Find the relevant work', (self.project / 'AGENTS.md').read_text())
+        self.assertNotIn('## Find the relevant work', (self.project / 'CLAUDE.md').read_text())
+        self.assertIn('AGENTS.md', (self.project / 'CLAUDE.md').read_text())
+
+    def test_update_of_an_untouched_root_file_carries_nothing(self):
+        self.inject()
+        remote, env = self.update_source()
+        source = remote / 'CLAUDE.md'
+        source.write_text(source.read_text() + 'A later framework line.\n')
+        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'later'])
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('CARRIED', result.stdout)
+        self.assertFalse((self.project / 'CLAUDE.md.additions').exists())
+        self.assertEqual(self.kept_copies('CLAUDE.md'), [])
+
+    def test_rules_live_in_agents_and_claude_points_to_it(self):
+        self.inject()
+        agents = (self.project / 'AGENTS.md').read_text()
+        claude = (self.project / 'CLAUDE.md').read_text()
+        self.assertIn('## Find the relevant work', agents)
+        self.assertIn(MARKER, claude)
+        self.assertIn('AGENTS.md', claude)
+        self.assertNotIn('## Find the relevant work', claude)
 
     def test_full_clone_update_keeps_parent_unchanged(self):
         remote, env = self.update_source()

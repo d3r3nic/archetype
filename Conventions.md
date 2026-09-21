@@ -1,6 +1,6 @@
 # Conventions
 
-This is a lookup index. Use the current step or task to identify relevant concerns, including cross-cutting risks. Read their guidance without a document quota; reuse material already current in the session. The rows are starting points, not proof that a pattern fits the project. CLAUDE.md describes how to evaluate and record the choice.
+This is a lookup index. Use the current step or task to identify relevant concerns, including cross-cutting risks. Read their guidance without a document quota; reuse material already current in the session. The rows are starting points, not proof that a pattern fits the project. AGENTS.md describes how to evaluate and record the choice.
 
 This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFOLD.md) → Develop (DEVELOP.md) → Maintain (MAINTAIN.md).
 
@@ -32,6 +32,7 @@ This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFO
 | Documentation | #16 | |
 | Tracked tasks / project management | development/TASKS.md, development/FRESHNESS.md | project-root protocols/task-context.md; #16, #18, #19 as relevant |
 | Repository creation / framework adoption | bootstrap/REPOSITORIES.md | bootstrap/ONBOARD.md; #1 and #2 for the applicable setup and version-control decisions |
+| Updating the installed framework | development/UPDATE.md | #2 (one reviewable commit) |
 | Starting a new AI session | #17, #19, #29 | re-read References.md and PROFILE.md |
 | Anything that might need the owner (spend, commitments, live systems, product scope) | #29 | PROFILE.md for the decision-authority setting |
 | Deferring work, taking a shortcut, changing the project's stage | #30 | #18 (verification); TECHNICAL-DEBT.md entry with a trigger |

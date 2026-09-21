@@ -11,7 +11,7 @@ Establish the owner's intended outcome before initialization. Keep the technical
 
 ## Step 1: Initialize Project
 Read: bootstrap/REPOSITORIES.md
-Produces: the project folder with the engine in it (CLAUDE.md, Conventions.md, the conventions and playbook folders, unmodified); PROGRESS.md at the project root
+Produces: the project folder with the engine in it (AGENTS.md, CLAUDE.md, Conventions.md, the conventions and playbook folders, unmodified); PROGRESS.md at the project root
 Check: evidence: where the engine sits (the project root, or which subfolder), and the repository decision with its reason
 
 Read [REPOSITORIES.md](REPOSITORIES.md) before creating a repository or installing the framework. Preserve an existing repository's history and local guidance; use the injection path when the project already exists.

@@ -47,11 +47,11 @@ Bootstrap and the frontend scaffold declare automated step routes. Backend, mobi
 
 ## Shared task rules and updates
 
-[Repository adoption](bootstrap/REPOSITORIES.md), [task rules](development/TASKS.md), and [freshness rules](development/FRESHNESS.md) define the shared contract. The installed AGENTS.md loads CLAUDE.md explicitly. Project-root References.md, CLAUDE.md.additions, and protocols/task-context.md provide local facts and capabilities; updates preserve them. A task service and enforced freshness are consuming-project responsibilities.
+[Repository adoption](bootstrap/REPOSITORIES.md), [task rules](development/TASKS.md), and [freshness rules](development/FRESHNESS.md) define the shared contract. The installed AGENTS.md holds the shared rules; CLAUDE.md points to it for hosts that load only that name. Project-root References.md, CLAUDE.md.additions, and protocols/task-context.md provide local facts and capabilities; updates preserve them. A task service and enforced freshness are consuming-project responsibilities.
 
 Run the installed update.sh to fetch current shared rules. It is a manual latest-source updater, not an immutable release manager or automatic fleet controller. Full-clone installations at their own Git root and injected engines with parent CLAUDE.md/VERSION-LOG.md resolve automatically. For an unpacked or ambiguous layout, use `bash update.sh --project-root /absolute/project/path`; the directory must be the engine itself or its direct parent. Review the reported Project and Engine paths.
 
-**Upgrading the previous release:** an old injected updater first replaces itself, then its next invocation installs the new AGENTS entry points. Run it twice and verify root and engine AGENTS.md. If root AGENTS.md already contains local guidance, preserve it, migrate the rules to project-owned files, and install the managed entry point before updating; do not delete guidance to satisfy the check. For an old full-clone installation, use the current updater with an explicit verified root instead of running the legacy root-detection code.
+**Updating:** development/UPDATE.md says who owns which file and what a session does before and after. Root AGENTS.md holds the rules and root CLAUDE.md points to it; both are replaced by each update, and lines a project added to them are carried into CLAUDE.md.additions for audit, never deleted. An old injected updater first replaces itself: run it twice. For an old full-clone installation, use the current updater with an explicit verified root instead of running the legacy root-detection code.
 
 Verification: `bash scripts/validate-framework.sh` checks structural consistency and runs the timeless-content check (`scripts/validate-timeless.sh`: no tool or vendor names outside Research Notes, no factory step references, no dated AI statistics, no tool-bound numeric limits, no changelog language); `python3 scripts/test-entrypoints.py` exercises distribution and preservation. Set `ARCHETYPE_LEGACY_SOURCE` to an exported previous release directory to include the two-step upgrade regression. These checks do not prove that an agent obeys instructions or that a platform enforces them.
 
@@ -75,7 +75,8 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 ## What's Inside
 
 ```
-├── CLAUDE.md                 # Shared guidance with convention routing
+├── AGENTS.md                 # Shared guidance with convention routing
+├── CLAUDE.md                 # Pointer to AGENTS.md for hosts that load only this name
 ├── Conventions.md             # Convention lookup index
 ├── LICENSE                    # Apache License 2.0
 ├── NOTICE                     # Copyright and license attribution
@@ -117,7 +118,8 @@ For a custom application using the included feature-oriented scaffold, the resul
 
 ```
 your-project/
-├── CLAUDE.md                 # Shared guidance (from framework)
+├── AGENTS.md                 # Shared guidance (from framework)
+├── CLAUDE.md                 # Pointer to AGENTS.md (from framework)
 ├── Conventions.md             # Convention index (from framework)
 ├── conventions/               # Convention docs (from framework)
 ├── References.md              # YOUR project's tech stack, systems, commands

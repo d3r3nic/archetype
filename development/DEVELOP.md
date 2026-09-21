@@ -10,7 +10,7 @@ Build or change the behavior the owner needs using the project's researched foun
 
 ## Relevant context
 
-Use the root routing in CLAUDE.md. Read the task's relevant project facts, contracts, conventions and development/RED-FLAGS.md sections; reuse unchanged context from this session. Tracked work also follows development/TASKS.md, development/FRESHNESS.md and the project-root protocols/task-context.md binding when present. Backend work consults backend/Conventions.md. This playbook currently uses the implementer-plan procedure in development/TASKS.md for sequencing and manual dependency review.
+Use the root routing in AGENTS.md. Read the task's relevant project facts, contracts, conventions and development/RED-FLAGS.md sections; reuse unchanged context from this session. Tracked work also follows development/TASKS.md, development/FRESHNESS.md and the project-root protocols/task-context.md binding when present. Backend work consults backend/Conventions.md. This playbook currently uses the implementer-plan procedure in development/TASKS.md for sequencing and manual dependency review.
 
 ## Feature Development Workflow
 

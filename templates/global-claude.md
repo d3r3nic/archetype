@@ -20,6 +20,6 @@ Place this at ~/.claude/CLAUDE.md. These are YOUR preferences that apply across 
 
 ## Project Context
 
-- Read the project's CLAUDE.md and References.md before any work.
+- Read the project's AGENTS.md (CLAUDE.md points to it) and References.md before any work.
 - Check memory for prior context.
 - Do not ask how the project works. Read the code.
