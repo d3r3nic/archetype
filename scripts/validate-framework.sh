@@ -1,7 +1,7 @@
 #!/bin/bash
 # Archetype Framework Self-Test
 # Validates internal consistency of the framework:
-#   1. File paths referenced in CLAUDE.md exist
+#   1. File paths referenced in AGENTS.md and CLAUDE.md exist
 #   2. Convention count in intro text matches actual numbered files
 #   3. Every #N reference in Conventions.md resolves to a real file
 #   4. Every convention doc has required sections
@@ -57,12 +57,12 @@ echo "Archetype Framework Self-Test"
 echo "Root: $FRAMEWORK_DIR"
 
 # ----------------------------------------------------------------------
-group 1 "File paths in CLAUDE.md"
+group 1 "File paths in AGENTS.md and CLAUDE.md"
 # ----------------------------------------------------------------------
 BROKEN=0
-for path in $(grep -oE 'conventions/[a-zA-Z0-9_-]+\.md' CLAUDE.md | sort -u); do
+for path in $(grep -ohE 'conventions/[a-zA-Z0-9_-]+\.md' CLAUDE.md AGENTS.md 2>/dev/null | sort -u); do
   if [ ! -f "$path" ]; then
-    fail "CLAUDE.md references missing file: $path"
+    fail "AGENTS.md or CLAUDE.md references missing file: $path"
     BROKEN=$((BROKEN + 1))
   fi
 done

@@ -112,15 +112,73 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual((self.project / 'References.md').read_bytes(), self.local['References.md'])
         self.assertEqual((self.project / 'CLAUDE.md.additions').read_text(), 'Project-only rules\n')
 
-    def test_update_does_not_replace_unmanaged_agent_instructions(self):
+    def run_update(self, env):
+        return self.run_command(['bash', str(self.project / 'archetype/update.sh')], input='y\n', env=env, cwd=self.project)
+
+    def kept_copies(self, name):
+        return sorted(self.project.glob(name + '.pre-update-*'))
+
+    def test_update_keeps_unmanaged_agent_instructions_whole_and_proceeds(self):
         self.inject()
         (self.project / 'AGENTS.md').write_text('Unmanaged local guidance\n')
-        before = {p.relative_to(self.project): p.read_bytes() for p in self.project.rglob('*') if p.is_file()}
         _, env = self.update_source()
-        result = self.run_command(['bash', str(self.project / 'archetype/update.sh')], input='y\n', env=env, cwd=self.project)
-        self.assertNotEqual(result.returncode, 0)
-        after = {p.relative_to(self.project): p.read_bytes() for p in self.project.rglob('*') if p.is_file()}
-        self.assertEqual(before, after)
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('KEPT: root AGENTS.md', result.stdout)
+        kept = self.kept_copies('AGENTS.md')
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(kept[0].read_text(), 'Unmanaged local guidance\n')
+        self.assertIn(MARKER, (self.project / 'AGENTS.md').read_text())
+        self.assertIn(kept[0].name, (self.project / 'CLAUDE.md.additions').read_text())
+
+    def test_update_carries_lines_the_project_added_to_the_root_rules_file(self):
+        self.inject()
+        rule = '- Never let a system path touch protected records unaudited.'
+        root = self.project / 'CLAUDE.md'
+        original = root.read_text()
+        root.write_text(original + rule + '\n')
+        (self.project / 'CLAUDE.md.additions').write_text('Existing local guidance\n')
+        remote, env = self.update_source()
+        source = remote / 'CLAUDE.md'
+        source.write_text(source.read_text() + 'A later framework line.\n')
+        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'later'])
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('CARRIED: 1 line(s)', result.stdout)
+        additions = (self.project / 'CLAUDE.md.additions').read_text()
+        self.assertTrue(additions.startswith('Existing local guidance\n'))
+        self.assertIn(rule, additions)
+        self.assertIn('audit each line', additions)
+        kept = self.kept_copies('CLAUDE.md')
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(kept[0].read_text(), original + rule + '\n')
+        self.assertNotIn(rule, root.read_text())
+        self.assertIn('A later framework line.', root.read_text())
+        again = self.run_update(env)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertEqual((self.project / 'CLAUDE.md.additions').read_text().count(rule), 1)
+        self.assertEqual(len(self.kept_copies('CLAUDE.md')), 1)
+
+    def test_update_of_an_untouched_root_file_carries_nothing(self):
+        self.inject()
+        remote, env = self.update_source()
+        source = remote / 'CLAUDE.md'
+        source.write_text(source.read_text() + 'A later framework line.\n')
+        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'later'])
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('CARRIED', result.stdout)
+        self.assertFalse((self.project / 'CLAUDE.md.additions').exists())
+        self.assertEqual(self.kept_copies('CLAUDE.md'), [])
+
+    def test_rules_live_in_agents_and_claude_points_to_it(self):
+        self.inject()
+        agents = (self.project / 'AGENTS.md').read_text()
+        claude = (self.project / 'CLAUDE.md').read_text()
+        self.assertIn('## Find the relevant work', agents)
+        self.assertIn(MARKER, claude)
+        self.assertIn('AGENTS.md', claude)
+        self.assertNotIn('## Find the relevant work', claude)
 
     def test_full_clone_update_keeps_parent_unchanged(self):
         remote, env = self.update_source()

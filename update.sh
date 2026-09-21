@@ -111,13 +111,34 @@ fi
 echo "  Latest framework pulled."
 echo ""
 
-# Adopting an existing local entry point requires preservation, not replacement.
-if [ -f "$TEMP_DIR/AGENTS.md" ] && [ -e "$PROJECT_ROOT/AGENTS.md" ] && \
-   ! grep -qF '<!-- archetype-managed-entrypoint -->' "$PROJECT_ROOT/AGENTS.md"; then
-  echo "Error: root AGENTS.md is not managed by Archetype. Preserve and migrate its local guidance before updating."
-  rm -rf "$TEMP_DIR"
-  exit 1
-fi
+# An update never deletes a project's words. Root entry files are compared with the
+# engine's copy from before this update (the baseline). Lines the project added are
+# carried into CLAUDE.md.additions for audit and the previous file is kept beside it.
+# A root AGENTS.md without the managed marker is the project's own guidance: kept whole.
+CARRY_DIR=$(mktemp -d)
+trap 'rm -rf "$TEMP_DIR" "$CARRY_DIR"' EXIT
+CARRY_NOTES=""
+plan_carry() {
+  name="$1"
+  root="$PROJECT_ROOT/$name"
+  [ -f "$root" ] || return 0
+  [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ] || return 0
+  cmp -s "$root" "$TEMP_DIR/$name" && return 0
+  base="$ARCHETYPE_DIR/$name"
+  if [ "$name" = AGENTS.md ] && ! grep -qF '<!-- archetype-managed-entrypoint -->' "$root"; then
+    echo whole > "$CARRY_DIR/$name.mode"
+  elif [ -f "$base" ]; then
+    cmp -s "$root" "$base" && return 0
+    grep -vxFf "$base" "$root" | grep -v '^[[:space:]]*$' > "$CARRY_DIR/$name.lines" || true
+    [ -s "$CARRY_DIR/$name.lines" ] || return 0
+    echo lines > "$CARRY_DIR/$name.mode"
+  else
+    echo whole > "$CARRY_DIR/$name.mode"
+  fi
+  cp "$root" "$CARRY_DIR/$name.previous"
+}
+plan_carry CLAUDE.md
+plan_carry AGENTS.md
 
 # Step 2: Show what would change
 echo "Comparing files..."
@@ -226,6 +247,16 @@ done
 
 echo ""
 
+for name in CLAUDE.md AGENTS.md; do
+  [ -f "$CARRY_DIR/$name.mode" ] || continue
+  if [ "$(cat "$CARRY_DIR/$name.mode")" = lines ]; then
+    echo "  CARRIED: $(wc -l < "$CARRY_DIR/$name.lines" | tr -d ' ') line(s) this project added to root $name go to CLAUDE.md.additions for audit; the previous file is kept"
+  else
+    echo "  KEPT: root $name is this project's own guidance; it is kept whole beside the managed file and referenced from CLAUDE.md.additions"
+  fi
+done
+echo ""
+
 # Files that are NEVER touched (project-specific)
 echo "--- Project-specific files (will NOT be touched) ---"
 for skip in References.md feature-tree.md INDEX.md MIGRATION-NOTES.md CLAUDE.md.additions; do
@@ -292,7 +323,33 @@ for dir in $UNIVERSAL_DIRS; do
   fi
 done
 
-# Step 5: Update CLAUDE.md at project root
+# Step 5: Carry the project's own lines forward, then update the root entry files
+STAMP=$(date +%Y%m%d)
+for name in CLAUDE.md AGENTS.md; do
+  [ -f "$CARRY_DIR/$name.mode" ] || continue
+  kept="$PROJECT_ROOT/$name.pre-update-$STAMP"
+  n=1
+  while [ -e "$kept" ]; do n=$((n + 1)); kept="$PROJECT_ROOT/$name.pre-update-$STAMP-$n"; done
+  cp "$CARRY_DIR/$name.previous" "$kept"
+  ADD="$PROJECT_ROOT/CLAUDE.md.additions"
+  {
+    [ -s "$ADD" ] && echo ""
+    echo "## Carried over from root $name by the framework update of $(date +%Y-%m-%d): audit each line"
+    echo ""
+    echo "The update replaced root $name with the managed file. The previous file is kept whole as $(basename "$kept"). Audit what follows against the current rules: keep a line here, move it to References.md or conventions/overrides/, or retire it because the current rules cover it, and record the reason. Remove this heading when the audit is done."
+    echo ""
+    if [ "$(cat "$CARRY_DIR/$name.mode")" = lines ]; then
+      while IFS= read -r line; do
+        [ -f "$ADD" ] && grep -qxF -- "$line" "$ADD" && continue
+        printf '%s\n' "$line"
+      done < "$CARRY_DIR/$name.lines"
+    else
+      echo "No baseline existed to tell this project's lines from the framework's: read $(basename "$kept") in full."
+    fi
+  } >> "$ADD.new"
+  cat "$ADD.new" >> "$ADD" && rm -f "$ADD.new"
+  echo "  carried: root $name → CLAUDE.md.additions (previous file kept as $(basename "$kept"))"
+done
 if [ -f "$PROJECT_ROOT/CLAUDE.md" ] && [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then
   cp "$TEMP_DIR/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.md"
   echo "  updated: CLAUDE.md (project root)"
@@ -409,4 +466,4 @@ echo "  - catalogs/ (project-specific)"
 echo "  - docs/ (project-specific)"
 echo "  - todo/ (project-specific)"
 echo ""
-echo "Review the changes and commit when satisfied."
+echo "Next: follow archetype/development/UPDATE.md, section After (audit carried-over lines in CLAUDE.md.additions, run the checks, commit as one change)."
