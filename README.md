@@ -41,6 +41,10 @@ Then tell your AI assistant:
 
 The AI interviews you about the intended outcome, researches viable approaches against your constraints, and records the chosen path in project context such as References.md and feature-tree.md.
 
+## Workflow coverage
+
+Bootstrap and the frontend scaffold declare automated step routes. Backend, mobile and platform scaffolding, feature development and maintenance use the implementer's existing task or project plan for sequencing, checks and manual dependency review under development/TASKS.md. These workflows can be followed without converting them into runner metadata; their required verification still applies. Do not infer full project completion from a completed bootstrap ledger.
+
 ## Shared task rules and updates
 
 [Repository adoption](bootstrap/REPOSITORIES.md), [task rules](development/TASKS.md), and [freshness rules](development/FRESHNESS.md) define the shared contract. The installed AGENTS.md loads CLAUDE.md explicitly. Project-root References.md, CLAUDE.md.additions, and protocols/task-context.md provide local facts and capabilities; updates preserve them. A task service and enforced freshness are consuming-project responsibilities.

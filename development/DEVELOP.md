@@ -10,7 +10,7 @@ Build or change the behavior the owner needs using the project's researched foun
 
 ## Relevant context
 
-Use the root routing in CLAUDE.md. Read the task's relevant project facts, contracts, conventions and development/RED-FLAGS.md sections; reuse unchanged context from this session. Tracked work also follows development/TASKS.md, development/FRESHNESS.md and the project-root protocols/task-context.md binding when present. Backend work consults backend/Conventions.md.
+Use the root routing in CLAUDE.md. Read the task's relevant project facts, contracts, conventions and development/RED-FLAGS.md sections; reuse unchanged context from this session. Tracked work also follows development/TASKS.md, development/FRESHNESS.md and the project-root protocols/task-context.md binding when present. Backend work consults backend/Conventions.md. This playbook currently uses the implementer-plan procedure in development/TASKS.md for sequencing and manual dependency review.
 
 ## Feature Development Workflow
 
@@ -18,7 +18,7 @@ Use the root routing in CLAUDE.md. Read the task's relevant project facts, contr
 
 Identify the intended behavior, constraints and observable success. Inspect affected code and the existing systems it can reuse; record dependencies that materially affect the plan. Do not enumerate every unrelated system or create an abstraction just to satisfy an inventory (#0, #3).
 
-For screen work, read References.md's Design Artifact and its relevant brand, vocabulary, tokens, catalog and feature entries. If an applicable state or composition is missing, design and record it at decision fidelity before implementing it, using templates/design-artifact-entry.md. The session decides within the recorded direction; the owner decides changes to identity or purpose, or delegates the look explicitly (#27, #29). Preserve supplied access, language, spending and other requirements. A changed basis reopens affected work through development/STEPS.md.
+For screen work, read References.md's Design Artifact and its relevant brand, vocabulary, tokens, catalog and feature entries. If an applicable state or composition is missing, design and record it at decision fidelity before implementing it, using templates/design-artifact-entry.md. The session decides within the recorded direction; the owner decides changes to identity or purpose, or delegates the look explicitly (#27, #29). Preserve supplied access, language, spending and other requirements. A changed basis requires the dependency review in development/TASKS.md and reopening any affected declared ledger records through development/STEPS.md.
 
 ### Step 2: Investigate what could change the answer
 

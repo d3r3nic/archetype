@@ -2,7 +2,7 @@
 
 Audit, update, and evolve the project. Runs for the life of the project, on specific triggers.
 
-Phase 4 has three distinct modes, each with its own trigger. Don't conflate them.
+Choose the maintenance mode from its trigger. Carry the selected work in the existing implementer plan under development/TASKS.md; completing a different automated route does not close this work.
 
 ## Mode 1 — Routine audit (scheduled)
 

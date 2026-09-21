@@ -7,8 +7,7 @@ Step files: bootstrap/ONBOARD-2.1-WHAT-IS-IT.md; bootstrap/ONBOARD-2.2-WHERE-IT-
 
 ## Prerequisites
 
-- You know what you want to build (even just "a todo app" is enough to start)
-- Tech stack chosen, or leave it open for Step 3 research
+Establish the owner's intended outcome before initialization. Keep the technical approach open for Step 3 research unless the project already has an accepted commitment.
 
 ## Step 1: Initialize Project
 Read: bootstrap/REPOSITORIES.md
@@ -55,11 +54,11 @@ cd /tmp/archetype-framework
 ./inject.sh /path/to/your/existing-project archetype-migration
 ```
 
-After injection, your existing project has a new subfolder (default `archetype/`) containing the framework. Root instruction files are managed copies; original guidance is preserved in .pre-archetype files. Other project files are preserved. From here, follow the "For an EXISTING project" path in Step 3.
+After injection, your existing project has a new subfolder (default `archetype/`) containing the framework. Root instruction files are managed copies; original guidance is preserved in .pre-archetype files. Other project files are preserved. The existing-project migration is Step 4.1 in the bootstrap sequence, after discovery and research; initialization continues below.
 
 Then create the ledger: copy `templates/progress.md` to `PROGRESS.md` at the project root and write `bootstrap` on its Playbooks line. This step is the first one the ledger closes.
 
-For fullstack: each endpoint (frontend/, backend/) is a separate project with its own copy of the framework, its own References.md, feature-tree.md, and docs/. They are separate git repos. If you prefer a monorepo, put both folders under one git repo and manage them together.
+For separate frontend/backend units, preserve their project context and choose repository boundaries from bootstrap/REPOSITORIES.md. Separate runtime units do not by themselves require separate Git repositories.
 
 ## The steps
 

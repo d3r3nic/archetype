@@ -2,9 +2,9 @@
 
 Framework-managed in downstream installations. Local AI must not edit this file; the next framework update overwrites it.
 
-A playbook is a list of steps. A session holds one step at a time: it reads what that step names, does it, leaves what it produces, and closes it on a check. The rulebook can be any size, because no session is asked to hold it; the full text of a convention is read at the step that uses it, never earlier and never as a summary.
+A declared playbook names the current step, relevant reading, intended outputs and closure checks. Use it within its declared scope and reuse context that is still current. Other work follows the implementer-plan procedure in development/TASKS.md; it does not acquire automated recovery merely by being written as a checklist.
 
-Telling a session not to read everything does not work; a session that does not know what it will need reads widely to be safe, and has lost the relevant part by the time it matters. The step names the reading, so there is nothing to guess.
+Named reading helps a session locate relevant guidance. It does not prove the guidance was read, that all relevant concerns were named, or that the work was done well.
 
 ## A step in a playbook
 

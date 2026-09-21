@@ -23,7 +23,7 @@ Determine the shape from `References.md`:
 
 Use a listed playbook when its assumptions fit the project. If the researched approach does not fit these routes, identify the applicable concerns and missing workflow/check coverage in the project plan. Do not mislabel the project to force a route. A project-specific extension needs explicit verification and cannot be claimed as supported by the step runner unless it uses a declared playbook that the runner actually recognizes. This router alone is not an implementation procedure.
 
-A playbook that declares a step ledger (development/STEPS.md) is walked with `scripts/next-step.sh`: add its ledger id after `bootstrap` on the Playbooks line of PROGRESS.md and the script names each step, the file that holds it, and its reading. The frontend playbook is stepped this way (`scaffold-frontend`).
+A playbook that declares a step ledger (development/STEPS.md) is walked with `scripts/next-step.sh`: add its ledger id after `bootstrap` on the Playbooks line of PROGRESS.md and the script names each step, the file that holds it, and its reading. The frontend playbook is stepped this way (`scaffold-frontend`). For an unconverted route, use development/TASKS.md to carry its sequence, dependencies, checks and recovery in the existing implementer plan. Preserve its substantive verification requirements; do not declare runner coverage that does not exist.
 
 ## Shared rules (apply across all shapes)
 
