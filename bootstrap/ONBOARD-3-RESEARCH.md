@@ -1,86 +1,33 @@
 # Bootstrap: research before deciding
 
-Part of the bootstrap playbook (bootstrap/ONBOARD.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step: read it when the script names it, with the reading it lists, and close it before opening the next.
-
-## Step 3: Research Before Deciding (DO NOT SKIP)
-Read: #0 § Principle; #29; bootstrap/LEARNING-PROJECTS.md (when the owner is building this to learn a technology)
+## Step 3: Research before deciding
+Read: #0 § Principle; #29; bootstrap/LEARNING-PROJECTS.md (when learning a technology is part of the owner's purpose)
 Produces: the researched options with what each costs, one recommendation, and the settled build approach: a platform, or a custom build with its stack
 Check: evidence: the recommendation as given, and the owner's decision in their own words (under ai-decides: the recommendation, and that no objection came by the stated time)
 Depends on: bootstrap.2.7
 
-After discovery, the AI has the answers. But DO NOT pick a tech stack yet. First, research whether a custom build is even the right approach.
+Research the current ways to achieve the owner's goal before selecting a build approach or stack. Existing platforms, extensions to an existing system, hybrid approaches and custom work are candidates when they can satisfy the important requirements. The framework scaffolds custom projects, but that is not evidence that custom is right.
 
-### The AI must consider: does the user actually need a custom app?
+Start from the brief produced by Step 2.7. Identify the requirements that decide the choice, especially the primary task, missing capability, ownership needs, integrations, data and external effects, accessibility, operating burden, time and recurring cost. For a learning project, include what the chosen path actually teaches. A missing capability central to the purpose can outweigh broad feature coverage. Popularity and market position are evidence about support and risk, not selection rules.
 
-Many projects are better served by existing platforms than custom code. The AI must be honest about this, even though the framework exists to scaffold custom projects. Over-engineering is a violation of convention #0 (reusability — don't build what already exists, whether inside the project OR as a market-available platform).
+For each viable option, verify current primary sources and record:
 
-**Exception: learning projects.** If Group 1 revealed this is a project to learn a specific technology (not a product to ship), platform-vs-custom research is bypassed — the technology choice IS the point. Scale-vs-cost still matters: recommend the cheapest way to exercise the target technology (local tooling before cloud). Full flow, detection heuristics, and References.md documentation template in `bootstrap/LEARNING-PROJECTS.md`.
+- which important requirements it satisfies and which it does not;
+- the work needed to close material gaps;
+- current price and terms that affect the project;
+- ownership, export, integration and migration limits;
+- security, privacy and operating obligations relevant to the recorded profile;
+- implementation and maintenance effort, with uncertainty named;
+- why it remains viable or why it was rejected.
 
-Research and present these options to the user BEFORE committing:
+Research only to the depth the decision needs. Do not repeat current project research without a relevant change, expired evidence or unresolved question. Never label remembered knowledge as verified research.
 
-**Option 1: Existing platform (no custom code needed)**
+Recommend one approach because its tradeoffs best serve the owner's purpose and constraints. Present the recommendation first in plain language, with cost and material limitations, then the credible alternatives. Do not use a coverage percentage, the owner's technical vocabulary, or a fixed platform/custom preference as the deciding rule.
 
-| User wants | Consider instead of custom code |
-|---|---|
-| Blog / content site | a hosted CMS, or a static site generator plus a headless CMS |
-| Online store | a hosted e-commerce platform |
-| Portfolio / brochure site | a hosted website builder, or a static site generator |
-| Landing pages | a hosted landing-page builder |
-| Internal forms / workflows | a no-code database, form, or internal-tool builder |
-| Booking / appointments | a hosted scheduling service |
-| Documentation site | a docs-site generator, or a hosted docs platform |
+This choice changes the product shape and may create recurring cost, so it remains the owner's decision under both authority settings (#29). Under `owner-decides`, wait for the choice. Under `ai-decides`, reversible project context may be prepared after the recommendation and stated objection window, but sign-up, payment, external commitment and the product-shape decision require the owner's authorization. Do not generate a custom project while a different build approach is still the recommendation and the owner has not chosen custom.
 
-Research the current market leader in each category at bootstrap; the leaders change. If an existing platform covers 80%+ of what the user needs, recommend it. Custom code should only be chosen when the user has requirements that platforms genuinely cannot meet.
-
-**Option 2: Hybrid (platform + custom pieces)**
-
-Sometimes the right answer is a platform for the core + custom code for specific features:
-- A hosted CMS for content + a custom frontend against its API (headless CMS)
-- A hosted e-commerce platform for checkout + a custom dashboard for analytics
-- A BaaS (Backend-as-a-Service) platform + custom frontend
-
-**Option 3: Full custom build (what this framework scaffolds)**
-
-Custom code is the right choice when:
-- The app has complex business logic that platforms can't handle
-- The app needs custom auth flows, HIPAA compliance, or specific security requirements
-- The app is a SaaS product, dashboard, or tool with unique workflows
-- The user has technical skills or a development team
-- No existing platform covers even 50% of the requirements
-
-### How to present the decision:
-
-Research online (if capable) for the latest platform options that match the user's use case. This choice touches recurring cost and the shape of the product, so it goes to the owner under both decision-authority settings (#29): one recommendation first, the reason and the cost with it, the alternatives after it. Then present:
-
-```
-Based on what you described, my recommendation is [option] because [reason tied to the discovery answers]; it would cost [monthly cost or "nothing"] and take about [effort]. Doing this unless you object.
-
-The alternatives I weighed:
-
-Option A: [Platform name]
-- What it does: [covers X, Y, Z of your requirements]
-- What it doesn't do: [missing A, B]
-- Cost: [pricing]
-- Effort: [timeline]
-- Best if: [use case fit]
-
-Option B: [Different platform or hybrid approach]
-- ...
-
-Option C: Custom build with [tech stack]
-- What it does: exactly what you need, fully customizable
-- What it doesn't do: nothing - but you have to build and maintain everything
-- Cost: development time + hosting
-- Effort: [timeline estimate]
-- Best if: you need full control, have complex requirements, or this is a product
-```
-
-Under `owner-decides`, wait for the owner's choice before generating anything. Under `ai-decides`, generate the project context for the recommended path if the owner does not object in the session: generating reversible context is preparation, not the decision, and the decision itself stays open; any sign-up, payment, or commitment waits for an explicit yes, because silence is not authorization (#29). Never generate a custom build when the recommendation was a platform and the owner has not chosen it.
-
-If the user chooses a platform (Option A or B), help them set it up. The Archetype framework's scaffolding phase doesn't apply — but the conventions around security (#23), documentation (#16), and git (#2) still do.
-
-Proceed to Step 4 when the build approach is settled: under `owner-decides`, when the owner confirms the custom build; under `ai-decides`, when the recommendation is a custom build and the owner has not objected.
+In Step 4.2, route by responsibility: use platform context for provider-owned capabilities and custom context for code the project owns, including integrations or extensions within a hybrid. Record the researched stack and applicable verification for owned code. A platform choice does not remove the project's testing, security or maintenance obligations at those boundaries.
 
 ## Record the settled basis
 
-Carry consequential build and scope choices into the single decision location selected in Step 4.2 (#16). Give stable IDs to the choices later work depends on, including the build approach and committed contexts. Keep owner requirements as the grounds of the design brief; delegating a look never replaces them. Do not create a second record when the project already uses one.
+Carry consequential build and scope choices into the single decision location selected in Step 4.2 (#16). Give stable IDs to choices later work depends on, including the build approach and committed contexts. Keep owner requirements as the grounds of the design brief; delegating a look never replaces them. Do not create a second record when the project already uses one.

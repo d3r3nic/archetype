@@ -8,7 +8,7 @@ Documentation captures what code cannot express: intent, constraints, business r
 
 Create a documentation system that establishes:
 - An architecture decision record (ADR) template for recording significant decisions with context, reasoning, and trade-offs
-- A feature documentation template that every feature fills out: what it does, why it exists, how it integrates, and what decisions were made
+- One feature documentation template, templates/feature-doc-template.md, whose relevant fields explain purpose, contracts, non-obvious choices and evidence. Keep simple records brief; do not fill irrelevant sections.
 - A naming convention: descriptive names that communicate purpose without abbreviations. AI and humans should be able to understand an identifier without context.
 - A structured TODO format that links to tracking systems so TODOs are actionable, not forgotten
 
@@ -16,7 +16,7 @@ Create a documentation system that establishes:
 
 - Comments explain WHY or provide constraints. Never explain WHAT the code does. If the code needs a comment to explain what it does, the code should be rewritten to be clearer.
 - If code is self-explanatory, no comment needed. Most code is self-explanatory.
-- Every feature has documentation that explains what it does, why it exists, and how it works from a business perspective. Updated after every change. Stale documentation is worse than no documentation.
+- Keep the feature record and its discoverable index current when behavior, contracts or decisions change. Explain what a later reader cannot reliably recover from code. A routine edit within an existing feature updates that record only when its facts change.
 - Architecture decisions are recorded with context, reasoning, and trade-offs. When someone asks "why did we choose X over Y?" the answer exists in the decision record, not in someone's memory.
 - References.md names one decision location. Reuse an existing architecture decision record location; otherwise use DECISIONS.md from templates/decisions.md. Never create a second decision store.
 - Each `### DEC-NNN` entry has one non-empty line for Date, Status, Decision, Reason, Alternatives, Authority, Evidence, Review, Depends on, Supersedes, and History. IDs are stable. Status is proposed, accepted, superseded, or retired. Unknown is recorded as unknown. `Depends on` and `Supersedes` contain semicolon-separated decision IDs or none.
@@ -32,7 +32,7 @@ Create a documentation system that establishes:
 - Stale documentation that describes a previous version of the code
 - Magic numbers with no explanation: TIMEOUT = 3000 (why 3000?), MAX_RETRIES = 5 (why 5?), BATCH_SIZE = 50 (why 50?)
 - Domain abbreviations that only insiders understand
-- Features with no documentation explaining why they exist
+- Features whose purpose or consequential decisions cannot be found
 - Bare TODO comments with no ticket reference or context
 - Over-commenting: a doc-comment block on every function describing obvious parameters and return values
 
@@ -47,15 +47,9 @@ Create a documentation system that establishes:
 
 ## Documentation Formatting
 
-AI-generated documentation wastes tokens on visual formatting that adds no value for AI consumption. Documentation should be optimized for content, not presentation.
+Use structure that helps the actual reader and any declared parser. The feature template is the single home for its format; preserve headings and fields a tool reads. Link to authoritative current facts rather than copying locations, schemas or verification commands into every document. Historical logs may retain revision-specific snapshots and must be identified as history.
 
-Rules:
-- No emojis in documentation or code comments. They consume tokens and add no information.
-- Minimal markdown formatting. Use plain text headings (Heading: not # Heading) in feature docs where heavy formatting adds overhead. Convention docs and framework docs use markdown for structure.
-- No bold or italic for emphasis in feature documentation. If something is important, say it is important in words.
-- Focus documentation on content density. Every line should deliver information the reader (human or AI) cannot get from the code itself.
-
-This cuts token consumption on documentation files and speeds up parsing.
+Keep the explanation proportional to the decision and risk. A brief purpose and a link to the existing contract can be enough for a small feature; complex behavior needs the additional context its consumers will use. Removing formatting does not itself establish a token or reliability improvement.
 
 ## Research Notes
 

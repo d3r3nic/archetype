@@ -1,7 +1,5 @@
 # Bootstrap: hooks
 
-Part of the bootstrap playbook (bootstrap/ONBOARD.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step: read it when the script names it, with the reading it lists, and close it before opening the next.
-
 ## Step 5: Set Up Hooks (optional - can be done later)
 Read: templates/hooks-spec.md
 Produces: the hooks the specification names, installed for the working session

@@ -1,6 +1,6 @@
 # Frontend scaffold: routing, layouts, and the service worker for an installable web app
 
-Part of the frontend scaffold playbook (scaffolding/SCAFFOLD-FRONTEND.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step. Before building, read the conventions it names and write how the system will be built in its References.md section (scaffolding/_preamble.md); when it lands, update its feature-tree.md row and its docs/systems/ page.
+Use scaffolding/SCAFFOLD-FRONTEND.md for this route and scaffolding/_preamble.md for shared scaffold guidance.
 
 ## Step 8: Routing, layouts, and the service worker for an installable web app
 Read: #21; #11; #14; bootstrap/RED-FLAGS.md § Mobile Disambiguation (when the app is installable or the mobile mode is still open); scaffolding/_preamble.md § Convention-mapping rule; scaffolding/RED-FLAGS.md § 14. Provider composition order (frontend/mobile); scaffolding/RED-FLAGS.md § 15. Route guards forgotten on protected routes

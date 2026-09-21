@@ -1,7 +1,5 @@
 # Bootstrap: discovery, group 6
 
-Part of the bootstrap playbook (bootstrap/ONBOARD.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step: read it when the script names it, with the reading it lists, and close it before opening the next.
-
 ## Step 2.6: Group 6 - How careful, and who decides
 Read: bootstrap/ONBOARD-DISCOVERY.md; bootstrap/RED-FLAGS.md § Discovery Turn Budget; #30; #29
 Produces: the facts PROFILE.md holds, the operating stage derived from them with its reason, the owner channel, and who decides technical questions

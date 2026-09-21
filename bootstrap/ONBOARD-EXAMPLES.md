@@ -1,29 +1,35 @@
 # Bootstrap: example conversations
 
-Read once, with the first discovery step. Two owners, two very different openings, the same steps.
+Illustrations of the discovery posture. They do not replace the stepped questions or Step 3 research.
 
-**Vibe coder with a vague idea:**
+## Owner with a broad idea
 
-User: "I want to build an app for my restaurant"
+Owner: "I want to build something for my restaurant."
 
-AI: "Great! Let me ask a few questions to understand what you need..."
-- "What should the app do? Take orders? Show the menu? Let people book tables?"
-- "Should customers use it in a browser or as a phone app?"
-- "Do customers need to create accounts?"
-- ...
+AI: "I will first understand what it needs to accomplish. What should customers be able to do, who updates the information, and where will each person use it?"
 
-User: "I just want people to see our menu and book a table online"
+Owner: "Customers should see our menu and book a table online. My manager updates the menu."
 
-AI: "Got it. This is a web app with a frontend for customers and a backend to store menu items and bookings. Users don't need accounts for viewing the menu, but bookings need a simple form. No file uploads, no real-time, no offline needed. I'd recommend a standard web stack: a component UI framework for the pages and a small typed API behind it. Let me set it up..."
+AI: "The primary outcomes are a menu customers can read and a booking flow, with a separate update path for the manager. I still need the booking rules, access needs, data involved, expected usage and budget. Then I will research current hosted, hybrid and custom approaches and recommend the one whose tradeoffs fit those priorities."
 
-**Developer who knows what they want:**
+The AI records requirements before naming an implementation. A current booking service may be the best answer, or ownership, integration and workflow needs may justify custom work. Discovery does not decide that in advance.
 
-User: "I'm building a healthcare SaaS. Component-framework frontend, cloud-hosted backend, managed relational database, cloud-managed auth. I know the stack."
+## Owner with a preferred stack
 
-AI: "Stack noted. Before I generate files, Step 3 still applies — even with a declared stack. For healthcare SaaS specifically, HIPAA-compliant vertical platforms often cover most typical use cases (patient portals, intake, scheduling, notes) with BAAs included. Let me confirm: is the core of your product something those platforms already do, or is it unique logic on top of that (AI analysis, custom workflows, proprietary algorithms)? If it's the latter, your stack is a reasonable fit. If it's the former, start from the platform and build only the unique layer. Research current HIPAA vertical-SaaS options to make sure the recommendation is up-to-date."
+Owner: "I am building healthcare software with a component-based frontend, a cloud backend, a managed relational database and managed identity. I know the stack."
 
-User: "Custom — the core is our AI analysis pipeline, no platform does that."
+AI: "I will preserve those preferences and their reasons. Before committing, I need the product's central workflow, the applicable data regime, required integrations, vendor agreements, operating constraints and which parts of this stack are already settled commitments. Step 3 will verify the current capabilities, terms and costs of the preferred path and compare credible alternatives where they could materially change the outcome."
 
-AI: "Confirmed custom build is correct. Generating References.md with the declared stack, and I'll flag HIPAA-specific requirements inline (BAA with the cloud provider, encryption at rest, MFA on auth, audit logging, PII log-scrubbing)."
+Owner: "The central workflow is our proprietary analysis pipeline. We must integrate with two existing systems, and the named cloud is already an organizational commitment."
 
-**Key takeaway:** even for a confident user with a declared stack, Step 3 still runs. A 30-second confirmation ("is this custom logic or platform-served?") prevents scaffolding weeks of infra for a use case a platform already solves.
+AI: "Those facts make the pipeline, integrations and cloud commitment decisive inputs. I will research the remaining choices within that boundary, verify the required agreements and controls for the actual regime, and record why the resulting approach serves the product."
+
+The AI neither discards a knowledgeable owner's commitments nor treats technical vocabulary as proof that every choice is correct. Research tests the unsettled parts against the goal.
+
+## Owner whose purpose is learning
+
+Owner: "This is a small personal application, but I am building it to learn container orchestration."
+
+AI: "Learning container orchestration is part of the product purpose, so I will evaluate approaches by what they teach as well as what the application needs. I will research current local and hosted learning paths, their costs and the operational topics each exposes. We will choose the path that teaches the named subject without adding unrelated burden, while keeping the normal safety and spending gates."
+
+The audience size does not erase the learning goal, and the infrastructure choice is not inferred from audience size alone.

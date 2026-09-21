@@ -2,66 +2,50 @@
 
 ## Principle
 
-State lives as close to where it's used as possible. Local component state is the default. Server data (anything from an API) uses a dedicated data fetching layer that handles caching, deduplication, and revalidation automatically. Global state is reserved for truly app-wide concerns only. Data flows in one direction.
+Choose state ownership, lifetime and propagation from the behavior the project promises. Make authoritative state and its derived views distinguishable, and make updates understandable. Component-local state, shared stores, server caches, persistent models and simulation worlds solve different needs. Preserve an accepted contract until a justified change identifies its affected consumers.
 
 ## Reusable System
 
-Create a state management setup that establishes:
-- A configured store for global state with a clear pattern for how features register their own state slices
-- Integration with a server-state layer that manages API data with automatic caching, background refetching, and deduplication. Features declare what data they need, the layer handles how to get it, cache it, and keep it fresh.
-- A clear rule for which state goes where: local state for UI-only concerns, server state for API data, global state only for auth/theme/locale
+Record the state responsibilities the project actually needs:
+- Which part of the system owns each important fact and which parts consume it.
+- How updates propagate, persist, synchronize or expire.
+- Where derived views are computed and how cached views stay consistent.
+- Which boundaries require shared coordination and which state can remain local.
+
+Do not add a global store, network cache or synchronization layer solely because this convention lists it.
 
 ## Rules
 
-- Default to local state. Only lift state when genuinely needed by multiple components.
-- Server data always goes through the data fetching layer. Never store API responses in the global client state. The data fetching layer handles caching, deduplication, and revalidation automatically.
-- Global state only for truly app-wide concerns: authentication status, theme preference, locale. Nothing else.
-- State tree is flat. Each feature registers one slice at the top level, not nested inside other slices.
-- Data flows in one direction: down through props, up through callbacks.
-- Never store derived state separately. If filteredItems can be computed from items + filterCriteria, compute it, don't store it as a separate piece of state.
-- Filters, pagination, sort order, and view state belong in the URL, not component state. They must survive page refresh and be shareable via URL.
+- Keep state ownership as narrow as its consumers and lifetime allow. Shared state is justified by shared responsibility, not a fixed list of approved categories.
+- For remote data, investigate consistency, freshness, cancellation, cache invalidation and failure behavior. Use a maintained fetching or synchronization layer when its contract fits; do not assume every runtime needs automatic refetching or a separate client cache.
+- Choose state structure and update flow for the domain and concurrency model. Features, entities, scenes, transactions or another structure may provide the useful boundary.
+- Avoid competing writable copies of the same fact. Compute derived views when practical; materialize or cache them when cost justifies it and define how they stay consistent.
+- Decide whether filters, sorting and view state should survive refresh, navigation, sharing or restart. In a web interface, URL state can serve shareable non-sensitive views. Local, session or persistent project state may fit other behavior. Preserve the existing contract for a scoped edit.
+- Keep sensitive state out of URLs, logs and storage that would expose it beyond its intended boundary.
+- Verify transitions, stale inputs, concurrent updates and recovery where they affect promised behavior.
 
 ## Violations
 
-- Storing API response data in the global store instead of using the data fetching layer
-- Putting everything in global state (modal open/close, tooltip visibility, form input values)
-- Storing derived values (filteredItems, sortedItems) as separate state and keeping them in sync with effects
-- Props drilling through 5+ intermediary components without introducing context or state management
-- Filters and pagination in component state instead of URL parameters (lost on refresh, not shareable)
+- A shared store or cache added without a responsibility that needs it.
+- Independent writable copies drift while each claims to be authoritative.
+- A narrow filter change silently alters navigation or persistence behavior.
+- A cached or materialized view has no defined update or invalidation policy.
+- Consumers cannot identify where a state change originates or who owns it.
 
 ## Wrong vs Right
 
-- WRONG: a global state store that manually tracks a users list, loading boolean, and error string, with manual fetching logic that sets loading, stores data, and catches errors. Full manual cache management.
-- RIGHT: a server-state hook that declares "I need the users list." The data fetching layer handles loading state, error state, caching, deduplication, and background revalidation automatically.
-- WRONG: three separate pieces of state - items, filteredItems, sortedItems - with effects to keep them synchronized. When items changes, filteredItems updates, then sortedItems updates. Complex, fragile chain.
-- RIGHT: one piece of state (items) and two computed values derived from it. filteredItems and sortedItems are calculated on the fly, not stored.
-- WRONG: user applies a search filter. It's stored in component state. User copies the URL and sends it to a colleague. Colleague opens it, sees no filter applied.
-- RIGHT: search filter is in the URL query parameters. User copies the URL, colleague sees the same filtered view.
+- WRONG: move every filter into a URL because a general rule says so. RIGHT: establish the expected sharing and persistence behavior, then choose storage that meets it without exposing sensitive values.
+- WRONG: maintain items, filtered items and sorted items as unrelated writable stores. RIGHT: derive views from the authoritative items, or maintain a justified materialized view with verified consistency.
+- WRONG: impose component-local state on a simulation whose world owns the shared rules. RIGHT: choose ownership from the domain and measure the representative update workload.
 
 ## Offline Support
 
-If the project needs to work without network connectivity (mobile apps, field-use applications, progressive web apps), offline support is a state management concern. Build one reusable offline system, not per-feature offline handling.
+Establish what offline use means for this project. A fully local application may need durable storage and recovery without any network queue. A synchronized application also needs defined mutation ownership, ordering, retry, duplicate prevention and conflict behavior.
 
-Create a reusable offline system that:
-- Detects network status and exposes it as state the entire app can read
-- Queues mutations (form submissions, data changes) made while offline and replays them when connectivity returns
-- Persists critical data locally so the app can display cached content without a network connection
-- Handles conflict resolution when offline changes conflict with server-side changes made by other users
-- Shows clear UI indicators for offline status, pending sync, and sync failures
-
-Rules:
-- One offline system, not per-feature. Features declare what data should be available offline and what mutations should be queued.
-- Forms that need offline support integrate with the offline queue through configuration, not custom code per form.
-- Always show the user what's pending sync and whether sync succeeded or failed.
+Share coordination where features must honor the same invariants; keep separately evolving responsibilities separate (#0). Preserve critical data, make pending or failed synchronization visible when it exists, and exercise interruption and recovery. Do not promise that a request succeeded before its actual commitment point.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current evidence when the state contract changes.
 
-When bootstrapping this convention:
-- Research the framework's latest state management options. Find the recommended server-state library for the framework (handles API data caching and revalidation). Find the recommended client-state library if global state is needed.
-- Research the framework's patterns for computing derived state without storing it separately
-- Research URL state management patterns for the framework (how to sync filters, pagination, sort with URL parameters)
-- Research the framework's data flow patterns (one-way data flow, props, callbacks, context)
-- If the project needs offline support: research the framework's offline data persistence patterns, background sync APIs, and queue-based mutation replay strategies
-- Document the state management choices, patterns, offline approach (if applicable), and conventions in References.md
+Research the runtime's maintained state, persistence and concurrency approaches where they affect the project. Compare freshness and ownership requirements before selecting caching or synchronization tools. For shareable web views, check URL and privacy behavior; for local or synchronized data, check durability, migration and recovery. Record the chosen contracts and verification in the existing project context.

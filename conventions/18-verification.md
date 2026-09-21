@@ -2,48 +2,40 @@
 
 ## Principle
 
-Code is not done until it is verified. Every change is followed by running tests, building, and type-checking. Tests are written before implementation, serving as executable specifications that define what success looks like. The AI implements against these specifications. Verification is the bottleneck in AI development, not code generation. This is the single highest-leverage practice for AI-assisted development.
+Completion requires evidence for the behavior being claimed. Define the expected outcome independently of the implementation, select checks that can expose a wrong result, and verify while changes remain understandable. Test-first development is useful when a behavioral specification can be made executable before implementation; test timing alone does not establish correctness.
 
 ## Reusable System
 
-The test infrastructure from convention #12 serves this convention. Additionally:
-- Verification commands documented in References.md so the AI knows exactly what to run
-- Build gates (hooks or scripts) that block marking work complete until all checks pass
-- A visual verification step for UI changes: describe or capture what the result looks like and compare to the expected outcome
+Use the project's test infrastructure (#12) and record its verification commands in References.md. Required gates prevent acceptance of unresolved failures. UI evidence combines current captures with the interactions and access checks that the claim needs (#27). Other domains need evidence appropriate to their actual behavior.
 
 ## Rules
 
-- Write failing tests BEFORE asking the AI to implement. The test defines what correct behavior looks like. Then the AI implements until the test passes. This prevents AI from writing tests that confirm broken behavior.
-- Run tests after every significant change. Not at the end of the session. After every change.
-- Type-check after every change. Type errors caught early prevent cascading issues.
-- Build after every change. Import errors, missing dependencies, and configuration issues show up in the build.
-- For UI changes, verify the visual output. Describe what the screen looks like or compare to a design. The code compiling doesn't mean the UI looks right.
-- Work is not done until all verification passes. If tests fail, fix them. If the build fails, fix it. Do not move on with failing checks.
-- If no test exists for the code being changed, write one before making the change.
+- Establish observable success and relevant failure behavior before implementation. For a defect, reproduce it and preserve a regression check where practical.
+- Choose tests or observations that distinguish the intended result from plausible wrong results. Do not mirror implementation details and call that proof.
+- Verify at coherent change boundaries, early enough to identify the cause of a failure. Select focused checks during iteration, then run all applicable required project checks before claiming completion.
+- Run tests, type checks and builds where they verify affected behavior or a declared project gate requires them. A prose-only change needs appropriate source and contract checks; it does not justify inventing a code test or rerunning an unrelated build after every wording edit.
+- For screen changes, inspect current visual evidence and exercise relevant interactions. Compilation and screenshots alone cannot establish usable behavior.
+- Investigate failures and warnings. Keep real defects and unresolved required checks blocking; never suppress a diagnostic or weaken an assertion merely to pass.
+- Reproduce a heuristic mismatch against the accepted project contract and correct the check or use an explicitly supported verification path. Do not label an unsupported approach verified.
+- State exactly what ran, what was observed and what remains unverified. Independent review examines the evidence and its limits (#29).
 
 ## Violations
 
-- Implementing a feature and writing tests after (or not at all)
-- Making multiple changes without running verification between them
-- Calling work done without running the build
-- A change that compiles and passes tests but looks wrong visually (UI regression)
-- Moving on to the next task while tests or build are failing
-- Tests written after implementation that simply confirm whatever the implementation does (even if it's wrong)
+- Acceptance based on remembered output, inferred success or a command that was never run.
+- Tests that confirm whatever the implementation returns without checking intended behavior.
+- A large unverified batch whose failures cannot be localized.
+- Repeated checks that add no evidence after unchanged inputs, while relevant risks remain untested.
+- Claiming an interface works from compilation or captures alone.
+- Calling work complete with a failing or unperformed required gate.
 
 ## Wrong vs Right
 
-- WRONG: AI writes the feature code. It looks reasonable. Developer ships it. Bugs found in production because nobody verified.
-- RIGHT: developer writes a failing test that defines the expected behavior. AI implements code. Test runs. If it fails, AI adjusts. If it passes, move to the next test. Every piece of behavior is verified before moving on.
-- WRONG: AI makes 10 changes across 5 files. At the end, runs the tests. 3 tests fail. Now debugging is hard because any of the 10 changes could have caused the failures.
-- RIGHT: AI makes 1 change, runs verification. Pass. Makes the next change, runs verification. Pass. If a test fails, the cause is obvious - it's the change that was just made.
-- WRONG: tests exist, but they were written by AI after the implementation. The test checks that the function returns exactly what the implementation returns. If the implementation is wrong, the test passes anyway.
-- RIGHT: tests written first define what SHOULD happen. The implementation must match the test, not the other way around.
+- WRONG: a defect appears fixed by inspection, so the session reports success. RIGHT: reproduce the original behavior, check the correction and relevant regressions, and retain the result.
+- WRONG: run every command after each small edit while ignoring a cross-system failure path. RIGHT: check coherent changes during iteration and run the required integration and project gates before acceptance.
+- WRONG: a test copies the function's formula and agrees with the same mistake. RIGHT: derive expected cases from the domain contract, including a case that exposes the suspected mistake.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current evidence when the verification approach changes.
 
-This convention is about development workflow, not framework-specific implementation. The test infrastructure details are in convention #12 and its research notes. For this convention, ensure:
-- Verification commands are documented clearly in References.md (exact command to run tests, type-check, build)
-- Build gates are configured (hooks or CI that blocks incomplete work)
-- The team agrees on test-first workflow for AI-assisted development
+Investigate tools and techniques for the project's runtime and risks. Prefer maintained test infrastructure, representative environments and observable outcomes. Revisit the test strategy when behavior, exposure or an uncovered failure changes its assumptions. Keep required commands and their purpose in References.md.

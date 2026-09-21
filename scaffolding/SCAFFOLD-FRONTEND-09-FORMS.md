@@ -1,6 +1,6 @@
 # Frontend scaffold: forms
 
-Part of the frontend scaffold playbook (scaffolding/SCAFFOLD-FRONTEND.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step. Before building, read the conventions it names and write how the system will be built in its References.md section (scaffolding/_preamble.md); when it lands, update its feature-tree.md row and its docs/systems/ page.
+Use scaffolding/SCAFFOLD-FRONTEND.md for this route and scaffolding/_preamble.md for shared scaffold guidance.
 
 ## Step 9: Forms
 Read: #20; #14; scaffolding/_preamble.md § Convention-mapping rule

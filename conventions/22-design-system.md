@@ -2,64 +2,57 @@
 
 ## Principle
 
-Do not reinvent the wheel. Prefer an established, production-grade component foundation when one fits the product: a library with built-in accessibility, keyboard handling, focus management, and theming. Configure it with the project's theme (every committed color scheme, design tokens, spacing scale). Wrap the components and export them. Features import from the project's wrapper layer, never directly from the library.
+Choose the interface foundation that best serves the project's purpose, platform, existing work, access needs, and likely change. An established library may carry valuable behavior. Native elements may already provide the right contract. Selective adapters may isolate real volatility. A project-owned foundation may be justified. Research current evidence and record the consequential choice instead of assuming that every project needs a library, wrapper layer, or catalog.
 
-A project may rule otherwise — no fitting library exists for its platform, the product IS the component library, or a real constraint outweighs the reuse — and records that decision and its reason in References.md. Whatever the foundation, the wrapper layer, the token wiring, and the component catalog are not optional.
+Whatever the architecture, the implemented interface must honor the accepted artifact, committed schemes and contexts, accessibility target, and tested interaction behavior.
 
 ## Reusable System
 
-Create a design system foundation that establishes:
-- A component foundation configured with the project's theme (every committed color scheme, design tokens, spacing, typography): an established library where one fits, or a project-owned base layer where the project ruled otherwise
-- Wrapper components around the foundation. The wrappers import from the library, apply theme configuration, enforce consistent API, and re-export. Features only import from the wrappers.
-- The wrapper layer is thin. It configures and re-exports. It does not rebuild components from scratch. The foundation already handles accessibility, keyboard navigation, focus management, responsive behavior, and visual consistency.
-- A component catalog showing all available wrapped components so developers and AI can see what exists before building anything new
-- A deprecation process for components being replaced
+Establish the interface system the project chose:
+- The selected foundation and why it fits, including direct native or direct library use when appropriate.
+- The import or composition boundary that consumers actually follow.
+- Theme or styling integration according to convention #6 and the accepted artifact.
+- A discovery surface proportional to the project, such as existing code search, generated documentation, a catalog, previews, or a combination.
+- A replacement and migration approach for shared interfaces that change.
 
 ## Rules
 
-- Prefer an established component foundation. Do not build buttons, inputs, modals, dropdowns, tables, or other standard components from scratch when the foundation already provides them. Established libraries carry years of accessibility work, browser testing, and edge-case handling.
-- A project that rules otherwise records the decision and its reason in References.md before scaffolding components. The wrapper layer, token wiring, and catalog still apply.
-- Configure the foundation's theme with the project's design tokens: colors per scheme, spacing scale, typography scale, shadows, border radius. Every committed scheme must work.
-- Wrap every component the project uses. The wrapper imports from the foundation, applies any project-specific defaults, and re-exports. Features import from the wrapper, never from the library directly.
-- The wrapper layer is where theme enforcement happens. If a component needs project-specific styling or defaults, that goes in the wrapper. Features get a clean, consistent API.
-- Before building any component, check feature-tree.md and the shared component directory; no script checks this, review does.
-- Add a shared component when the artifact specifies it or when a third use appears; before that, compose from what exists. A component built for one feature lives in that feature until the third use.
-- Name by role (what it is for), never by look or by the feature that needed it first; variants are named by role as well (primary, secondary, danger, quiet), as #6 names tokens.
-- Every shared component has a catalog entry with its states, its inputs, and its do and don't before feature code uses it; the catalog is updated in the same change as the component.
-- Deprecation: mark, point to the replacement, migrate every use, remove. A deprecated component gains no feature.
-- One icon set, one style, sized to the type scale, recorded in References.md; an icon has a label or an accessible name; emoji are not icons.
-- Never install a second component library for a single widget. Find a component within the existing foundation or find a standalone one that integrates with the project's theme. Build from scratch only when neither exists, and then inside the wrapper layer with the same API conventions.
-- These rules govern code. A canvas or artboard format that cannot import the foundation draws its controls as markup; that is design content under #27, not a hand-built component. A preview built from the repository's own components is code and imports the wrapper layer like any other. The code that implements a mockup uses the foundation, and a control the mockup shows that the foundation lacks is a wrapper to add, not a one-off.
+- Research native capabilities and current maintained foundations against required behavior, accessibility, platform fit, maintenance, bundle or runtime cost, and existing project use.
+- Record the selected foundation and boundary before scaffolding shared interface code. Revisit it only when relevant evidence or requirements change.
+- Follow the chosen boundary. If direct imports are the recorded pattern, use them consistently. If adapters or wrappers isolate a real concern, consumers use that layer.
+- Add an adapter only when it configures behavior, preserves a stable project contract, centralizes a meaningful policy, or isolates demonstrated volatility.
+- Do not rebuild a control when an existing option meets the requirement. Do not adopt an existing option merely because it is popular when its behavior or cost does not fit.
+- Reuse or extract a component when shared behavior, repeated change, accessibility risk, or coupling justifies it. A fixed use count is not proof.
+- Name components and variants from their project meaning. Similar roles should look and behave consistently; different roles may use different patterns.
+- Keep available components and interaction states discoverable through the project's recorded method. A catalog is required only when it is the selected discovery and review surface.
+- Preserve focus, input, semantics, state communication, and every committed scheme and context through component changes.
+- Record deprecation and migrate consumers before removal when a shared contract changes.
+- Use an icon strategy coherent with the accepted direction and accessibility target. More than one source requires a reason and a consistency plan, not an automatic failure.
+- Design content may draw controls directly. Code implementing it follows the project's selected interface and styling contracts.
 
 ## Violations
 
-- Building buttons, inputs, modals, or other standard components from scratch when the foundation provides them, or before searching for a standalone one that integrates with the theme, with no recorded decision saying otherwise
-- Importing components directly from the library in feature code instead of from project wrappers
-- Building a new component without checking if one already exists
-- Library-specific API patterns leaking into feature code
-- A foundation configured for one color scheme when the project committed to more
-- Components using hardcoded colors instead of the configured theme
-- A shared component named for its version or for the feature that first needed it
-- Two icon sets in one product
-- A cataloged component with no use in code and no recorded reason
+- Choosing a foundation or wrapper policy without examining the project's actual platform and requirements.
+- Bypassing the recorded import or composition boundary without new evidence or a migration decision.
+- Adding pass-through wrappers, unused primitives, or catalog entries with no demonstrated purpose.
+- Rebuilding interaction and accessibility behavior that a fitting selected foundation already provides.
+- Losing required keyboard, focus, controller, semantic, state, scheme, or context behavior.
+- Letting foundation-specific details spread across the project after deciding to isolate them.
 
 ## Wrong vs Right
 
-- WRONG: building a Button component from scratch with utility classes, manually handling focus states, hover states, disabled states, keyboard interaction. Reinventing what the chosen library already provides.
-- RIGHT: installing the chosen library, configuring its theme with the project's design tokens for every committed scheme, wrapping its Button with project defaults, exporting it. One line of config instead of a page of custom code.
-- WRONG: feature code imports Button directly from the library. 50 features import directly. Switching libraries means rewriting 50 features.
-- RIGHT: feature code imports Button from the project's wrapper layer. Switching libraries means updating the wrappers only. Zero feature code changes.
-- WRONG: the foundation is configured with one scheme only. Someone asks for a second scheme later. Every component needs manual colors added.
-- RIGHT: the foundation is configured with every committed scheme from day one. The theme system handles switching. Components adapt automatically.
+- WRONG: install the most popular library, wrap every control, and call the architecture reusable before testing the product's interactions.
+- RIGHT: compare native, library, adapter, and project-owned options against the actual requirements, exercise the risky interactions, then enforce the selected contract.
+- WRONG: import directly in some features and through wrappers in others because both patterns were convenient locally.
+- RIGHT: use the recorded boundary consistently, or change it through a migration decision with affected evidence reopened.
+- WRONG: require a catalog for a small native interface when code search and focused previews already make the system discoverable.
+- RIGHT: choose a discovery and review surface proportional to the project and keep it current.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options when the foundation is selected.
 
-When bootstrapping this convention:
-- Research the most established, production-grade component library for the chosen framework and platform. Pick one with: built-in accessibility, theme customization for every committed scheme, comprehensive component set, active maintenance, large community. If none fits, record the decision to build a project-owned base layer in References.md, with the reason.
-- Research how to configure the library's theme system with custom design tokens. Set up every committed scheme.
-- Research the library's recommended wrapping patterns. How do you create thin wrappers that pass through all props while applying project defaults?
-- Research the library's tree-shaking support so only used components are included in the bundle.
-- Configure every committed scheme before wrapping any components. The theme must work end-to-end before features start.
-- Document the foundation choice (or the decision to rule otherwise), wrapper location, import conventions, available components, and theme configuration in References.md.
+- Research current platform controls and maintained foundations, including accessibility, theming, interaction coverage, maintenance, runtime cost, and migration risk.
+- Inspect the project's existing components and actual repeated behavior before proposing a new layer.
+- Prototype or test the interactions whose quality cannot be established from documentation alone.
+- Document the foundation decision, consumer boundary, styling integration, discovery surface, and verification evidence in References.md.

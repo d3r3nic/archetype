@@ -8,7 +8,7 @@ Surface before moving to Step 3. If any combination fires, do NOT silently proce
 
 | Combination | Why it's a red flag | What to do |
 |-------------|---------------------|------------|
-| Free to run + regulated data (HIPAA, PCI, financial) | Compliance-grade hosting has a meaningful monthly floor. BAAs, compliant storage, encryption, audit logging — none ship on free tiers. | Step 3 Option A is the only correct answer. Recommend the cheapest compliant platform for the regime. Custom for $0 is not possible. |
+| Free to run + regulated data (HIPAA, PCI, financial) | Required agreements, controls and evidence may conflict with the budget. | Identify the regime and research current compliant options and their full costs. If no option fits both the requirements and budget, state that conflict and stop before commitment. |
 | Offline + regulated data (PHI, PII, financial) | Offline means data on the device. Device loss, encryption failure, sync integrity, remote wipe — all compliance risks. | Challenge the requirement. Ask: "Do you need truly offline, or fast access while online?" Offline with regulated data is a significant compliance burden. |
 | Solo user + enterprise infra (container orchestration, multi-region, service mesh, distributed message queues) | Operational burden exceeds feature work. User bounces off the infra before shipping the product — UNLESS this is a learning project (see LEARNING-PROJECTS.md). | First, ask ship-vs-learn (see LEARNING-PROJECTS.md). If shipping, surface the scale mismatch and quantify complexity cost (hours of ops/week). Offer a simpler stack. |
 | Real-time + static hosting | Real-time (WebSocket, SSE) needs a long-lived server. Static hosts cannot. | Add a managed real-time service OR a stateful backend. Confirm the cost addition. |
@@ -21,7 +21,7 @@ Surface before moving to Step 3. If any combination fires, do NOT silently proce
 | Technical question put to a non-technical owner under `ai-decides` (which database, which framework, which folder layout) | The owner cannot answer it well and did not hire the AI to be asked. It stalls delivery and teaches the owner to guess. | Decide per the conventions, record the decision with its reason, tell the owner in the session summary (#29). |
 | "All equally important" + user refuses to rank | Proceeding without a ranking means AI guesses and may optimize the wrong axis. | Apply default order: (1) compliance and legal safety, (2) data integrity and authentication, (3) core user flow, (4) scale, (5) polish and nice-to-haves. Document the applied order in References.md under "Convention Overrides" so the user can redirect later. |
 
-Multiple red flags = strong signal for platform Option A.
+Multiple red flags mean more constraints must be reconciled in Step 3. They do not select an approach by count.
 
 ## Vague-Answer Rules
 
@@ -36,7 +36,7 @@ The safe default is yes-regulated. A wrong "no" here leads to a non-compliant st
 ### Vague budget answer
 
 Parallels vague-regulated:
-- If regulated-data is YES (confirmed or default-assumed), surface the minimum monthly compliance floor — research current vendor quotes for the specific regime before committing. If user cannot absorb it, platform Option A is the only correct answer.
+- If regulated-data is YES (confirmed or default-assumed), research the current compliance costs and terms for the specific regime before committing. If the budget cannot satisfy the requirements, name the conflict and leave the build approach unsettled.
 - If regulated-data is NO, assume $0 budget. Flag any non-free component (paid hosting tier, paid auth provider, paid monitoring) before committing. Get affirmative consent per component.
 
 ### Vague answer about who decides
@@ -45,7 +45,7 @@ If the owner answers the last Group 6 question vaguely ("you decide", "whatever 
 
 ### Vague stack preference ("use whatever", "I don't care")
 
-Not a choice — a deflection. Do not invent Option C with a random stack. Apply Step 3 default: if a platform covers 80%+ of the use case, recommend it. If not, offer a minimum-viable custom stack for the scope and name it as the default pending user objection.
+This delegates the technical recommendation; it does not supply evidence for one. Step 3 researches viable approaches and recommends the one whose tradeoffs best serve the recorded goal and constraints. Do not invent a stack from memory.
 
 ## Deploy Gate — unresolved regulated-data question
 
@@ -62,12 +62,12 @@ If the user says "phone app" or "works on my phone," do NOT silently pick a stac
 
 Name a well-known app for option (a) so the question lands with a non-technical user; pick one that is popular now, not one you remember.
 
-These three are genuinely distinct decisions — do NOT merge them:
-- **Responsive web (c)** — site works on phone browsers. No install. Cheapest and fastest. The default for "I don't know."
-- **PWA (b)** — responsive web PLUS an installable home-screen icon via manifest + service worker. Adds offline caching and push notifications. More work than (c), meaningfully less than (a).
-- **Native (a)** — native modules, app-store presence, native device APIs (the OS health-data store, haptics, biometrics), different deployment. Most work.
+These are distinct contexts with different capabilities and obligations:
+- **Responsive web (c)** runs in a phone browser.
+- **PWA (b)** adds an installable web experience and only the offline, background or notification capabilities the project actually commits to.
+- **Native (a)** uses an app-store distribution path and can use native device APIs.
 
-If the user says "I don't know what that means" or deflects, pick responsive (c). Do NOT silently pick native or bundle PWA on top by default.
+If the owner does not know which label applies, ask about the outcome: installation, offline behavior, notifications, app-store presence and device APIs. Record the required capabilities and let Step 3 research the current approach that meets them.
 
 ## Scope-Change Handler
 

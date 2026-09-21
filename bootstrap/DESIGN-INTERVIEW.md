@@ -39,14 +39,14 @@ Each line is a gate or a question; an indented line is asked only when its gate 
 The "I have ideas" path continues:
 
 4. Gate: colors. "No opinion, you choose" skips the group.
-   - Light, dark, or both. Build every committed scheme. When the committed set has one scheme, record why; keep the semantic token layer ready for another scheme without building an uncommitted one (#6).
+   - Light, dark, or both. Build every committed scheme. When the committed set has one scheme, record why and do not imply that another scheme exists (#6).
    - Which family feels closest: warm, cool, neutral, bold, or you choose.
    - A color people already know you by, and where it can be seen.
    - Colors to stay away from, and why (a competitor's, a bad association).
-   - Colors that already mean something to your users (red for urgent, a status system, a safety code). Those meanings are kept and the product's accent stays away from them (#6).
+   - Colors that already mean something to your users (red for urgent, a status system, a safety code). Keep those meanings and make brand, interaction, data, and status uses distinguishable (#6).
 5. Gate: shape and space. "No opinion, you choose" skips the group.
    - Corners: square, soft, or round.
-   - How much at once: roomy, or dense like a spreadsheet. (The AI says which it recommends, from how long people stay and what they come back to do, both asked in discovery Group 3, and why; the owner's answer stands.)
+   - How much at once in this example: roomy, dense like a spreadsheet, or you choose. Treat the answer as evidence for this context, not a density rule for the whole product. The AI recommends from the activity, session length, content, device, and access needs, and explains why.
    - Lettering: plain, classic, or technical.
 6. Feel and voice. Three scales (quiet to lively, plain to warm, formal to casual; the middle means "you choose"); one sentence written the way the owner would say it to a customer; apps or sites whose feel they like and one they dislike; anything it must never look like.
 7. Pictures and movement. No pictures, photos, illustrations, or you choose; for photos, of what and who takes them. Movement: keep it still, a little is nice, or you choose.
@@ -73,7 +73,7 @@ A key the owner never saw (behind a closed gate) is absent; a preference they sa
 Directions are shown, never only described: in the design tool the session has, or as static pages in the design working-files folder opened in a browser. Words alone ("a calm blue with soft corners") are not a direction.
 
 - On the short way, one direction: the screen for what discovery Group 3 says people come back to do most, composed, in every committed scheme, with its empty state and three lines of copy in the voice (a button, an error, a success). Beside it, one line for each alternate the AI set aside and why. Recorded at the decision location as owner-delegated, with the owner's own words as the grounds and the artifact revision as evidence.
-- On the long way, two to four directions, genuinely different, not three shades of one idea; each with a name, a paragraph of intent tied to the answers, its palette (one accent, the neutrals, the signals), its type pairing, and the same composed screen as above. One recommended, with the reason in plain words. Two questions to the owner: "Which one would you be proud to show a customer?" and "Which one could you live with for five years?" If the answers differ, that is the conversation. The pick is recorded at the decision location with the artifact revision.
+- On the long way, two to four directions, genuinely different, not three shades of one idea; each with a name, a paragraph of intent tied to the answers, its palette and role logic, its typography approach, other identity choices the direction needs, and the same composed screen as above. One recommended, with the reason in plain words. Two questions to the owner: "Which one would you be proud to show a customer?" and "Which one could you live with for five years?" If the answers differ, that is the conversation. The pick is recorded at the decision location with the artifact revision.
 - Decision fidelity either way: enough to feel the difference, not enough to argue about a pixel. After the decision the artifact governs and the session executes without asking again; a change of mind is a new decision, not a series of tweaks.
 
 ## What the answers become

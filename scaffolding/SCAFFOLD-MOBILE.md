@@ -4,7 +4,7 @@ Routed from `scaffolding/SCAFFOLD.md` when the project is native mobile (install
 
 **Read `scaffolding/_preamble.md` first** — it covers the shared scaffold rules. Mobile tooling churns especially fast (SDK versions, native-module APIs, submission policies), so the zero-stale rule is particularly important here.
 
-Most Step 0-11 of `SCAFFOLD-FRONTEND.md` apply identically to mobile (project setup, types, theme, components, state, API layer, auth, forms, testing, CI). The theme step's rule holds here too: token values come from the artifact in the recorded direction of truth (`References.md § Design Artifact`), and the mobile References template's `Platform parity` line says how both platforms' states stay aligned (#27). The component foundation step's state components, icon set, focus token, state gallery, and capture command apply here as well. Mobile-specific additions below.
+Most Step 0-11 of `SCAFFOLD-FRONTEND.md` apply identically to mobile (project setup, types, theme, components, state, API layer, auth, forms, testing, CI). The theme step's rule holds here too: the selected styling source follows the artifact in the recorded direction of truth (`References.md § Design Artifact`), and the mobile References template's `Platform parity` line says how both platforms' states stay aligned (#27). The component foundation uses the project's selected native, library, adapter, wrapper, or project-owned boundary. Its applicable-state evidence, focus behavior, discovery surface, and capture command apply here as well. Mobile-specific additions follow.
 
 ## Mobile-specific additions
 
@@ -15,37 +15,37 @@ Before building:
 - **Workflow (cross-platform frameworks only)**: managed SDK vs bare native project. See `templates/references-mobile.md` "Managed vs bare native toolchain" section. Decision changes native-module access.
 - **Backend approach**: custom (separate folder) vs hosted backend service vs offline-only. See `templates/references-mobile.md` "Backend" section.
 
-### Step M2 — Native-module wrappers
+### Step M2: Native capability boundary
 
 Conventions: #22 (design system) extended for mobile per `templates/references-mobile.md` "Native-Module Wrapping" section.
 
-Every native capability (camera, HealthKit/Google Fit, haptics, biometrics, secure storage, geolocation, push notifications, BLE) gets a project-local wrapper. Features import from the wrapper, not the native library directly.
+For each native capability in scope (camera, health data, haptics, biometrics, secure storage, geolocation, push notifications, BLE), research the current platform and framework guidance. Record whether features use the platform or library directly, a selective adapter, or a project-owned wrapper, and why that boundary fits the permission flow, testability, expected change, and access needs.
 
-Build wrappers for every capability listed in References.md:
-- Configure the native library with project defaults.
-- Handle permission request UX consistently.
-- Fall back gracefully when permission denied (simulator, test environments, user-denied, OS feature-unavailable all need graceful handling).
-- Provide a stable API the rest of the project uses.
+Where the selected boundary owns these concerns:
+- Configure project defaults that should be shared.
+- Keep permission requests and denial behavior consistent with the accepted interaction.
+- Handle simulator, test-environment, user-denied, and unavailable-platform cases that apply.
+- Translate unstable or unsafe native details into a project contract when consumers should not own them.
 
-**Wrapper shape signals (apply uniformly across all wrappers in the project):**
-- **Error model:** throw a typed AppError subclass (e.g., `PermissionDeniedError`). Never bubble raw native errors to features.
-- **Type shape:** uniform across all wrappers. Pick once (module-level objects, classes, hooks, or singletons) and apply everywhere. Inconsistency is the anti-pattern.
-- **Permission timing:** lazy (on first capability use) unless References.md declares regulated data — then eager at first launch with disclosure.
-- **Test-environment fallback:** each wrapper exposes an availability check that returns false where the native module is absent (simulator, CI, web preview). Features guard calls with it.
+**Boundary signals:**
+- **Error model:** expose errors the feature can handle safely and meaningfully; do not leak sensitive native details.
+- **Type shape:** use consistent shapes for the same concepts. Different capability responsibilities may justify different interfaces.
+- **Permission timing:** choose timing from platform guidance, the feature's moment of need, disclosure requirements, and accepted user flow.
+- **Test-environment behavior:** provide availability checks, fixtures, or platform test support where the capability can be absent.
 
-Lint rule: direct native-library imports outside `src/shared/native/` fail the build.
+If the project selects a restricted adapter or wrapper boundary, configure the current toolchain to catch direct imports that bypass it. Direct imports remain valid when they are the recorded choice.
 
-**Verify:** features use only wrapper imports. A permission-denied test shows graceful fallback UI.
+**Verify:** each feature follows its recorded capability boundary. Permission denial and unavailable-platform cases show the behavior promised by the artifact and pass the applicable access checks.
 
 ### Step M3 — Permissions configuration
 
 Build:
-- **iOS:** every `Info.plist` usage-description string required by the native-library wrappers. Missing strings = App Store rejection.
-- **Android:** every manifest `<uses-permission>` required. Dangerous permissions (location, camera, mic) have runtime permission requests wired through Step M2 wrappers.
+- **iOS:** every `Info.plist` usage-description string required by the selected capability integrations. Missing required strings can cause rejection.
+- **Android:** every required manifest `<uses-permission>`. Dangerous permissions (location, camera, mic) have runtime requests wired through the Step M2 boundary.
 - Documentation in `docs/systems/permissions.md` listing every permission, why it's needed, which feature uses it.
 - Managed workflows declare permissions in the framework's config file; bare workflows edit native manifest files directly. Research the current pattern for the chosen mobile framework.
 
-**Every native capability requires platform-specific permission strings — three dimensions per capability:**
+**For each native capability that requires permission, verify three dimensions:**
 - iOS usage-description string (Info.plist — customer-facing rationale text)
 - Android manifest permission + runtime request for dangerous permissions
 - API-level variations (permission names and requirements change between OS versions — e.g., notifications, location-in-background, biometric)
@@ -59,7 +59,7 @@ Research current requirements per capability at scaffold time on Apple Developer
 Conventions: #5 (state), #9 (API — server-state offline handling).
 
 If References.md discovery answered "works offline" = yes:
-- Local persistent store (an embedded database or key-value store, reached through a Step M2 wrapper).
+- Local persistent store (an embedded database or key-value store, reached through the Step M2 boundary selected for it).
 - Sync queue: mutations performed offline queue and replay on reconnect.
 - Conflict resolution strategy (last-write-wins, CRDT, or server-wins — documented decision).
 - UI indicator for offline state.

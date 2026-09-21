@@ -1,7 +1,5 @@
 # Bootstrap: logging the bootstrap
 
-Part of the bootstrap playbook (bootstrap/ONBOARD.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step: read it when the script names it, with the reading it lists, and close it before opening the next.
-
 ## Step 6: Log the Bootstrap
 Read: none
 Produces: the bootstrap entry in VERSION-LOG.md at the project root, with any open pre-production gate (an unanswered regulated-data question) named in it

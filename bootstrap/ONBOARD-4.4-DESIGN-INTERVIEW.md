@@ -1,7 +1,5 @@
 # Bootstrap: the design interview
 
-Part of the bootstrap playbook (bootstrap/ONBOARD.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step: read it when the script names it, with the reading it lists, and close it before opening the next.
-
 ## Step 4.4: The design interview
 Read: bootstrap/DESIGN-INTERVIEW.md; templates/design-interview/index.html; #27 § Design tools; #29
 Produces: the answers file in the design working-files folder; the direction or directions shown; the decision recorded at the decision location as picked or owner-delegated; the brand book; or, when the owner has not answered yet, the form offered and the pick recorded as open

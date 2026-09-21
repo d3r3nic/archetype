@@ -1,20 +1,8 @@
 # Bootstrap: how discovery is asked
 
-Read with every discovery step (2.1 to 2.6 of the bootstrap playbook, bootstrap/ONBOARD.md). It is not a step itself: it says how the questions are put, and what compression under an impatient owner may and may not change.
+Read with the first discovery step and retain for Steps 2.1 to 2.6. It is not a step itself: it says how the questions are put, and what compression may and may not change.
 
-Do NOT jump straight to building. The AI needs to understand what you're building first. The owner starts it with the message below; the session then walks the discovery steps, one question group each.
-
-## What the owner says to start
-
-Give this to your AI assistant:
-
----
-
-Read bootstrap/ONBOARD.md and bootstrap this project, one step at a time. Interview me before generating anything.
-
-I want to build: [describe your idea in plain English, even one sentence is fine]
-
----
+Do not jump straight to building. First understand the owner's purpose, users, constraints, existing knowledge, and uncertainty. The session walks one question group at a time.
 
 ## Discovery Process
 

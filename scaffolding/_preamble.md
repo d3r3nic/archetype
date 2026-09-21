@@ -9,21 +9,21 @@ The framework encodes the developer's CHARACTER (instincts, patterns, judgment) 
 - **Framework must NOT contain:** specific tool names as THE answer, specific API calls, version numbers, current pricing, vendor product names as prescriptions.
 - **Project artifacts SHOULD contain:** the specific tools THIS project uses, current versions, current pricing, current vendor choices. That's their job.
 
-When you scaffold, populate project artifacts with current specifics you researched. Don't abstract them into generic language — a References.md that names this project's exact ORM, database, and test runner with their versions is correct, and the framework describing that same stack abstractly is also correct. Both are right in their place.
+When you scaffold, record the actual researched choice and its reason in project artifacts. Generic descriptions do not make an architecture universal: evaluate the approach as well as the tool. An existing project commitment remains in force until deliberately revised (#0, #16, #29).
 
 ## Zero-stale rule (framework only)
 
-Every tool, SDK, version, linter rule, or vendor named in the FRAMEWORK is a reference — verify current options at scaffold time. Research Notes in each convention list the CATEGORY of tooling ("a structured logger for the language", "a SAML-capable enterprise auth broker"). Resolve to a specific current choice at scaffold time, not from training-data memory. The specifics land in project artifacts, not in framework edits. Where a framework file keeps one concrete illustration, it sits on a line beginning `Dated example:` — read those as expired until re-verified, never as a prescription.
+Every tool, SDK, version, linter rule, or vendor named in the framework is a reference. Verify changing facts that matter to the current choice; reuse evidence that is still current. Research Notes in each convention list the CATEGORY of tooling ("a structured logger for the language", "a SAML-capable enterprise auth broker"). Resolve to a specific current choice at scaffold time, not from training-data memory. The specifics land in project artifacts, not in framework edits. Where a framework file keeps one concrete illustration, it sits on a line beginning `Dated example:`; read those as expired until re-verified, never as a prescription.
 
 ## Convention-mapping rule
 
 Every step in the shape-specific playbooks names the conventions it implements (e.g., "build per convention #8 + B3"). Read those convention docs before building the step — they carry the principles, rules, and research triggers. Do not scaffold by enforcement-rule memory alone.
 
-This is where a system's convention is read, not at bootstrap. Before building a system: read its convention and the Research Notes in it, research current practice for it in the chosen stack (search where you can; where you cannot, say what should be verified), write how it will be implemented in its References.md section, and report that so the owner can verify. Bootstrap leaves each system's how and its Location empty for this moment, so that the reading happens when it is used.
+Read the relevant concern when making the decision it informs. Research uncertain or changing practice for the selected runtime and consider evidence against the initial choice. If research access is unavailable, say which facts remain unverified. Put the selected implementation and entry point in References.md; keep its consequential reason at the existing decision location. Reuse unchanged material already read in this session.
 
 ## Handoff-check rule (Step 0 of every playbook)
 
-Read `References.md` in full before building anything:
+At scaffold handoff, read the current project purpose, constraints and accepted decisions in `References.md`, including:
 - **Compliance section** determines which systems are mandatory (audit log, encryption, rate limiting, etc.).
 - **Foundational Systems list** is your inventory — every entry must map to a playbook step OR be built as a project-specific extension alongside its nearest sibling.
 - **Convention Overrides** document project-specific deviations.
@@ -44,11 +44,11 @@ Every shape-specific playbook ends with a minimal feature exercising the full sc
 
 ## Verification discipline
 
-Convention #18 says verify after every change. The playbooks translate this into operational gates: each step has a specific command and specific exit criterion. Do not proceed to the next step if verification fails. Do not stub-satisfy verification ("looks like it would work").
+Convention #18 requires evidence at coherent change boundaries and all applicable required gates before acceptance. Each declared scaffold step supplies its own command and exit criterion. Do not proceed to the next step if verification fails. Do not stub-satisfy verification ("looks like it would work").
 
 ## Commit discipline
 
-One commit per foundational system per convention #2. The commit history IS the rollback ladder.
+Keep coherent verified recovery points under convention #2 and the repository authorization. Grouping follows change boundaries and reviewability, not the number of systems in a checklist.
 
 ## Red-flags rule
 
@@ -56,4 +56,4 @@ For a stepped playbook, read the sections of `scaffolding/RED-FLAGS.md` named by
 
 ## Machine-verifiable exit gate
 
-Run `scripts/validate-scaffold.sh` at the end. Do not commit a scaffold that fails the validator. Do not paper over failures. Re-build the broken system; re-run.
+Run `scripts/validate-scaffold.sh` at the end and investigate its diagnostics. It includes layout and source-pattern heuristics; a mismatch can require a correction to a check or a supported project mapping, not a forced architecture. A real failure remains blocking. Never suppress evidence, misstate applicability or report an unsupported approach as verified. Record the limitation if no truthful supported check is available.

@@ -2,7 +2,7 @@
 
 ## Principle
 
-Lint rules, formatters, and pre-commit hooks catch convention violations at write time, before code review. Human attention is scarce; automation never tires. A convention without enforcement is a suggestion. Every convention that can be automated should be.
+Automate observable checks when their reliability and prevention value justify their maintenance and execution cost. Linters, formatters and hooks can enforce a project's accepted contracts; they cannot establish that every decision is appropriate. Use review and evidence for judgments a script cannot make.
 
 ## Reusable System
 
@@ -15,18 +15,18 @@ Apply #0: configure enforcement once at the project level, apply everywhere.
 
 ## Rules
 
-- Every convention that CAN be automated SHOULD be. If a rule can be a lint rule, make it one.
+- Select checks for real recurring risks or accepted project contracts. A rule being expressible as a heuristic does not establish that the heuristic is accurate or worth maintaining.
 - Lint rules block commit, not just warn. Warnings get ignored at scale.
 - Format on save AND format pre-commit. Do not debate style in code review.
 - Pre-commit hooks must be fast enough that nobody is tempted to bypass them; the project sets the budget in References.md. Slow checks run in CI.
 - Never bypass hooks with --no-verify except for documented emergencies with a follow-up fix.
-- CI gate is the source of truth. If CI passes, the code is green. If CI fails, nothing merges.
-- When a convention violation is caught in code review, add a custom lint rule to catch it next time. Do not rely on memory.
+- Required CI checks must pass before merge. A pass establishes only what those checks exercised; verify the intended behavior and review gaps independently. Investigate an incorrect check against the accepted contract rather than bypassing it.
+- When review finds a defect, assess whether a regression test, static check, clearer guidance or another correction best prevents recurrence. Add a custom rule only when it can check the condition reliably at justified cost.
 - Lint-suppression directives require an inline comment explaining why. CI fails if the count grows beyond a documented baseline.
 
 ## Violations
 
-- Convention rules living only in docs with no automated check
+- A recurring observable failure left without a justified prevention or detection approach
 - Lint config set to warn-only (developers ignore warnings at scale)
 - Format disagreements in code review (should be auto-fixed by formatter)
 - Pre-commit hooks so slow that developers bypass them
@@ -43,7 +43,7 @@ Apply #0: configure enforcement once at the project level, apply everywhere.
 - WRONG: suppression directives scattered through the codebase with no context
 - RIGHT: Disables require an explanatory comment; CI fails if disables exceed a threshold
 - WRONG: "We have a style guide" (PDF or wiki only, never enforced)
-- RIGHT: Style guide IS the linter config; everything enforceable is enforced
+- RIGHT: The selected style contract has reliable automated checks; judgment-dependent guidance remains explicit and reviewed.
 
 ## Research Notes
 

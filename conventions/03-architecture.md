@@ -2,52 +2,37 @@
 
 ## Principle
 
-Code is organized in layers with clear boundaries. Each layer has one job. Entry points (handlers, controllers, routes) are thin - they parse input, delegate to services, and return output. Business logic lives in services. Data access is abstracted behind its own layer. Features are self-contained and never import from each other.
+Architecture makes responsibilities and dependencies understandable while supporting the product's actual behavior and expected change. Select boundaries from domain needs, runtime constraints and existing code. Services, layers, modules and runtime-native composition are possible answers, not a universal arrangement.
 
 ## Reusable System
 
-Create a layered architecture that establishes:
-- A service layer where all business logic lives. Services are reusable across different entry points (API route, background job, CLI command can all use the same service).
-- A data access layer that abstracts database operations. Features use the data layer, never raw queries.
-- A shared directory for cross-feature code. When logic needs to be used by multiple features, it moves here.
-- Module boundaries enforced through public API definitions. Each module exposes a public interface (index file, __init__.py, or language equivalent). Everything else is private.
+Identify who owns important state, invariants and external effects, and how consumers reach them. Record consequential boundaries and the verification that protects them. Use the project's existing decision location and References.md rather than a second architecture inventory (#16).
 
 ## Rules
 
-- Entry points are thin. They parse input, call a service, return the response. No business logic in handlers or controllers.
-- Business logic lives in services. Services are testable, reusable, and independent of the entry point.
-- Features are self-contained. They never import from other features. If code needs sharing, move it to shared (ask first).
-- Duplication between features is better than coupling between features. Coupling creates hidden dependencies.
-- No circular dependencies. If module A imports from module B, module B must not import from module A.
-- Build only what the spec says. Never add phantom requirements like batch mode, dry-run, or legacy format that nobody asked for. AI adds these unprompted.
-- Never call functions or modules that don't exist in the project. Verify imports exist before using them.
+- Inspect current behavior and dependencies before selecting or replacing a structure. Research relevant uncertainty and compare alternatives on fit, complexity, testability and change cost (#0).
+- Give each responsibility a clear owner. Separate transport, domain behavior or persistence when those boundaries help this project; do not manufacture layers that merely forward calls.
+- Keep externally used contracts explicit. Consumers should not rely on another module's private details. Cross-feature use through an intentional public contract can be appropriate.
+- Weigh extraction against coupling. Share invariants that must remain consistent; similar implementations with independent reasons to change may remain separate. Record a consequential tradeoff rather than treating either duplication or sharing as automatically correct.
+- Examine dependency cycles for ownership and initialization problems. Choose a graph the runtime and team can reason about, with tests for important lifecycle behavior.
+- Build the requested behavior. Do not add unrequested capabilities to justify a preferred architecture.
+- Verify referenced functions and interfaces exist. Follow accepted project contracts; changing one requires impact review and dependent verification (#29, development/STEPS.md).
 
 ## Violations
 
-- Business logic in a handler, controller, or UI component
-- Feature A importing from Feature B's internals
-- Circular dependencies between modules
-- Utility functions scattered across random locations with no clear home
-- Everything mixed in one file with no layer separation
-- Over-specification: adding hypothetical code paths nobody asked for (batch mode, dry-run flags, legacy format support)
-- Calling hallucinated helper functions or modules that don't exist in the project
-- Never refactoring: adding new code without consolidating duplicate or similar logic
+- Choosing an architecture before understanding the required behavior
+- Hiding shared state or external effects behind unclear ownership
+- Breaking a consumer by silently changing an accepted interface
+- Adding service layers or shared abstractions without a reason beyond the framework example
 
 ## Wrong vs Right
 
-- WRONG: a handler fetches data from the database, filters it, calculates totals, formats the response, and sends an email. 200 lines of mixed concerns.
-- RIGHT: the handler calls orderService.getActiveOrders(). The service handles filtering and calculation. The data layer handles the query. The email service handles notification. Each layer does one thing.
-- WRONG: Feature A needs address validation. It imports validateAddress from Feature B's utils directory. Now Feature A breaks if Feature B changes.
-- RIGHT: address validation moves to the shared directory. Both features import from shared. No coupling.
-- WRONG: AI is asked to create a user. It also adds batch user creation, dry-run mode, and CSV import support that nobody requested.
-- RIGHT: AI creates exactly what was asked. One user creation endpoint. Nothing more.
+- WRONG: prescribe the same service/data layers to a small local tool and a long-lived multi-service product. RIGHT: compare their state, lifecycle and change needs, then select boundaries and tests appropriate to each.
+- WRONG: couple two features through private storage merely to remove similar lines. RIGHT: determine whether they share an invariant; use an intentional contract if they do, and separate ownership if they do not.
+- WRONG: add batch processing because it fits the chosen architecture. RIGHT: implement the owner's requested operation and record any demonstrated future need separately.
 
 ## Research Notes
 
 Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
-When bootstrapping this convention:
-- Research the framework's recommended architecture patterns for separating entry points, business logic, and data access
-- Research module boundary patterns for the framework (how to define public APIs per module, how to prevent internal imports)
-- Research the framework's dependency injection or service pattern for making services reusable across different entry points
-- Document the layer structure, import rules, and shared directory in References.md
+Consult maintained runtime guidance and relevant architectural experience, including counterexamples to the initial choice. Validate uncertain boundaries with a small experiment when that will change the decision. Record the chosen pattern, alternatives and conditions for revision at the existing decision location.

@@ -1,72 +1,28 @@
-# Rules
+# Working with Archetype
 
-In project installations this file is centrally managed and will be overwritten by the next framework update. Local AI must not edit it. Project-specific instructions belong in CLAUDE.md.additions and References.md; propose shared changes upstream.
+In project installations this file is centrally managed. Local AI must not edit it to change a project's rules. Put project facts in References.md, local guidance in CLAUDE.md.additions and justified convention choices in conventions/overrides/. Propose shared changes upstream. Resolve engine paths from the installed framework folder; project artifacts live at the project root.
 
-Do not assume you remember conventions from a previous session. Re-read what's relevant every time.
+## Judgment before implementation
 
-If References.md does not exist, bootstrap has not run yet. Read bootstrap/ONBOARD.md (or archetype/bootstrap/ONBOARD.md) and run bootstrap first. Do not write code without project context.
+Understand the owner's intended outcome and constraints. Identify what is uncertain, inspect existing work, and research current relevant evidence before a consequential choice. Compare alternatives on fit, risks, maintenance and cost. Research may overturn your initial answer; popularity, novelty and examples in this framework do not settle the decision. Reuse evidence that is still current rather than repeating research without a reason.
 
-If PROGRESS.md exists at the project root, run scripts/next-step.sh (or archetype/scripts/next-step.sh) before anything else. It names the open step of the playbook the project is in, where that step starts, and exactly what to read for it; read that, not the whole playbook and not the conventions other steps need. A step closes through the same script, on a check that passes or on evidence recorded in words. → development/STEPS.md
+Conventions describe concerns and approaches to evaluate. Architectural and visual patterns are not universal solutions. Select what serves this project and explain consequential departures at its existing decision location (#0, #16, #29). Preserve accepted project commitments until they are deliberately changed; record affected dependencies and reopen stale work through development/STEPS.md. A different approach never permits fabricated evidence, ignored owner requirements or silently bypassed checks.
 
-## Before Any Work
+Respect the active instruction hierarchy, permissions and the decision authority in PROFILE.md. The owner decides product intent and commitments; the AI investigates and recommends technical choices, acting within that authority. Use conventions/29-decision-authority.md when an action affects spending, external commitments, live systems, irreversible effects or product scope. Use conventions/30-operating-profile.md for exposure, obligations and justified deferrals. Protect secrets and trust boundaries. Say what is unverified; completion requires evidence appropriate to the claimed outcome.
 
-On a stepped route, its current reading line routes the project facts and conventions below. Read additions and applicable local rules at session start; reuse facts already current in this session. Unconverted work follows this full startup list.
+## Find the relevant work
 
-1. Read References.md, PROFILE.md, and feature-tree.md (always — these are project context; PROFILE.md holds the stage and who decides technical questions)
-2. Scan Conventions.md to identify which conventions apply to the current task (it's a lookup index, not a reading list — read ONLY the relevant convention docs, never the whole set)
-3. If conventions/overrides/, protocols/, or catalogs/ directories exist, check for project-specific rules relevant to the task
-4. Read CLAUDE.md.additions if present. For tracked work, read development/TASKS.md and development/FRESHNESS.md from the framework, plus the project-root protocols/task-context.md binding if present. Those protocols also cover non-code work; engineering conventions apply when the task touches code.
+- Read applicable local guidance and the current project purpose, constraints and decision-authority facts. Reuse facts already current in this session; inspect relevant source when a record may be stale.
+- If References.md is absent, begin at bootstrap/ONBOARD.md. Do not invent the project's context.
+- If PROGRESS.md declares a stepped route, run scripts/next-step.sh from the project root. Read the current step and its named material, then close it on the required check and evidence. The script validates records and checks; it cannot establish what you read or how well you reasoned. Read development/STEPS.md for transition details when needed.
+- Otherwise select scaffolding/SCAFFOLD.md, development/DEVELOP.md or development/MAINTAIN.md for the work at hand. Use Conventions.md as a lookup index. Read the concerns relevant to this task, including cross-cutting risks, without a document quota. Read newly relevant guidance when scope changes.
+- Read the relevant sections of References.md, feature-tree.md, local overrides, protocols and catalogs. Check the code for existing behavior before extending or replacing it. For backend work, backend/Conventions.md supplies additional routes.
+- Tracked work also follows development/TASKS.md, development/FRESHNESS.md and the project-root protocols/task-context.md binding when present. These govern ownership and freshness, including non-code work.
 
-Resolve framework paths from the installed engine (for example archetype/Conventions.md). Project context, additions, overrides, protocols, and catalogs live at the project root. If an older installation keeps local files inside the engine, inventory and read them too until their verified migration; never silently ignore existing guidance.
+## Before claiming completion
 
-## Before Writing Code
+Use the project's verification commands and the applicable framework gate. A failure needs investigation; a justified alternative needs a truthful check of its own contract, not a false pass or a weakened assertion. A source heuristic is not proof of correctness. Follow conventions/18-verification.md and obtain independent review under conventions/29-decision-authority.md.
 
-Identify which conventions apply to your task. Read those specific convention docs. Before your first code output in a session, state which conventions you read and confirm they apply.
+For screen work, use References.md's Design Artifact and conventions/27-design-foundation.md. Preserve supplied requirements through delegation. Record the chosen direction and session decisions, inspect current captures and exercise interactions; screenshots alone do not prove behavior. Design tools and other AI outputs are proposals to evaluate against the same brief.
 
-If the task scope expands to touch new areas mid-task, re-scan Conventions.md and read the newly relevant conventions before continuing.
-
-Do not skip this step. Do not write code based on the enforcement rules alone — they catch mistakes but don't explain how the systems work. The convention docs do.
-
-## Enforcement
-
-Everything is built once, configured for context. Before building anything, check what exists. If a system exists, use it and configure it for your context. If not, build it as a reusable service, not a one-off. → conventions/00-reusability.md
-
-- If uncertain about scope or what the owner wants, ask. Do not guess. If uncertain about a technical choice, research, decide, and record it; ask first only under owner-decides. → conventions/19-steering.md, conventions/29-decision-authority.md
-- Never build one-off. Use existing systems or build reusable. → conventions/00-reusability.md
-- Never hardcode values that should come from configuration (colors, URLs, timeouts, dimensions, limits). → conventions/06-styling.md, conventions/01-project-setup.md
-- Never hardcode customer-facing copy, brand names, contact info, social links, integration keys, or industry-specific labels. They live in one typed config surface delivered by the template's config convention; components read through the project's config getter; defaults live in the schema, not in render output. → conventions/28-config-driven-content.md
-- Never import directly from third-party libraries without project wrappers. → conventions/22-design-system.md, conventions/03-architecture.md
-- Never instantiate a shared getter's underlying client yourself (for example constructing a new database client when the shared getter already exists). Use the getter. Type imports and namespace imports from the library are OK. → conventions/00-reusability.md
-- Never hand-build a standard UI component (button, input, modal, table) that the project's component foundation provides. If the project has no foundation, do not start one ad hoc: check References.md for the recorded decision, or scaffold the foundation first. → conventions/22-design-system.md
-- Design content (a mockup, an artboard, a canvas file, a preview) follows the artifact and is exempt from the code rules; code follows the tokens and never inherits a mockup's literal value. The artifact, the token source, the catalog, PROFILE.md, and the project type are the brief for any design skill, plugin, canvas, or workspace, found through References.md § Design Artifact. → conventions/27-design-foundation.md
-- The owner picks the visual direction from proposed directions, or delegates the pick in words, and decides what each primary screen is for; within the picked direction the session decides composition, states, and words, records them in the artifact, and shows them. Never ask the owner a designer's question; never improvise a screen outside the system. → conventions/27-design-foundation.md, conventions/29-decision-authority.md
-- Every screen has one purpose and one primary action; type, space, color, and motion carry meaning, never decoration; words speak from the person's side in one vocabulary; a default nobody chose is removed. → conventions/31-interface-craft.md
-- Never scatter error handling. Use the centralized error system. → conventions/08-errors.md
-- Never create ad-hoc API calls. Use the API layer. → conventions/09-api.md
-- Never extract auth from JWT directly. Use the auth utility. → conventions/11-auth-security.md
-- Never use the language's untyped escape hatch (e.g., TS `any`, Python `Any` without narrowing, unsafe casts). Use the language's narrow/type-check equivalent. → conventions/07-types.md
-- Never escape-hatch a type error with casts, ignore-comments, or re-instantiating a shared class with laxer config. Refactor the call site. → conventions/07-types.md, conventions/00-reusability.md
-- When the build target transpiles class inheritance (mobile bundlers, older runtime targets), verify custom error subclasses still pass runtime type checks; some targets silently break them. Record the required constructor fix in the References.md Error System section. → conventions/08-errors.md
-- Validate all user input at entry points. Never trust client data. → conventions/23-app-security.md
-- Authorization checks at the service layer, not UI. Verify the user can access the specific resource. → conventions/24-authorization.md
-- Never hardcode secrets or environment-specific values. → conventions/01-project-setup.md
-- Never skip verification after changes. Run tests/build. → conventions/18-verification.md
-- Commit after every verified change. Each commit is a rollback point. → conventions/02-git.md
-- Never start multi-file changes without a plan. → conventions/19-steering.md
-- Never modify existing foundational systems without a recorded decision (explicit permission under owner-decides). → conventions/19-steering.md
-- Beyond the approvals owner-decides asks for and the permission the managed rule files require, escalate to the owner only for new recurring spend, an external commitment, an action on a live customer environment, irreversible destruction of valuable data or access, or a change to what the product is; always one plain recommendation, never a menu. → conventions/29-decision-authority.md
-- Never state that something works, exists, is deployed, is green, or was sent unless verified in this session. Say unverified when it is. → conventions/29-decision-authority.md, conventions/18-verification.md
-- Never lower a gate, skip a test, or leave a placeholder to finish. Done means right. → conventions/29-decision-authority.md, conventions/18-verification.md
-- Record every consequential technical decision (a dependency, a boundary, an operational obligation, a cost, a deliberate compromise) with its reason at the project's decision location; routine implementation follows the recorded decision. → conventions/29-decision-authority.md, conventions/16-documentation.md
-- Never defer a floor obligation (secrets, trust boundaries, irreversible effects, personal data, authorized reuse, honest completion). Every other deferral gets a TECHNICAL-DEBT.md entry with a trigger. → conventions/30-operating-profile.md
-- Never modify CLAUDE.md, Conventions.md, or convention docs without explicit permission.
-- Read feature-tree.md before building anything new. Check what already exists.
-- Feature directory basename, feature-tree.md Feature column, and docs/features filename must match. If business identity differs from directory name, rename so they align. → development/MAINTAIN.md
-- Search the codebase for existing implementations before building. feature-tree.md may be stale — the code is the source of truth.
-- Update feature-tree.md when adding or modifying features.
-- Update docs when changing features. → conventions/16-documentation.md
-
-For project context, commands, and system locations → References.md
-
-If this is a backend project, also read backend/CLAUDE.md and scan backend/Conventions.md.
-If this is a frontend project, also read frontend/CLAUDE.md and scan frontend/Conventions.md (when available).
+Keep current facts at their authoritative location, record non-obvious decisions and evidence, and link dependent records instead of copying reasons. Use conventions/16-documentation.md. Make verified, recoverable changes under conventions/02-git.md within the authorization granted for this project.

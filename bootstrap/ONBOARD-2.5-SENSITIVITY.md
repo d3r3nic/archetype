@@ -1,7 +1,5 @@
 # Bootstrap: discovery, group 5
 
-Part of the bootstrap playbook (bootstrap/ONBOARD.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step: read it when the script names it, with the reading it lists, and close it before opening the next.
-
 ## Step 2.5: Group 5 - Infrastructure and sensitivity
 Read: bootstrap/ONBOARD-DISCOVERY.md; bootstrap/RED-FLAGS.md § Discovery Turn Budget; bootstrap/RED-FLAGS.md § Vague-Answer Rules; bootstrap/RED-FLAGS.md § Deploy Gate
 Produces: the regulated-data answer (or the default with the open gate it creates), the infrastructure experience, and the ownership preference
@@ -17,4 +15,4 @@ If the user answers vaguely ("I dunno", "not sure", "I guess not"), DEFAULT TO A
 
 **Budget-vague:** parallels regulated-vague. See RED-FLAGS.md "Vague budget answer" section.
 
-**Vague stack preference** ("use whatever", "I don't care"): not a choice, a deflection. Apply Step 3 default (platform if one covers 80%+, minimum-viable custom otherwise). See RED-FLAGS.md.
+**Vague stack preference** ("use whatever", "I don't care"): treat this as delegated technical recommendation, not evidence for a stack. Step 3 researches viable approaches against the recorded goal and constraints. See RED-FLAGS.md.

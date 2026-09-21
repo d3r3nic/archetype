@@ -1,7 +1,5 @@
 # Bootstrap: discovery, group 3
 
-Part of the bootstrap playbook (bootstrap/ONBOARD.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is one step: read it when the script names it, with the reading it lists, and close it before opening the next.
-
 ## Step 2.3: Group 3 - What do users do?
 Read: bootstrap/ONBOARD-DISCOVERY.md; bootstrap/RED-FLAGS.md § Discovery Turn Budget
 Produces: what users do in it, the first-minute task, what people come back to do most, and how long they stay

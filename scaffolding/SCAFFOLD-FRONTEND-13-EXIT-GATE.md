@@ -1,6 +1,6 @@
 # Frontend scaffold: the exit gate
 
-Part of the frontend scaffold playbook (scaffolding/SCAFFOLD-FRONTEND.md), walked one step at a time with `scripts/next-step.sh` (development/STEPS.md). This file is the last step: it builds nothing, it proves what was built and writes the record.
+Use scaffolding/SCAFFOLD-FRONTEND.md for this route and scaffolding/_preamble.md for shared scaffold guidance.
 
 ## Step 13: Exit gate and the scaffold record
 Read: scaffolding/SCAFFOLD.md § Post-scaffold required outputs; scaffolding/SCAFFOLD.md § VERSION-LOG Scaffold entry template; scaffolding/RED-FLAGS.md § 2. Checklist-only verification (no execution)

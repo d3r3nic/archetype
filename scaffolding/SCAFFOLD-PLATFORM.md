@@ -1,4 +1,6 @@
 # Scaffold — Platform Projects
+For a hybrid, this route covers provider configuration only. Project-owned integrations, extensions or interfaces also follow the applicable custom-code scaffold and verification. Record the boundary in References.md; platform ownership does not exempt owned code or cross-boundary behavior from testing and security checks.
+
 
 Routed from `scaffolding/SCAFFOLD.md` when the project chose a platform (Option A from `bootstrap/ONBOARD.md` Step 3) rather than a custom build.
 

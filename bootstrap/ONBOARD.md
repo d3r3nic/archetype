@@ -5,21 +5,19 @@ Onboard a project into the framework. Run once at project creation or when adopt
 Step ledger: bootstrap
 Step files: bootstrap/ONBOARD-2.1-WHAT-IS-IT.md; bootstrap/ONBOARD-2.2-WHERE-IT-RUNS.md; bootstrap/ONBOARD-2.3-WHAT-USERS-DO.md; bootstrap/ONBOARD-2.4-SCALE.md; bootstrap/ONBOARD-2.5-SENSITIVITY.md; bootstrap/ONBOARD-2.6-CARE-AND-AUTHORITY.md; bootstrap/ONBOARD-2.7-READ-TOGETHER.md; bootstrap/ONBOARD-3-RESEARCH.md; bootstrap/ONBOARD-4.1-EXISTING-PROJECT.md; bootstrap/ONBOARD-4.2-REFERENCES.md; bootstrap/ONBOARD-4.3-PROFILE.md; bootstrap/ONBOARD-4.4-DESIGN-INTERVIEW.md; bootstrap/ONBOARD-4.5-DESIGN-ARTIFACT.md; bootstrap/ONBOARD-5-HOOKS.md; bootstrap/ONBOARD-6-LOG.md
 
-This playbook is walked one step at a time (development/STEPS.md). Once Step 1 has put the engine and `PROGRESS.md` in place, run `scripts/next-step.sh` from the project root: it names the open step, the file that holds it, and what to read for it. Each step after the first is a file of its own, because a file is what a session opens: read the step's file and its reading when the script names it, not before, and close the step before opening the next.
-
 ## Prerequisites
 
 - You know what you want to build (even just "a todo app" is enough to start)
-- Tech stack chosen (or let the framework help you choose in Step 2)
+- Tech stack chosen, or leave it open for Step 3 research
 
 ## Step 1: Initialize Project
-Read: bootstrap/REPOSITORIES.md; development/STEPS.md; #1; #2
+Read: bootstrap/REPOSITORIES.md
 Produces: the project folder with the engine in it (CLAUDE.md, Conventions.md, the conventions and playbook folders, unmodified); PROGRESS.md at the project root
 Check: evidence: where the engine sits (the project root, or which subfolder), and the repository decision with its reason
 
 Read [REPOSITORIES.md](REPOSITORIES.md) before creating a repository or installing the framework. Preserve an existing repository's history and local guidance; use the injection path when the project already exists.
 
-Tell your AI assistant to set up the project. Alternatively, run these commands yourself:
+Choose the installation path that fits the repository facts established from `bootstrap/REPOSITORIES.md`. Preserve repository history and existing guidance. The commands below are implementation examples; resolve current source locations before running them.
 
 ### For a NEW project (full clone):
 
@@ -58,18 +56,6 @@ cd /tmp/archetype-framework
 ```
 
 After injection, your existing project has a new subfolder (default `archetype/`) containing the framework. Root instruction files are managed copies; original guidance is preserved in .pre-archetype files. Other project files are preserved. From here, follow the "For an EXISTING project" path in Step 3.
-
-After setup, each project folder has:
-```
-your-project/
-├── CLAUDE.md          # the enforcer
-├── Conventions.md     # convention index
-├── conventions/       # every numbered convention doc
-├── bootstrap/         # this file
-├── scaffolding/       # scaffold guide
-├── development/       # develop + maintain guides
-└── templates/         # references, feature-tree, hooks
-```
 
 Then create the ledger: copy `templates/progress.md` to `PROGRESS.md` at the project root and write `bootstrap` on its Playbooks line. This step is the first one the ledger closes.
 
