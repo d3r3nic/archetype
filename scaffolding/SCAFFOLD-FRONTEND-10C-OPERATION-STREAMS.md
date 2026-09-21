@@ -1,0 +1,18 @@
+# Frontend scaffold: long-running operation streams
+
+Use scaffolding/SCAFFOLD-FRONTEND.md for this route and scaffolding/_preamble.md for shared scaffold guidance.
+
+## Step 10c: Long-running operation streams
+Read: #9; scaffolding/_preamble.md § Convention-mapping rule
+Produces: the operation registry and the stream that replays its tail to a late subscriber
+Check: run project: typecheck, lint, test, build; evidence: what was seen when this was tried: two clients watching one operation, and a reload mid-operation
+Skip when: the product has no operation that runs for seconds to minutes
+
+For any operation that takes seconds-to-minutes (deploy, build, teardown, import), build a subprocess/job registry + SSE stream pattern rather than one-shot HTTP:
+
+- A **registry** keyed by the operation target (slug, job id, etc.) holds active and recently-completed operations.
+- The registry stores events as they happen, so a late subscriber can **replay** the tail.
+- SSE endpoints subscribe to the registry; multiple clients can watch the same operation (reload-resilient).
+- Finished operations TTL-cleanup after a window so subscribers who reload late still see the final state.
+
+Applies equally to shell subprocesses and async in-process jobs.

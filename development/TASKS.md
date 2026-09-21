@@ -18,6 +18,17 @@ Use this workflow for tracked development, research, marketing, and operations. 
 - Keep runs bounded. Re-check task ownership, cancellation, permissions, budget, and changed prerequisites before consequential actions and resumed work. A retry is subject to the same checks as its first attempt.
 - Follow the project's implementation and review process. Use task branches/worktrees for code changes and stable artifact references for other work. Record partial outcomes and blockers honestly.
 
+## Work outside automated playbooks
+
+For a workflow with no declared step route, the implementer carries sequencing in the canonical task or project plan identified above. Reuse its scope and acceptance record; do not create a parallel tracker or another decision store. A small change can be one item.
+
+- Name the intended result of each coherent step, the inputs and relevant guidance it needs, prerequisites or affected decision references, the check that establishes completion, and its actual state. Use the existing task system's fields or concise plan text; no new schema is required.
+- Work in dependency order. At a useful boundary, run the applicable checks and link their evidence. Record the next action and unresolved conditions so another session can resume. Keep partial work visibly incomplete.
+- When a requirement, decision or input changes, preserve its history at the existing decision location. Inspect direct and downstream dependants, mark affected plan items stale, and repeat the necessary work and checks before closing them. Retain unaffected work with a reason. This review is manual; dependency tags alone do not perform invalidation.
+- If affected work also has declared step-ledger records, use development/STEPS.md to reopen those records as well. Do not write invented close/reopen events, silently skip a required declared step, or replace a failed gate with a plan checkbox. An unconverted task is not an excuse to abandon a declared route whose checks failed.
+
+Completing the routes listed in PROGRESS.md establishes only their recorded scope. Check the task's acceptance conditions and remaining phase work before claiming the project complete. Automated integration belongs to a separately scoped framework task when resourced; an implementer can use this procedure now without converting the framework. An unavailable connected task service still follows the authority rule above, not an offline duplicate.
+
 ## Verify, record, and close
 
 - Verify the task's outcome using authoritative evidence. Drafted, reviewed, merged, released, published, and measured are distinct facts. Significant deliverables require independent review under the project policy; an author cannot supply their own independent verdict.

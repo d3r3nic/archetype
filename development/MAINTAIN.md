@@ -2,7 +2,7 @@
 
 Audit, update, and evolve the project. Runs for the life of the project, on specific triggers.
 
-Phase 4 has three distinct modes, each with its own trigger. Don't conflate them.
+Choose the maintenance mode from its trigger. Carry the selected work in the existing implementer plan under development/TASKS.md; completing a different automated route does not close this work.
 
 ## Mode 1 — Routine audit (scheduled)
 
@@ -14,10 +14,12 @@ Phase 4 has three distinct modes, each with its own trigger. Don't conflate them
 - Convention violations in features/
 - Tech-debt log pruning (entries to escalate, fix, or close)
 - Framework version currency (run `./archetype/update.sh` status)
-- Artifact-versus-code drift (`References.md § Design Artifact`): the code's tokens equal the tokens source, every implemented screen has its artifact entry, under `repository-first` the published view is not older than the source, and under `workspace-first` the tokens source and the committed working files are not older than the artifact's current revision (#27)
+- Artifact-versus-code drift (`References.md § Design Artifact`): code follows the recorded styling source and adoption policy, every implemented screen has its artifact entry, under `repository-first` the published view is not older than the source, and under `workspace-first` the styling source and committed working files are not older than the artifact's current revision (#27); the capture sets match the shipped screens (#27)
+- Interface discovery hygiene: components and interaction patterns remain discoverable through the project's selected method, catalog entries have a consumer or recorded reason, and every deprecated shared contract has a removal trigger (#22)
+- Vocabulary drift: the words in navigation, headings, buttons, and messages match the vocabulary file (#31)
 
 **How:**
-1. Run the automated gates first — `scripts/validate-develop.sh` + `scripts/validate-maintain.sh` + `scripts/validate-profile.sh` + `scripts/validate-framework.sh`.
+1. Run the automated gates first: `scripts/validate-develop.sh` + `scripts/validate-maintain.sh` + `scripts/validate-profile.sh` + `scripts/validate-design.sh` + `scripts/validate-framework.sh`. For a project with a screen, run the design gate as `scripts/validate-design.sh --required known-screen` so an absent section cannot be mistaken for a back end or platform.
 2. For anything they don't catch (judgment calls, doc narrative drift, architecture fit), manually audit per the checklist below.
 3. Log findings in `TECHNICAL-DEBT.md` using `templates/technical-debt.md` format.
 4. Append a row to `feature-tree.md` § Audit Log with date, scope, findings count, and pointer to the tech-debt entries.
@@ -26,13 +28,17 @@ Phase 4 has three distinct modes, each with its own trigger. Don't conflate them
 - [ ] `scripts/validate-develop.sh` — 0 errors
 - [ ] `scripts/validate-maintain.sh` — 0 errors
 - [ ] `scripts/validate-profile.sh` — 0 errors (once PROFILE.md exists, `--strict` for operational projects; until then, create it from templates/profile.md); every DEFERRED line still has a future trigger; every UNVERIFIED fact has a plan to learn it
+- [ ] `scripts/validate-design.sh --required known-screen`: 0 errors for a project with a screen: exactly one live Design Artifact section, every contract line present once and filled. A project without a screen uses `scripts/validate-design.sh` without the required mode. After a framework update that adds a label, the failure names the lines to add; fill them from the owner's recorded answers, never from a guess (#27)
 - [ ] `scripts/validate-framework.sh` — 0 errors (framework itself OK)
 - [ ] The project's test command (`References.md § Commands`) — all green
 - [ ] Every feature directory has matching `feature-tree.md` row and `docs/features/{name}.md` entry (names align)
 - [ ] Every doc's referenced types still exist in source
 - [ ] Convention Overrides in `References.md` still apply
 - [ ] Critical Lessons in `References.md` still apply
-- [ ] Artifact-versus-code drift: tokens in code equal the `Tokens source`, every implemented screen has its artifact entry, under `repository-first` the published view is not older than the source, and under `workspace-first` the tokens source and the committed working files are not older than the artifact's current revision (#27)
+- [ ] Artifact-versus-code drift: code follows the `Tokens source` and recorded adoption policy, every implemented screen has its artifact entry, under `repository-first` the published view is not older than the source, and under `workspace-first` the styling source and committed working files are not older than the artifact's current revision (#27)
+- [ ] Capture sets match the shipped screens (#27)
+- [ ] Interface discovery hygiene: selected discovery surface current, catalog entries used or their reason recorded, every deprecated shared contract with a removal trigger (#22)
+- [ ] Vocabulary drift: interface words match the vocabulary file (#31)
 - [ ] Tech-debt entries older than threshold: escalated OR force-fixed OR explicitly continue-deferred with fresh reason
 
 ## Mode 2 — Incident response (event-triggered)

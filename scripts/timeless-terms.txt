@@ -281,3 +281,6 @@ Claude Code	ai-tool
 Copilot	ai-tool
 ChatGPT	ai-tool
 Gemini	ai-tool
+
+# Concrete client API
+QueryClient	api

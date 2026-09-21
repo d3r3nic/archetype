@@ -23,7 +23,12 @@ Create accessible base components during scaffolding that all features use:
 - Color must never be the only way to communicate information. Red for error is fine, but it must also have an icon or text label for people who cannot distinguish colors.
 - Modals must trap focus inside them and return focus to the trigger element when closed.
 - Respect the user's reduced motion preference. If the user's system says they prefer reduced motion, disable or simplify all animations.
-- Minimum touch target size for interactive elements on touchscreen devices.
+- Targets meet the platform's minimum, recorded on the `Target size` line of References.md, and adjacent targets have space between them so a miss does not hit the neighbor.
+- Reading order equals visual order equals focus order. A screen whose keyboard path jumps has a design defect, not a markup one.
+- Focus is a designed state with its own token, visible on every surface in every scheme, never removed and never left to a default the foundation's reset may erase.
+- At the zoom level the accessibility target sets, text reflows within the measure, nothing truncates in a way that loses meaning, and no fixed-height container clips text.
+- Every meaning carried by color, sound, motion, or position has a second carrier in text, icon, or structure.
+- Every action reachable by pointer is reachable by keyboard and by touch; hover reveals nothing essential; drag has an equivalent; time limits can be extended and self-moving content can be paused.
 
 ## Violations
 
@@ -35,6 +40,8 @@ Create accessible base components during scaffolding that all features use:
 - Color as the only way to indicate state (red for error with no icon or text)
 - Modals that don't trap focus or don't return focus to the trigger on close
 - Ignoring the user's reduced motion preference
+- A focus ring visible in one scheme and invisible in another
+- Actions reachable only on hover or only by drag
 
 ## Wrong vs Right
 

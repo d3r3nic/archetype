@@ -2,51 +2,51 @@
 
 ## Principle
 
-UI components expose consistent, predictable APIs across the entire project. Every component follows the same conventions for sizing, variants, and state props. Components are composable - complex UIs are built from small focused pieces, not monolithic blocks. The component foundation (base components, wrappers around the UI library) is built once at scaffolding and used everywhere.
+Interface components should make the project's chosen interaction model easier to understand, test, and change. The right boundary depends on the runtime, existing code, accessibility needs, expected reuse, and the cost of abstraction. Direct platform elements, a library API, selective adapters, or project-owned components can all be sound choices. Research the current options, record a consequential boundary, and apply the selected contract consistently.
 
 ## Reusable System
 
-Create a component foundation that establishes:
-- Base wrapper components around the UI library. Features never import from the UI library directly - they import from the project's wrapper layer. This ensures consistent styling and makes it possible to switch UI libraries without touching feature code.
-- A consistent component API convention: all components use the same prop names for the same concepts. Size uses the same scale everywhere. Variant uses the same vocabulary everywhere. State props use the same naming pattern everywhere.
-- Layout components for common spatial arrangements (stacks, grids, page containers) so features don't reinvent layout patterns.
+Establish the component approach the project actually needs:
+- An inventory of existing components and platform capabilities before new work begins.
+- A public interface for shared behavior where reuse, access needs, or change cost justify one.
+- Consistent names for the same concepts within that interface. Different components may expose different concepts.
+- Clear ownership of rendering, interaction state, data access, and business rules, with boundaries chosen for cohesion and testability.
+- Layout helpers only where repeated arrangements or platform behavior justify them.
 
 ## Rules
 
-- Never import directly from the UI library. Always use project wrappers. If a wrapper doesn't exist, create it first.
-- Consistent sizing across all components. Every component that accepts size uses the same scale (for example xs, sm, md, lg, xl).
-- Consistent variants across all components. Every component that accepts variant uses the same vocabulary (for example primary, secondary, outline, ghost).
-- Consistent state props. Every component uses the same names for disabled, loading, read-only, required, and invalid states.
-- Components render UI. They do not fetch data, compute business logic, or manage complex state. That belongs in hooks or services.
-- Forward refs on all reusable components so parent components can access the underlying element for focus management and library interop.
-- Keep components focused. If a component grows past the project's component-size limit (set in References.md), it's doing too much. Break it into composed smaller components.
-- Before building a new component, check feature-tree.md and the shared component directory. The component may already exist.
+- Before building a component, inspect the existing code, the selected platform or foundation, and the feature inventory.
+- When selecting or materially changing the component approach, research the runtime's current component and composition patterns. Choose direct use, adapters, wrappers, or project-owned components for a stated reason.
+- Follow the project's recorded import and composition boundary. Do not add an abstraction that merely renames an API without reducing a demonstrated cost.
+- Use the same name for the same concept within the chosen component family. Do not force unlike components into one size, variant, or state vocabulary.
+- Keep behavior together when that improves comprehension. Extract data access, business logic, or interaction state when separation produces a clearer contract, safer reuse, or better tests.
+- Expose an element reference, handle, or equivalent only when focus management, measurement, imperative platform behavior, or interoperation needs it.
+- Evaluate component size by responsibility and comprehension, not a universal line count.
+- Preserve the project's accessibility target and the behavior promised by the design artifact regardless of component architecture.
 
 ## Violations
 
-- Importing directly from the UI library instead of project wrappers
-- Inconsistent sizing: one component uses small/medium/large, another uses xs/sm/md, another uses compact/regular
-- God components: one oversized component that fetches data, manages state, handles events, and renders everything
-- Missing ref forwarding on reusable components
-- Building a new component without checking if one already exists in the project
-- Props that accept wildly different types for one value (a prop that takes string or number or function or element)
+- Building a component without checking existing project and platform capabilities.
+- Bypassing the project's recorded component boundary without a relevant change or new evidence.
+- Adding a wrapper or layout primitive with no demonstrated consumer or responsibility.
+- Giving the same concept incompatible names without a reason.
+- Hiding business rules or access behavior inside presentation code so they cannot be understood or verified.
+- Removing keyboard, focus, semantic, or state behavior when changing component structure.
 
 ## Wrong vs Right
 
-- WRONG: Button uses size="small", Input uses size="sm", Card uses sizing="compact". Three components, three different APIs for the same concept.
-- RIGHT: Button, Input, and Card all accept size with the same values. Learn one API, use everywhere.
-- WRONG: UserDashboard is one oversized component with 15 state variables, 8 effects, 10 event handlers, and a massive render function.
-- RIGHT: UserDashboard composes UserProfile, RecentOrders, and NotificationFeed. Each focused component handles one concern. The dashboard just arranges them.
-- WRONG: AI builds a ConfirmDialog component in a feature without checking shared components. The project already has a ConfirmDialog.
-- RIGHT: AI reads feature-tree.md, sees ConfirmDialog already exists in shared, uses it with appropriate configuration.
+- WRONG: wrap every library control because wrappers are assumed to be universally safer.
+- RIGHT: compare direct use and selective adapters against the project's change risks, access requirements, and library stability, then record and enforce the selected boundary.
+- WRONG: force Button, Chart, and Scene into the same size and variant props although their behaviors differ.
+- RIGHT: keep shared vocabulary where the concepts match and let different responsibilities have different interfaces.
+- WRONG: split a cohesive interaction across files only to satisfy a size preference.
+- RIGHT: separate responsibilities when the resulting boundary is easier to reason about, test, reuse, or replace.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
+Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options when the component approach is selected or materially challenged.
 
-When bootstrapping this convention:
-- Research the UI library's component wrapping patterns. Understand how to create thin wrappers that enforce theme usage while passing through all original props.
-- Research the framework's ref forwarding pattern for reusable components
-- Research compound component patterns for the framework (components that share implicit state, like tabs, accordions, selects)
-- Research the framework's recommended approach for component composition vs configuration
-- Document the wrapper location, import rules, and API conventions in References.md
+- Research the platform's native elements, established foundations, accessibility behavior, composition model, and testing support.
+- Inspect current project use before choosing a wrapper or shared-component boundary.
+- Test the selected pattern with actual interactions, including focus, keyboard or controller input where applicable, and committed states.
+- Record the component approach, import boundary, discovery surface, and material reasons in References.md.

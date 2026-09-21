@@ -27,11 +27,11 @@ Built during scaffolding. Every feature plugs into these.
 | 13 | Testing | #12, #18 | [path] | not started | docs/systems/testing.md |
 | 14 | CI/CD & Performance | #15, #13 | [path] | not started | docs/systems/ci.md |
 | 15 | Pulse Monitor | #26 | [path] | not started | docs/systems/pulse-monitor.md |
-| 16 | Design Foundation | #27 | [link to artifact] | not started | docs/systems/design-foundation.md |
+| 16 | Design Foundation & Interface Craft | #27, #31 | [link to artifact; the vocabulary file; the review checklist] | not started | docs/systems/design-foundation.md |
 
 Notes:
 - Not all systems apply to every project. Backend projects skip Theme, Routing, Components. Remove rows that don't apply.
-- Add project-specific systems below row 15 using ordinal numbering (16, 17, ...). Use `—` in the Convention column when no framework convention applies.
+- Add project-specific systems below row 16 using ordinal numbering (17, 18, ...). Use `—` in the Convention column when no framework convention applies.
 - Do not bold cells in the `#` column; the inspector matches literal digits and skips bolded rows.
 - A system the operating stage defers (#30) keeps its row with Status `deferred (TD-N)` and a docs/systems/ page that says what is deferred and until which trigger.
 

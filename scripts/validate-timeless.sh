@@ -13,7 +13,8 @@
 #      classes still apply to it.
 #   B. Factory step references ("Step 48 added this"). A step the same file
 #      defines as a heading ("## Step 12 — ...") or a step named with its
-#      playbook ("SCAFFOLD-BACKEND Step 13") is a playbook step and legal.
+#      playbook ("SCAFFOLD-BACKEND Step 13") is a playbook step and legal; so is a step
+#      defined in another file of the same playbook (its entry file lists them).
 #   C. Statistics or multipliers attached to claims about AI
 #      ("AI does this at 80-90% frequency", "2.74x more vulnerabilities")
 #   D. Numeric limits tied to tool capability: line-count limits and
@@ -143,10 +144,20 @@ done <<< "$ALLOW_ENTRIES"
 # ----------------------------------------------------------------------
 FINDINGS="$(
 for file in "${FILES[@]}"; do
-  awk -v FILE="$file" -v TERMS_PATH="$TMP_TERMS" -v ALLOW_PATH="$TMP_ALLOW" '
+  # A playbook may be several files under one ledger (development/STEPS.md): a step defined
+  # as a heading in any file of the playbook belongs to that playbook in all files.
+  SIBLING_STEPS=""
+  ENTRY="$(grep -l -E "^Step files: .*(^|[ ;])$file([ ;]|\$)" bootstrap/*.md scaffolding/*.md development/*.md 2>/dev/null | head -1)"
+  if [ -z "$ENTRY" ] && grep -q '^Step files: ' "$file" 2>/dev/null; then ENTRY="$file"; fi
+  if [ -n "$ENTRY" ]; then
+    SIBLING_STEPS="$( { printf '%s\n' "$ENTRY"; sed -n 's/^Step files: //p' "$ENTRY" | tr ';' '\n'; } | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | while IFS= read -r sib; do
+      [ -f "$sib" ] && sed -n -E 's/^#{1,6} Step ([0-9]+[a-z]?).*/\1/p' "$sib"; done | tr '\n' ' ')"
+  fi
+  awk -v FILE="$file" -v TERMS_PATH="$TMP_TERMS" -v ALLOW_PATH="$TMP_ALLOW" -v SIBLING_STEPS="$SIBLING_STEPS" '
   function bounded(term) { return "(^|[^[:alnum:]_])" term "([^[:alnum:]_]|$)" }
   BEGIN {
     nterms = 0
+    ns = split(SIBLING_STEPS, sib, " "); for (i = 1; i <= ns; i++) defined[sib[i]] = 1
     while ((getline tline < TERMS_PATH) > 0) {
       split(tline, parts, "\t")
       nterms++; term[nterms] = parts[1]; cat[nterms] = parts[2]

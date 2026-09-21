@@ -1,6 +1,6 @@
 # Phase 2: Scaffold — Router
 
-Build the foundational systems described in `References.md`. Run after bootstrap. Each system is built following convention #0 (Reusability) — built once, configured for context, used by every feature.
+Build the foundations the project has justified in References.md. Run after bootstrap. Convention #0 guides whether an existing capability, an adaptation or a focused implementation best serves the requirement.
 
 **This file is a router.** Most content lives in the shape-specific playbooks below. Read this preamble in full, then jump to the playbook matching your project shape.
 
@@ -21,7 +21,9 @@ Determine the shape from `References.md`:
 - **Platform** (user picked a hosted platform — storefront, site builder, practice-management suite, workspace tool — in `bootstrap/ONBOARD.md` Step 3) → `scaffolding/SCAFFOLD-PLATFORM.md`
 - **Fullstack with separate frontend + backend folders** → run SCAFFOLD-FRONTEND in the frontend folder AND SCAFFOLD-BACKEND in the backend folder. Each has its own `References.md` and `feature-tree.md`.
 
-Do NOT attempt to build from this router directly. The shape-specific playbooks have the ordered steps and the convention mappings.
+Use a listed playbook when its assumptions fit the project. If the researched approach does not fit these routes, identify the applicable concerns and missing workflow/check coverage in the project plan. Do not mislabel the project to force a route. A project-specific extension needs explicit verification and cannot be claimed as supported by the step runner unless it uses a declared playbook that the runner actually recognizes. This router alone is not an implementation procedure.
+
+A playbook that declares a step ledger (development/STEPS.md) is walked with `scripts/next-step.sh`: add its ledger id after `bootstrap` on the Playbooks line of PROGRESS.md and the script names each step, the file that holds it, and its reading. The frontend playbook is stepped this way (`scaffold-frontend`). For an unconverted route, use development/TASKS.md to carry its sequence, dependencies, checks and recovery in the existing implementer plan. Preserve its substantive verification requirements; do not declare runner coverage that does not exist.
 
 ## Shared rules (apply across all shapes)
 
@@ -31,7 +33,7 @@ All shared scaffold rules live in `scaffolding/_preamble.md`. Read that file bef
 - Handoff-check rule (read References.md compliance + foundational-systems inventory before building)
 - Smoke-test rule (scaffold not complete until end-to-end smoke test passes)
 - Verification discipline (operational exit criteria, not "looks like it works")
-- Commit discipline (one commit per system)
+- Commit discipline (coherent verified recovery points)
 - Red-flags rule (consult `scaffolding/RED-FLAGS.md`, the silent-failure catalogue)
 - Machine-verifiable exit gate (`scripts/validate-scaffold.sh` must pass)
 
@@ -50,16 +52,13 @@ Convention: #{number} ({convention name}) [+ #{other} if cross-cutting]
 [One paragraph explaining the system and its responsibility]
 
 ## Where It Lives
-[Exact file paths — every file the system owns]
+[Link the authoritative location in feature-tree.md or References.md; name additional paths only when a consumer needs them.]
 
 ## How Features Use It
-[Exact import statement using the project's path alias, e.g.:]
-import { NotFoundError } from '@/shared/errors'
-
-[Usage example showing the most common pattern]
+[The actual public entry point and a short usage example where needed. Use the project's selected interface, which need not be a module import.]
 
 ## How to Verify
-[Specific command. Specific expected output.]
+[Link the command in References.md and explain the expected behavior. Add a local command only when it is specific to this system.]
 
 ## Configuration
 [How to extend or configure for different contexts]
@@ -106,11 +105,11 @@ Conventions read: [which convention docs were read during scaffolding]
 
 A working, empty project with every applicable foundational system in place, or recorded as a deferral with its trigger per the operating stage (#30, `_preamble.md` stage rule), plus ONE smoke-test feature that exercises every system that was built. No business features yet. Any feature can be built immediately by plugging into these systems.
 
-The scaffold is REUSABLE. Projects with the same tech stack can start from this base.
+A scaffold can be reused when another project shares its assumptions. Verify that fit before inheriting its architecture or obligations.
 
 ## Scaffolding documentation
 
-Every decision made during scaffolding that deviates from the conventions or makes a stack-specific choice is recorded in `References.md` under "Convention Overrides." Research-at-scaffold decisions (e.g., which linter rules were chosen for the stack's AI-prone categories) are also recorded there.
+Record consequential choices and their reasons at the project's existing decision location (#16). References.md identifies selected implementations, commands and justified convention choices; system docs explain contracts and use. Link these records rather than copying reasons into each. Keep revision-specific verification in the log as history.
 
 ## Next step
 

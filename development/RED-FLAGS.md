@@ -8,7 +8,7 @@ Silent-failure in Phase 3 means: the feature passes tests, the build succeeds, b
 
 Agent writes its own database client, its own error class, its own token parser — when `src/shared/db/`, `src/shared/errors/`, `src/shared/auth/` already exist. Root CLAUDE.md says "Read feature-tree.md before building anything new" — but DEVELOP.md's system-inventory step is the operational gate.
 
-**Defense:** DEVELOP.md Step 1 mandates an explicit inventory: enumerate every shared system from feature-tree.md, map to "will use / not needed." If "will use," note the import. Nothing checks that the inventory happened — this defense rests on the agent following the playbook. `validate-develop.sh` catches only the narrow tail: direct construction of a shared database or cache client inside features, matched against a fixed list of client class names that ages as stacks change. It does not inspect imports, and a rebuilt error class or token parser passes it.
+**Defense:** DEVELOP.md Step 1 inspects the affected behavior and relevant existing systems. Reuse a fitting accepted contract; deliberately revise a mismatch instead of silently creating a competing owner. `validate-develop.sh` detects only fixed shared-client constructions, not every duplicated invariant or incorrect import. Independent review examines the actual dependency and lifecycle.
 
 ## 2. Bypass a shared getter by instantiating the class directly
 
@@ -22,7 +22,7 @@ Most insidious form of #1. Agent imports the database client class from its pack
 
 A playbook that says only "run tests after every significant change" leaves the minimum unstated. A lazy agent writes zero new tests, runs the existing ones, and claims conformance. Convention #18 is about VERIFICATION, not test COVERAGE.
 
-**Defense:** DEVELOP.md Step 5 sets a minimum test baseline by endpoint type. For auth-protected HTTP endpoints: at least one each of auth-fail (401), validation-fail (400), happy-path (2xx), and an edge case matching the feature's domain (not-found, conflict, etc.). Feature-specific extensions per sensible judgment. `validate-develop.sh` checks that a feature has a test file at all, never which cases are in it — the baseline itself rests on the agent.
+**Defense:** DEVELOP.md Step 5 selects coverage from behavior and risk: authenticated access, invalid input, success and relevant domain failures where those apply. `validate-develop.sh` checks test-file presence, not those behaviors. Review the tests and their observed results rather than counting files.
 
 ## 4. Skip the feature doc
 
@@ -34,13 +34,13 @@ Feature docs sit late in the workflow (DEVELOP.md Step 7). An agent building to 
 
 First time a feature introduces a new top-level folder (`docs/features/` when `docs/` was empty, a new `src/features/` pattern, a new shared module), References.md § Folder Structure goes stale. Silent: build works; next agent reading References.md gets an outdated folder structure and builds in the wrong place.
 
-**Defense:** DEVELOP.md Step 7 requires: "If your feature introduced a new top-level path, update References.md § Folder Structure. Do not silently let References.md drift from reality." No check compares References.md against the tree; this one is the playbook step and nothing else.
+**Defense:** DEVELOP.md Step 7 updates References.md when a command, system entry point or accepted convention changes. Current facts have one authoritative location; other readers link there. No check compares every References.md fact against source, so review affected links and facts.
 
 ## 6. Partial commits with no granularity rule
 
 A playbook that says only "commit as a save point" gives no trigger. Agent commits mid-feature with failing tests, or never commits, or commits the whole feature in one giant commit that hides bugs. Convention #2 has the rules; a playbook that doesn't operationalize them leaves them unused.
 
-**Defense:** DEVELOP.md Step 8 sets the trigger: commit when "a verification gate just passed cleanly." Never commit with failing typecheck / tests / build. Each feature's commits form a rollback ladder aligned with the verification gates. Granularity is not machine-checkable — this is discipline, not a gate.
+**Defense:** DEVELOP.md Step 8 preserves coherent verified changes as recovery points within repository authorization. Granularity follows the changed contract and review needs; it is not machine-checked. State what was actually verified and committed.
 
 ## 7. Feature doc and route file drift
 
@@ -72,7 +72,7 @@ When the language's strict type config fights a library's generic signatures (e.
 
 Agent codes a screen or a state (an error, an empty list, a confirm dialog) the artifact never showed, because the artifact was silent and the feature was due. Tests pass, the build succeeds, and the interface has one more improvised pattern; the next feature copies it. Convention #27 exists to prevent exactly this, and a design tool run without the artifact as its brief produces the same drift one step earlier.
 
-**Defense:** DEVELOP.md Step 1 names the artifact in the inventory and lists the screens and states it covers; a gap is designed first, with the owner's pick where a direction is open (#27, #29). The feature doc's Design line records which artifact entry and revision the code implements. Nothing checks that line's truth: `validate-develop.sh` does not read the artifact, and the maintain audit's drift item is the only later catch.
+**Defense:** DEVELOP.md Step 1 reads the current artifact and relevant states before implementing a screen. The session records missing composition within the agreed direction and respects owner authority for identity or purpose. The canonical feature template links the basis, artifact, code and reviewed captures. No script establishes the truth of the review; independent inspection and interaction evidence remain necessary.
 
 ---
 

@@ -1,186 +1,61 @@
 # Phase 3: Develop
 
-Build features on top of scaffolded foundational systems. Runs for the life of the project.
+Build or change the behavior the owner needs using the project's researched foundations. Follow the recorded authority and existing contracts; revisit them deliberately when new evidence changes their basis.
 
 ## Prerequisites
 
-- Phase 2 (Scaffold) complete
-- `feature-tree.md § Foundational Systems` populated
-- `References.md § Foundational Systems` lists every shared system's location + import path
-- Verification commands from `References.md § Commands` runnable and green
+- The applicable scaffold is complete and References.md records the chosen systems and verification commands.
+- feature-tree.md provides a current map; verify relevant paths against source when needed.
+- Required checks and profile obligations are resolved before claiming the feature complete.
 
-## Before starting a feature — read these in order
+## Relevant context
 
-Tracked work also follows [TASKS.md](TASKS.md), [FRESHNESS.md](FRESHNESS.md), and the project-root protocols/task-context.md binding when present. These govern task ownership and completion; the workflow below governs code implementation.
-
-1. `CLAUDE.md` (the enforcer — universal rules)
-2. `References.md` — tech stack, Commands, Foundational Systems, Convention Overrides, Critical Lessons
-3. `feature-tree.md` — inventory of what exists (systems + other features)
-4. `Conventions.md` — scan the lookup table for YOUR task type (it's an index, NOT a reading list)
-5. `development/RED-FLAGS.md` — the Phase 3 silent-failure catalogue
-
-Note: if framework is in `archetype/` subfolder, conventions live at `archetype/Conventions.md` and `archetype/backend/Conventions.md` (for backend projects).
+Use the root routing in CLAUDE.md. Read the task's relevant project facts, contracts, conventions and development/RED-FLAGS.md sections; reuse unchanged context from this session. Tracked work also follows development/TASKS.md, development/FRESHNESS.md and the project-root protocols/task-context.md binding when present. Backend work consults backend/Conventions.md. This playbook currently uses the implementer-plan procedure in development/TASKS.md for sequencing and manual dependency review.
 
 ## Feature Development Workflow
 
-### Step 1 — Inventory (not optional)
+### Step 1: Understand the change
 
-Before writing ANY code, enumerate the shared systems from `feature-tree.md § Foundational Systems`. For each system, decide: **will use** or **not needed for this feature**. Note the import path for every "will use."
+Identify the intended behavior, constraints and observable success. Inspect affected code and the existing systems it can reuse; record dependencies that materially affect the plan. Do not enumerate every unrelated system or create an abstraction just to satisfy an inventory (#0, #3).
 
-Example inventory for a "record-session" feature:
+For screen work, read References.md's Design Artifact and its relevant brand, vocabulary, tokens, catalog and feature entries. If an applicable state or composition is missing, design and record it at decision fidelity before implementing it, using templates/design-artifact-entry.md. The session decides within the recorded direction; the owner decides changes to identity or purpose, or delegates the look explicitly (#27, #29). Preserve supplied access, language, spending and other requirements. A changed basis requires the dependency review in development/TASKS.md and reopening any affected declared ledger records through development/STEPS.md.
 
-- errors (src/shared/errors/) — will use (AppError subclasses for typed errors)
-- db (src/shared/db/) — will use (`getDb()` for the session insert)
-- auth (src/shared/auth/) — will use (`requireAuth` — this is a write endpoint)
-- logger (src/shared/logger/) — will use (`req.log` for the request-scoped logger)
-- env (src/shared/config/env.ts) — not needed directly (used via auth and db)
-- types — will use (validation schema at the HTTP boundary)
+### Step 2: Investigate what could change the answer
 
-A feature with a screen also names the design artifact (`References.md § Design Artifact`) as a system it will use, and lists the screens and states the artifact covers. A screen or state the artifact does not cover is designed first, through the project's design tool, with the owner's pick where a direction is open (#27, #29), and coded after. Do not improvise a screen because the artifact is silent; that is red flag #10 (see `development/RED-FLAGS.md`).
+Use Conventions.md to find the relevant concerns, including cross-cutting risks. There is no document quota. Research uncertain or changing facts that matter to the decision, compare viable alternatives and explain why the chosen approach fits. Reuse verified current evidence; record consequential choices at the existing decision location (#16). Do not make research a search for support for a predetermined answer.
 
-Example for a feature with a screen:
+### Step 3: Plan the affected work
 
-- design (the artifact named in References.md § Design Artifact): will use (the list screen with its empty, loading, and error states is designed; the confirm dialog is not, so it is designed first)
+Size the plan to uncertainty, coupling and consequence. For an obvious isolated edit the intended change and check may suffice. For a consequential change identify boundaries, affected consumers, verification and recovery. Avoid unrelated capabilities. Follow #19 and the decision authority in PROFILE.md: technical choices under ai-decides proceed within the granted scope; owner-decides plans require the recorded approval (#29).
 
-If you find yourself wanting to `new` up a class that's already wrapped in `src/shared/`, STOP — that's red flag #2 (see `development/RED-FLAGS.md`). Use the getter.
+### Step 4: Implement the chosen approach
 
-### Step 2 — Route conventions before coding
+Follow the project's accepted structure, lifecycle, error and logging contracts. Reuse a shared capability when it fits; investigate a mismatch before bypassing or replacing it. Select composition, configuration or separation for a concrete reason (#0, #3). Do not silently construct a separate instance when a shared owner controls lifecycle or configuration. Keep user input and external effects within the appropriate trust boundaries.
 
-Open `Conventions.md`. Find the row(s) matching your feature's shape (new API endpoint, new form, new page, etc.). Identify 3-5 relevant convention docs. READ them before writing code.
+### Step 5: Verify behavior and relevant failure paths
 
-**Backend projects:** also scan `backend/Conventions.md` for backend-specific routing — the universal Conventions.md may route you to client-side conventions for server-side tasks if you're not careful.
+Choose tests and observations from the promised behavior and risks (#12, #18). For authenticated endpoints, exercise rejection of unauthorized access, invalid input, successful use and relevant domain failures. Public endpoints do not need an invented authentication path. Jobs and internal services need evidence for their meaningful success and failure behavior. Add concurrency, recovery or boundary coverage where the domain needs it.
 
-Before writing any code, STATE (in comments, in your plan, or in the feature doc's draft) which conventions you read and how they apply. This is the workflow gate — CLAUDE.md says AI should confirm conventions before first code output.
+Use the project's test layout and isolation strategy. Shared test data must not make results depend on unrelated execution order; development/RED-FLAGS.md describes known isolation failures. The number or location of test files is not evidence that behavior is covered.
 
-### Step 3 — Plan (for multi-file features)
+### Step 6: Run checks and review the result
 
-For a single-file change (bug fix, obvious edit): skip to Step 4.
+Run the applicable verification commands in References.md, including the required tests and build checks. Run scripts/validate-profile.sh from the project root. Before increasing exposure, refresh the profile facts and use --strict; an unknown fact or triggered deferral cannot be silently treated as satisfied (#30).
 
-For a feature touching 3+ files:
-- What files will be created / modified
-- Which shared systems from Step 1 are used where
-- What new abstractions, if any (and does each satisfy #0 — built once, configured for context?)
-- Which tests cover which behaviors (see Step 5 baseline)
-- Rollback plan (the commit ladder from Step 7)
+For a screen, run the recorded capture command and retain a capture per applicable state, committed scheme and context. Open the captures and exercise the relevant interactions. Obtain independent review against the current artifact and decision basis (#27, #29). A screenshot alone cannot establish keyboard behavior, timing or task completion.
 
-Either write this plan inline or in a scratch doc. It's not a ceremony — it's how you catch over-engineering before you ship it.
+Investigate failures and warnings. Fix a real defect rather than suppressing the evidence. If a framework heuristic does not recognize a justified project approach, reproduce the mismatch and seek a correction or an explicitly supported path; do not report a failing gate as passed or bypass a protected obligation.
 
-Who signs off on the plan is the decision-authority setting in PROFILE.md (#29, #19): under `owner-decides`, wait for approval; under `ai-decides`, record the plan at the project's decision location and proceed. Scope and product intent are the owner's under both; technical choices inside the plan are not a question for the owner under `ai-decides`.
+### Step 7: Keep authoritative records current
 
-### Step 4 — Implement
+Use templates/feature-doc-template.md as the single feature format. A new feature gets its record at docs/features/{feature-name}.md and a feature-tree row with its location, status and record link. Keep the record brief when there are few non-obvious facts; update an existing record rather than creating another document for each edit. Link contracts, decisions and evidence instead of duplicating them (#16).
 
-- Use the shared systems from Step 1. Never build ad-hoc.
-- Follow the project's folder structure for the new feature (see References.md § How to Add a New Feature).
-- Follow convention #0: if a component/service could be reused, build it reusable.
-- Prefer composition over configuration over forking. Configuration is preferred; forking is the last resort.
-- Never `throw new Error(...)` — use AppError subclasses from `src/shared/errors/`.
-- Never `console.log` — use the shared logger.
-- Never `new` up a class that has a shared getter (red flag #2).
+Update References.md when a project command, system entry point or accepted convention changes. Keep the reason at the existing decision location. Historical logs identify what was verified at that revision; they do not become another current inventory.
 
-### Step 5 — Tests (minimum baseline by endpoint type)
+### Step 8: Preserve a verified recovery point
 
-For a new HTTP endpoint requiring authentication:
-- At least one **auth-fail** test (401 without valid token)
-- At least one **validation-fail** test (400 with malformed input)
-- At least one **happy-path** test (2xx with valid input, correct response shape)
-- At least one **edge-case** test matching the feature's domain (not-found, conflict, unauthorized-for-resource, etc.)
+Within the granted repository authorization, commit a coherent verified change with its reason (#2). Separate independent changes where that improves review and recovery. Do not claim a commit, publication or verification that did not occur.
 
-For a public (unauthenticated) endpoint: drop the auth-fail, keep the other three.
+## Final gate: automated validator
 
-For a background job or internal service: at least one happy-path and one failure-path test.
-
-These are baselines. Add more for domain-specific risks (race conditions, concurrent writes, rate-limit boundaries).
-
-Tests live co-located with the feature: `src/features/{name}/{name}.test.ts` (adjust extension/format to project language). Follow the existing scaffold pattern — if `src/features/health/health.test.ts` exists, match that style.
-
-**Test isolation:** when multiple integration test files share a database (common for file-backed or ephemeral test databases), assertions must be isolation-resilient. Sibling test files leave rows; an unfiltered list-endpoint test asserting `length === N` will flake. See `development/RED-FLAGS.md` #8 for the isolation strategies — pick one at scaffold time and document it in References.md. Minimum bar: scoped lookups (set-membership assertions) rather than total-count assertions.
-
-### Step 6 — Verify (run the gates)
-
-Run each of the project's verification commands from `References.md § Commands`. Typically three gates:
-
-```
-<typecheck command>   # must exit 0
-<test command>        # must exit 0, all tests passing including new ones
-<build command>       # must exit 0
-```
-
-Then run `scripts/validate-profile.sh` from the project root: a deferral whose trigger the facts in PROFILE.md have made true is blocking, and a missing profile is reported as the strictest reading (#30). Before an action that changes exposure (inviting a user, importing real data, enabling payments, publishing), refresh the facts and run it with `--strict`, where an unknown fact is an error.
-
-Do NOT proceed to Step 7 if any gate is red. Fix the issue. Do not paper over with skipped tests, lint-suppression comments, or casts to an untyped escape hatch.
-
-### Step 7 — Document + cross-reference
-
-Required artifacts every feature produces:
-
-1. **Feature doc** at `docs/features/{feature-name}.md` using the template below.
-2. **feature-tree.md update** — new row with: feature name, location, routes (if any), shared systems used, status, doc path.
-3. **References.md update** — only if the feature introduced a new top-level path (first `docs/features/`, new `src/features/*/` subfolder pattern, etc.). Silent drift between code and References.md is red flag #5.
-
-### Step 8 — Commit (granularity = verification gates)
-
-Commit trigger: **a verification gate just passed cleanly.** Per convention #2, each commit is a rollback point.
-
-- Never commit with failing typecheck / tests / build.
-- Prefer one commit per feature if it's small and all gates were green after the final change.
-- For multi-step features, commit after each gate passes (e.g., commit schema + migration, commit implementation, commit tests, commit docs). The commit history becomes the rollback ladder.
-- Commit messages describe the WHY, not just the WHAT. See convention #2.
-
-## Feature Documentation Template
-
-Each feature gets a doc at `docs/features/{feature-name}.md`:
-
-```
-# {Feature Name}
-
-## What It Does
-[One paragraph: what the feature does from the user's perspective]
-
-## Why It Exists
-[Business reason or technical need]
-
-## Systems Used
-[Which foundational systems this feature plugs into — match Step 1 inventory]
-- Errors: [how used]
-- DB: [how used]
-- Auth: [permission requirements]
-- Logger: [what gets logged]
-- Design: [the artifact entry and revision implemented and the states covered; features with a screen only]
-
-## API Shape
-- **Route(s):** [method + path]
-- **Request:** [schema type name / reference to the schema module]
-- **Response (success):** [shape]
-- **Errors:** [table of code → status → message]
-
-## Structure
-[Files this feature owns, one-line purpose each. Link the route file to this doc as a header comment.]
-
-## Test Coverage
-[Brief list of what's tested — auth-fail, validation-fail, happy-path, edge cases]
-
-## Key Decisions
-[Non-obvious choices made during implementation. Trade-offs, deferred work, feature-flag status, etc.]
-```
-
-## When a New AI Agent Joins Mid-Project
-
-1. Read `CLAUDE.md` (the enforcer — learn the rules)
-2. Read `Conventions.md` (scan the convention index)
-3. Read `References.md` (tech stack, system locations, Commands, Overrides, Lessons)
-4. Read `feature-tree.md` (what exists, what's in progress)
-5. Read `docs/systems/` for systems relevant to the current task
-6. Read `docs/features/{feature}.md` for the feature you're working on
-7. Read `development/RED-FLAGS.md` once — it's short, it's the failure catalog
-8. Start working: the foundational systems are already in place. Use them (don't rebuild them).
-
-## Final gate — automated validator
-
-Run `scripts/validate-develop.sh` before committing. It fails the run on:
-
-- Direct construction of a shared client class in features, bypassing its getter (red flag #2). The check matches a fixed list of shared client class names, so it catches the common bypasses, not every one.
-- Console-level output in `src/features/` (red flag — use the shared logger)
-- A feature directory under `src/features/` with no test file
-- A feature row in feature-tree.md with no `docs/features/{name}.md` (the cross-check warns and skips when the project has no feature tree or no `docs/features/` yet)
-
-It only warns on `throw new Error(` in features, and the run exits clean with warnings outstanding, so that rule rests on you rather than on the gate: raw throws stay forbidden — use AppError subclasses from `src/shared/errors/` (red flag #1 spillover). A clean exit with warnings is not a pass. Fix the underlying issue, warnings included. Do not paper over.
+Run scripts/validate-develop.sh before claiming the phase complete. It currently checks fixed shared-client patterns, console output in source feature folders, test-file presence and feature-document links. It warns on raw error construction. Those heuristics cover particular layouts and cannot establish all architectural or testing choices. Review each diagnostic against the project's actual contract; unresolved failures remain visible until corrected. Passing this validator does not replace behavioral evidence or independent review.

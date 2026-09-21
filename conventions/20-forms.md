@@ -17,10 +17,10 @@ Create a form system that establishes:
 ## Rules
 
 - One schema = types + validation. Define the schema once, derive the type from it. Never write a separate type definition and a separate validation schema for the same form.
-- Validate on field blur or change for immediate feedback. Validate the entire form on submit for final verification.
+- Validate a field when the person leaves it, never while they are still typing a first entry; once a field has been marked invalid, re-validate it on change so the error clears as soon as it is fixed. Validate the whole form on submit and move focus to the first error. Field errors follow #31 "Words".
 - Error messages are displayed inline below the field and are programmatically associated with the field for screen readers.
 - Server-side validation errors must be mapped back to specific form fields, not shown as a generic toast or alert.
-- Always warn users when navigating away from a form with unsaved changes.
+- Keep a draft where the product can (autosave, a recoverable draft); where it cannot, warn before leaving a form with unsaved changes, and the warning names what would be lost.
 - Always provide explicit default values for all form fields. Missing defaults cause framework warnings and inconsistent behavior.
 
 ## Violations
@@ -28,7 +28,7 @@ Create a form system that establishes:
 - Manual validation logic (checking each field with if statements) instead of schema-based validation
 - Separate type definition AND validation schema for the same form (they drift apart when one is updated)
 - Error messages shown as a generic toast instead of mapped to specific fields
-- No unsaved changes warning on forms with user input
+- No draft and no leave warning on a form with user input
 - Missing default values on form fields
 - Error messages not associated with their fields for screen readers (accessibility violation)
 

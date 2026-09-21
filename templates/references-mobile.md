@@ -9,7 +9,7 @@ Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses t
 - Stage: [development / staging / production]
 - Profile: PROFILE.md (operating stage and decision authority per #30 and #29)
 - Owner channel: [where escalations go and how quickly the owner usually answers]
-- Decision location: [architecture decision records path, or "References.md § Decisions" until one exists]
+- Decision location: [existing decision record path or section; otherwise DECISIONS.md from templates/decisions.md, one location only]
 - Reporting pace: [every session / every release / on request]
 - Platforms: [iOS / Android / both]
 
@@ -19,7 +19,7 @@ Each line must start with `- ` (dash space); content is `- Key: Value`. Inspecto
 
 - Framework: [mobile framework chosen at bootstrap]
 - Language: [language]
-- UI Library: [component foundation, or "project-owned" with the #22 decision recorded]
+- UI Library: [selected native, library, adapter, wrapper, or project-owned approach with the #22 decision recorded]
 - State: [client-state approach]
 - Data Fetching: [server-state library or HTTP client]
 - Validation: [schema library]
@@ -38,32 +38,39 @@ typecheck: [command to run type checker]
 lint:      [command to lint]
 deploy:    [command to deploy to each store]
 clean:     [command to clean build artifacts]
+capture:   [command that saves the capture set: each screen in each applicable state, per scheme and committed context (#27)]
 ```
 
 ## Design Artifact
 
-Convention #27 anchor: **AI consults the artifact first. When silent, AI asks. AI never invents UX.** Any design skill, plugin, canvas, or workspace that runs in this project reads this section first: it is the brief. One `- Label: value` line per field, labels exact. The framework's self-test keeps this list and convention #27 in step; nothing checks this file's own lines, so the session and the independent review do. Where the recorded direction makes two lines the same place (under `workspace-first` the artifact and the published view; under `repository-first` the artifact and the tokens source or the catalog), write `same as <label>`.
+Convention #27 anchor: **AI consults the artifact first. When silent, the session designs within the picked direction and records it; the owner is asked only for identity and what a screen is for.** Any design skill, plugin, canvas, or workspace that runs in this project reads this section first: it is the brief. One `- Label: value` line per field, labels exact. The framework's self-test keeps this list and convention #27 in step; `scripts/validate-design.sh` fails a line that is missing, repeated, or still a placeholder, and the independent review reads whether a recorded value is true. Where the recorded direction makes two lines the same place (under `workspace-first` the artifact and the published view; under `repository-first` the artifact and the recorded styling source or discovery surface), write `same as <label>`.
 
 - Primary tool: [category: a visual design tool / a design-system-as-code repository / an AI design canvas in the working session / an AI design workspace; the product's name and version, a dated fact, on this line]
-- Direction of truth: [repository-first (the token source, specifications, and component previews in the repository are the artifact; a workspace or canvas is a published view or a proposal) / workspace-first (the workspace or canvas is the artifact; the token source and catalog follow it)]
+- Direction of truth: [repository-first (the recorded styling source, specifications, and any interface previews in the repository are the artifact; a workspace or canvas is a published view or a proposal) / workspace-first (the workspace or canvas is the artifact; the repository styling source and any discovery surface follow it)]
 - Artifact location: [path or URL; `[to be created]` until first published]
 - Published view: [URL of the published view, or none]
-- Tokens source: [path of the token file or module the code derives its theme from (#6)]
-- Component catalog: [path or URL, or none yet]
-- Brand book: [path or URL of the brand and content guidelines, or none]
+- Tokens source: [path to the recorded styling source under #6, such as a token file, theme module, native style source, or decision record for justified direct values]
+- Component catalog: [path or URL of the selected component or interaction-pattern discovery surface, or none]
+- Brand book: [path or URL of the brand and content guidelines; none only while `Brand decided` is not yes]
 - Design working files: [folder for artboards, layout manifests, images, and sync configuration, a folder a tool fixes for itself recorded as it is; committed; generated bundles ignored; or none]
 - Sync: [the step that keeps the two places in step in the recorded direction: the publish under repository-first, the read-back into the repository under workspace-first; who runs it; when (after each design change, before each UI feature); or none when there is only one place]
-- Brand decided: [yes / deferred to downstream projects / not yet, directions pending the owner's pick]
+- Brand decided: [yes only when the brand book records all six, each as a decision or an explicit none: marks, palette values, type families, voice and tone, imagery style, motion signature / deferred to downstream projects / not yet, directions pending the owner's pick]
 - Platform parity: [how iOS and Android states are kept aligned in the artifact]
-- Every UI state designed: [yes / the gaps: empty, loading, error, success, disabled, per screen, platform-specific permission prompts included]
+- Every UI state designed: [yes / the gaps per screen, against the state list in #27, platform-specific permission prompts included]
 - Update responsibility: [who owns artifact edits; how code follow-ups trigger]
 - Complementary tools: [exploration only, never source of truth; list or none]
-
-If the artifact is silent on a UI decision, AI proposes and asks the owner; it does not invent visual or interaction patterns. The owner picks the visual direction from proposed directions (#29); after the pick the artifact governs.
+- Primary context: [where people use it most of the time: a desk, a phone, a shared screen, outdoors, or two of these equally; from discovery]
+- Committed contexts: [every context the product is verified in, each with its own captures (#27)]
+- Density: [strategy by context and activity, with the reason; comparable contexts stay coherent (#31)]
+- Vocabulary: [path of the glossary, from templates/vocabulary.md: every thing named once with its verb (#31); starts from the owner's words]
+- First task: [the one thing a person should be able to do within a minute of first opening it, in the owner's words; from discovery; unknown only with what was assumed]
+- Return tasks: [up to three things people come back to do most, first one first; the directions and the first screen are composed for the first (bootstrap/DESIGN-INTERVIEW.md); unknown only with what was assumed]
+- Session length: [a quick check a few times a day / hours at a stretch / between; from discovery; informs density and interaction research]
+- Captures: [folder the capture set lives in, committed; regenerated in place by the `capture:` command, never kept by date, so the set does not grow with every run (#27)]
 
 ## Foundational Systems
 
-Each system is built once following convention #0 (Reusability). Features plug into these, never build ad-hoc.
+Complete the sections relevant to this project. Record the selected approach, its consumers, and the reason when a shared boundary is justified. Features follow those recorded decisions; they do not create competing systems silently.
 
 ### Git & Project Init (#2)
 Commit convention: [e.g., conventional commits]
@@ -81,8 +88,11 @@ Shared types: [path to shared type definitions]
 
 ### Theme System (#6)
 Location: [path to theme definition]
-Tokens: [where design tokens are defined - colors, spacing, typography]
-Color schemes: [committed set, light + dark by default; if a single scheme, the reason (#6)]
+Tokens: [selected styling source and any roles, scales, or direct-value policy it defines]
+Color schemes: [committed set and reason; no additional scheme is implied (#6)]
+Type scale: [selected type approach and the content or interaction evidence behind it (#31)]
+Motion: [the jobs motion serves, applicable user preferences, and the recorded implementation approach (#31)]
+Layout: [selected composition and adaptation rules for the committed contexts (#31)]
 Platform adaptation: [how theme adapts between iOS and Android if applicable]
 Usage: [how features use theme values]
 
@@ -127,12 +137,14 @@ Usage: [how features manage state]
 
 ### Component Foundation (#4, #22)
 Location: [path to shared components]
-Base components: [wrapper components]
-Foundation decision: [established library chosen, or "project-owned" with the reason, per #22]
-Component-size limit: [lines per component before it must be composed (#4)]
-Import rule: [import convention]
+Base components: [where selected native elements, library use, adapters, wrappers, or project-owned components are discovered]
+Foundation decision: [selected interface approach and its reason, per #22]
+Component-size limit: [project-specific comprehension or responsibility signal, or none with the review approach (#4)]
+Import rule: [the recorded import boundary, including direct platform or library imports when chosen]
 Platform-specific: [components that differ between iOS/Android]
 Accessibility target: [the level the project commits to, chosen at bootstrap per #14; sets the contrast floor design content keeps (#27)]
+Icon set: [selected icon sources, styles, and locations, or none; record how meaning and consistency are checked (#22)]
+Target size: [the platform minimum the project holds to, and the space between adjacent targets (#14)]
 Usage: [how features use shared components]
 
 ### Form System (#20) [if applicable]
@@ -172,16 +184,10 @@ If backend is a separate custom folder, it has its own `References.md` using `re
 
 ## Native-Module Wrapping
 
-Mobile projects need native-module wrappers for the same reason convention #22 requires UI-library wrappers: features should not import the native-capability library directly. Features that need a native capability (camera, HealthKit/Google Fit, haptics, biometrics, secure storage, geolocation, push notifications, BLE) import from a project-local wrapper that:
-- Configures the native library with the project's defaults
-- Handles permission request UX consistently
-- Falls back gracefully when permission denied
-- Provides a stable API the rest of the project uses
+Research each native capability against the chosen framework, current platform guidance, permission flow, testability, and expected change. Direct platform or library use is valid when it keeps the behavior clear and access needs verifiable. Add a project-local adapter or wrapper when it centralizes real policy, permission handling, fallback behavior, testing, or a volatile dependency. Record the selected boundary rather than assuming one architecture for every capability.
 
-This applies to cross-platform frameworks and native platforms alike. Research the current native-module approach for the chosen mobile framework at bootstrap time.
-
-List the wrappers in use:
-- [native capability]: [wrapper path] — [what native library it wraps, why]
+List the capability boundaries in use:
+- [native capability]: [direct source, adapter, or wrapper path] - [dependency, permission behavior, and reason]
 
 ## Platform-Specific Notes
 

@@ -2,6 +2,7 @@
 # Validates a scaffolded project against the framework's scaffold conventions.
 # Replaces AI-discipline-only verification with machine-verifiable gates.
 # Run from the project root after scaffolding.
+# Use --required known-screen when the scaffold route is known to produce screens.
 #
 # Checks (categorical, not prescriptive); ids match the groups the script prints:
 #   1.  Every foundational system in feature-tree.md has a docs/systems/{name}.md
@@ -16,8 +17,24 @@
 #   6c. Persisted queries for mobile/public GraphQL clients (if declared)
 #   6d. Telemetry exporter configured (if References.md names the standard)
 #   7.  VERSION-LOG.md has a Scaffold entry
+#   8.  References.md § Design Artifact is filled in (delegates to validate-design.sh;
+#       a project with no such section passes)
 #
 # Exit 0 on pass, 1 on any error. Warnings do not fail.
+
+DESIGN_REQUIRED=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --required)
+      [ "$#" -ge 2 ] || { echo "--required needs a value (accepted: known-screen)"; exit 2; }
+      DESIGN_REQUIRED="$2"; shift 2 ;;
+    -h|--help) sed -n '2,5p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "unknown argument: $1 (accepted: --required known-screen)"; exit 2 ;;
+  esac
+done
+[ -z "$DESIGN_REQUIRED" ] || [ "$DESIGN_REQUIRED" = "known-screen" ] || {
+  echo "unknown required mode: $DESIGN_REQUIRED (accepted: known-screen)"; exit 2;
+}
 
 PROJECT_ROOT="$(pwd)"
 
@@ -380,6 +397,26 @@ if [ -f "$VLOG" ]; then
   fi
 else
   warn "VERSION-LOG.md not found"
+fi
+
+# ----------------------------------------------------------------------
+group 8 "Design Artifact section filled in (conv #27)"
+# ----------------------------------------------------------------------
+VD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/validate-design.sh"
+if [ ! -f "$VD" ]; then
+  fail "scripts/validate-design.sh missing beside this script"
+elif [ "$DESIGN_REQUIRED" = "known-screen" ]; then
+  if DESIGN_OUT="$(cd "$PROJECT_ROOT" && bash "$VD" --required known-screen 2>&1)"; then
+    pass "References.md has one complete live Design Artifact section for the known-screen scaffold"
+  else
+    printf '%s\n' "$DESIGN_OUT" | sed 's/^/  /'
+    fail "validate-design.sh --required known-screen reported errors (see lines above)"
+  fi
+elif DESIGN_OUT="$(cd "$PROJECT_ROOT" && bash "$VD" 2>&1)"; then
+  pass "References.md Design Artifact section passes validate-design.sh (or the project has none)"
+else
+  printf '%s\n' "$DESIGN_OUT" | sed 's/^/  /'
+  fail "validate-design.sh reported errors (see lines above)"
 fi
 
 # ----------------------------------------------------------------------

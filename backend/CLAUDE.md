@@ -1,21 +1,9 @@
-# Backend Rules
+# Backend work
 
-These supplement the universal rules in the root CLAUDE.md. Read both.
+Read the root CLAUDE.md and use backend/Conventions.md to locate the concerns relevant to the task. Inspect existing contracts and current runtime evidence before selecting or changing database access, request handling, uploads, caching or background work.
 
-Scan backend/Conventions.md for which backend conventions apply to your current task.
+Preserve the project's accepted architecture and record consequential changes at its existing decision location. Shared examples do not settle the project's response shape, queue threshold, connection strategy or middleware boundaries. Evaluate their applicability under the root judgment guidance and record justified convention choices in the existing overrides location.
 
-## Enforcement
+Protect secrets and personal data, validate untrusted inputs at the correct boundary, preserve atomicity where related writes require it, and prevent cross-user or cross-tenant access. Destructive database actions, production changes and external commitments follow the recorded authority and permission boundaries. Verify the actual safety and behavior promised; an architectural choice never excuses a failed required check.
 
-- Never run destructive database operations (DROP, DELETE all, ALTER column type) without explicit approval. → backend/conventions/B1-database.md
-- Never create database connections per request. Use the connection pool. → backend/conventions/B1-database.md
-- Never fetch related data inside a loop. Use batch queries, joins, or includes. → backend/conventions/B1-database.md
-- Never auto-run migrations in production. Migrations require human approval. → backend/conventions/B1-database.md
-- Never wrap multiple related writes without a transaction. → backend/conventions/B1-database.md
-- Never use console.log or print. Use the structured logging system. → backend/conventions/B4-logging.md
-- Never log passwords, tokens, API keys, or PII. → backend/conventions/B4-logging.md
-- Never do synchronous work over 2 seconds in a request handler. Queue it. → backend/conventions/B5-background-jobs.md
-- Never trust client Content-Type headers for file validation. Check magic bytes server-side. → backend/conventions/B6-file-handling.md
-- Never return raw arrays from API endpoints. Use the response envelope. → backend/conventions/B2-api-design.md
-- Never proxy file uploads through the server. Use presigned URLs. → backend/conventions/B6-file-handling.md
-- Never put authentication, authorization, or input validation inside a route handler. The middleware pipeline runs them in its fixed order. → backend/conventions/B3-middleware.md
-- Never cache user-specific data in a shared cache without the user in the key, and never cache data that must be real-time consistent. → backend/conventions/B7-caching.md
+For unconverted backend work, use development/TASKS.md to keep the sequence, dependencies, evidence and next action in the existing implementer plan. This entry routes work; it does not claim every backend pattern or runtime is automatically supported.

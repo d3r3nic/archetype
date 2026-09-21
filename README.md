@@ -1,6 +1,6 @@
 # Archetype - AI Development Framework
 
-A layered knowledge system for AI-assisted software development. Works with any language, framework, or AI assistant. From vibe coders to production teams.
+A layered knowledge system for AI-assisted software development. It guides research, decisions and verification around the owner's goals. Adapt the relevant guidance to the project; the included playbooks and checks cover particular project shapes, not every language or runtime.
 
 ## Quick Start
 
@@ -39,7 +39,11 @@ Then tell your AI assistant:
 
 > Read bootstrap/ONBOARD.md and help me set up this project. I want to build [describe your idea].
 
-The AI will interview you about what you're building, pick the right tech stack for your experience level, and generate your project's References.md and feature-tree.md.
+The AI interviews you about the intended outcome, researches viable approaches against your constraints, and records the chosen path in project context such as References.md and feature-tree.md.
+
+## Workflow coverage
+
+Bootstrap and the frontend scaffold declare automated step routes. Backend, mobile and platform scaffolding, feature development and maintenance use the implementer's existing task or project plan for sequencing, checks and manual dependency review under development/TASKS.md. These workflows can be followed without converting them into runner metadata; their required verification still applies. Do not infer full project completion from a completed bootstrap ledger.
 
 ## Shared task rules and updates
 
@@ -64,26 +68,26 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 
 **You don't need to be a developer.** The discovery process asks plain-English questions ("What does your app do? Who uses it? Should it work in a browser or as a phone app?") and translates your answers into technical decisions.
 
-**The AI adjusts to your experience level.** A bakery owner gets a managed platform with zero server management. A developer gets managed cloud. An enterprise team gets full infrastructure control.
+**The AI adjusts its explanation to you.** It researches options against your goals, constraints, existing work and willingness to operate the result. Your experience level alone does not determine a platform, architecture or hosting model.
 
 **Two facts every session reads first.** `PROFILE.md` records how careful the project must be (its operating stage, derived from facts such as who uses it, whether the data is real, and whether anyone depends on it) and who decides technical questions (the owner, or the AI with a written record). Deferred work carries the trigger that ends the deferral, and a short floor is never deferred. Conventions #29 and #30 define both; `templates/profile.md` is the template and `scripts/validate-profile.sh` checks the record.
 
 ## What's Inside
 
 ```
-├── CLAUDE.md                 # Shared enforcer with convention routing
+├── CLAUDE.md                 # Shared guidance with convention routing
 ├── Conventions.md             # Convention lookup index
 ├── LICENSE                    # Apache License 2.0
 ├── NOTICE                     # Copyright and license attribution
 ├── conventions/               # Framework-agnostic convention docs
-│   ├── 00-reusability.md      # Meta: everything built once, configured for context
-│   ├── 01-30.md               # Project setup, git, architecture, components, state,
+│   ├── 00-reusability.md      # Meta: evaluate reuse and abstraction in context
+│   ├── 01-31.md               # Project setup, git, architecture, components, state,
 │   │                          # styling, types, errors, API, contract, authentication,
 │   │                          # testing, performance, accessibility, CI/CD, documentation,
 │   │                          # context management, verification, steering,
 │   │                          # forms, routing, design system, app security, authorization,
 │   │                          # automated enforcement, pulse monitor, design foundation,
-│   │                          # config-driven brand and content
+│   │                          # config-driven brand and content, interface craft
 │   └── (see Conventions.md)
 │
 ├── bootstrap/ONBOARD.md       # Phase 1: discovery interview + project setup
@@ -109,11 +113,11 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 
 ## What Your Project Gets
 
-After bootstrap and scaffolding, your project has:
+For a custom application using the included feature-oriented scaffold, the resulting project can look like this. Choose a different structure when its runtime and responsibilities warrant it:
 
 ```
 your-project/
-├── CLAUDE.md                 # Enforcer (from framework)
+├── CLAUDE.md                 # Shared guidance (from framework)
 ├── Conventions.md             # Convention index (from framework)
 ├── conventions/               # Convention docs (from framework)
 ├── References.md              # YOUR project's tech stack, systems, commands
@@ -131,13 +135,12 @@ inject.sh installs the framework files into the engine folder (`archetype/` by d
 
 ## Key Principles
 
-- **Everything built once, configured for context.** One error system, one API layer, one theme, one auth system. Features plug in.
-- **Prefer an established component foundation.** Don't reinvent buttons and modals when a fitting library exists. Configure it with your theme, wrap, export.
-- **Every color scheme from day one.** The theme swaps schemes at the token layer; light and dark are the default pair.
-- **Design before code; the look is the owner's pick.** The artifact, the tokens, and the profile are the brief for any design tool that runs in the project. Mockups follow the design discipline; code follows the tokens.
-- **Conventions describe WHAT, not HOW.** The bootstrapping AI researches the latest patterns for your specific tech stack.
-- **Feature tree as living map.** Every system and feature tracked. New AI agents read it to understand the project instantly.
-- **Documentation flows with code.** Not after. System docs, feature docs, and feature tree updated as you build.
+- **Investigate before choosing.** Understand the purpose, inspect existing work and research material uncertainty. Current evidence may overturn the first idea.
+- **Patterns need context.** Reuse, abstraction, architecture and visual style are choices to justify. Respect accepted project commitments; record consequential changes and their dependencies.
+- **The owner sets the intent.** The AI recommends and implements within the recorded authority. Supplied requirements survive delegation of the look.
+- **Evidence supports completion.** Verify behavior and inspect the resulting interface. Record limits honestly; a script cannot certify judgment or prove that instructions were read.
+- **Read what the work needs.** The root and playbooks route relevant knowledge; current facts have one authoritative home, with links for other readers.
+- **Recover when the basis changes.** Declared decisions and inputs identify affected work. Preserve history and unrelated work while rechecking dependent evidence.
 
 ## License
 
