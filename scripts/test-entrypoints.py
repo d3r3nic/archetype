@@ -183,7 +183,10 @@ class Entrypoints(unittest.TestCase):
         self.inject()
         root = self.project / 'CLAUDE.md'
         root.write_text(root.read_text() + '- A project rule.\n')
-        (self.project / 'CLAUDE.md.additions').mkdir()
+        additions = self.project / 'CLAUDE.md.additions'
+        additions.write_text('Existing\n')
+        additions.chmod(0o444)
+        self.addCleanup(additions.chmod, 0o644)
         _, env = self.update_source()
         before = root.read_text()
         result = self.run_update(env)
@@ -206,6 +209,23 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual(len(kept), 1)
         self.assertIn(rule, kept[0].read_text())
         self.assertIn(kept[0].name, (clone / 'CLAUDE.md.additions').read_text())
+
+    def test_update_finds_added_lines_from_the_recorded_revision_without_an_engine_copy(self):
+        self.inject()
+        remote, env = self.update_source()
+        recorded = self.run_command(['git', '-C', str(remote), 'rev-parse', 'HEAD']).stdout.strip()
+        self.assertEqual(len(recorded), 40)
+        (self.project / 'VERSION-LOG.md').write_text('## Updates\n\nCommit: ' + recorded + '\n')
+        rule = '- A rule with only the recorded revision as its baseline.'
+        (self.project / 'CLAUDE.md').write_text((remote / 'CLAUDE.md').read_text() + rule + '\n')
+        (self.project / 'archetype/CLAUDE.md').unlink()
+        source = remote / 'CLAUDE.md'
+        source.write_text(source.read_text() + 'A later framework line.\n')
+        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'later'])
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('CARRIED: 1 line(s)', result.stdout)
+        self.assertIn(rule, (self.project / 'CLAUDE.md.additions').read_text())
 
     def test_update_installs_the_pointer_and_the_rules(self):
         self.inject()

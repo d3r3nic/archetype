@@ -112,7 +112,7 @@ chmod +x "$DEST/inject.sh" "$DEST/update.sh" 2>/dev/null || true
 
 # Create VERSION-LOG.md at PROJECT ROOT (not inside archetype/).
 # The framework folder stays read-only; all per-project artifacts live at the project.
-LATEST_HASH=$(git -C "$FRAMEWORK_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+LATEST_HASH=$(git -C "$FRAMEWORK_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
 if [ ! -f "$TARGET_DIR/VERSION-LOG.md" ]; then
   cat > "$TARGET_DIR/VERSION-LOG.md" << VEOF
 # Version Log

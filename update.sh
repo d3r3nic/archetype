@@ -137,7 +137,7 @@ plan_carry() {
   base="$CARRY_DIR/$name.base"
   if [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ] && [ -f "$ARCHETYPE_DIR/$name" ]; then
     cp "$ARCHETYPE_DIR/$name" "$base"
-  elif [ -n "$RECORDED" ] && git -C "$TEMP_DIR" fetch --quiet --depth 1 origin "$RECORDED" 2>/dev/null && \
+  elif [ "${#RECORDED}" -eq 40 ] && git -C "$TEMP_DIR" fetch --quiet --depth 1 origin "$RECORDED" 2>/dev/null && \
        git -C "$TEMP_DIR" show "$RECORDED:$name" > "$base" 2>/dev/null; then
     :
   else
@@ -145,14 +145,15 @@ plan_carry() {
   fi
   if [ "$name" = AGENTS.md ] && ! grep -qF '<!-- archetype-managed-entrypoint -->' "$root"; then
     echo unmanaged > "$CARRY_DIR/$name.mode"
-  elif [ -f "$base" ]; then
+  elif [ -s "$base" ]; then
     strip_cr "$base" > "$CARRY_DIR/$name.base.lf"
     strip_cr "$root" | grep -vxFf "$CARRY_DIR/$name.base.lf" | grep -v '^[[:space:]]*$' | awk '!seen[$0]++' > "$CARRY_DIR/$name.added" || true
-    : > "$CARRY_DIR/$name.lines"
-    while IFS= read -r line; do
-      [ -f "$ADD" ] && strip_cr "$ADD" | grep -qxF -- "$line" && continue
-      printf '%s\n' "$line" >> "$CARRY_DIR/$name.lines"
-    done < "$CARRY_DIR/$name.added"
+    if [ -s "$ADD" ]; then
+      strip_cr "$ADD" > "$CARRY_DIR/additions.lf"
+      grep -vxFf "$CARRY_DIR/additions.lf" "$CARRY_DIR/$name.added" > "$CARRY_DIR/$name.lines" || true
+    else
+      cp "$CARRY_DIR/$name.added" "$CARRY_DIR/$name.lines"
+    fi
     [ -s "$CARRY_DIR/$name.lines" ] || return 0
     echo lines > "$CARRY_DIR/$name.mode"
   else
@@ -451,7 +452,7 @@ VEOF
 fi
 
 # Get the latest commit hash from the cloned repo
-LATEST_HASH=$(git -C "$TEMP_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+LATEST_HASH=$(git -C "$TEMP_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
 
 # Append update entry
 echo "" >> "$VERSION_LOG"

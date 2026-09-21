@@ -19,7 +19,7 @@ Commit or stash the project's work so the update is one reviewable change. Run `
 
 ## What the updater does to the root entry files
 
-Each root file is compared with a baseline: the engine's copy from before the update, or, in a full clone (the engine folder is the project root) or where the engine never carried the file, the file at the framework revision `VERSION-LOG.md` records.
+Each root file is compared with a baseline: the engine's copy from before the update, or, in a full clone (the engine folder is the project root) or where the engine never carried the file, the file at the framework revision `VERSION-LOG.md` records, when that entry holds a full revision id (an older install recorded a short one, which cannot be fetched, and gets the no-baseline case below).
 
 - Root file with no project lines: replaced, nothing else happens.
 - Root file with lines the project added: those lines are appended to `CLAUDE.md.additions` under a dated heading, the whole previous file is kept as `<name>.pre-update-<date>`, then the file is replaced. The preview says `CARRIED` with the line count. A line the additions file already holds is not carried again.
