@@ -147,13 +147,13 @@ if [ ! -d "$TARGET_DIR/docs/features" ]; then
 fi
 
 echo ""
-echo "Done. CLAUDE.md is at the project root. Framework files are in $SUBFOLDER_NAME/."
+echo "Done. AGENTS.md (the rules) and CLAUDE.md (a pointer to it) are at the project root. Framework files are in $SUBFOLDER_NAME/."
 echo ""
 echo "Next steps:"
 echo "  1. cd $TARGET_DIR"
 echo "  2. Tell your AI assistant:"
 echo ""
-echo "     Read CLAUDE.md, then read $SUBFOLDER_NAME/bootstrap/ONBOARD.md."
+echo "     Read AGENTS.md, then read $SUBFOLDER_NAME/bootstrap/ONBOARD.md."
 echo "     Follow the bootstrap process for this project."
 echo ""
 echo "  3. The AI will generate References.md and feature-tree.md."

@@ -65,7 +65,7 @@ echo "=== Audit Complete ==="
 
 Trigger: host session start.
 Action: if `References.md` doesn't exist, print a reminder to run bootstrap.
-Redundant with the bootstrap gate already in CLAUDE.md, but removes a class of failure where the AI starts coding before reading the enforcer. Consider adding if bootstrap gate violations appear in session reviews.
+Redundant with the bootstrap gate already in AGENTS.md, but removes a class of failure where the AI starts coding before reading the enforcer. Consider adding if bootstrap gate violations appear in session reviews.
 
 ## Principles for adding new hooks
 
@@ -79,4 +79,4 @@ Redundant with the bootstrap gate already in CLAUDE.md, but removes a class of f
 
 See `bootstrap/hooks/README.md` for install on the hosts it covers.
 
-Setting up hooks is optional during bootstrap — they can be added at any time. Without hooks, CLAUDE.md enforcement carries the load, and it is advisory only.
+Setting up hooks is optional during bootstrap — they can be added at any time. Without hooks, the guidance in AGENTS.md carries the load, and it is advisory only.

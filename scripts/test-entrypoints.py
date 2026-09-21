@@ -158,6 +158,68 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
         self.assertEqual((self.project / 'CLAUDE.md.additions').read_text().count(rule), 1)
         self.assertEqual(len(self.kept_copies('CLAUDE.md')), 1)
+        # The same rule put back into the root file is already in the additions file:
+        # nothing is carried, no empty audit block is written, no second copy is kept.
+        root.write_text(root.read_text() + rule + '\n')
+        before = (self.project / 'CLAUDE.md.additions').read_text()
+        third = self.run_update(env)
+        self.assertEqual(third.returncode, 0, third.stdout + third.stderr)
+        self.assertNotIn('CARRIED', third.stdout)
+        self.assertEqual((self.project / 'CLAUDE.md.additions').read_text(), before)
+        self.assertEqual(len(self.kept_copies('CLAUDE.md')), 1)
+
+    def test_update_ignores_carriage_returns_when_finding_added_lines(self):
+        self.inject()
+        rule = '- A project rule.'
+        root = self.project / 'CLAUDE.md'
+        root.write_bytes(root.read_bytes().replace(b'\n', b'\r\n') + rule.encode() + b'\r\n')
+        _, env = self.update_source()
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('CARRIED: 1 line(s)', result.stdout)
+        self.assertNotIn(MARKER, (self.project / 'CLAUDE.md.additions').read_text())
+
+    def test_update_stops_with_nothing_replaced_when_the_carry_cannot_be_written(self):
+        self.inject()
+        root = self.project / 'CLAUDE.md'
+        root.write_text(root.read_text() + '- A project rule.\n')
+        (self.project / 'CLAUDE.md.additions').mkdir()
+        _, env = self.update_source()
+        before = root.read_text()
+        result = self.run_update(env)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(root.read_text(), before)
+
+    def test_full_clone_update_keeps_a_changed_root_file(self):
+        remote, env = self.update_source()
+        clone = self.root / 'full-clone-carry'
+        result = self.run_command(['git', 'clone', str(remote), str(clone)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        rule = '- A full-clone project rule.'
+        (clone / 'CLAUDE.md').write_text((clone / 'CLAUDE.md').read_text() + rule + '\n')
+        source = remote / 'CLAUDE.md'
+        source.write_text(source.read_text() + 'A later framework line.\n')
+        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'later'])
+        result = self.run_command(['bash', str(clone / 'update.sh')], input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        kept = sorted(clone.glob('CLAUDE.md.pre-update-*'))
+        self.assertEqual(len(kept), 1)
+        self.assertIn(rule, kept[0].read_text())
+        self.assertIn(kept[0].name, (clone / 'CLAUDE.md.additions').read_text())
+
+    def test_update_installs_the_pointer_and_the_rules(self):
+        self.inject()
+        (self.project / 'CLAUDE.md').write_text(MARKER + '\nold pointer\n')
+        (self.project / 'archetype/CLAUDE.md').write_text(MARKER + '\nold pointer\n')
+        remote, env = self.update_source()
+        for name in ('AGENTS.md', 'CLAUDE.md'):
+            (remote / name).write_bytes((SOURCE / name).read_bytes())
+        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'real entry files'])
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('## Find the relevant work', (self.project / 'AGENTS.md').read_text())
+        self.assertNotIn('## Find the relevant work', (self.project / 'CLAUDE.md').read_text())
+        self.assertIn('AGENTS.md', (self.project / 'CLAUDE.md').read_text())
 
     def test_update_of_an_untouched_root_file_carries_nothing(self):
         self.inject()

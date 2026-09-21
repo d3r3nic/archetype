@@ -1,6 +1,6 @@
 # Conventions
 
-This is a lookup index. Use the current step or task to identify relevant concerns, including cross-cutting risks. Read their guidance without a document quota; reuse material already current in the session. The rows are starting points, not proof that a pattern fits the project. CLAUDE.md describes how to evaluate and record the choice.
+This is a lookup index. Use the current step or task to identify relevant concerns, including cross-cutting risks. Read their guidance without a document quota; reuse material already current in the session. The rows are starting points, not proof that a pattern fits the project. AGENTS.md describes how to evaluate and record the choice.
 
 This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFOLD.md) → Develop (DEVELOP.md) → Maintain (MAINTAIN.md).
 

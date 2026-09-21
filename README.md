@@ -75,7 +75,8 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 ## What's Inside
 
 ```
-├── CLAUDE.md                 # Shared guidance with convention routing
+├── AGENTS.md                 # Shared guidance with convention routing
+├── CLAUDE.md                 # Pointer to AGENTS.md for hosts that load only this name
 ├── Conventions.md             # Convention lookup index
 ├── LICENSE                    # Apache License 2.0
 ├── NOTICE                     # Copyright and license attribution
@@ -117,7 +118,8 @@ For a custom application using the included feature-oriented scaffold, the resul
 
 ```
 your-project/
-├── CLAUDE.md                 # Shared guidance (from framework)
+├── AGENTS.md                 # Shared guidance (from framework)
+├── CLAUDE.md                 # Pointer to AGENTS.md (from framework)
 ├── Conventions.md             # Convention index (from framework)
 ├── conventions/               # Convention docs (from framework)
 ├── References.md              # YOUR project's tech stack, systems, commands

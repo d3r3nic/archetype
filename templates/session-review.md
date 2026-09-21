@@ -63,7 +63,7 @@ Concrete changes to make to the framework:
 
 - [ ] Update convention #X wording: [what and why]
 - [ ] Add lookup table row for task type: [which]
-- [ ] Add CLAUDE.md rule: [what]
+- [ ] Propose a shared rule upstream, or add a project rule to CLAUDE.md.additions: [what]
 - [ ] Add hook: [trigger + action]
 - [ ] Other:
 

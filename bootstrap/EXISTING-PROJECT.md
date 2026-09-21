@@ -82,7 +82,7 @@ Common catalogs: Feature directory (every feature with purpose), factory-pattern
 
 ### Category 4 — Project entry-point additions
 
-Put project-specific entry-point guidance in project-root `CLAUDE.md.additions`. The managed CLAUDE.md explicitly loads it. Shared rules belong in an upstream proposal, not in local additions.
+Put project-specific entry-point guidance in project-root `CLAUDE.md.additions`. The managed AGENTS.md routes every session to it first, and the CLAUDE.md pointer names it. Shared rules belong in an upstream proposal, not in local additions.
 
 This is a permanent project-owned file, preserved by updates. Never merge it into managed CLAUDE.md. Route detailed rules to their override or protocol instead of maintaining two independent copies.
 
@@ -228,7 +228,7 @@ Update `INDEX.md` and `References.md` with the migrated docs and audit results.
 - `conventions/overrides/` with one file per convention that has project-specific rules
 - `protocols/` with one file per workflow protocol found
 - `catalogs/` with one file per reference catalog found
-- `CLAUDE.md.additions` with project-owned entry-point guidance loaded by the managed enforcer
+- `CLAUDE.md.additions` with project-owned entry-point guidance read first on the managed AGENTS.md route
 - `INDEX.md` master map
 - `docs/migrated/` (byte-for-byte copies of discovered docs)
 - `docs/audit/` (one audit per migrated doc + SUMMARY.md)

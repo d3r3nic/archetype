@@ -14,7 +14,7 @@ Agent writes its own database client, its own error class, its own token parser 
 
 Most insidious form of #1. Agent imports the database client class from its package and news-up its own instance because "just for this one query." Violates convention #0 (single source of truth) silently — code typechecks, tests pass, but two client instances now exist in the process and transactions won't compose.
 
-**Defense:** CLAUDE.md rule: *"Never instantiate a shared getter's underlying class. Type imports and namespace imports are OK."* `validate-develop.sh` fails on direct construction of a shared database or cache client anywhere under features/. The pattern list is fixed and dated, and only non-test files under features/ are scanned: a client class the list does not name, the same bypass outside features/, and a bypass inside a test file all pass the check. The rule is wider than the gate.
+**Defense:** Rule (#0 and #7): *"Never instantiate a shared getter's underlying class. Type imports and namespace imports are OK."* `validate-develop.sh` fails on direct construction of a shared database or cache client anywhere under features/. The pattern list is fixed and dated, and only non-test files under features/ are scanned: a client class the list does not name, the same bypass outside features/, and a bypass inside a test file all pass the check. The rule is wider than the gate.
 
 - Dated example: the shapes the list carries today are `new PrismaClient(`, `new Redis(`, and `new IORedis(`; a project whose clients are not those gets no machine help here.
 
@@ -66,7 +66,7 @@ If none of these is in place, assertions must be isolation-resilient (scoped loo
 
 When the language's strict type config fights a library's generic signatures (e.g., `exactOptionalPropertyTypes` vs. an ORM's optional-property types), the tempting fix is `as any`, `// @ts-ignore`, or instantiating a fresh client with a laxer config. All three silently violate framework conventions (#7 types, #0 reusability).
 
-**Defense:** refactor the call site, don't escape-hatch the type system. If `where: condition ? {...} : undefined` fights `exactOptionalPropertyTypes`, use a conditional spread (`where: { ...(condition && { ... }) }`) or build the args object imperatively. Never `as any`. Never `new` a fresh client to dodge one call's type friction. CLAUDE.md rule: *"Never escape-hatch the type system with casts, ignore comments, or re-instantiation to dodge a single call site. Refactor the call site."* Type friction is a signal that the API surface is wrong for the data, not a signal that the type system is wrong.
+**Defense:** refactor the call site, don't escape-hatch the type system. If `where: condition ? {...} : undefined` fights `exactOptionalPropertyTypes`, use a conditional spread (`where: { ...(condition && { ... }) }`) or build the args object imperatively. Never `as any`. Never `new` a fresh client to dodge one call's type friction. Rule (#0 and #7): *"Never escape-hatch the type system with casts, ignore comments, or re-instantiation to dodge a single call site. Refactor the call site."* Type friction is a signal that the API surface is wrong for the data, not a signal that the type system is wrong.
 
 ## 10. Undesigned screen shipped
 

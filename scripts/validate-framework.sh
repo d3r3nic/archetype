@@ -66,7 +66,7 @@ for path in $(grep -ohE 'conventions/[a-zA-Z0-9_-]+\.md' CLAUDE.md AGENTS.md 2>/
     BROKEN=$((BROKEN + 1))
   fi
 done
-[ "$BROKEN" -eq 0 ] && pass "all CLAUDE.md paths resolve"
+[ "$BROKEN" -eq 0 ] && pass "all AGENTS.md and CLAUDE.md paths resolve"
 
 # ----------------------------------------------------------------------
 group 2 "Convention count consistency"

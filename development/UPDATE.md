@@ -5,7 +5,7 @@ Read when a project pulls a newer framework. It says who owns which file, what t
 ## Who owns what
 
 - Framework-owned, replaced by every update: the engine folder, and the two root entry files. Root `AGENTS.md` holds the framework's rules. Root `CLAUDE.md` is a short pointer to it, kept because some hosts load only that name. Both carry the managed marker on their first line.
-- Project-owned, never replaced: `CLAUDE.md.additions` (this project's own standing rules, read right after `AGENTS.md`), `References.md`, `PROFILE.md`, `feature-tree.md`, `PROGRESS.md`, `conventions/overrides/`, `protocols/`, `catalogs/`, `docs/`.
+- Project-owned, never replaced: `CLAUDE.md.additions` (this project's own standing rules; `AGENTS.md` routes every session to it first), `References.md`, `PROFILE.md`, `feature-tree.md`, `PROGRESS.md`, `conventions/overrides/`, `protocols/`, `catalogs/`, `docs/`.
 
 A project's own rule goes in `CLAUDE.md.additions`, never in a root entry file.
 
@@ -19,17 +19,22 @@ Commit or stash the project's work so the update is one reviewable change. Run `
 
 ## What the updater does to the root entry files
 
-- Root file identical to the engine's previous copy: replaced, nothing else happens.
-- Root file with lines the project added: those lines are appended to `CLAUDE.md.additions` under a dated heading, the whole previous file is kept as `<name>.pre-update-<date>`, then the file is replaced. The preview says `CARRIED` with the line count.
-- Root `AGENTS.md` without the managed marker (the project wrote its own): kept whole as `AGENTS.md.pre-update-<date>` and named in `CLAUDE.md.additions`, then the managed file is installed. The preview says `KEPT`.
+Each root file is compared with a baseline: the engine's copy from before the update, or, in a full clone (the engine folder is the project root) or where the engine never carried the file, the file at the framework revision `VERSION-LOG.md` records.
+
+- Root file with no project lines: replaced, nothing else happens.
+- Root file with lines the project added: those lines are appended to `CLAUDE.md.additions` under a dated heading, the whole previous file is kept as `<name>.pre-update-<date>`, then the file is replaced. The preview says `CARRIED` with the line count. A line the additions file already holds is not carried again.
+- No baseline can be found: the previous file is kept whole and `CLAUDE.md.additions` names it; the lines are not separated for you. The preview says `KEPT`.
+- Root `AGENTS.md` without the managed marker (the project wrote its own): kept whole and named the same way. The preview says `KEPT`.
 - No root `AGENTS.md` at all (an install from before it existed): it is created. Nothing is done by hand.
 
-Never restore a root entry file from version control after an update: that puts old rules over a new engine. The project's words are already in `CLAUDE.md.additions`.
+The carry is written before anything is replaced; if it cannot be written the update stops with nothing replaced.
+
+Never restore a root entry file from version control after an update: that puts old rules over a new engine. The project's words are in `CLAUDE.md.additions` or in the kept `.pre-update` copy it names.
 
 ## After
 
 1. Audit every carried-over line in `CLAUDE.md.additions`: keep it there, move it to `References.md` or `conventions/overrides/`, or retire it because the current rules cover it. Record the reason for a retirement at the decision location. Remove the dated heading when done; delete the `.pre-update` copy once nothing in it is still needed.
-2. Run `archetype/scripts/validate-framework.sh`, `scripts/validate-profile.sh`, and for a project with a screen `scripts/validate-design.sh`. A newer release can add lines a project record must carry; the check names them.
+2. Run `archetype/scripts/validate-framework.sh`, `archetype/scripts/validate-profile.sh`, and for a project with a screen `archetype/scripts/validate-design.sh` (in a full clone the same scripts sit under `scripts/`). A newer release can add lines a project record must carry; the check names them.
 3. Run the project's own verification commands. Commit the update as one change, with the installed revision from `VERSION-LOG.md` in the message.
 
 ## Older installs
