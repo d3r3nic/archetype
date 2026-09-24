@@ -11,7 +11,7 @@ Check: evidence: the owner's answers to this group in their own words, quoted; a
 
 If the user answers vaguely ("I dunno", "not sure", "I guess not"), DEFAULT TO ASSUMING REGULATED DATA. A wrong "no" generates a non-compliant stack caught only at audit; a wrong "yes" generates overkill-but-safe. Disambiguation question + full rule in `bootstrap/RED-FLAGS.md` "Vague-Answer Rules" section.
 
-**Deploy gate:** if regulated-data is default-assumed-yes and never affirmatively answered, scaffolding and deploy (Phase 2+) must halt. Record in `VERSION-LOG.md` as open pre-production gate. Deflections do not resolve. See RED-FLAGS.md "Deploy Gate" section.
+**Deploy gate:** if regulated-data is default-assumed-yes and never affirmatively answered, scaffolding and deploy (Phase 2+) must halt. It is an open pre-production gate: Step 6 names it on the `Open pre-production gates` line of the Bootstrap section in `VERSION-LOG.md`. Deflections do not resolve. See RED-FLAGS.md "Deploy Gate" section.
 
 **Budget-vague:** parallels regulated-vague. See RED-FLAGS.md "Vague budget answer" section.
 
