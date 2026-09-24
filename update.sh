@@ -47,6 +47,13 @@ else
   echo "Error: installation layout is ambiguous. Specify --project-root explicitly."
   exit 1
 fi
+# Messages show engine paths relative to the project root: the engine folder's own name,
+# or nothing where the engine folder is the project root (a full clone).
+if [ "$PROJECT_ROOT" = "$ARCHETYPE_DIR" ]; then
+  ENGINE_REL=""
+else
+  ENGINE_REL="${ARCHETYPE_DIR#"$PROJECT_ROOT"/}/"
+fi
 
 # Validate destinations before network access, prompts, or writes.
 UNIVERSAL_FILES="AGENTS.md CLAUDE.md Conventions.md README.md inject.sh"
@@ -236,6 +243,37 @@ plan_keep_readme() {
 }
 plan_keep_readme
 
+# In the engine-folder layout the project-root conventions/ folder is the project's own: it
+# holds conventions/overrides/. Earlier updates copied the framework's conventions into it,
+# where nothing reads them (sessions read the engine's). A file there with a framework
+# convention's name is removed when its content matches the engine's copy from before this
+# update or the incoming copy. With other content it looks like a project edit: it stays,
+# and CLAUDE.md.additions names it once. Every other file, and all of overrides/, stays.
+: > "$CARRY_DIR/conventions.remove"
+: > "$CARRY_DIR/conventions.kept"
+if [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ] && [ -d "$PROJECT_ROOT/conventions" ]; then
+  for copy in "$PROJECT_ROOT"/conventions/*.md; do
+    if [ ! -f "$copy" ] || [ -L "$copy" ]; then continue; fi
+    name="$(basename "$copy")"
+    if [ ! -f "$ARCHETYPE_DIR/conventions/$name" ] && [ ! -f "$TEMP_DIR/conventions/$name" ]; then continue; fi
+    strip_cr "$copy" > "$CARRY_DIR/convention.lf"
+    matched=0
+    for framework in "$ARCHETYPE_DIR/conventions/$name" "$TEMP_DIR/conventions/$name"; do
+      if [ -f "$framework" ]; then
+        strip_cr "$framework" > "$CARRY_DIR/framework.lf"
+        if cmp -s "$CARRY_DIR/convention.lf" "$CARRY_DIR/framework.lf"; then matched=1; fi
+      fi
+    done
+    if [ "$matched" -eq 1 ]; then
+      echo "$name" >> "$CARRY_DIR/conventions.remove"
+    elif [ -f "$ADD" ] && strip_cr "$ADD" | grep -qxF -e "- conventions/$name"; then
+      :  # already named in CLAUDE.md.additions by an earlier update
+    else
+      echo "$name" >> "$CARRY_DIR/conventions.kept"
+    fi
+  done
+fi
+
 # Step 2: Show what would change
 echo "Comparing files..."
 echo ""
@@ -254,11 +292,11 @@ for file in $UNIVERSAL_FILES; do
   if [ -f "$TEMP_DIR/$file" ]; then
     if [ -f "$ARCHETYPE_DIR/$file" ]; then
       if ! diff -q "$TEMP_DIR/$file" "$ARCHETYPE_DIR/$file" > /dev/null 2>&1; then
-        echo "  CHANGED: $file"
+        echo "  CHANGED: ${ENGINE_REL}$file"
         CHANGES=$((CHANGES + 1))
       fi
     else
-      echo "  NEW: $file"
+      echo "  NEW: ${ENGINE_REL}$file"
       NEW_FILES=$((NEW_FILES + 1))
     fi
   fi
@@ -327,7 +365,7 @@ fi
 # update.sh is handled separately (atomic self-replace at end)
 if [ -f "$TEMP_DIR/update.sh" ] && [ -f "$ARCHETYPE_DIR/update.sh" ]; then
   if ! diff -q "$TEMP_DIR/update.sh" "$ARCHETYPE_DIR/update.sh" > /dev/null 2>&1; then
-    echo "  CHANGED: update.sh (self-replace at end)"
+    echo "  CHANGED: ${ENGINE_REL}update.sh (self-replace at end)"
     CHANGES=$((CHANGES + 1))
   fi
 fi
@@ -340,10 +378,10 @@ for dir in $UNIVERSAL_DIRS; do
       dest_file="$ARCHETYPE_DIR/$rel_path"
       if [ -f "$dest_file" ]; then
         if ! diff -q "$src_file" "$dest_file" > /dev/null 2>&1; then
-          echo "  CHANGED: $rel_path"
+          echo "  CHANGED: ${ENGINE_REL}$rel_path"
         fi
       else
-        echo "  NEW: $rel_path"
+        echo "  NEW: ${ENGINE_REL}$rel_path"
       fi
     done
   fi
@@ -366,19 +404,27 @@ if [ -f "$CARRY_DIR/README.md.previous" ]; then
   CARRY_SHOWN=1
   echo "  KEPT: README.md is this project's own version; it is kept as a dated README.md.pre-update copy beside the framework's (a README is not a rule, so nothing goes to CLAUDE.md.additions)"
 fi
+if [ -s "$CARRY_DIR/conventions.remove" ]; then
+  CARRY_SHOWN=1
+  echo "  REMOVE: $(wc -l < "$CARRY_DIR/conventions.remove" | tr -d ' ') unchanged copies of framework conventions from conventions/ at the project root; ${ENGINE_REL}conventions/ holds the framework's conventions, and overrides/ and every other file there stay"
+fi
+while IFS= read -r name; do
+  CARRY_SHOWN=1
+  echo "  KEPT: conventions/$name at the project root has a framework convention's name but other content, so it looks like a project edit; it stays and is named in CLAUDE.md.additions (it belongs in conventions/overrides/)"
+done < "$CARRY_DIR/conventions.kept"
 [ "$CARRY_SHOWN" -eq 1 ] && echo ""
 
 # Files that are NEVER touched (project-specific)
 echo "--- Project-specific files (will NOT be touched) ---"
 for skip in References.md feature-tree.md INDEX.md MIGRATION-NOTES.md CLAUDE.md.additions; do
   if [ -f "$ARCHETYPE_DIR/$skip" ]; then
-    echo "  SAFE: $skip"
+    echo "  SAFE: ${ENGINE_REL}$skip"
     SKIPPED=$((SKIPPED + 1))
   fi
 done
 for skip_dir in conventions/overrides protocols catalogs todo docs; do
   if [ -d "$ARCHETYPE_DIR/$skip_dir" ]; then
-    echo "  SAFE: $skip_dir/ (entire directory)"
+    echo "  SAFE: ${ENGINE_REL}$skip_dir/ (entire directory)"
     SKIPPED=$((SKIPPED + 1))
   fi
 done
@@ -451,16 +497,34 @@ for name in CLAUDE.md AGENTS.md; do
     echo "  carried: root $name → CLAUDE.md.additions (previous file kept as $(basename "$kept"))"
   fi
 done
+if [ -s "$CARRY_DIR/conventions.kept" ]; then
+  {
+    if [ -s "$ADD" ]; then
+      [ -n "$(tail -c 1 "$ADD")" ] && echo ""
+      echo ""
+    fi
+    echo "## Framework conventions edited in the project-root conventions/ folder, found by the framework update of $(date +%Y-%m-%d): move them to conventions/overrides/"
+    echo ""
+    echo "Each file below has a framework convention's name but other content, so it looks like this project's edit of that convention. Sessions read the framework's conventions from ${ENGINE_REL}conventions/, not from this folder, so the edit has no effect where it is. Move what this project still needs into conventions/overrides/ with the reason, then delete the file. Remove this heading when done."
+    echo ""
+    sed 's|^|- conventions/|' "$CARRY_DIR/conventions.kept"
+  } > "$CARRY_DIR/conventions.block"
+  if ! cat "$CARRY_DIR/conventions.block" >> "$ADD"; then
+    echo "Error: could not write CLAUDE.md.additions. Nothing was replaced."
+    exit 1
+  fi
+  echo "  named: $(wc -l < "$CARRY_DIR/conventions.kept" | tr -d ' ') edited framework convention(s) in conventions/ at the project root → CLAUDE.md.additions"
+fi
 
 # Step 4: Apply updates
 echo ""
 echo "Applying updates..."
 
-# Update universal files in archetype/
+# Update universal files in the engine
 for file in $UNIVERSAL_FILES; do
   if [ -f "$TEMP_DIR/$file" ]; then
     cp "$TEMP_DIR/$file" "$ARCHETYPE_DIR/$file"
-    echo "  updated: archetype/$file"
+    echo "  updated: ${ENGINE_REL}$file"
   fi
 done
 
@@ -482,11 +546,11 @@ for dir in $UNIVERSAL_DIRS; do
       cp -R "$TEMP_DIR/conventions" "$ARCHETYPE_DIR/conventions"
       cp -R "$OVERRIDE_BACKUP/overrides" "$ARCHETYPE_DIR/conventions/"
       rm -rf "$OVERRIDE_BACKUP"
-      echo "  updated: archetype/conventions/ (overrides preserved)"
+      echo "  updated: ${ENGINE_REL}conventions/ (overrides preserved)"
     else
       rm -rf "$ARCHETYPE_DIR/$dir"
       cp -R "$TEMP_DIR/$dir" "$ARCHETYPE_DIR/$dir"
-      echo "  updated: archetype/$dir/"
+      echo "  updated: ${ENGINE_REL}$dir/"
     fi
   fi
 done
@@ -503,21 +567,16 @@ if [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then
   done
 fi
 
-# Step 6: Update promoted conventions/ at project root if they exist
-if [ -d "$PROJECT_ROOT/conventions" ] && [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then
-  # Same override-safe approach
-  if [ -d "$PROJECT_ROOT/conventions/overrides" ]; then
-    OVERRIDE_BACKUP=$(mktemp -d)
-    cp -R "$PROJECT_ROOT/conventions/overrides" "$OVERRIDE_BACKUP/"
-    rm -rf "$PROJECT_ROOT/conventions"
-    cp -R "$TEMP_DIR/conventions" "$PROJECT_ROOT/conventions"
-    cp -R "$OVERRIDE_BACKUP/overrides" "$PROJECT_ROOT/conventions/"
-    rm -rf "$OVERRIDE_BACKUP"
-  else
-    rm -rf "$PROJECT_ROOT/conventions"
-    cp -R "$TEMP_DIR/conventions" "$PROJECT_ROOT/conventions"
-  fi
-  echo "  updated: conventions/ (project root, overrides preserved)"
+# Step 6: Remove the framework convention copies that earlier updates put in the
+# project-root conventions/ folder, as planned before the prompt. The framework's
+# conventions are never copied there, and nothing else there is touched.
+if [ -s "$CARRY_DIR/conventions.remove" ]; then
+  while IFS= read -r name; do
+    if [ -f "$PROJECT_ROOT/conventions/$name" ] && [ ! -L "$PROJECT_ROOT/conventions/$name" ]; then
+      rm -f "$PROJECT_ROOT/conventions/$name"
+    fi
+  done < "$CARRY_DIR/conventions.remove"
+  echo "  removed: $(wc -l < "$CARRY_DIR/conventions.remove" | tr -d ' ') framework convention copies from conventions/ (project root)"
 fi
 
 # Step 7: Migrate legacy project artifacts that used to live inside archetype/.
@@ -525,20 +584,20 @@ fi
 if [ "$ARCHETYPE_DIR" != "$PROJECT_ROOT" ]; then
   if [ -f "$ARCHETYPE_DIR/VERSION-LOG.md" ]; then
     if [ -f "$PROJECT_ROOT/VERSION-LOG.md" ]; then
-      echo "  WARN: both archetype/VERSION-LOG.md and project-root VERSION-LOG.md exist; deleting the archetype/ copy"
+      echo "  WARN: both ${ENGINE_REL}VERSION-LOG.md and project-root VERSION-LOG.md exist; deleting ${ENGINE_REL}VERSION-LOG.md"
       rm -f "$ARCHETYPE_DIR/VERSION-LOG.md"
     else
       mv "$ARCHETYPE_DIR/VERSION-LOG.md" "$PROJECT_ROOT/VERSION-LOG.md"
-      echo "  migrated: VERSION-LOG.md archetype/ → project root"
+      echo "  migrated: VERSION-LOG.md ${ENGINE_REL} → project root"
     fi
   fi
   if [ -f "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md" ]; then
     rm -f "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md"
-    echo "  removed: archetype/FRAMEWORK-SOURCE.md (redundant with VERSION-LOG.md)"
+    echo "  removed: ${ENGINE_REL}FRAMEWORK-SOURCE.md (redundant with VERSION-LOG.md)"
   fi
   if [ -d "$ARCHETYPE_DIR/docs" ]; then
     rmdir "$ARCHETYPE_DIR/docs/systems" "$ARCHETYPE_DIR/docs/features" "$ARCHETYPE_DIR/docs" 2>/dev/null && \
-      echo "  removed: archetype/docs/ (empty; project docs live at project root)"
+      echo "  removed: ${ENGINE_REL}docs/ (empty; project docs live at project root)"
   fi
 fi
 
@@ -581,7 +640,7 @@ if [ -f "$TEMP_DIR/update.sh" ]; then
     cp "$TEMP_DIR/update.sh" "$NEXT_UPDATER"
     chmod +x "$NEXT_UPDATER"
     mv -f "$NEXT_UPDATER" "$ARCHETYPE_DIR/update.sh"
-    echo "  updated: archetype/update.sh (self, atomic replace)"
+    echo "  updated: ${ENGINE_REL}update.sh (self, atomic replace)"
   fi
 fi
 
@@ -610,4 +669,4 @@ echo "  - catalogs/ (project-specific)"
 echo "  - docs/ (project-specific)"
 echo "  - todo/ (project-specific)"
 echo ""
-echo "Next: follow archetype/development/UPDATE.md, section After (audit what the update added to CLAUDE.md.additions, run the checks, commit as one change)."
+echo "Next: follow ${ENGINE_REL}development/UPDATE.md, section After (audit what the update added to CLAUDE.md.additions, run the checks, commit as one change)."

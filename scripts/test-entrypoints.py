@@ -232,6 +232,9 @@ class Entrypoints(unittest.TestCase):
         kept = sorted(clone.glob('README.md.pre-update-*'))
         self.assertEqual([p.read_text() for p in kept], ['# A product built on the framework\n'])
         self.assertEqual(readme.read_bytes(), (remote / 'README.md').read_bytes())
+        # Here the engine folder is the project root, so engine paths carry no folder name.
+        self.assertIn('Next: follow development/UPDATE.md', result.stdout)
+        self.assertNotIn('archetype/', result.stdout)
         # The recorded revision is the baseline: a README left as the framework shipped it is
         # replaced without a copy, one this project changed is kept.
         (remote / 'README.md').write_text((remote / 'README.md').read_text() + 'A later framework line.\n')
@@ -413,6 +416,60 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual(claude.read_bytes(), (remote / 'CLAUDE.md').read_bytes())
         self.assertIn('@AGENTS.md', claude.read_text().splitlines())
         self.assertTrue((self.project / 'AGENTS.md').is_file())
+
+    def test_update_removes_only_framework_copies_from_the_root_conventions_folder(self):
+        result = self.run_command(['bash', str(SOURCE / 'inject.sh'), str(self.project), 'shared-rules'])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        engine = self.project / 'shared-rules'
+        remote, env = self.update_source()
+        for name in ('02-git.md', '03-architecture.md'):
+            path = remote / 'conventions' / name
+            path.write_text(path.read_text() + 'A later framework line.\n')
+        self.commit(remote, 'later conventions')
+        folder = self.project / 'conventions'
+        (folder / 'overrides').mkdir(parents=True)
+        # Copies earlier updates left: as the engine has them (one with carriage returns), and
+        # as the framework ships one next. All three go; everything else stays.
+        shutil.copyfile(engine / 'conventions/02-git.md', folder / '02-git.md')
+        (folder / '12-testing.md').write_bytes((engine / 'conventions/12-testing.md').read_bytes().replace(b'\n', b'\r\n'))
+        shutil.copyfile(remote / 'conventions/03-architecture.md', folder / '03-architecture.md')
+        edited = folder / '16-documentation.md'
+        edited.write_text((engine / 'conventions/16-documentation.md').read_text() + '- A project edit.\n')
+        override = folder / 'overrides/02-git.md'
+        override.write_text('A justified local choice\n')
+        notes = folder / 'notes.md'
+        notes.write_text('Project notes beside the overrides\n')
+        kept = {path: path.read_bytes() for path in (edited, override, notes)}
+        update = ['bash', str(engine / 'update.sh')]
+        result = self.run_command(update, input='y\n', env=env, cwd=self.project)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('REMOVE: 3 unchanged copies of framework conventions from conventions/ at the project root', result.stdout)
+        self.assertIn('KEPT: conventions/16-documentation.md', result.stdout)
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), ['16-documentation.md', 'notes.md', 'overrides'])
+        for path, content in kept.items():
+            self.assertEqual(path.read_bytes(), content)
+        self.assertTrue((self.project / 'CLAUDE.md.additions').is_file(), result.stdout)
+        additions = (self.project / 'CLAUDE.md.additions').read_text()
+        self.assertIn('- conventions/16-documentation.md', additions.splitlines())
+        self.assertIn('move them to conventions/overrides/', additions)
+        self.assertIn('shared-rules/conventions/', additions)
+        self.assertNotIn('notes.md', result.stdout + additions)
+        # Engine paths are shown under the engine folder's own name.
+        self.assertIn('updated: shared-rules/conventions/', result.stdout)
+        self.assertIn('Next: follow shared-rules/development/UPDATE.md', result.stdout)
+        self.assertNotIn('archetype/', result.stdout)
+
+        def snapshot():
+            return {p.relative_to(self.project): p.read_bytes() for p in self.project.rglob('*')
+                    if p.is_file() and p.name != 'VERSION-LOG.md'}
+
+        # A second run changes nothing (the version log records every run).
+        before = snapshot()
+        again = self.run_command(update, input='y\n', env=env, cwd=self.project)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertNotIn('REMOVE:', again.stdout)
+        self.assertNotIn('KEPT:', again.stdout)
+        self.assertEqual(snapshot(), before)
 
     def test_rules_live_in_agents_and_claude_points_to_it(self):
         self.inject()
