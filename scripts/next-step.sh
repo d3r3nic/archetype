@@ -5,7 +5,9 @@
 # first re-runs the checks behind closed steps, so a tick cannot outlive the thing it ticked.
 #
 # Run from the project (its root, or any folder under it):
-#   scripts/next-step.sh                          the next open step: what to read, what closes it
+#   scripts/next-step.sh                          the next open step: what to read, what closes it;
+#                                                 when every step is closed, the Next Step section of
+#                                                 the last playbook on PROGRESS.md's Playbooks line
 #   scripts/next-step.sh --list                   every step of the project's playbooks with its state
 #   scripts/next-step.sh --close ID [--evidence TEXT]   close the next open step (its check must pass)
 #   scripts/next-step.sh --skip ID --reason TEXT        record a step that does not apply; only a step
@@ -20,7 +22,11 @@
 # repeat), headings of the form "## Step N: Title" or "### Step N.M - Title", and inside each
 # step, before any sub-heading, the lines "Read:", "Produces:", "Check:", and optionally
 # "Skip when:". A step with sub-steps (2 with 2.1, 2.2) is a container; only its sub-steps
-# open and close. A check passes when it exits 0.
+# open and close. A check passes when it exits 0. A check that runs the project's own commands
+# finds each on its label's line in the project's References.md, section Commands, in backticks:
+# only the text between them runs (build: `<command>` and any note after it, which never runs).
+# A value in brackets is not recorded yet and fails; none or n/a means the project has no such
+# command; any other value fails, and nothing outside the backticks is ever run.
 #
 # What it cannot do: tell whether a step was done well, whether quoted evidence is what the
 # owner said, whether a skip's reason is true, or stop anyone editing PROGRESS.md by hand.
@@ -145,6 +151,20 @@ $pid$SEP$mode$SEP$SEP$SEP$part$SEP""0$SEP$SEP$SEP$SEP$SEP""0$SEP""0$SEP""0$SEP""
   done
 }
 
+# A playbook's entry file, from the engine root: the file whose "Step ledger:" line declares the id.
+entry_file_of() {
+  local f head
+  for f in "$ENGINE_DIR"/bootstrap/*.md "$ENGINE_DIR"/scaffolding/*.md "$ENGINE_DIR"/development/*.md; do
+    [ -f "$f" ] || continue
+    grep -q '^Step ledger: ' "$f" || continue
+    head="$(playbook_head "$f")"
+    [ -n "$head" ] && [ "${head%%$SEP*}" = "$1" ] || continue
+    printf '%s' "${f#$ENGINE_DIR/}"
+    return 0
+  done
+  return 1
+}
+
 trim() { printf '%s' "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
 
 # A Read entry as a path a person can open: "#8" becomes its convention file.
@@ -173,7 +193,8 @@ has_section() {
 
 # A Check line is "run <command>", "evidence: <what is recorded>", or both: "run <command>; evidence: <...>".
 # The command is an engine script ("scripts/x.sh --flag") or the project's own recorded commands
-# ("project: typecheck, lint, test": labels of References.md, section Commands).
+# ("project: typecheck, lint, test": labels of References.md, section Commands, each recorded there
+# as the command in backticks, then any note; see read_recorded).
 check_command() { case "$1" in 'run '*) local c="${1#run }"; printf '%s' "${c%%; evidence: *}" ;; esac; }
 check_evidence() { case "$1" in 'evidence: '*) printf '%s' "${1#evidence: }" ;; *'; evidence: '*) printf '%s' "${1#*; evidence: }" ;; esac; }
 is_project_command() { case "$1" in 'project: '*) return 0 ;; esac; return 1; }
@@ -187,9 +208,9 @@ valid_command() {
 }
 command_exists() { is_project_command "$1" || [ -f "$ENGINE_DIR/${1%% *}" ]; }
 
-# The project's recorded command for a label: the "label: command" line of References.md, section Commands.
-# The nearest one wins, from the folder the script was run in up to the ledger's folder: an
-# endpoint of a fullstack repository records its own commands, and they run in its folder.
+# The project's recorded value for a label: the text after "label:" on its line of References.md,
+# section Commands. The nearest one wins, from the folder the script was run in up to the ledger's
+# folder: an endpoint of a fullstack repository records its own commands, and they run in its folder.
 COMMANDS_DIR=""
 project_references() {
   if [ -n "${CHECK_OWNER_DIR:-}" ]; then
@@ -215,6 +236,35 @@ project_command() {
     f { l = ENVIRON["L"] ":"; if (index($0, l) == 1) { v = substr($0, length(l) + 1); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); print v; exit } }'
 }
 
+# A recorded value is one of: the command in backticks, then any note, which never runs
+# (test: `<command>` what it covers); a note in brackets while no command is recorded yet; none or
+# n/a when the project has no such command. Anything else fails and is never run: a sentence such
+# as "set up during scaffold" opens with a shell builtin and would pass if a shell read it.
+# read_recorded takes a value that is not empty, bracketed, none, or n/a (run_check sorts those
+# out first), and sets RECORDED to the command, or CHECK_OUT to why there is none to run.
+BT='`'
+RECORDED=""
+not_recorded() { CHECK_OUT="FAIL: References.md, section Commands, records no command for '$1' (write the command, or none when the project has no such command)"; }
+read_recorded() { # label, value
+  local label="$1" value="$2" rest note
+  RECORDED=""
+  case "$value" in
+    "$BT"*"$BT"*) ;;
+    *) CHECK_OUT="FAIL: References.md, section Commands, records '$label' without a command in backticks: $value (write the command in backticks right after the label, for example $label: $BT<command>$BT; text after the closing backtick is a note; a value in brackets means none is recorded yet; none means the project has no such command)"
+       return 1 ;;
+  esac
+  rest="${value#?}"          # after the opening backtick
+  note="${rest#*"$BT"}"      # after the closing one
+  case "$note" in *"$BT"*)
+    CHECK_OUT="FAIL: References.md, section Commands, records '$label' with more than one pair of backticks: $value (record one command: join its steps with && inside one pair of backticks; a note after it holds no backticks)"
+    return 1 ;;
+  esac
+  RECORDED="${rest%%"$BT"*}"
+  case "$RECORDED" in *[![:space:]]*) return 0 ;; esac
+  not_recorded "$label"   # empty backticks: nothing is recorded yet
+  return 1
+}
+
 CHECK_OUT=""
 run_check() {
   local cmd="$1" check_dir="${2:-$START_DIR}" check_unit="${3:-$UNIT}" check_owner="${4:-}" script args runner label value labels OLDIFS
@@ -229,12 +279,13 @@ run_check() {
       label="$(trim "$label")"
       value="$(project_command "$label")"
       case "$(printf '%s' "$value" | tr '[:upper:]' '[:lower:]')" in
-        ''|'['*) CHECK_OUT="FAIL: References.md, section Commands, records no command for '$label' (write the command, or none when the project has no such command)"; return 1 ;;
+        ''|'['*) not_recorded "$label"; return 1 ;;
         none|none[\ ,.\;:]*|n/a|n/a[\ ,.\;:]*) IFS=","; continue ;;
       esac
+      read_recorded "$label" "$value" || return 1
       project_references > /dev/null   # sets COMMANDS_DIR in this shell; project_command ran in a subshell
-      if ! CHECK_OUT="$(cd "${COMMANDS_DIR:-$PROJECT_ROOT}" && ARCHETYPE_STEP_UNIT="$check_unit" bash -c "$value" 2>&1)"; then
-        CHECK_OUT="FAIL: the project's $label command failed: $value
+      if ! CHECK_OUT="$(cd "${COMMANDS_DIR:-$PROJECT_ROOT}" && ARCHETYPE_STEP_UNIT="$check_unit" bash -c "$RECORDED" 2>&1)"; then
+        CHECK_OUT="FAIL: the project's $label command failed: $RECORDED
 $CHECK_OUT"
         return 1
       fi
@@ -557,7 +608,16 @@ fi
 if [ "$MODE" = "next" ]; then
   if [ -z "$NEXT_ID" ]; then
     if [ -n "$NEED_UNIT" ]; then echo "Every one-time step is closed. The playbook '$NEED_UNIT' repeats: run with --unit NAME (the feature's name)."
-    else echo "Every step is closed."; fi
+    else
+      # What follows is written in the Next Step section of the last declared playbook's entry file,
+      # shown under the engine's folder the way the "Close it:" line shows this script.
+      LAST_ENTRY=""
+      [ -n "$WALKED" ] && LAST_ENTRY="$(entry_file_of "${WALKED##*,}")"
+      if [ -z "$LAST_ENTRY" ]; then echo "Every step is closed."
+      elif has_section "$LAST_ENTRY § Next Step"; then echo "Every step is closed. What follows: the Next Step section of ${SELF%scripts/next-step.sh}$LAST_ENTRY."
+      else echo "Every step is closed; ${SELF%scripts/next-step.sh}$LAST_ENTRY names no next step."; fi
+      [ "$PROJECT_CHECKS_WAITING" = "1" ] && echo "Note:      closed steps that ran the project's own commands are re-run when a step closes, or now with --verify."
+    fi
     exit 0
   fi
   echo "Next step: $NEXT_KEY  $NEXT_TITLE"
