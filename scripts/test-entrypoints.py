@@ -118,6 +118,13 @@ class Entrypoints(unittest.TestCase):
     def kept_copies(self, name):
         return sorted(self.project.glob(name + '.pre-update-*'))
 
+    def commit(self, repo, message):
+        for command in (['git', 'add', '-A'],
+                        ['git', '-c', 'user.name=Archetype Tests', '-c', 'user.email=tests@example.invalid',
+                         'commit', '-qm', message]):
+            result = self.run_command(command, cwd=repo)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_update_keeps_unmanaged_agent_instructions_whole_and_proceeds(self):
         self.inject()
         (self.project / 'AGENTS.md').write_text('Unmanaged local guidance\n')
@@ -210,6 +217,93 @@ class Entrypoints(unittest.TestCase):
         self.assertIn(rule, kept[0].read_text())
         self.assertIn(kept[0].name, (clone / 'CLAUDE.md.additions').read_text())
 
+    def test_full_clone_update_keeps_a_changed_readme(self):
+        remote, env = self.update_source()
+        clone = self.root / 'full-clone-readme'
+        result = self.run_command(['git', 'clone', str(remote), str(clone)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        readme = clone / 'README.md'
+        update = ['bash', str(clone / 'update.sh')]
+        # No recorded revision yet: a README that differs from the incoming copy is kept.
+        readme.write_text('# A product built on the framework\n')
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('KEPT: README.md', result.stdout)
+        kept = sorted(clone.glob('README.md.pre-update-*'))
+        self.assertEqual([p.read_text() for p in kept], ['# A product built on the framework\n'])
+        self.assertEqual(readme.read_bytes(), (remote / 'README.md').read_bytes())
+        # Here the engine folder is the project root, so engine paths carry no folder name.
+        self.assertIn('Next: follow development/UPDATE.md', result.stdout)
+        self.assertNotIn('archetype/', result.stdout)
+        # The recorded revision is the baseline: a README left as the framework shipped it is
+        # replaced without a copy, one this project changed is kept.
+        (remote / 'README.md').write_text((remote / 'README.md').read_text() + 'A later framework line.\n')
+        self.commit(remote, 'later readme')
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('KEPT: README.md', result.stdout)
+        self.assertEqual(len(sorted(clone.glob('README.md.pre-update-*'))), 1)
+        readme.write_text('# The product, second edition\n')
+        (remote / 'README.md').write_text((remote / 'README.md').read_text() + 'Another framework line.\n')
+        self.commit(remote, 'another readme change')
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('KEPT: README.md', result.stdout)
+        kept = sorted(clone.glob('README.md.pre-update-*'))
+        self.assertEqual(len(kept), 2)
+        self.assertIn('# The product, second edition\n', [p.read_text() for p in kept])
+        self.assertEqual(readme.read_bytes(), (remote / 'README.md').read_bytes())
+        # A README is not a rule: nothing of it goes to the additions file.
+        self.assertFalse((clone / 'CLAUDE.md.additions').exists())
+
+    def test_full_clone_update_stops_before_deleting_project_files_in_framework_folders(self):
+        remote, env = self.update_source()
+        (remote / 'scripts/retired-helper.sh').write_text('#!/bin/bash\n')
+        self.commit(remote, 'a helper the framework later retires')
+        shipped = self.run_command(['git', '-C', str(remote), 'rev-parse', 'HEAD']).stdout.strip()
+        clone = self.root / 'full-clone-folders'
+        result = self.run_command(['git', 'clone', str(remote), str(clone)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        (remote / 'scripts/retired-helper.sh').unlink()
+        self.commit(remote, 'retire the helper')
+        update = ['bash', str(clone / 'update.sh')]
+
+        def snapshot():
+            return {p.relative_to(clone): p.read_bytes() for p in clone.rglob('*') if p.is_file()}
+
+        # No recorded revision: every file the incoming framework does not ship counts.
+        before = snapshot()
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('  scripts/retired-helper.sh\n', result.stdout)
+        self.assertEqual(snapshot(), before)
+        # With the recorded revision, a file it shipped is the framework's to remove. A file
+        # the project keeps in a framework folder stops the update, named, with nothing written;
+        # overrides and caches do not.
+        (clone / 'VERSION-LOG.md').write_text('## Updates\n\nCommit: ' + shipped + '\n')
+        (clone / 'scripts/deploy.sh').write_text('#!/bin/bash\necho deploy\n')
+        override = clone / 'conventions/overrides/02-git.md'
+        override.parent.mkdir(exist_ok=True)
+        override.write_text('A justified local choice\n')
+        (clone / 'scripts/.DS_Store').write_bytes(b'\0')
+        (clone / 'scripts/__pycache__').mkdir()
+        (clone / 'scripts/__pycache__/helper.cpython-39.pyc').write_bytes(b'\0')
+        before = snapshot()
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('  scripts/deploy.sh\n', result.stdout)
+        self.assertIn('out of the framework folders', result.stdout)
+        for name in ('retired-helper.sh', '02-git.md', '.DS_Store', '__pycache__'):
+            self.assertNotIn(name, result.stdout)
+        self.assertEqual(snapshot(), before)
+        # Moved out of the framework folders, the file is safe and the update proceeds.
+        (clone / 'scripts/deploy.sh').rename(clone / 'deploy.sh')
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse((clone / 'scripts/retired-helper.sh').exists())
+        self.assertEqual(override.read_text(), 'A justified local choice\n')
+        self.assertEqual((clone / 'deploy.sh').read_text(), '#!/bin/bash\necho deploy\n')
+
     def test_update_finds_added_lines_from_the_recorded_revision_without_an_engine_copy(self):
         self.inject()
         remote, env = self.update_source()
@@ -253,6 +347,129 @@ class Entrypoints(unittest.TestCase):
         self.assertNotIn('CARRIED', result.stdout)
         self.assertFalse((self.project / 'CLAUDE.md.additions').exists())
         self.assertEqual(self.kept_copies('CLAUDE.md'), [])
+
+    def test_update_keeps_a_root_file_whose_framework_lines_were_removed_or_reordered(self):
+        self.inject()
+        claude = self.project / 'CLAUDE.md'
+        claude.write_text(''.join(line for line in claude.read_text().splitlines(True) if line.strip() != '@AGENTS.md'))
+        agents = self.project / 'AGENTS.md'
+        lines = agents.read_text().splitlines(True)
+        first, second = [i for i, line in enumerate(lines) if line.startswith('## ')][:2]
+        lines[first], lines[second] = lines[second], lines[first]
+        agents.write_text(''.join(lines))
+        previous = {name: (self.project / name).read_bytes() for name in ('CLAUDE.md', 'AGENTS.md')}
+        _, env = self.update_source()
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('CARRIED', result.stdout)
+        for name in ('CLAUDE.md', 'AGENTS.md'):
+            self.assertIn('KEPT: root ' + name + ' had framework lines removed, reordered or repeated', result.stdout)
+        additions = (self.project / 'CLAUDE.md.additions').read_text()
+        self.assertEqual(additions.count('removed or reordered'), 2)
+        for name in ('CLAUDE.md', 'AGENTS.md'):
+            kept = self.kept_copies(name)
+            self.assertEqual(len(kept), 1)
+            self.assertEqual(kept[0].read_bytes(), previous[name])
+            self.assertIn(kept[0].name, additions)
+        self.assertIn('@AGENTS.md', claude.read_text().splitlines())
+        again = self.run_update(env)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertNotIn('KEPT: root', again.stdout)
+        self.assertEqual((self.project / 'CLAUDE.md.additions').read_text(), additions)
+        for name in ('CLAUDE.md', 'AGENTS.md'):
+            self.assertEqual(len(self.kept_copies(name)), 1)
+
+    def test_update_reshape_check_ignores_blank_lines_and_lines_already_carried(self):
+        self.inject()
+        rule = '- A project rule carried by an earlier update.'
+        additions = self.project / 'CLAUDE.md.additions'
+        additions.write_text(rule + '\n')
+        claude = self.project / 'CLAUDE.md'
+        # Blank lines are not words: a root file that differs only by them is simply replaced.
+        claude.write_text(claude.read_text().replace('\n\n', '\n\n\n') + '\n')
+        _, env = self.update_source()
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('KEPT: root', result.stdout)
+        self.assertEqual(self.kept_copies('CLAUDE.md'), [])
+        self.assertEqual(additions.read_text(), rule + '\n')
+        # A removed framework line beside a rule the additions file already holds: nothing is
+        # carried, and the file is still kept for review of the removal.
+        claude.write_text(''.join(line for line in claude.read_text().splitlines(True)
+                                  if line.strip() != '@AGENTS.md') + rule + '\n')
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('CARRIED', result.stdout)
+        self.assertIn('KEPT: root CLAUDE.md had framework lines removed, reordered or repeated', result.stdout)
+        self.assertEqual(len(self.kept_copies('CLAUDE.md')), 1)
+        self.assertEqual(additions.read_text().count(rule), 1)
+
+    def test_update_creates_a_missing_root_claude_file_that_imports_the_rules(self):
+        self.inject()
+        (self.project / 'CLAUDE.md').unlink()
+        remote, env = self.update_source()
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('NEW: CLAUDE.md (project root)', result.stdout)
+        claude = self.project / 'CLAUDE.md'
+        self.assertTrue(claude.is_file(), result.stdout)
+        self.assertEqual(claude.read_bytes(), (remote / 'CLAUDE.md').read_bytes())
+        self.assertIn('@AGENTS.md', claude.read_text().splitlines())
+        self.assertTrue((self.project / 'AGENTS.md').is_file())
+
+    def test_update_removes_only_framework_copies_from_the_root_conventions_folder(self):
+        result = self.run_command(['bash', str(SOURCE / 'inject.sh'), str(self.project), 'shared-rules'])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        engine = self.project / 'shared-rules'
+        remote, env = self.update_source()
+        for name in ('02-git.md', '03-architecture.md'):
+            path = remote / 'conventions' / name
+            path.write_text(path.read_text() + 'A later framework line.\n')
+        self.commit(remote, 'later conventions')
+        folder = self.project / 'conventions'
+        (folder / 'overrides').mkdir(parents=True)
+        # Copies earlier updates left: as the engine has them (one with carriage returns), and
+        # as the framework ships one next. All three go; everything else stays.
+        shutil.copyfile(engine / 'conventions/02-git.md', folder / '02-git.md')
+        (folder / '12-testing.md').write_bytes((engine / 'conventions/12-testing.md').read_bytes().replace(b'\n', b'\r\n'))
+        shutil.copyfile(remote / 'conventions/03-architecture.md', folder / '03-architecture.md')
+        edited = folder / '16-documentation.md'
+        edited.write_text((engine / 'conventions/16-documentation.md').read_text() + '- A project edit.\n')
+        override = folder / 'overrides/02-git.md'
+        override.write_text('A justified local choice\n')
+        notes = folder / 'notes.md'
+        notes.write_text('Project notes beside the overrides\n')
+        kept = {path: path.read_bytes() for path in (edited, override, notes)}
+        update = ['bash', str(engine / 'update.sh')]
+        result = self.run_command(update, input='y\n', env=env, cwd=self.project)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('REMOVE: 3 unchanged copies of framework conventions from conventions/ at the project root', result.stdout)
+        self.assertIn('KEPT: conventions/16-documentation.md', result.stdout)
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), ['16-documentation.md', 'notes.md', 'overrides'])
+        for path, content in kept.items():
+            self.assertEqual(path.read_bytes(), content)
+        self.assertTrue((self.project / 'CLAUDE.md.additions').is_file(), result.stdout)
+        additions = (self.project / 'CLAUDE.md.additions').read_text()
+        self.assertIn('- conventions/16-documentation.md', additions.splitlines())
+        self.assertIn('move them to conventions/overrides/', additions)
+        self.assertIn('shared-rules/conventions/', additions)
+        self.assertNotIn('notes.md', result.stdout + additions)
+        # Engine paths are shown under the engine folder's own name.
+        self.assertIn('updated: shared-rules/conventions/', result.stdout)
+        self.assertIn('Next: follow shared-rules/development/UPDATE.md', result.stdout)
+        self.assertNotIn('archetype/', result.stdout)
+
+        def snapshot():
+            return {p.relative_to(self.project): p.read_bytes() for p in self.project.rglob('*')
+                    if p.is_file() and p.name != 'VERSION-LOG.md'}
+
+        # A second run changes nothing (the version log records every run).
+        before = snapshot()
+        again = self.run_command(update, input='y\n', env=env, cwd=self.project)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertNotIn('REMOVE:', again.stdout)
+        self.assertNotIn('KEPT:', again.stdout)
+        self.assertEqual(snapshot(), before)
 
     def test_rules_live_in_agents_and_claude_points_to_it(self):
         self.inject()
@@ -456,6 +673,46 @@ class Entrypoints(unittest.TestCase):
             self.assertEqual((self.project / 'archetype' / name).read_bytes(), (remote / name).read_bytes())
         self.assertEqual((self.project / 'CLAUDE.md.pre-archetype').read_bytes(), self.local['CLAUDE.md'])
         self.assertEqual((self.project / 'References.md').read_bytes(), self.local['References.md'])
+
+    @unittest.skipUnless(LEGACY_SOURCE, 'set ARCHETYPE_LEGACY_SOURCE for release-to-release verification')
+    def test_previous_injected_release_keeps_project_lines_in_both_root_files(self):
+        result = self.run_command(['bash', str(Path(LEGACY_SOURCE) / 'inject.sh'), str(self.project)])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        remote, env = self.update_source()
+        # The old updater replaces itself last on its first run. Here the new updater sits in
+        # the legacy engine, so the legacy engine's copies are the baselines it measures against.
+        shutil.copyfile(remote / 'update.sh', self.project / 'archetype/update.sh')
+        rules = {'CLAUDE.md': '- A project rule added to root CLAUDE.md.',
+                 'AGENTS.md': '- A project rule added to root AGENTS.md.'}
+        previous = {}
+        for name, rule in rules.items():
+            root = self.project / name
+            root.write_text(root.read_text() + rule + '\n')
+            previous[name] = root.read_bytes()
+        earlier = 'Project-only rules from before the update\n'
+        (self.project / 'CLAUDE.md.additions').write_text(earlier)
+        doc = self.project / 'docs/systems/sign-in.md'
+        doc.parent.mkdir(parents=True, exist_ok=True)
+        doc.write_text('How sign-in works in this project\n')
+        artifacts = {path: path.read_bytes() for path in (self.project / 'References.md', doc)}
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for name in rules:
+            self.assertIn('CARRIED: 1 line(s) this project added to root ' + name, result.stdout)
+        again = self.run_update(env)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertNotIn('CARRIED', again.stdout)
+        self.assertNotIn('KEPT: root', again.stdout)
+        additions = (self.project / 'CLAUDE.md.additions').read_text()
+        self.assertTrue(additions.startswith(earlier))
+        for name, rule in rules.items():
+            self.assertEqual(additions.count(rule), 1)
+            kept = self.kept_copies(name)
+            self.assertEqual(len(kept), 1)
+            self.assertEqual(kept[0].read_bytes(), previous[name])
+            self.assertEqual((self.project / name).read_bytes(), (remote / name).read_bytes())
+        for path, content in artifacts.items():
+            self.assertEqual(path.read_bytes(), content)
 
 
 if __name__ == '__main__':
