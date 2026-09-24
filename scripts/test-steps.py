@@ -539,9 +539,9 @@ class Steps(unittest.TestCase):
             '## Step 2: More\nRead: none\nProduces: more\nCheck: evidence: what was seen\n' % check)
         self.ledger('boot')
 
-    def commands(self, typecheck='true', test='test -f flag.txt'):
+    def commands(self, typecheck='`true`', test='`test -f flag.txt`'):
         (self.project / 'References.md').write_text(
-            '# References\n\n## Commands\n\n```\ndev:       start\ntypecheck: %s\ntest:      %s\n```\n\n## Next\n\ntest: not this one\n' % (typecheck, test))
+            '# References\n\n## Commands\n\n```\ndev:       `start`\ntypecheck: %s\ntest:      %s\n```\n\n## Next\n\ntest: `false` (not this one)\n' % (typecheck, test))
 
     def test_a_step_closes_on_the_projects_own_commands(self):
         self.project_playbook(); self.commands()
@@ -589,7 +589,7 @@ class Steps(unittest.TestCase):
         self.project_playbook(check='run project: typecheck')
         endpoint = self.project / 'frontend'
         endpoint.mkdir()
-        (endpoint / 'References.md').write_text('# R\n\n## Commands\n\n```\ntypecheck: test -f here.txt\n```\n')
+        (endpoint / 'References.md').write_text('# R\n\n## Commands\n\n```\ntypecheck: `test -f here.txt`\n```\n')
         (endpoint / 'here.txt').write_text('x')
         from_root = self.run_tool('--close', 'boot.1')
         self.assertEqual(from_root.returncode, 1)  # the root records no commands
@@ -597,9 +597,15 @@ class Steps(unittest.TestCase):
         self.assertEqual(closed.returncode, 0, closed.stdout)
 
     def test_none_means_none_and_nothing_that_merely_starts_with_it(self):
-        self.project_playbook(check='run project: typecheck'); self.commands(typecheck='nonexistent-tool --check')
-        result = self.run_tool('--close', 'boot.1')
-        self.assertEqual(result.returncode, 1, result.stdout)
+        # The unmarked value is the probe of "none": it opens with those letters and is not passed over.
+        self.project_playbook(check='run project: typecheck')
+        for value, failure in (('nonexistent-tool --check', "records 'typecheck' without a command in backticks"),
+                               ('`nonexistent-tool --check`', "the project's typecheck command failed: nonexistent-tool --check")):
+            with self.subTest(value=value):
+                self.commands(typecheck=value)
+                result = self.run_tool('--close', 'boot.1')
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn(failure, result.stdout)
         self.commands(typecheck='None.')
         self.assertEqual(self.run_tool('--close', 'boot.1').returncode, 0)
 
@@ -632,6 +638,130 @@ class Steps(unittest.TestCase):
                 self.setUp(); self.project_playbook(check=check)
                 result = self.run_tool('--lint', cwd=self.engine)
                 self.assertEqual(result.returncode == 0, ok, result.stdout)
+
+    # --- a recorded command is the text in backticks; nothing else is run ---------------
+
+    MIGRATION = ("records 'typecheck' without a command in backticks: %s (write the command in backticks right after "
+                 "the label, for example typecheck: `<command>`; text after the closing backtick is a note; a value in "
+                 "brackets means none is recorded yet; none means the project has no such command)")
+
+    def close_with(self, typecheck, test='`true`'):
+        """A fresh project whose boot.1 runs its typecheck and test commands, and an attempt to close it."""
+        self.setUp(); self.project_playbook(); self.commands(typecheck=typecheck, test=test)
+        (self.project / 'flag.txt').write_text('x')
+        return self.run_tool('--close', 'boot.1')
+
+    def test_a_prose_placeholder_never_passes_a_project_check(self):
+        # Placeholders as a project setup wrote them, with no backticks. "set" is a shell builtin:
+        # read by a shell, each of these sentences exits 0.
+        for placeholder in ('set up during scaffold', 'set at scaffold'):
+            with self.subTest(placeholder=placeholder):
+                result = self.close_with(placeholder)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn('FAIL: References.md, section Commands, ' + self.MIGRATION % placeholder, result.stdout)
+                self.assertEqual(self.closed(), [])
+
+    def test_a_command_in_backticks_closes_the_step(self):
+        # Read whole by a shell, the note in parentheses would be a syntax error.
+        result = self.close_with('`true`', test='`test -f flag.txt`   (the flag the build leaves)')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertRegex(self.closed()[-1], r'^- \[x\] boot\.1 \| .* \| check passed: project: typecheck, test$')
+
+    def test_a_note_after_the_backticks_never_runs(self):
+        # Read whole by a shell, each value would create ran.txt and fail.
+        for value in ('`true` && touch ran.txt && exit 3', '`true`; touch ran.txt; exit 3'):
+            with self.subTest(value=value):
+                result = self.close_with(value)
+                self.assertEqual(result.returncode, 0, result.stdout)
+                self.assertFalse((self.project / 'ran.txt').exists())
+                self.assertEqual(len(self.closed()), 1)
+
+    def test_a_shell_only_check_in_backticks_passes_when_true_and_fails_when_false(self):
+        self.project_playbook(); self.commands(typecheck='`[ -d . ]`', test='`test -f flag.txt`')
+        refused = self.run_tool('--close', 'boot.1')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn("FAIL: the project's test command failed: test -f flag.txt", refused.stdout)
+        self.assertEqual(self.closed(), [])
+        (self.project / 'flag.txt').write_text('x')
+        closed = self.run_tool('--close', 'boot.1')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+        self.assertEqual(len(self.closed()), 1)
+
+    def test_an_unmarked_command_fails_with_the_migration_message_and_never_runs(self):
+        # Each would pass if it were run: the flag is there, and touch succeeds.
+        for value in ('test -f flag.txt', 'touch ran.txt', 'touch ran.txt   # the notes a project writes',
+                      'use `touch ran.txt` here', '`touch ran.txt'):
+            with self.subTest(value=value):
+                result = self.close_with(value)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn('FAIL: References.md, section Commands, ' + self.MIGRATION % value, result.stdout)
+                self.assertFalse((self.project / 'ran.txt').exists())
+                self.assertEqual(self.closed(), [])
+
+    def test_more_than_one_pair_of_backticks_fails_and_nothing_runs(self):
+        for value in ('`touch one.txt` && `touch two.txt`', '`touch one.txt` then `touch two.txt`', '`touch one.txt` and a stray ` mark'):
+            with self.subTest(value=value):
+                result = self.close_with(value)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn("FAIL: References.md, section Commands, records 'typecheck' with more than one pair of backticks: %s "
+                              "(record one command: join its steps with && inside one pair of backticks" % value, result.stdout)
+                self.assertFalse((self.project / 'one.txt').exists())
+                self.assertFalse((self.project / 'two.txt').exists())
+                self.assertEqual(self.closed(), [])
+
+    def test_empty_backticks_count_as_not_recorded(self):
+        for value in ('``', '` `', '`` until the scaffold picks one'):
+            with self.subTest(value=value):
+                result = self.close_with(value)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn("FAIL: References.md, section Commands, records no command for 'typecheck' "
+                              "(write the command, or none when the project has no such command)", result.stdout)
+                self.assertEqual(self.closed(), [])
+
+    def test_brackets_none_and_na_behave_as_before(self):
+        for value in ('[command to run type checker]', '[`true` once the scaffold picks one]'):
+            with self.subTest(value=value):
+                result = self.close_with(value)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn("records no command for 'typecheck'", result.stdout)
+                self.assertEqual(self.closed(), [])
+        for value in ('none', 'None.', 'none, the language is untyped', 'n/a', 'N/A: no type checker', 'none `touch ran.txt`'):
+            with self.subTest(value=value):
+                result = self.close_with(value)
+                self.assertEqual(result.returncode, 0, result.stdout)
+                self.assertFalse((self.project / 'ran.txt').exists())
+                self.assertRegex(self.closed()[-1], r'check passed: project: typecheck, test$')
+
+    def test_closed_project_checks_rerun_as_before_and_meet_the_contract(self):
+        # A closed step whose recorded command is now a sentence: a bare run and a listing still
+        # leave it alone; a close, a skip, and --verify re-run it and refuse it with the migration message.
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        self.project_playbook(); self.commands()
+        path.write_text(path.read_text() + '\n## Step 3: Extra\nRead: none\nProduces: x\nCheck: evidence: x\nSkip when: nothing extra\n')
+        (self.project / 'flag.txt').write_text('x')
+        self.assertEqual(self.run_tool('--close', 'boot.1').returncode, 0)
+        self.commands(typecheck='set up during scaffold')
+        bare = self.run_tool()
+        self.assertEqual(bare.returncode, 0, bare.stdout)
+        self.assertIn('Next step: boot.2', bare.stdout)
+        self.assertIn('--verify', bare.stdout)
+        listing = self.run_tool('--list')
+        self.assertEqual(listing.returncode, 0, listing.stdout)
+        self.assertRegex(listing.stdout, r'(?m)^closed\s+boot\.1\s')
+        self.assertIn('were not re-run for this listing', listing.stdout)
+        for args in (('--verify',), ('--list', '--verify'), ('--close', 'boot.2', '--evidence', 'x')):
+            with self.subTest(args=args):
+                result = self.run_tool(*args)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn('REOPENED: boot.1', result.stdout)
+                self.assertIn(self.MIGRATION % 'set up during scaffold', result.stdout)
+        self.commands()
+        self.assertEqual(self.run_tool('--close', 'boot.2', '--evidence', 'x').returncode, 0)
+        self.commands(typecheck='set up during scaffold')
+        skipping = self.run_tool('--skip', 'boot.3', '--reason', 'nothing extra here')
+        self.assertEqual(skipping.returncode, 1, skipping.stdout)
+        self.assertIn(self.MIGRATION % 'set up during scaffold', skipping.stdout)
+        self.assertEqual(len(self.closed()), 2)
 
     def test_the_unit_reaches_the_check(self):
         self.close_all_of_boot()
@@ -820,12 +950,12 @@ class Steps(unittest.TestCase):
         for name in ('one', 'two'):
             endpoint = self.project / name; endpoint.mkdir(); endpoints.append(endpoint)
             nested = endpoint / 'nested'; nested.mkdir()
-            (endpoint / 'References.md').write_text('# R\n\n## Commands\n\n```\ntypecheck: test -f here.txt\n```\n')
+            (endpoint / 'References.md').write_text('# R\n\n## Commands\n\n```\ntypecheck: `test -f here.txt`\n```\n')
             (endpoint / 'here.txt').write_text(name)
             result = self.run_tool('--close', 'boot.1', '--unit', name, cwd=nested)
             self.assertEqual(result.returncode, 0, result.stdout)
         (endpoints[0] / 'here.txt').unlink()
-        (endpoints[0] / 'nested' / 'References.md').write_text('# R\n\n## Commands\n\n```\ntypecheck: true\n```\n')
+        (endpoints[0] / 'nested' / 'References.md').write_text('# R\n\n## Commands\n\n```\ntypecheck: `true`\n```\n')
         verified = self.run_tool('--list', '--verify', '--unit', 'two', cwd=endpoints[1])
         self.assertEqual(verified.returncode, 1, verified.stdout)
         self.assertIn('boot.1 @one', verified.stdout)
@@ -839,11 +969,11 @@ class Steps(unittest.TestCase):
         endpoint = self.project / 'frontend'; endpoint.mkdir()
         nested = endpoint / 'nested'; nested.mkdir()
         (endpoint / 'References.md').write_text(
-            '# R\n\n## Commands\n\n```\ntypecheck: true\n```\n')
+            '# R\n\n## Commands\n\n```\ntypecheck: `true`\n```\n')
         first = self.run_tool('--close', 'boot.1', cwd=nested)
         self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
         (nested / 'References.md').write_text(
-            '# R\n\n## Commands\n\n```\ntypecheck: test -f valid.txt\n```\n')
+            '# R\n\n## Commands\n\n```\ntypecheck: `test -f valid.txt`\n```\n')
         valid = nested / 'valid.txt'; valid.write_text('valid')
         second = self.run_tool('--close', 'boot.2', cwd=nested)
         self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
