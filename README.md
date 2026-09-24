@@ -8,15 +8,17 @@ A layered knowledge system for AI-assisted software development. It guides resea
 
 ```bash
 # Single project (frontend, backend, or mobile):
-git clone https://github.com/d3r3nic/archetype.git my-project
-cd my-project && rm -rf .git libraries/
+git clone https://github.com/d3r3nic/archetype.git /tmp/archetype
+mkdir my-project
+/tmp/archetype/inject.sh "$PWD/my-project"
 
-# Fullstack (separate frontend + backend):
-mkdir my-project && cd my-project
-git clone https://github.com/d3r3nic/archetype.git frontend
-git clone https://github.com/d3r3nic/archetype.git backend
-rm -rf frontend/.git frontend/libraries/ backend/.git backend/libraries/
+# Fullstack (separate frontend + backend units, each with its own engine folder):
+mkdir -p my-project/frontend my-project/backend
+/tmp/archetype/inject.sh "$PWD/my-project/frontend"
+/tmp/archetype/inject.sh "$PWD/my-project/backend"
 ```
+
+The framework lands in `my-project/archetype/`; the project root, its README, and its license stay the project's own.
 
 ### Existing project (safe migration)
 
@@ -33,7 +35,7 @@ cd /tmp/archetype
 
 The framework lands in `your-project/archetype/`. Run the existing-project bootstrap from there.
 
-A full clone brings the framework's LICENSE and NOTICE with it. They cover the framework files. If your project needs its own license, rename them to LICENSE-ARCHETYPE and NOTICE-ARCHETYPE and add yours.
+The framework's LICENSE and NOTICE travel in the engine folder and cover the framework files. An older full-clone install carries them at its root: if that project needs its own license, rename them to LICENSE-ARCHETYPE and NOTICE-ARCHETYPE and add yours.
 
 Then tell your AI assistant:
 

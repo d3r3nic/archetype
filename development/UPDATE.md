@@ -39,4 +39,4 @@ Never restore a root entry file from version control after an update: that puts 
 
 ## Older installs
 
-An updater from before this behaviour overwrites root `CLAUDE.md` without carrying anything. Before its first run, compare root `CLAUDE.md` with `archetype/CLAUDE.md`; move any line only the root has into `CLAUDE.md.additions` by hand. Then run the updater twice.
+An updater from before the carry-forward behaviour overwrites both root entry files without carrying anything, and its first run is the one that replaces it. Before that first run, compare root `CLAUDE.md` with `archetype/CLAUDE.md` and root `AGENTS.md` with `archetype/AGENTS.md`, and move every line only the root file has into `CLAUDE.md.additions` by hand. Then run the updater twice.

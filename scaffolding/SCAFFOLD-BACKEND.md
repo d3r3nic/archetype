@@ -267,12 +267,12 @@ Conventions: #26 (pulse monitor).
 Wire a dev-only route that serves the framework's base UI and `.pulse-state.json` from paths outside every folder the production build or deployment copies. Production builds contain neither (#26).
 
 Build:
-- Dev-only route, guarded on the runtime's environment flag meaning "not production": `GET /dev/pulse` serves the starter UI (markup plus its style and script assets); `GET /dev/pulse/.pulse-state.json` serves the generated state.
+- Dev-only route, registered only when the environment explicitly says development (an unset or unrecognized environment does not register it): `GET /dev/pulse/` serves the starter UI (markup plus its style and script assets, `/dev/pulse` redirecting to the trailing-slash address); `GET /dev/pulse/.pulse-state.json` serves the generated state.
 - Copy `archetype/templates/pulse-ui/` into the project (or serve directly from the installed framework folder if it sits inside the project — decide per project layout).
 - Add a project task (the package manager's script runner, or equivalent) that runs `archetype/scripts/pulse-inspect.sh --out <project-owned path>/.pulse-state.json` before serving.
 - Create `docs/systems/pulse-monitor.md` from `archetype/templates/pulse-monitor-spec.md`; fill in the project-specific "Where it's served" section, and read that spec's implementation notes before wiring the serve path.
 
-**Verify:** start the dev server, open the pulse route, confirm every section renders with real data from References.md + feature-tree.md. Refresh re-fetches `.pulse-state.json` (re-run the inspector first for live updates). Search the production build or deployment artifact for `.pulse-state` and `Archetype pulse UI`: no match.
+**Verify:** start the dev server, open the pulse route, confirm every section renders with real data from References.md + feature-tree.md. Refresh re-fetches `.pulse-state.json` (re-run the inspector first for live updates). List the production build or deployment artifact's files, hidden files included, and search its contents for `Archetype pulse UI`: no snapshot, no pulse UI file, no match; and the production server does not answer the pulse route.
 
 ## Step 18 — Smoke-test feature (scaffold exit gate)
 
@@ -304,7 +304,7 @@ If validator fails, FIX before committing. Do not paper over.
 
 ## Post-scaffold output
 
-- Every applicable system listed in `feature-tree.md` marked implemented with its path, or `deferred (TD-N)` with its trigger per #30 (a deferred system keeps its row and its docs/systems/ page, which says what is deferred and until when).
+- Every applicable system listed in `feature-tree.md` marked implemented with its path, `deferred (TD-N)` with its trigger per #30 (a deferred system keeps its row and its docs/systems/ page, which says what is deferred and until when), or `blocked (owner: <action>)` per #29 (its page names the action and what stays unavailable).
 - Every system has a doc at `docs/systems/{name}.md` using the template in `scaffolding/SCAFFOLD.md`.
 - `References.md` updated with actual paths, DB schema overview, API summary.
 - `.env.example` at project root.

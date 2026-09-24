@@ -18,25 +18,22 @@ Read [REPOSITORIES.md](REPOSITORIES.md) before creating a repository or installi
 
 Choose the installation path that fits the repository facts established from `bootstrap/REPOSITORIES.md`. Preserve repository history and existing guidance. The commands below are implementation examples; resolve current source locations before running them.
 
-### For a NEW project (full clone):
+### For a NEW project (engine folder in an empty project folder):
+
+Create the project folder and install the engine into it, the same way an existing project is installed. The project root stays the project's own (its README, its license, its scripts); the framework lives in `archetype/`, and the two root entry files are managed copies.
 
 ```bash
-# Option A: Clone the framework repository
-git clone https://github.com/d3r3nic/archetype.git my-project-name
-cd my-project-name
-rm -rf .git libraries/
+git clone https://github.com/d3r3nic/archetype.git /tmp/archetype-framework
+mkdir my-project-name
+/tmp/archetype-framework/inject.sh "$PWD/my-project-name"
 
-# Option B: If you already have the framework files locally
-cp -r /path/to/archetype my-project-name
-cd my-project-name
-rm -rf .git libraries/
-
-# For a fullstack project (frontend + backend as separate folders):
-mkdir my-project && cd my-project
-git clone https://github.com/d3r3nic/archetype.git frontend
-git clone https://github.com/d3r3nic/archetype.git backend
-rm -rf frontend/.git frontend/libraries/ backend/.git backend/libraries/
+# Separate frontend and backend units, each with its own engine folder:
+mkdir -p my-project/frontend my-project/backend
+/tmp/archetype-framework/inject.sh "$PWD/my-project/frontend"
+/tmp/archetype-framework/inject.sh "$PWD/my-project/backend"
 ```
+
+A clone of the framework used as the project itself (the full-clone layout) is an older layout: the framework's own files and folders sit at the project root, so each update replaces them. Existing full-clone installs keep working; development/UPDATE.md says what an update does there.
 
 ### For an EXISTING project (inject as subfolder):
 
