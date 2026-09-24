@@ -40,7 +40,7 @@ Manual: re-run `pulse-inspect.sh` then click Refresh. Chaining the inspector to 
 Fill in during scaffold:
 
 - **Backend projects:** a dev-only route that serves the UI and the snapshot. The route is registered only when the runtime is in development mode; production builds never register it.
-- **Frontend projects:** a dev-server-only route or static path. Production builds exclude the pulse UI.
+- **Frontend projects:** a route the dev server registers only in development, serving the UI and the snapshot from paths outside every folder the production build copies. Production builds contain neither.
 - **Mobile projects:** runs as a local web page on the developer's machine, served by any static file server. Not bundled into the mobile app itself.
 - **Platform projects:** N/A — no dev environment in the code sense. Skip.
 
@@ -54,8 +54,10 @@ Document the exact serve path for this project here:
 
 Read before wiring the serve path:
 
-- **Bundlers that refuse to follow external symlinks.** If the framework folder is symlinked to a sibling location (for example one framework checkout shared across several templates), a bundler with strict asset tracing may reject paths that escape the project root. Consequence: a server-rendered page cannot read the framework's UI files from the symlinked folder at build time. Signal: do not embed the starter UI by reading it from the framework folder. Either render a project-local page that fetches a static `.pulse-state.json` asset, or serve the starter UI via a separate static server. Either preserves the data-contract-is-stable rule (the UI is replaceable).
-- **Snapshot location.** Store `.pulse-state.json` where the project's dev server serves static assets (wherever that is for the chosen stack). Git-ignore it — it's generated.
+- **Bundlers that refuse to follow external symlinks.** If the framework folder is symlinked to a sibling location (for example one framework checkout shared across several templates), a bundler with strict asset tracing may reject paths that escape the project root. Consequence: a server-rendered page cannot read the framework's UI files from the symlinked folder at build time. Signal: do not embed the starter UI by reading it from the framework folder. Either render a project-local, development-only page that fetches the snapshot through the dev route, or serve the starter UI with a separate local static server; in both cases the page, the UI, and the snapshot stay outside every folder the production build copies. Either preserves the data-contract-is-stable rule (the UI is replaceable).
+- **Snapshot and UI location.** Keep `.pulse-state.json` in a project-owned, git-ignored path outside every folder the production build or deployment copies, and let the dev-only route serve it with the UI (from the installed framework folder or a project-owned copy under the same rule). A dev server's public static folder is copied into the production build on common stacks, so it is the wrong place for either. After a production build, list its output's files, hidden files included, and search its contents for `Archetype pulse UI`, the header line every pulse UI file carries: a snapshot, a pulse UI file, or a match means the build publishes the monitor. Git-ignoring the snapshot keeps it out of the repository, not out of a build.
+- **Route shape.** The starter UI loads its script, its styles, and the snapshot by relative path. Serve the route at a trailing-slash address (`/dev/pulse/`, redirecting `/dev/pulse` to it) or set the page's base path, or the browser resolves those files one folder too high.
+- **Enabled only in development.** Register the route when the environment explicitly says development; an unset or unrecognized environment does not register it.
 - **Monorepo layouts.** The inspector scans both a single-app layout (`src/features/*/`, `src/shared/*/`) and a multi-app layout (`apps/*/src/features/*/`, `apps/*/src/shared/*/`, union across apps). Declared rows in feature-tree.md are matched against the union.
 
 ## Data contract (`.pulse-state.json`)

@@ -53,7 +53,7 @@ As each system lands during scaffold, update the feature-tree.md row in-place:
 - Location column fills in real path (was `[scaffold fills]`).
 - Audit Log gets one entry per scaffold sub-phase (e.g. "B1 monorepo skeleton", "B2 non-UI foundation", "B3 tokens + UI + docs").
 
-Never leave a row at `not started` after its code ships. Pulse-inspect drift detection reads these statuses.
+Never leave a row at `not started` after its code ships: the status is what the pulse snapshot shows and what the next session reads.
 
 ## Monorepo template projects — extra lens
 

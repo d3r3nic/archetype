@@ -147,7 +147,7 @@ if [ ! -d "$TARGET_DIR/docs/features" ]; then
 fi
 
 echo ""
-echo "Done. AGENTS.md (the rules) and CLAUDE.md (a pointer to it) are at the project root. Framework files are in $SUBFOLDER_NAME/."
+echo "Done. AGENTS.md (the rules) and CLAUDE.md (which imports it) are at the project root. Framework files are in $SUBFOLDER_NAME/."
 echo ""
 echo "Next steps:"
 echo "  1. cd $TARGET_DIR"

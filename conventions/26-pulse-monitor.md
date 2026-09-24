@@ -42,6 +42,7 @@ Plus drift: the inspector compares declared state with the actual filesystem and
 ## Violations
 
 - Exposing the pulse monitor in production (auth leak, internal layout leak).
+- Keeping the snapshot or the UI in a folder the production build copies, such as a dev server's public static folder on common stacks.
 - Writing to declared state FROM the pulse monitor (it is read-only).
 - Coupling the UI layer to the inspector implementation (breaks the replaceability intent).
 - Building the inspector in a project-specific language that won't run in other projects (inspector is language-agnostic; bash + portable shell tools).
@@ -61,7 +62,7 @@ Plus drift: the inspector compares declared state with the actual filesystem and
 Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
-- Decide where the pulse monitor is served in the project's stack — a dev-only route, a static-served path, a separate CLI, or a local companion window. Depends on project shape.
+- Decide where the pulse monitor is served in the project's stack: a dev-only route, a local static server over a project-owned folder the build never copies, a separate CLI, or a local companion window. Depends on project shape.
 - Research a simple JSON-reader/renderer for the chosen stack if not using the framework's plain web starter.
 - Decide the refresh model — on-page-load, on-manual-button, or file-watcher triggers re-inspect. Manual refresh is the simplest starting point.
 - Read the implementation notes in the pulse spec template before wiring the serve path (bundler and symlink constraints, snapshot location, monorepo layouts).

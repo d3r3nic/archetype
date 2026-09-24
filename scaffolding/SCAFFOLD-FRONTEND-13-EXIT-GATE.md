@@ -13,6 +13,6 @@ Run `scripts/validate-scaffold.sh --required known-screen`. Fix any failures bef
 
 ### What the scaffold leaves written
 
-Same as SCAFFOLD-BACKEND: every applicable system marked implemented with path, or `deferred (TD-N)` with its trigger per #30, docs/systems/ entry per system (a deferred system's page says what is deferred and until when), References.md updated, `.env.example`, VERSION-LOG entry, initial commit.
+Same as SCAFFOLD-BACKEND: every applicable system marked implemented with path, `deferred (TD-N)` with its trigger per #30, or `blocked (owner: <action>)` per #29, docs/systems/ entry per system (a deferred system's page says what is deferred and until when), References.md updated, `.env.example`, VERSION-LOG entry, initial commit.
 
 Use the same current decision basis and artifact/review inputs as the smoke-test step. Keep the decision record as the source of reasons and the review as the source of observations; the progress ledger holds references and check results.

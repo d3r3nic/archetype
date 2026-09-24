@@ -8,15 +8,17 @@ A layered knowledge system for AI-assisted software development. It guides resea
 
 ```bash
 # Single project (frontend, backend, or mobile):
-git clone https://github.com/d3r3nic/archetype.git my-project
-cd my-project && rm -rf .git libraries/
+git clone https://github.com/d3r3nic/archetype.git /tmp/archetype
+mkdir my-project
+/tmp/archetype/inject.sh "$PWD/my-project"
 
-# Fullstack (separate frontend + backend):
-mkdir my-project && cd my-project
-git clone https://github.com/d3r3nic/archetype.git frontend
-git clone https://github.com/d3r3nic/archetype.git backend
-rm -rf frontend/.git frontend/libraries/ backend/.git backend/libraries/
+# Fullstack (separate frontend + backend units, each with its own engine folder):
+mkdir -p my-project/frontend my-project/backend
+/tmp/archetype/inject.sh "$PWD/my-project/frontend"
+/tmp/archetype/inject.sh "$PWD/my-project/backend"
 ```
+
+The framework lands in `my-project/archetype/`; the project root, its README, and its license stay the project's own.
 
 ### Existing project (safe migration)
 
@@ -33,7 +35,7 @@ cd /tmp/archetype
 
 The framework lands in `your-project/archetype/`. Run the existing-project bootstrap from there.
 
-A full clone brings the framework's LICENSE and NOTICE with it. They cover the framework files. If your project needs its own license, rename them to LICENSE-ARCHETYPE and NOTICE-ARCHETYPE and add yours.
+The framework's LICENSE and NOTICE travel in the engine folder and cover the framework files. An older full-clone install carries them at its root: if that project needs its own license, rename them to LICENSE-ARCHETYPE and NOTICE-ARCHETYPE and add yours.
 
 Then tell your AI assistant:
 
@@ -47,11 +49,11 @@ Bootstrap and the frontend scaffold declare automated step routes. Backend, mobi
 
 ## Shared task rules and updates
 
-[Repository adoption](bootstrap/REPOSITORIES.md), [task rules](development/TASKS.md), and [freshness rules](development/FRESHNESS.md) define the shared contract. The installed AGENTS.md holds the shared rules; CLAUDE.md points to it for hosts that load only that name. Project-root References.md, CLAUDE.md.additions, and protocols/task-context.md provide local facts and capabilities; updates preserve them. A task service and enforced freshness are consuming-project responsibilities.
+[Repository adoption](bootstrap/REPOSITORIES.md), [task rules](development/TASKS.md), and [freshness rules](development/FRESHNESS.md) define the shared contract. The installed AGENTS.md holds the shared rules; CLAUDE.md imports it for hosts that load only that name. Project-root References.md, CLAUDE.md.additions, and protocols/task-context.md provide local facts and capabilities; updates preserve them. A task service and enforced freshness are consuming-project responsibilities.
 
 Run the installed update.sh to fetch current shared rules. It is a manual latest-source updater, not an immutable release manager or automatic fleet controller. Full-clone installations at their own Git root and injected engines with parent CLAUDE.md/VERSION-LOG.md resolve automatically. For an unpacked or ambiguous layout, use `bash update.sh --project-root /absolute/project/path`; the directory must be the engine itself or its direct parent. Review the reported Project and Engine paths.
 
-**Updating:** development/UPDATE.md says who owns which file and what a session does before and after. Root AGENTS.md holds the rules and root CLAUDE.md points to it; both are replaced by each update, and lines a project added to them are carried into CLAUDE.md.additions for audit, never deleted. An old injected updater first replaces itself: run it twice. For an old full-clone installation, use the current updater with an explicit verified root instead of running the legacy root-detection code.
+**Updating:** development/UPDATE.md says who owns which file and what a session does before and after. Root AGENTS.md holds the rules and root CLAUDE.md imports it; both are replaced by each update, and lines a project added to them are carried into CLAUDE.md.additions for audit, never deleted. An old injected updater first replaces itself: run it twice. For an old full-clone installation, use the current updater with an explicit verified root instead of running the legacy root-detection code.
 
 Verification: `bash scripts/validate-framework.sh` checks structural consistency and runs the timeless-content check (`scripts/validate-timeless.sh`: no tool or vendor names outside Research Notes, no factory step references, no dated AI statistics, no tool-bound numeric limits, no changelog language); `python3 scripts/test-entrypoints.py` exercises distribution and preservation. Set `ARCHETYPE_LEGACY_SOURCE` to an exported previous release directory to include the two-step upgrade regression. These checks do not prove that an agent obeys instructions or that a platform enforces them.
 
@@ -76,7 +78,7 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 
 ```
 ├── AGENTS.md                 # Shared guidance with convention routing
-├── CLAUDE.md                 # Pointer to AGENTS.md for hosts that load only this name
+├── CLAUDE.md                 # Imports AGENTS.md for hosts that load only this name
 ├── Conventions.md             # Convention lookup index
 ├── LICENSE                    # Apache License 2.0
 ├── NOTICE                     # Copyright and license attribution
@@ -118,10 +120,12 @@ For a custom application using the included feature-oriented scaffold, the resul
 
 ```
 your-project/
-├── AGENTS.md                 # Shared guidance (from framework)
-├── CLAUDE.md                 # Pointer to AGENTS.md (from framework)
-├── Conventions.md             # Convention index (from framework)
-├── conventions/               # Convention docs (from framework)
+├── AGENTS.md                 # Shared guidance (from framework, replaced by updates)
+├── CLAUDE.md                 # Imports AGENTS.md (from framework, replaced by updates)
+├── CLAUDE.md.additions        # YOUR project's own standing rules
+├── archetype/                 # The engine: conventions, playbooks, templates, scripts (from framework)
+├── conventions/overrides/     # YOUR project-specific rules per convention, when needed
+├── PROFILE.md                 # YOUR operating stage and who decides technical questions
 ├── References.md              # YOUR project's tech stack, systems, commands
 ├── feature-tree.md            # Living map of YOUR systems and features
 ├── .env.example               # Required environment variables documented

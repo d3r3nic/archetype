@@ -15,7 +15,7 @@ Append-only log of known issues, shortcuts, and convention violations deferred r
 - **Proposed fix:** one-sentence recommended resolution
 - **Status:** open / in-progress / fixed / won't-fix
 - **Related:** links to other TD entries, feature docs, or session reviews if applicable
-- **Kind:** shortcut / deferral (a deferral is work the operating profile allows to wait; see #30)
+- **Kind:** shortcut / deferral (a deferral is work the operating profile allows to wait; see #30. Work waiting on an owner action is blocked, not deferred: #29)
 - **Control:** the convention, backend rule, or floor item concerned (#N with the obligation named, BN, or floor: secrets / trust-boundary / irreversible-effects / personal-data / authorized-reuse / honest-completion). A floor item is never a deferral; name the obligation after the number ("#23 rate limiting") so a review can see that it is not one.
 - **Due-before:** a named trigger from PROFILE.md (first-outside-participant, public-access, real-data, personal-data, real-money-or-external-action, operational-reliance, valuable-records, second-contributor, regulated-data-or-commitment, trial-stage, operational-stage) or a date YYYY-MM-DD, inclusive. Required when Kind is deferral.
 - **Review-by:** YYYY-MM-DD. Required when Kind is deferral.
