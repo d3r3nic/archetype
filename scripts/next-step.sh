@@ -244,7 +244,7 @@ project_command() {
 # out first), and sets RECORDED to the command, or CHECK_OUT to why there is none to run.
 BT='`'
 RECORDED=""
-not_recorded() { CHECK_OUT="FAIL: References.md, section Commands, records no command for '$1' (write the command, or none when the project has no such command)"; }
+not_recorded() { CHECK_OUT="FAIL: References.md, section Commands, records no command for '$1' (write the command in backticks, or none when the project has no such command)"; }
 read_recorded() { # label, value
   local label="$1" value="$2" rest note
   RECORDED=""

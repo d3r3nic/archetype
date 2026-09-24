@@ -715,7 +715,7 @@ class Steps(unittest.TestCase):
                 result = self.close_with(value)
                 self.assertEqual(result.returncode, 1, result.stdout)
                 self.assertIn("FAIL: References.md, section Commands, records no command for 'typecheck' "
-                              "(write the command, or none when the project has no such command)", result.stdout)
+                              "(write the command in backticks, or none when the project has no such command)", result.stdout)
                 self.assertEqual(self.closed(), [])
 
     def test_brackets_none_and_na_behave_as_before(self):
