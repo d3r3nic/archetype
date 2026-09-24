@@ -4,6 +4,7 @@ pulse-inspect.sh) against projects built in a temporary folder, and the shipped 
 
 from pathlib import Path
 import json
+import os
 import re
 import subprocess
 import tempfile
@@ -383,12 +384,47 @@ class PulseInspect(unittest.TestCase):
     def inspect(self, *args):
         return subprocess.run([BASH, str(PULSE), *args], cwd=self.project, text=True, capture_output=True)
 
+    def assert_plain_failure(self, result, *phrases):
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(result.stdout, '')
+        for phrase in phrases:
+            self.assertIn(phrase, result.stderr)
+        self.assertEqual(len(result.stderr.strip().splitlines()), 1, result.stderr)
+        self.assertNotRegex(result.stderr, r'line [0-9]+:|No such file|Not a directory|Is a directory|Permission denied')
+
     def test_stdout_is_the_snapshot_without_out(self):
         result = self.inspect()
         self.assertEqual(result.returncode, 0, result.stderr)
         state = json.loads(result.stdout)
         self.assertEqual(len(state['foundationalSystems']), 16)
         self.assertEqual([f['name'] for f in state['features']], ['[name]'])
+
+    def test_out_creates_a_missing_nested_folder(self):
+        result = self.inspect('--out', 'dev/pulse/state/.pulse-state.json')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, '')
+        self.assertIn('pulse state written to dev/pulse/state/.pulse-state.json', result.stderr)
+        state = json.loads((self.project / 'dev' / 'pulse' / 'state' / '.pulse-state.json').read_text())
+        self.assertEqual(state['dataContractVersion'], 'v2')
+
+    def test_out_under_a_regular_file_fails_plainly(self):
+        (self.project / 'blocker').write_text('a file, not a folder\n')
+        result = self.inspect('--out', 'blocker/state.json')
+        self.assert_plain_failure(result, 'cannot create the folder blocker', 'blocker/state.json')
+
+    def test_out_that_is_a_folder_fails_plainly(self):
+        (self.project / 'snapshots').mkdir()
+        result = self.inspect('--out', 'snapshots')
+        self.assert_plain_failure(result, 'cannot write the snapshot to snapshots')
+
+    @unittest.skipIf(hasattr(os, 'geteuid') and os.geteuid() == 0, 'folder permissions do not bind the superuser')
+    def test_out_in_a_read_only_folder_fails_plainly(self):
+        locked = self.project / 'locked'
+        locked.mkdir()
+        locked.chmod(0o555)
+        self.addCleanup(locked.chmod, 0o755)
+        result = self.inspect('--out', 'locked/state.json')
+        self.assert_plain_failure(result, 'cannot write the snapshot to locked/state.json')
 
     def test_blocked_status_passes_through_with_its_action(self):
         (self.project / 'feature-tree.md').write_text(systems_tree([

@@ -375,7 +375,19 @@ EOF
 )
 
 if [ -n "$OUT" ]; then
-  printf '%s\n' "$JSON" > "$OUT"
+  # Create the snapshot's folder first; say plainly which path failed instead of a raw shell error.
+  case "$OUT" in
+    */*) OUT_DIR="${OUT%/*}"; [ -n "$OUT_DIR" ] || OUT_DIR="/" ;;
+    *) OUT_DIR="." ;;
+  esac
+  if ! mkdir -p -- "$OUT_DIR" 2>/dev/null; then
+    echo "pulse-inspect: cannot create the folder $OUT_DIR for the snapshot $OUT (a file may be in the way, or the location is not writable)" >&2
+    exit 1
+  fi
+  if ! { printf '%s\n' "$JSON" > "$OUT"; } 2>/dev/null; then
+    echo "pulse-inspect: cannot write the snapshot to $OUT (check that it is not a folder and that its folder is writable)" >&2
+    exit 1
+  fi
   echo "pulse state written to $OUT" >&2
 else
   printf '%s\n' "$JSON"
