@@ -101,7 +101,7 @@ group 1 "Every foundational system has a docs/systems/ entry"
 # the name in lowercase with every run of characters other than a-z and 0-9 turned into one
 # dash and edge dashes trimmed; the older name form (lowercase, spaces to dashes) is still
 # accepted. Status `blocked (owner: <action>)` (#29) is read like any other status for the
-# page check, and every run reports the system as not built, with its owner action.
+# page check, and every run reports the system as not complete, with its owner action.
 SYSTEM_ROWS="$(awk -F'|' '
   function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
   { sub(/\r$/, ""); gsub(/\*\*/, "") }
@@ -155,15 +155,15 @@ while IFS='|' read -r num name status docs_mode docs_cell; do
       action="$(printf '%s' "$action" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
       BLOCKED=$((BLOCKED + 1))
       if [ -n "$action" ]; then
-        warn "system '$name' is blocked on the owner: $action. It is not built; features that need it wait (#29)"
+        warn "system '$name' is blocked on the owner: $action. It is not complete; features that need it wait (#29)"
       else
         warn "system '$name' is blocked (Status '$status') but names no owner action; write blocked (owner: <action>) (#29)"
       fi
-      hint="; a system blocked on the owner keeps a page that names the owner action and what was built meanwhile (#29)" ;;
+      hint="; a system blocked on the owner keeps a page that names the owner action, what exists, and what stays unavailable (#29)" ;;
     blocked*)
       BLOCKED=$((BLOCKED + 1))
       warn "system '$name' has Status '$status', which is not the recorded form blocked (owner: <action>); name the owner action there (#29)"
-      hint="; a system blocked on the owner keeps a page that names the owner action and what was built meanwhile (#29)" ;;
+      hint="; a system blocked on the owner keeps a page that names the owner action, what exists, and what stays unavailable (#29)" ;;
     'deferred (td-'*')')
       hint="; a deferred system keeps a page that says what is deferred and until which trigger (#30)" ;;
   esac
@@ -502,7 +502,7 @@ fi
 # ----------------------------------------------------------------------
 echo ""
 echo "==="
-[ "$BLOCKED" -gt 0 ] && echo "Not built, blocked on the owner: $BLOCKED foundational system(s); group 1 names each owner action."
+[ "$BLOCKED" -gt 0 ] && echo "Not complete, blocked on the owner: $BLOCKED foundational system(s); group 1 names each owner action."
 if [ "$ERRORS" -gt 0 ]; then
   printf "${RED}%d errors${NC}, %d warnings\n" "$ERRORS" "$WARNINGS"
   echo "Fix errors before committing."

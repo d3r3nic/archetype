@@ -99,7 +99,7 @@ class TemplateText(unittest.TestCase):
         notes = [line for line in section(self.text, 'Foundational Systems') if 'blocked (owner: <action>)' in line]
         self.assertEqual(len(notes), 1, notes)
         for phrase in ('opening an account', 'approving a recurring cost', 'accepting terms',
-                       'names the action and what was built meanwhile', '(#29)'):
+                       'names the action, what exists, and what stays unavailable', '(#29)'):
             self.assertIn(phrase, notes[0])
 
 
@@ -292,18 +292,18 @@ class ScaffoldGate(unittest.TestCase):
         missing = self.check(systems_tree([row]))
         self.assertEqual(missing.returncode, 0, missing.stdout)
         self.assertEqual(group(missing.stdout, '1'), [
-            "WARN: system 'Payments' is blocked on the owner: open the payments account. It is not built; features that need it wait (#29)",
+            "WARN: system 'Payments' is blocked on the owner: open the payments account. It is not complete; features that need it wait (#29)",
             "WARN: system 'Payments' has no document at docs/systems/payments.md, the path its Docs column names; "
-            "a system blocked on the owner keeps a page that names the owner action and what was built meanwhile (#29)",
+            "a system blocked on the owner keeps a page that names the owner action, what exists, and what stays unavailable (#29)",
         ])
         self.page('docs/systems/payments.md')
         present = self.check(systems_tree([row]))
         self.assertEqual(present.returncode, 0, present.stdout)
         self.assertEqual(group(present.stdout, '1'), [
-            "WARN: system 'Payments' is blocked on the owner: open the payments account. It is not built; features that need it wait (#29)",
+            "WARN: system 'Payments' is blocked on the owner: open the payments account. It is not complete; features that need it wait (#29)",
             'OK: every foundational system has a docs/systems/ entry',
         ])
-        self.assertIn('Not built, blocked on the owner: 1 foundational system(s); group 1 names each owner action.', present.stdout)
+        self.assertIn('Not complete, blocked on the owner: 1 foundational system(s); group 1 names each owner action.', present.stdout)
 
     def test_blocked_status_written_in_code_quotes_or_bold_is_read(self):
         self.page('docs/systems/mail.md')
@@ -311,7 +311,7 @@ class ScaffoldGate(unittest.TestCase):
             with self.subTest(status=status):
                 result = self.check(systems_tree(['| **18** | Mail | #9 | src/shared/mail | %s |  |' % status]))
                 self.assertEqual(group(result.stdout, '1'), [
-                    "WARN: system 'Mail' is blocked on the owner: approve the mail plan. It is not built; features that need it wait (#29)",
+                    "WARN: system 'Mail' is blocked on the owner: approve the mail plan. It is not complete; features that need it wait (#29)",
                     'OK: every foundational system has a docs/systems/ entry',
                 ])
 
@@ -324,7 +324,7 @@ class ScaffoldGate(unittest.TestCase):
             with self.subTest(status=status):
                 result = self.check(systems_tree(['| 19 | Search | #9 | src/shared/search | %s | docs/systems/search.md |' % status]))
                 self.assertEqual(group(result.stdout, '1'), [line, 'OK: every foundational system has a docs/systems/ entry'])
-                self.assertIn('Not built, blocked on the owner: 1 foundational system(s)', result.stdout)
+                self.assertIn('Not complete, blocked on the owner: 1 foundational system(s)', result.stdout)
 
     def test_blocked_system_is_reported_even_without_a_docs_folder(self):
         (self.project / 'docs' / 'systems').rmdir()
@@ -332,7 +332,7 @@ class ScaffoldGate(unittest.TestCase):
         lines = group(result.stdout, '1')
         self.assertEqual(len(lines), 2, lines)
         self.assertTrue(lines[0].startswith('WARN: docs/systems/ directory does not exist'), lines)
-        self.assertEqual(lines[1], "WARN: system 'Payments' is blocked on the owner: open the payments account. It is not built; features that need it wait (#29)")
+        self.assertEqual(lines[1], "WARN: system 'Payments' is blocked on the owner: open the payments account. It is not complete; features that need it wait (#29)")
 
     def test_name_without_letters_or_digits_needs_a_docs_path(self):
         result = self.check(systems_tree(['| 09 | && | #1 | x | implemented |'], '| # | Name | Convention | Location | Status |'))

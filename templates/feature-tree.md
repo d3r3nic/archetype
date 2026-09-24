@@ -34,7 +34,7 @@ Notes:
 - Add project-specific systems below row 16 using ordinal numbering (17, 18, ...). Use `—` in the Convention column when no framework convention applies.
 - Keep the numbers in the `#` column plain, not bold, in both tables: `scripts/validate-maintain.sh` looks for plain digits when it matches a feature folder to its row.
 - A system the operating stage defers (#30) keeps its row with Status `deferred (TD-N)` and a docs/systems/ page that says what is deferred and until which trigger.
-- A system that waits on an owner action (opening an account, approving a recurring cost, accepting terms) keeps its row with Status `blocked (owner: <action>)` and a docs/systems/ page that names the action and what was built meanwhile (#29).
+- A system that waits on an owner action (opening an account, approving a recurring cost, accepting terms) keeps its row with Status `blocked (owner: <action>)` and a docs/systems/ page that names the action, what exists, and what stays unavailable (#29).
 
 ## Features
 
