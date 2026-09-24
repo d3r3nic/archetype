@@ -368,10 +368,21 @@ fi
 same_text() {
   strip_cr "$1" > "$CARRY_DIR/same.a" && strip_cr "$2" > "$CARRY_DIR/same.b" && cmp -s "$CARRY_DIR/same.a" "$CARRY_DIR/same.b"
 }
+# A legacy record, and any file used to prove it a duplicate, must be a regular file and not
+# a symbolic link: a link could make the only copy look duplicated, or carry later writes
+# outside the project.
+regular_record() {
+  if [ -L "$1" ] || { [ -e "$1" ] && [ ! -f "$1" ]; }; then
+    not_verified "$2 is a symbolic link or not a regular file, so the update cannot keep or compare its text safely. Replace it with a regular file holding the text it should keep, or remove it, then run the update again."
+  fi
+}
 LEGACY_LOG=""
 LEGACY_SOURCE=""
 if [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then
+  regular_record "$ARCHETYPE_DIR/VERSION-LOG.md" "${ENGINE_REL}VERSION-LOG.md"
+  regular_record "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md" "${ENGINE_REL}FRAMEWORK-SOURCE.md"
   if [ -f "$ARCHETYPE_DIR/VERSION-LOG.md" ]; then
+    regular_record "$PROJECT_ROOT/VERSION-LOG.md" "VERSION-LOG.md at the project root"
     if [ ! -f "$PROJECT_ROOT/VERSION-LOG.md" ]; then
       LEGACY_LOG=move
     elif same_text "$ARCHETYPE_DIR/VERSION-LOG.md" "$PROJECT_ROOT/VERSION-LOG.md"; then
@@ -393,6 +404,7 @@ if [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then
   if [ -f "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md" ]; then
     LEGACY_SOURCE=keep
     for other in "$PROJECT_ROOT/FRAMEWORK-SOURCE.md" "$PROJECT_ROOT"/FRAMEWORK-SOURCE.md.pre-update-*; do
+      regular_record "$other" "$(basename "$other") at the project root"
       if [ -f "$other" ] && same_text "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md" "$other"; then LEGACY_SOURCE=duplicate; fi
     done
     if [ "$LEGACY_SOURCE" = keep ] && ! cp "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md" "$CARRY_DIR/FRAMEWORK-SOURCE.md.previous"; then

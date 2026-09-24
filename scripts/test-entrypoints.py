@@ -651,6 +651,48 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual(root_log.read_text().count('## Kept from archetype/VERSION-LOG.md'), 1)
         self.assertEqual(len(self.kept_copies('FRAMEWORK-SOURCE.md')), 1)
 
+    def test_update_stops_on_a_record_proof_that_is_not_a_regular_file(self):
+        self.inject()
+        source = self.project / 'archetype/FRAMEWORK-SOURCE.md'
+        source.write_text('Installed from an older framework location\n')
+        _, env = self.update_source()
+        proof = self.project / 'FRAMEWORK-SOURCE.md'
+        # A root link to the engine copy would pass as a duplicate and leave nothing once the
+        # engine copy is removed; a dangling link proves nothing either.
+        for target in (source, self.root / 'nowhere.md'):
+            with self.subTest(target=target.name):
+                proof.symlink_to(target)
+                try:
+                    before = self.snapshot(self.project)
+                    result = self.run_update(env)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    self.assertIn('FRAMEWORK-SOURCE.md at the project root is a symbolic link or not a regular file',
+                                  result.stdout)
+                    self.assertIn('Nothing was changed.', result.stdout)
+                    self.assertEqual(self.snapshot(self.project), before)
+                    self.assertTrue(proof.is_symlink())
+                    self.assertEqual(source.read_text(), 'Installed from an older framework location\n')
+                finally:
+                    proof.unlink()
+                    source.write_text('Installed from an older framework location\n')
+
+    def test_update_stops_on_an_engine_record_that_is_a_symbolic_link(self):
+        self.inject()
+        engine = self.project / 'archetype'
+        outside = self.root / 'outside-log.md'
+        outside.write_text('A file outside the project\n')
+        (engine / 'VERSION-LOG.md').symlink_to(outside)
+        (self.project / 'VERSION-LOG.md').unlink()
+        _, env = self.update_source()
+        before = self.snapshot(self.project)
+        command = ['bash', str(engine / 'update.sh'), '--project-root', str(self.project)]
+        result = self.run_command(command, input='y\n', env=env, cwd=self.project)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('archetype/VERSION-LOG.md is a symbolic link or not a regular file', result.stdout)
+        self.assertEqual(self.snapshot(self.project), before)
+        self.assertEqual(outside.read_text(), 'A file outside the project\n')
+        self.assertFalse((self.project / 'VERSION-LOG.md').exists())
+
     def test_rules_live_in_agents_and_claude_points_to_it(self):
         self.inject()
         agents = (self.project / 'AGENTS.md').read_text()
