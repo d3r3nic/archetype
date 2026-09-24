@@ -6,17 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/bootstrap/hooks/pre-destructive-warn.sh"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/bootstrap/hooks/post-task-verify.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/bootstrap/hooks/pre-destructive-warn.sh"
           }
         ]
       }

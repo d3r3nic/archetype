@@ -4,23 +4,23 @@ Hooks enforce rules that must be followed every time. Instruction files are advi
 
 ## What ships with the framework
 
-Two working hook scripts live at `bootstrap/hooks/`:
+One hook ships, at `bootstrap/hooks/pre-destructive-warn.sh`: the destructive-command guard, which runs before a shell tool call and blocks known-destructive commands.
 
-- `pre-destructive-warn.sh` — blocks destructive shell commands (runs before a tool call)
-- `post-task-verify.sh` — prints a verification checklist after the AI finishes a turn (runs on stop)
+Two ready-to-copy settings files are included for Claude Code, the host the guard was written against: `templates/claude-settings.injected.json` (the engine in a subfolder, paths include `archetype/`) and `templates/claude-settings.root.json` (the older full-clone layout, paths from the project root). See `bootstrap/hooks/README.md` for which to use, and `scripts/check-hooks.py` to check an install.
 
-Two ready-to-copy configs are included for Claude Code, the host these scripts were written against: `templates/claude-settings.injected.json` (for the `inject.sh` install path — paths include the `archetype/` subfolder segment) and `templates/claude-settings.root.json` (for the new-project clone install — paths from project root, no `archetype/` prefix). See `bootstrap/hooks/README.md` for which to use.
+A turn-end reminder used to ship. It printed a checklist on stderr and exited 0, which the host does not give the agent, and the completion rule in AGENTS.md already says it; it is retired, and its script remains only as a silent stand-in for settings that still register it.
 
-The rest of this file is the conceptual spec — additional hooks you may want to add. The framework ships only two by design: each new hook is noise until it fires on something high-value.
+The rest of this file is the conceptual spec: hooks a project may add. Each new hook is noise until it fires on something high-value.
 
 ## Host tool hook contract
 
-Dated notes: verified against Claude Code at the time of writing. Other hosts differ; re-verify the event names and blocking semantics for the host in use at bootstrap.
+Dated notes: verified against Claude Code's hooks documentation on 2026-09-24. Other hosts differ; re-verify the event names, what reaches the agent, and the blocking rules for the host in use at bootstrap.
 
-- The host exposes lifecycle events. The most-used, with Claude Code's names (the shipped configs use PreToolUse and Stop): before a tool call (PreToolUse), after a tool call (PostToolUse), on stop (Stop), on session start (SessionStart), on session end (SessionEnd).
-- Event data arrives as JSON on stdin. The shipped scripts parse it with `jq` when available; any JSON tool works.
-- The before-tool-call event (PreToolUse) is the only one that can block. Exit 2 with a message on stderr to block; the AI sees the stderr and reasons about it.
-- Advisory hooks write stderr and exit 0. The AI sees the reminder, does not get blocked.
+- The host exposes lifecycle events, among them before a tool call (PreToolUse), after a tool call (PostToolUse), on stop (Stop), and session start and end (SessionStart, SessionEnd).
+- Event data arrives as JSON on stdin. The guard parses it with `jq` when available; any JSON tool works.
+- A hook blocks by exiting 2 with the reason on stderr, which the agent then sees. Which events a block can stop is event-specific; check the host's table before relying on it.
+- The stderr of a hook that exits 0 goes to the host's debug log, not to the agent. A reminder written that way reaches no one.
+- A hook command that cannot start (a missing path, or an unquoted path placeholder split at a space) is a non-blocking error: the tool call proceeds. Double-quote path placeholders in shell-form commands, or use the host's argument form.
 - Keep scripts fast (sub-second). Hooks run on every trigger.
 
 ## Additional hook ideas (not included)
@@ -31,13 +31,13 @@ These were considered and not included. They can be added per project if the sig
 
 Trigger: after a file write in a feature directory.
 Action: if the feature's `docs/features/{name}.md` wasn't modified in the same session, remind.
-Risk of noise: fires constantly during feature work where doc updates come at the end. Better to run as part of a stop hook or a session-end sweep.
+Risk of noise: fires constantly during feature work where doc updates come at the end. A session-end sweep, or the develop gate, covers it better.
 
 ### After creating a feature directory
 
 Trigger: after creating `src/features/{name}/`.
 Action: remind to add the feature to `feature-tree.md`.
-Risk of noise: low, but rare trigger. Consider rolling into the stop hook.
+Risk of noise: low, but rare trigger; the develop gate already fails a feature folder with no row.
 
 ### Feature tree audit (standalone)
 
