@@ -5,7 +5,9 @@
 # first re-runs the checks behind closed steps, so a tick cannot outlive the thing it ticked.
 #
 # Run from the project (its root, or any folder under it):
-#   scripts/next-step.sh                          the next open step: what to read, what closes it
+#   scripts/next-step.sh                          the next open step: what to read, what closes it;
+#                                                 when every step is closed, the Next Step section of
+#                                                 the last playbook on PROGRESS.md's Playbooks line
 #   scripts/next-step.sh --list                   every step of the project's playbooks with its state
 #   scripts/next-step.sh --close ID [--evidence TEXT]   close the next open step (its check must pass)
 #   scripts/next-step.sh --skip ID --reason TEXT        record a step that does not apply; only a step
@@ -147,6 +149,20 @@ $pid$SEP$mode$SEP$SEP$SEP$part$SEP""0$SEP$SEP$SEP$SEP$SEP""0$SEP""0$SEP""0$SEP""
         if (steps == 0) print pid S mode S "" S "" S file S 0 S "" S "" S "" S "" S 0 S 0 S 0 S "empty"
       }'
   done
+}
+
+# A playbook's entry file, from the engine root: the file whose "Step ledger:" line declares the id.
+entry_file_of() {
+  local f head
+  for f in "$ENGINE_DIR"/bootstrap/*.md "$ENGINE_DIR"/scaffolding/*.md "$ENGINE_DIR"/development/*.md; do
+    [ -f "$f" ] || continue
+    grep -q '^Step ledger: ' "$f" || continue
+    head="$(playbook_head "$f")"
+    [ -n "$head" ] && [ "${head%%$SEP*}" = "$1" ] || continue
+    printf '%s' "${f#$ENGINE_DIR/}"
+    return 0
+  done
+  return 1
 }
 
 trim() { printf '%s' "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
@@ -592,7 +608,16 @@ fi
 if [ "$MODE" = "next" ]; then
   if [ -z "$NEXT_ID" ]; then
     if [ -n "$NEED_UNIT" ]; then echo "Every one-time step is closed. The playbook '$NEED_UNIT' repeats: run with --unit NAME (the feature's name)."
-    else echo "Every step is closed."; fi
+    else
+      # What follows is written in the Next Step section of the last declared playbook's entry file,
+      # shown under the engine's folder the way the "Close it:" line shows this script.
+      LAST_ENTRY=""
+      [ -n "$WALKED" ] && LAST_ENTRY="$(entry_file_of "${WALKED##*,}")"
+      if [ -z "$LAST_ENTRY" ]; then echo "Every step is closed."
+      elif has_section "$LAST_ENTRY § Next Step"; then echo "Every step is closed. What follows: the Next Step section of ${SELF%scripts/next-step.sh}$LAST_ENTRY."
+      else echo "Every step is closed; ${SELF%scripts/next-step.sh}$LAST_ENTRY names no next step."; fi
+      [ "$PROJECT_CHECKS_WAITING" = "1" ] && echo "Note:      closed steps that ran the project's own commands are re-run when a step closes, or now with --verify."
+    fi
     exit 0
   fi
   echo "Next step: $NEXT_KEY  $NEXT_TITLE"

@@ -763,6 +763,110 @@ class Steps(unittest.TestCase):
         self.assertIn(self.MIGRATION % 'set up during scaffold', skipping.stdout)
         self.assertEqual(len(self.closed()), 2)
 
+    # --- what follows once every step is closed -------------------------------------------
+
+    def two_playbooks(self, order, boot_next=True, scaf_next=True):
+        if boot_next:
+            path = self.engine / 'bootstrap' / 'BOOT.md'
+            path.write_text(path.read_text() + '\n## Next Step\n\nOn to the scaffold.\n')
+        (self.engine / 'scaffolding' / 'SCAF.md').write_text(
+            '# Scaffold\n\nStep ledger: scaf\n\n## Step 1: Build\nRead: none\nProduces: code\nCheck: evidence: what was built\n'
+            + ('\n## Next Step\n\nOn to the features.\n' if scaf_next else ''))
+        self.ledger(order)
+
+    def close_boot(self, run=None):
+        run = run or self.run_tool
+        (self.project / 'flag.txt').write_text('x')
+        for args in (('--close', 'boot.1', '--evidence', 'x'), ('--close', 'boot.2.1', '--evidence', 'x'),
+                     ('--skip', 'boot.2.2', '--reason', 'no extras'), ('--close', 'boot.3')):
+            result = run(*args)
+            self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_every_step_closed_names_the_next_step_section_of_the_last_listed_playbook(self):
+        self.two_playbooks('boot, scaf')
+        self.close_boot()
+        self.assertIn('Next step: scaf.1', self.run_tool().stdout)
+        self.assertEqual(self.run_tool('--close', 'scaf.1', '--evidence', 'x').returncode, 0)
+        result = self.run_tool()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(result.stdout, 'Every step is closed. What follows: the Next Step section of %s/scaffolding/SCAF.md.\n' % self.engine)
+
+        self.setUp(); self.two_playbooks('scaf, boot')
+        self.assertEqual(self.run_tool('--close', 'scaf.1', '--evidence', 'x').returncode, 0)
+        self.close_boot()
+        result = self.run_tool()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(result.stdout, 'Every step is closed. What follows: the Next Step section of %s/bootstrap/BOOT.md.\n' % self.engine)
+
+    def test_every_step_closed_says_when_the_last_playbook_names_no_next_step(self):
+        # A Next Step heading inside a code fence, or in another playbook, is not the last playbook's.
+        self.two_playbooks('boot, scaf', scaf_next=False)
+        scaf = self.engine / 'scaffolding' / 'SCAF.md'
+        scaf.write_text(scaf.read_text() + '\n```\n## Next Step\n```\n')
+        self.close_boot()
+        self.assertEqual(self.run_tool('--close', 'scaf.1', '--evidence', 'x').returncode, 0)
+        result = self.run_tool()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(result.stdout, 'Every step is closed; %s/scaffolding/SCAF.md names no next step.\n' % self.engine)
+
+        # Only the entry file counts: a step file's own Next Step heading is not the playbook's.
+        self.setUp(); self.split_playbook(); self.ledger('boot')
+        part = self.engine / 'bootstrap' / 'BOOT-3.md'
+        part.write_text(part.read_text() + '\n## Next Step\n\nNot the entry file.\n')
+        (self.project / 'flag.txt').write_text('x')
+        for args in (('boot.1', '--evidence', 'x'), ('boot.2.1', '--evidence', 'x'), ('boot.2.2', '--evidence', 'x'), ('boot.3',)):
+            closing = self.run_tool('--close', *args)
+            self.assertEqual(closing.returncode, 0, closing.stdout)
+        result = self.run_tool()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(result.stdout, 'Every step is closed; %s/bootstrap/BOOT.md names no next step.\n' % self.engine)
+
+    def test_the_pointer_names_the_engine_by_its_folder_in_the_project(self):
+        # An engine installed under a folder name of the project's choosing is named by that folder,
+        # as the "Close it:" line names the script. Resolved paths: a symlinked temporary folder
+        # would otherwise place the engine outside the project the script finds.
+        project = Path(self.temp.name).resolve() / 'owned'
+        shutil.copytree(self.engine, project / 'house-rules')
+        entry = project / 'house-rules' / 'bootstrap' / 'BOOT.md'
+        entry.write_text(entry.read_text() + '\n## Next Step\n\nOn to the scaffold.\n')
+        (project / 'PROGRESS.md').write_text('# Progress\n\n- Playbooks: boot\n\n## Step history\n\n')
+        run = lambda *args: subprocess.run(['bash', str(project / 'house-rules' / 'scripts' / 'next-step.sh'), *args],
+                                           cwd=project, text=True, capture_output=True)
+        self.assertIn('Close it:  house-rules/scripts/next-step.sh --close boot.1 --evidence', run().stdout)
+        self.project = project
+        self.close_boot(run)
+        result = run()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(result.stdout, 'Every step is closed. What follows: the Next Step section of house-rules/bootstrap/BOOT.md.\n')
+
+    def test_the_repeating_unit_prompt_is_unchanged(self):
+        feature = self.engine / 'development' / 'FEATURE.md'
+        feature.write_text(feature.read_text() + '\n## Next Step\n\nOn to the next feature.\n')
+        self.close_all_of_boot()
+        bare = self.run_tool()
+        self.assertEqual(bare.returncode, 0, bare.stdout)
+        self.assertEqual(bare.stdout, "Every one-time step is closed. The playbook 'dev' repeats: run with --unit NAME (the feature's name).\n")
+        self.assertEqual(self.run_tool('--close', 'dev.1', '--unit', 'board', '--evidence', 'x').returncode, 0)
+        self.assertEqual(self.run_tool('--close', 'dev.2', '--unit', 'board').returncode, 0)
+        self.assertEqual(self.run_tool().stdout, bare.stdout)
+        unit = self.run_tool('--unit', 'board')
+        self.assertEqual(unit.returncode, 0, unit.stdout)
+        self.assertEqual(unit.stdout, 'Every step is closed. What follows: the Next Step section of %s/development/FEATURE.md.\n' % self.engine)
+
+    def test_every_step_closed_still_notes_project_commands_that_were_not_rerun(self):
+        self.project_playbook(); self.commands()
+        (self.project / 'flag.txt').write_text('x')
+        self.assertEqual(self.run_tool('--close', 'boot.1').returncode, 0)
+        self.assertEqual(self.run_tool('--close', 'boot.2', '--evidence', 'x').returncode, 0)
+        (self.project / 'flag.txt').unlink()
+        bare = self.run_tool()
+        self.assertEqual(bare.returncode, 0, bare.stdout)
+        self.assertEqual(bare.stdout, "Every step is closed; %s/bootstrap/BOOT.md names no next step.\n"
+                         "Note:      closed steps that ran the project's own commands are re-run when a step closes, or now with --verify.\n" % self.engine)
+        verified = self.run_tool('--verify')
+        self.assertEqual(verified.returncode, 1, verified.stdout)
+        self.assertIn('REOPENED: boot.1', verified.stdout)
+
     def test_the_unit_reaches_the_check(self):
         self.close_all_of_boot()
         (self.engine / 'scripts' / 'check-flag.sh').write_text('#!/bin/bash\necho "unit=$ARCHETYPE_STEP_UNIT" > seen.txt\nexit 0\n')
