@@ -250,7 +250,10 @@ if [ "$PROJECT_ROOT" = "$ARCHETYPE_DIR" ]; then
     : > "$CARRY_DIR/lf.absolute"
     while IFS= read -r path; do
       n=$((n + 1))
-      if [ -z "$(tail -c 1 "$ARCHETYPE_DIR/$path")" ]; then script='s/\r$//'; else script='$!s/\r$//'; fi
+      if ! last="$(tail -c 1 "$ARCHETYPE_DIR/$path")"; then
+        not_verified "could not read every file in the framework's folders."
+      fi
+      if [ -z "$last" ]; then script='s/\r$//'; else script='$!s/\r$//'; fi
       LC_ALL=C sed "$script" "$ARCHETYPE_DIR/$path" > "$CARRY_DIR/lf/$n" || \
         not_verified "could not read every file in the framework's folders."
       printf '%s\n' "$CARRY_DIR/lf/$n" >> "$CARRY_DIR/lf.absolute"

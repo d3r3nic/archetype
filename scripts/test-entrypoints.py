@@ -427,6 +427,34 @@ class Entrypoints(unittest.TestCase):
                 self.assertIn('Nothing was changed.', result.stdout)
                 self.assertEqual(self.snapshot(clone), before)
 
+    def test_full_clone_update_stops_when_a_line_ending_read_fails(self):
+        remote, env = self.update_source()
+        clone = self.root / 'full-clone-tail-failure'
+        result = self.run_command(['git', 'clone', str(remote), str(clone)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        # A pristine framework file stored with converted line endings reaches the second match,
+        # which reads the file's last byte. That read does its work but reports failure: the
+        # update must stop on the status, not go on with the normalised copy.
+        target = clone / 'templates/feature-tree.md'
+        target.write_bytes(target.read_bytes().replace(b'\n', b'\r\n'))
+        shim = Path(tempfile.mkdtemp(prefix='shim-', dir=self.root))
+        real = shutil.which('tail')
+        (shim / 'tail').write_text('#!/bin/sh\nfor arg in "$@"; do\n  if [ "$arg" = "-c" ]; then\n'
+                                   '    "%s" "$@"\n    exit 1\n  fi\ndone\nexec "%s" "$@"\n' % (real, real))
+        (shim / 'tail').chmod(0o755)
+        before = self.snapshot(clone)
+        shimmed = dict(env, PATH=str(shim) + os.pathsep + env['PATH'])
+        result = self.run_command(['bash', str(clone / 'update.sh')], input='y\n', env=shimmed, cwd=clone)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("could not read every file in the framework's folders", result.stdout)
+        self.assertIn('Nothing was changed.', result.stdout)
+        self.assertEqual(self.snapshot(clone), before)
+        # Without the failing read the same converted file is recognised as the framework's.
+        again = self.run_command(['bash', str(clone / 'update.sh')], input='n\n', env=env, cwd=clone)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertNotIn("not the framework's as it shipped them", again.stdout)
+        self.assertEqual(self.snapshot(clone), before)
+
     @unittest.skipIf(os.geteuid() == 0, 'permissions do not stop the superuser')
     def test_full_clone_update_stops_when_a_framework_folder_cannot_be_listed(self):
         remote, env = self.update_source()
