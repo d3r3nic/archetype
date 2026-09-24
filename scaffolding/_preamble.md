@@ -24,7 +24,7 @@ Read the relevant concern when making the decision it informs. Research uncertai
 ## Handoff-check rule (Step 0 of every playbook)
 
 At scaffold handoff, read the current project purpose, constraints and accepted decisions in `References.md`, including:
-- **Compliance section** determines which systems are mandatory (audit log, encryption, rate limiting, etc.).
+- **Compliance section** determines which systems are mandatory (audit log, encryption, rate limiting, etc.); PROFILE.md holds the regulated-data fact it builds on. A References.md written before that section existed: take the facts from PROFILE.md and the bootstrap evidence (Steps 2.2, 2.5, 2.6), add the section and, for a web front end, the Project's Mobile mode line, then go on; bootstrap does not reopen for them. A platform project answers this from its template's compliance-fit lines.
 - **Foundational Systems list** is your inventory — every entry must map to a playbook step OR be built as a project-specific extension alongside its nearest sibling.
 - **Convention Overrides** document project-specific deviations.
 - **Open pre-production gates** in `VERSION-LOG.md` block further scaffolding until resolved (per `bootstrap/RED-FLAGS.md`).

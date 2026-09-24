@@ -7,7 +7,7 @@ Routed from `scaffolding/SCAFFOLD.md` when the project is a backend service (API
 ## Step 0 — Handoff check (read before building anything)
 
 Read `References.md` in full. Specifically:
-- **Compliance section** — is there a regulated-data regime? If yes, the audit-log system (Step 9) is REQUIRED, not optional.
+- **Compliance section** (PROFILE.md holds the regulated-data fact) — is there a regulated-data regime? If yes, the audit-log system (Step 5) is REQUIRED, not optional.
 - **Foundational Systems list** — inventory EVERY system listed. Missed systems = silently skipped systems. Compare against the steps below; any system in References.md that doesn't map to a step is a project-specific extension to be built alongside its nearest sibling.
 - **Open pre-production gates** in `VERSION-LOG.md` — halt scaffolding until gates resolved (per `bootstrap/RED-FLAGS.md` deploy-gate).
 

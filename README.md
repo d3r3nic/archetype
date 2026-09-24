@@ -39,7 +39,7 @@ The framework's LICENSE and NOTICE travel in the engine folder and cover the fra
 
 Then tell your AI assistant:
 
-> Read bootstrap/ONBOARD.md and help me set up this project. I want to build [describe your idea].
+> Read archetype/bootstrap/ONBOARD.md and help me set up this project. I want to build [describe your idea].
 
 The AI interviews you about the intended outcome, researches viable approaches against your constraints, and records the chosen path in project context such as References.md and feature-tree.md.
 

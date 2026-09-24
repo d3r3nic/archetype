@@ -414,6 +414,92 @@ class ScaffoldGate(unittest.TestCase):
         self.assertEqual(group(result.stdout, '1'), ['OK: every foundational system has a docs/systems/ entry'])
 
 
+class RegulatedDataGate(unittest.TestCase):
+    """validate-scaffold.sh groups 4 and 4b: PROFILE.md's regulated-data fact, and a References.md
+    Compliance section that names regulated data to say it does not apply."""
+
+    COMPLIANCE = ('\n## Compliance\n\n- Regulated data: PROFILE.md holds the fact\n'
+                  '- Regimes: none, the project keeps no regulated data\n- Obligations: none\n'
+                  '- Promises to users: only coordinators see contact details\n')
+    TREE = systems_tree(['| 01 | Git & Hooks | #2 | hooks/ | implemented | docs/systems/git.md |'])
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='archetype-regulated-')
+        self.addCleanup(self.temp.cleanup)
+        self.project = Path(self.temp.name)
+        self.unit(self.project)
+
+    def unit(self, folder):
+        """A scaffolded unit that passes every group but 4 and 4b on its own."""
+        (folder / 'VERSION-LOG.md').write_text('# Version Log\n\n## Scaffold\n\nComplete.\n')
+        hook = folder / 'hooks' / 'pre-commit.sh'
+        hook.parent.mkdir(parents=True, exist_ok=True)
+        hook.write_text('#!/bin/sh\nexit 0\n')
+        hook.chmod(0o755)
+        page = folder / 'docs' / 'systems' / 'git.md'
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text('# page\n')
+        (folder / 'feature-tree.md').write_text(self.TREE)
+
+    def check(self, tree=None, folder=None):
+        return subprocess.run([BASH, str(SCAFFOLD)], cwd=folder or self.project, text=True, capture_output=True)
+
+    def references(self, extra):
+        (self.project / 'References.md').write_text('# References\n\n## Tech Stack\n\n- Language: recorded\n' + extra)
+
+    def profile(self, value, where=None):
+        (where or self.project).joinpath('PROFILE.md').write_text('# Profile\n\n- Regulated data: %s\n\n## Notes\n' % value)
+
+    def audit_store(self, backing=False):
+        store = self.project / 'src' / 'shared' / 'audit-log'
+        store.mkdir(parents=True, exist_ok=True)
+        (store / 'store.ts').write_text('export class InMemoryAuditStore { records: Array<string> = [] }\n'
+                                        + ('export class DatabaseAuditStore {}\n' if backing else ''))
+
+    def test_a_compliance_section_that_says_no_does_not_trigger_the_audit_store_check(self):
+        self.references(self.COMPLIANCE)
+        self.audit_store()
+        for profile in (None, 'no'):
+            if profile:
+                self.profile(profile)
+            result = self.check(self.TREE)
+            self.assertNotIn('in-memory store only', result.stdout, profile)
+            self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_a_profile_that_says_no_settles_it_whatever_the_references_say(self):
+        self.references('\n## Compliance\n\n- Regimes: HIPAA applies to intake notes\n')
+        self.profile('no')
+        result = self.check(self.TREE)
+        self.assertEqual(group(result.stdout, '4'), ['OK: PROFILE.md records no regulated data — audit log check skipped'])
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_an_endpoint_reads_the_profile_above_it(self):
+        subprocess.run(['git', 'init', '-q'], cwd=self.project, check=True)
+        endpoint = self.project / 'frontend'
+        endpoint.mkdir()
+        self.unit(endpoint)
+        (endpoint / 'References.md').write_text('# References\n\n- Regimes: HIPAA applies to intake notes\n')
+        self.profile('no')
+        result = self.check(folder=endpoint)
+        self.assertEqual(group(result.stdout, '4'), ['OK: PROFILE.md records no regulated data — audit log check skipped'])
+
+    def test_a_regulated_unit_still_needs_its_audit_log_and_a_real_store(self):
+        self.references('\n## Compliance\n\n- Regimes: HIPAA applies to intake notes\n')
+        for profile in ('yes', 'unknown', None):
+            (self.project / 'PROFILE.md').unlink() if (self.project / 'PROFILE.md').exists() else None
+            if profile:
+                self.profile(profile)
+            missing = self.check(self.TREE)
+            self.assertEqual(missing.returncode, 1, profile)
+            self.assertIn('no audit-log path found', missing.stdout)
+        self.audit_store()
+        memory_only = self.check(self.TREE)
+        self.assertEqual(memory_only.returncode, 1)
+        self.assertIn('in-memory store only', memory_only.stdout)
+        self.audit_store(backing=True)
+        self.assertEqual(self.check(self.TREE).returncode, 0)
+
+
 class PulseInspect(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='archetype-pulse-')

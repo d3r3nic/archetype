@@ -17,6 +17,7 @@ Determine the shape from `References.md`:
 
 - **Backend** (API, worker, service, GraphQL server, data pipeline, etc.) → `scaffolding/SCAFFOLD-BACKEND.md`
 - **Frontend** (web app, SPA, SSR app, PWA) → `scaffolding/SCAFFOLD-FRONTEND.md`
+- **One unit with an interface and server systems** (for example a server-rendered app with its own data store, scheduled work or outgoing messages; its References.md lists both) → when the frontend playbook's contracts fit the unit (a client API layer, client caching and client state), walk its ledger for the interface systems, and build the server systems from `scaffolding/SCAFFOLD-BACKEND.md`'s steps for them in the implementer plan (development/TASKS.md): before the interface steps that use them, and inside the integration proof. Closing the frontend ledger does not complete them. When those contracts do not fit, carry the whole scaffold in the implementer plan, and build nothing only to close a step.
 - **Mobile** (native iOS/Android, cross-platform mobile) → `scaffolding/SCAFFOLD-MOBILE.md`
 - **Platform** (user picked a hosted platform — storefront, site builder, practice-management suite, workspace tool — in `bootstrap/ONBOARD.md` Step 3) → `scaffolding/SCAFFOLD-PLATFORM.md`
 - **Fullstack with separate frontend + backend folders** → run SCAFFOLD-FRONTEND in the frontend folder AND SCAFFOLD-BACKEND in the backend folder. Each has its own `References.md` and `feature-tree.md`.

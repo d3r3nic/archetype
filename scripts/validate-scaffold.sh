@@ -279,8 +279,24 @@ group 4 "Audit log if regulated data"
 # Does NOT match: "Regulated data: none", "HIPAA: N/A", "no regulated data",
 # "audit log: not applicable", etc.
 REGULATED=0
+# PROFILE.md holds the project's regulated-data fact (#30), one per repository: an endpoint
+# folder looks above itself, as validate-profile.sh does. When it records "no", that settles it
+# and no References.md wording can trigger these checks. Otherwise this folder's References.md
+# decides, because an audit log lives in the unit that handles the data, not in every endpoint.
+PROFILE_FILE="$PROJECT_ROOT/PROFILE.md"
+if [ ! -f "$PROFILE_FILE" ]; then
+  TOP="$(cd "$PROJECT_ROOT" && git rev-parse --show-toplevel 2>/dev/null)"
+  d="$PROJECT_ROOT"
+  while [ -n "$TOP" ] && [ "$d" != "$TOP" ] && [ "$d" != "/" ]; do
+    d="$(dirname "$d")"
+    if [ -f "$d/PROFILE.md" ]; then PROFILE_FILE="$d/PROFILE.md"; break; fi
+  done
+  if [ ! -f "$PROFILE_FILE" ] && [ -f "$(dirname "$PROJECT_ROOT")/PROFILE.md" ]; then PROFILE_FILE="$(dirname "$PROJECT_ROOT")/PROFILE.md"; fi
+fi
+PROFILE_REGULATED=""
+[ -f "$PROFILE_FILE" ] && PROFILE_REGULATED="$(tr -d '\r' < "$PROFILE_FILE" | awk '/^## / { exit } /^- Regulated data:/ { sub(/^- Regulated data:[ \t]*/, ""); print tolower($1); exit }')"
 # Match regimes + require the line to NOT contain a negation after them
-while IFS= read -r line; do
+[ "$PROFILE_REGULATED" = "no" ] || while IFS= read -r line; do
   # Skip if the line looks like a negation
   if echo "$line" | grep -qiE '(none|N/A|not applicable|not required|no regulated|not regulated|skipped|deferred)'; then
     continue
@@ -305,6 +321,8 @@ if [ "$REGULATED" -eq 1 ]; then
   else
     fail "References.md declares regulated data but no audit-log path found (audit log must be SEPARATE from app log — see B4)"
   fi
+elif [ "$PROFILE_REGULATED" = "no" ]; then
+  pass "PROFILE.md records no regulated data — audit log check skipped"
 else
   pass "no regulated data declared (or explicitly N/A) — audit log check skipped"
 fi
@@ -312,10 +330,10 @@ fi
 # ----------------------------------------------------------------------
 group 4b "In-memory audit store not shipped to regulated production"
 # ----------------------------------------------------------------------
-# If regulated data is declared AND the project has an audit-log path,
-# check that it's not a test-only in-memory store. FAIL on regulated projects,
-# WARN on unregulated (dev-only pattern is valid early; production-blocker later).
-if grep -qiE '(HIPAA|SOC ?2|PCI|GDPR|regulated data)' "$REFS"; then
+# If group 4 found regulated data AND the project has an audit-log path, check that it's
+# not a test-only in-memory store. The same finding as group 4, not any mention of a regime
+# or of the words "regulated data" (a Compliance section names them to say "no").
+if [ "$REGULATED" -eq 1 ]; then
   if [ -n "$SRC_DIR" ]; then
     AUDIT_DIR=""
     for candidate in "$SRC_DIR/shared/audit-log" "$SRC_DIR/shared/audit" "$SRC_DIR/audit"; do
