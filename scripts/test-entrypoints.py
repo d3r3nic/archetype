@@ -82,6 +82,19 @@ class Entrypoints(unittest.TestCase):
         self.assertFalse((self.root / 'escaped').exists())
         self.assertEqual((self.project / 'AGENTS.md').read_bytes(), self.local['AGENTS.md'])
 
+    def test_install_says_guidance_was_preserved_only_when_it_kept_a_copy(self):
+        result = self.run_command(['bash', str(SOURCE / 'inject.sh'), str(self.project)])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('  copied: AGENTS.md → project root (original guidance preserved)\n', result.stdout)
+        self.assertEqual((self.project / 'AGENTS.md.pre-archetype').read_bytes(), self.local['AGENTS.md'])
+        fresh = self.root / 'fresh'
+        fresh.mkdir()
+        result = self.run_command(['bash', str(SOURCE / 'inject.sh'), str(fresh)])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('  copied: AGENTS.md → project root\n', result.stdout)
+        self.assertNotIn('preserved', result.stdout)
+        self.assertFalse((fresh / 'AGENTS.md.pre-archetype').exists())
+
     def update_source(self):
         remote = self.root / 'framework-source'
         shutil.copytree(SOURCE, remote, ignore=shutil.ignore_patterns('.git'))
