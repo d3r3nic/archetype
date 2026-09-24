@@ -119,8 +119,7 @@ if [ ! -f "$TARGET_DIR/VERSION-LOG.md" ]; then
   cat > "$TARGET_DIR/VERSION-LOG.md" << VEOF
 # Version Log
 
-Records which framework version was used and when updates were applied.
-This file is managed by update.sh. Do not edit manually.
+The Bootstrap section records the installation and what setup decided. update.sh appends each framework update under Updates.
 
 ## Bootstrap
 
