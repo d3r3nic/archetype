@@ -5,7 +5,9 @@
 # Use --required known-screen when the scaffold route is known to produce screens.
 #
 # Checks (categorical, not prescriptive); ids match the groups the script prints:
-#   1.  Every foundational system in feature-tree.md has a docs/systems/{name}.md
+#   1.  Every foundational system in feature-tree.md has its page: the path its row names
+#       in the Docs column, or docs/systems/{slug}.md; a system blocked on the owner is
+#       reported on every run with its owner action
 #   2.  An env-validation module or a named validation function exists in source
 #       (that the call sits at startup is the scaffold step's own verify line)
 #   3.  No console-level output in source outside dev-guarded blocks
@@ -88,37 +90,115 @@ echo "Source:  ${SRC_DIR:-(not found)}"
 # ----------------------------------------------------------------------
 group 1 "Every foundational system has a docs/systems/ entry"
 # ----------------------------------------------------------------------
+# Rows of feature-tree.md's Foundational Systems table ONLY: the walk stops at the next
+# ## header (usually ## Features), so feature docs are never flagged as missing system docs.
+# A row is a line that starts with a pipe and whose first cell, bold markers removed, is a
+# number: the row rule scripts/pulse-inspect.sh applies.
+# A system's page is the path its row names in the Docs column, which is found by the
+# table's header cell "Docs" (only the leading columns have fixed positions) and read from
+# the project root. A declared path is checked exactly as written. A row that names no path
+# is checked against a page named after the system: docs/systems/<slug>.md, the slug being
+# the name in lowercase with every run of characters other than a-z and 0-9 turned into one
+# dash and edge dashes trimmed; the older name form (lowercase, spaces to dashes) is still
+# accepted. Status `blocked (owner: <action>)` (#29) is read like any other status for the
+# page check, and every run reports the system as not built, with its owner action.
+SYSTEM_ROWS="$(awk -F'|' '
+  function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+  { sub(/\r$/, ""); gsub(/\*\*/, "") }
+  tolower($0) ~ /^## (foundational systems|systems)/ { insec = 1; docs = 0; prev = ""; next }
+  insec && /^## / { insec = 0; next }
+  !insec || !/^\|/ { next }
+  /^\|[ \t:|-]*$/ && /-/ {
+    # A separator row: the pipe line above it is the header that names the columns.
+    docs = 0
+    n = split(prev, head, "|")
+    for (i = 2; i <= n; i++) {
+      c = trim(head[i]); gsub(/[*`]/, "", c)
+      if (tolower(c) == "docs") { docs = i; break }
+    }
+    next
+  }
+  /^\|[[:space:]]*[0-9]+[[:space:]]*\|/ {
+    printf "%s|%s|%s|%s|%s\n", trim($2), trim($3), trim($6), (docs > 0 ? "declared" : "none"), (docs > 0 ? trim($docs) : "")
+    next
+  }
+  { prev = $0 }
+' "$TREE")"
+
+# A Docs cell names a page only as a plain local .md path; anything else (a link, a
+# URL, an absolute path, several paths, a placeholder) gets a diagnostic, not a guess.
+plain_md_path() {
+  case "$1" in
+    /*|'~'*|*://*) return 1 ;;
+    *[[:space:]]*|*'`'*|*'['*|*']'*|*'('*|*')'*|*'<'*|*'>'*|*'*'*|*'"'*|*"'"*|*'#'*|*\\*) return 1 ;;
+    *.md) return 0 ;;
+  esac
+  return 1
+}
+
+DOCS_READY=1
 if [ ! -d "$DOCS_SYSTEMS" ]; then
   warn "docs/systems/ directory does not exist — scaffold may be incomplete"
-else
-  MISSING=0
-  # Extract system names from feature-tree.md's Foundational Systems table ONLY.
-  # Stop walking at the next ## header (which is usually ## Features).
-  # This prevents false warnings for feature docs being flagged as missing system docs.
-  in_foundational=0
-  while IFS= read -r line; do
-    # Enter the Foundational Systems section
-    if echo "$line" | grep -qiE '^## (Foundational Systems|Systems)'; then in_foundational=1; continue; fi
-    # Exit on the next ## header
-    if [ "$in_foundational" -eq 1 ] && echo "$line" | grep -qE '^## '; then in_foundational=0; continue; fi
-    [ "$in_foundational" -eq 0 ] && continue
-    # Extract system name from column 3 of markdown table row
-    if echo "$line" | grep -qE '^\|[[:space:]]*[0-9]+[[:space:]]*\|'; then
-      name=$(echo "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $3); print tolower($3)}' | tr ' ' '-')
-      [ -z "$name" ] && continue
-      case "$name" in system|-*|'') continue ;; esac
-      found=0
-      for ext in md markdown; do
-        if [ -f "$DOCS_SYSTEMS/${name}.${ext}" ]; then found=1; break; fi
-      done
-      if [ "$found" -eq 0 ]; then
-        warn "no docs/systems/${name}.md found for feature-tree system '${name}'"
-        MISSING=$((MISSING + 1))
-      fi
-    fi
-  done < "$TREE"
-  [ "$MISSING" -eq 0 ] && pass "every foundational system has a docs/systems/ entry"
+  DOCS_READY=0
 fi
+MISSING=0
+BLOCKED=0
+while IFS='|' read -r num name status docs_mode docs_cell; do
+  [ -n "$num" ] || continue
+  [ -n "$name" ] || continue
+  status_clean="$(printf '%s' "$status" | tr -d '`*')"
+  status_lc="$(printf '%s' "$status_clean" | LC_ALL=C tr '[:upper:]' '[:lower:]')"
+  hint=""
+  case "$status_lc" in
+    'blocked (owner:'*')')
+      action="${status_clean#*:}"; action="${action%)}"
+      action="$(printf '%s' "$action" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+      BLOCKED=$((BLOCKED + 1))
+      if [ -n "$action" ]; then
+        warn "system '$name' is blocked on the owner: $action. It is not built; features that need it wait (#29)"
+      else
+        warn "system '$name' is blocked (Status '$status') but names no owner action; write blocked (owner: <action>) (#29)"
+      fi
+      hint="; a system blocked on the owner keeps a page that names the owner action and what was built meanwhile (#29)" ;;
+    blocked*)
+      BLOCKED=$((BLOCKED + 1))
+      warn "system '$name' has Status '$status', which is not the recorded form blocked (owner: <action>); name the owner action there (#29)"
+      hint="; a system blocked on the owner keeps a page that names the owner action and what was built meanwhile (#29)" ;;
+    'deferred (td-'*')')
+      hint="; a deferred system keeps a page that says what is deferred and until which trigger (#30)" ;;
+  esac
+  [ "$DOCS_READY" -eq 1 ] || continue
+  slug="$(printf '%s' "$name" | LC_ALL=C tr '[:upper:]' '[:lower:]' | LC_ALL=C sed -e 's/[^a-z0-9][^a-z0-9]*/-/g' -e 's/^-*//' -e 's/-*$//')"
+  if [ "$docs_mode" = declared ] && [ -n "$docs_cell" ]; then
+    if ! plain_md_path "$docs_cell"; then
+      warn "system '$name': its Docs cell '$docs_cell' is not a plain local .md path; write the page's path from the project root, like docs/systems/${slug:-name}.md"
+      MISSING=$((MISSING + 1))
+    elif [ ! -f "$PROJECT_DIR/${docs_cell#./}" ]; then
+      warn "system '$name' has no document at ${docs_cell#./}, the path its Docs column names$hint"
+      MISSING=$((MISSING + 1))
+    fi
+    continue
+  fi
+  legacy="$(printf '%s' "$name" | awk '{ print tolower($0) }' | tr ' ' '-')"
+  found=0
+  for base in "$slug" "$legacy"; do
+    [ -n "$base" ] || continue
+    for ext in md markdown; do
+      if [ -f "$DOCS_SYSTEMS/${base}.${ext}" ]; then found=1; break 2; fi
+    done
+  done
+  if [ "$found" -eq 0 ]; then
+    if [ -n "$slug" ]; then
+      warn "system '$name' has no document at docs/systems/${slug}.md (named after the system, since its row names no Docs path)$hint"
+    else
+      warn "system '$name' has no letters or digits to name its page after, and its row names no Docs path; name the page in a Docs column$hint"
+    fi
+    MISSING=$((MISSING + 1))
+  fi
+done <<EOF
+$SYSTEM_ROWS
+EOF
+[ "$DOCS_READY" -eq 1 ] && [ "$MISSING" -eq 0 ] && pass "every foundational system has a docs/systems/ entry"
 
 # ----------------------------------------------------------------------
 group 2 "Env validation at startup (not ad-hoc)"
@@ -422,6 +502,7 @@ fi
 # ----------------------------------------------------------------------
 echo ""
 echo "==="
+[ "$BLOCKED" -gt 0 ] && echo "Not built, blocked on the owner: $BLOCKED foundational system(s); group 1 names each owner action."
 if [ "$ERRORS" -gt 0 ]; then
   printf "${RED}%d errors${NC}, %d warnings\n" "$ERRORS" "$WARNINGS"
   echo "Fix errors before committing."
