@@ -548,6 +548,45 @@ class Entrypoints(unittest.TestCase):
         self.assertNotIn('KEPT:', again.stdout)
         self.assertEqual(snapshot(), before)
 
+    def test_update_keeps_the_engine_records_it_cannot_prove_are_duplicates(self):
+        self.inject()
+        engine = self.project / 'archetype'
+        root_log = self.project / 'VERSION-LOG.md'
+        older_log = '# Version Log\n\n## Updates\n\n### 2026-01-02\nCommit: 1234567\n'
+        (engine / 'VERSION-LOG.md').write_text(older_log)
+        source_note = 'Installed from an older framework location\n'
+        (engine / 'FRAMEWORK-SOURCE.md').write_text(source_note)
+        remote, env = self.update_source()
+        head = self.run_command(['git', '-C', str(remote), 'rev-parse', 'HEAD']).stdout.strip()
+        project_log = root_log.read_text()
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("KEPT: archetype/VERSION-LOG.md differs from the project's VERSION-LOG.md", result.stdout)
+        self.assertIn('KEPT: archetype/FRAMEWORK-SOURCE.md is kept as a dated', result.stdout)
+        for name in ('VERSION-LOG.md', 'FRAMEWORK-SOURCE.md'):
+            self.assertFalse((engine / name).exists())
+        log = root_log.read_text()
+        self.assertTrue(log.startswith(project_log))
+        self.assertIn('## Kept from archetype/VERSION-LOG.md by the framework update of', log)
+        self.assertIn(''.join('    ' + line + '\n' for line in older_log.splitlines()), log)
+        # The kept entries are indented, so the log's latest revision is still this update's.
+        commits = [line for line in log.splitlines() if line.startswith('Commit: ')]
+        self.assertEqual(commits[-1], 'Commit: ' + head)
+        self.assertNotIn('Commit: 1234567', commits)
+        kept = self.kept_copies('FRAMEWORK-SOURCE.md')
+        self.assertEqual([p.read_text() for p in kept], [source_note])
+        # Proven duplicates (carriage returns aside) leave the engine without another copy.
+        (engine / 'VERSION-LOG.md').write_bytes(root_log.read_bytes().replace(b'\n', b'\r\n'))
+        (engine / 'FRAMEWORK-SOURCE.md').write_text(source_note)
+        again = self.run_update(env)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertIn('REMOVE: archetype/VERSION-LOG.md', again.stdout)
+        self.assertIn('REMOVE: archetype/FRAMEWORK-SOURCE.md', again.stdout)
+        for name in ('VERSION-LOG.md', 'FRAMEWORK-SOURCE.md'):
+            self.assertFalse((engine / name).exists())
+        self.assertEqual(root_log.read_text().count('## Kept from archetype/VERSION-LOG.md'), 1)
+        self.assertEqual(len(self.kept_copies('FRAMEWORK-SOURCE.md')), 1)
+
     def test_rules_live_in_agents_and_claude_points_to_it(self):
         self.inject()
         agents = (self.project / 'AGENTS.md').read_text()

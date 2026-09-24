@@ -330,6 +330,47 @@ if [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ] && [ -d "$PROJECT_ROOT/conventions" ]
   done
 fi
 
+# In the engine-folder layout, records older installs kept inside the engine move to the
+# project root. An engine copy is removed only when the project root already holds the same
+# text (carriage returns ignored); otherwise its text is kept at the project root first: a
+# different engine VERSION-LOG.md is added to the project's log under a dated heading, and
+# FRAMEWORK-SOURCE.md is kept as a dated .pre-update copy.
+same_text() {
+  strip_cr "$1" > "$CARRY_DIR/same.a" && strip_cr "$2" > "$CARRY_DIR/same.b" && cmp -s "$CARRY_DIR/same.a" "$CARRY_DIR/same.b"
+}
+LEGACY_LOG=""
+LEGACY_SOURCE=""
+if [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then
+  if [ -f "$ARCHETYPE_DIR/VERSION-LOG.md" ]; then
+    if [ ! -f "$PROJECT_ROOT/VERSION-LOG.md" ]; then
+      LEGACY_LOG=move
+    elif same_text "$ARCHETYPE_DIR/VERSION-LOG.md" "$PROJECT_ROOT/VERSION-LOG.md"; then
+      LEGACY_LOG=duplicate
+    else
+      LEGACY_LOG=append
+      if ! {
+        echo ""
+        echo "## Kept from ${ENGINE_REL}VERSION-LOG.md by the framework update of $(date +%Y-%m-%d)"
+        echo ""
+        echo "The engine folder held a version log of its own that differed from this one. Its text follows, each line indented four spaces so its entries are not read as this log's."
+        echo ""
+        LC_ALL=C sed 's/^/    /' "$ARCHETYPE_DIR/VERSION-LOG.md"
+      } > "$CARRY_DIR/version-log.block"; then
+        not_verified "could not read ${ENGINE_REL}VERSION-LOG.md."
+      fi
+    fi
+  fi
+  if [ -f "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md" ]; then
+    LEGACY_SOURCE=keep
+    for other in "$PROJECT_ROOT/FRAMEWORK-SOURCE.md" "$PROJECT_ROOT"/FRAMEWORK-SOURCE.md.pre-update-*; do
+      if [ -f "$other" ] && same_text "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md" "$other"; then LEGACY_SOURCE=duplicate; fi
+    done
+    if [ "$LEGACY_SOURCE" = keep ] && ! cp "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md" "$CARRY_DIR/FRAMEWORK-SOURCE.md.previous"; then
+      not_verified "could not read ${ENGINE_REL}FRAMEWORK-SOURCE.md."
+    fi
+  fi
+fi
+
 # Step 2: Show what would change
 echo "Comparing files..."
 echo ""
@@ -468,6 +509,15 @@ while IFS= read -r name; do
   CARRY_SHOWN=1
   echo "  KEPT: conventions/$name at the project root has a framework convention's name but other content, so it looks like a project edit; it stays and is named in CLAUDE.md.additions (it belongs in conventions/overrides/)"
 done < "$CARRY_DIR/conventions.kept"
+case "$LEGACY_LOG" in
+  move) CARRY_SHOWN=1; echo "  MOVE: ${ENGINE_REL}VERSION-LOG.md goes to the project root, where the version log lives" ;;
+  duplicate) CARRY_SHOWN=1; echo "  REMOVE: ${ENGINE_REL}VERSION-LOG.md (the project's VERSION-LOG.md holds the same text)" ;;
+  append) CARRY_SHOWN=1; echo "  KEPT: ${ENGINE_REL}VERSION-LOG.md differs from the project's VERSION-LOG.md; its text is added there under a dated heading, then it leaves the engine" ;;
+esac
+case "$LEGACY_SOURCE" in
+  duplicate) CARRY_SHOWN=1; echo "  REMOVE: ${ENGINE_REL}FRAMEWORK-SOURCE.md (a copy at the project root holds the same text)" ;;
+  keep) CARRY_SHOWN=1; echo "  KEPT: ${ENGINE_REL}FRAMEWORK-SOURCE.md is kept as a dated FRAMEWORK-SOURCE.md.pre-update copy at the project root, then it leaves the engine" ;;
+esac
 [ "$CARRY_SHOWN" -eq 1 ] && echo ""
 
 # Files that are NEVER touched (project-specific)
@@ -571,6 +621,37 @@ if [ -s "$CARRY_DIR/conventions.kept" ]; then
   fi
   echo "  named: $(wc -l < "$CARRY_DIR/conventions.kept" | tr -d ' ') edited framework convention(s) in conventions/ at the project root → CLAUDE.md.additions"
 fi
+case "$LEGACY_LOG" in
+  move)
+    if ! mv "$ARCHETYPE_DIR/VERSION-LOG.md" "$PROJECT_ROOT/VERSION-LOG.md"; then
+      echo "Error: could not move ${ENGINE_REL}VERSION-LOG.md to the project root. Nothing was replaced."
+      exit 1
+    fi
+    echo "  moved: ${ENGINE_REL}VERSION-LOG.md → project root" ;;
+  duplicate)
+    rm -f "$ARCHETYPE_DIR/VERSION-LOG.md"
+    echo "  removed: ${ENGINE_REL}VERSION-LOG.md (the same text as the project's)" ;;
+  append)
+    if ! cat "$CARRY_DIR/version-log.block" >> "$PROJECT_ROOT/VERSION-LOG.md"; then
+      echo "Error: could not add ${ENGINE_REL}VERSION-LOG.md to the project's VERSION-LOG.md. Nothing was replaced."
+      exit 1
+    fi
+    rm -f "$ARCHETYPE_DIR/VERSION-LOG.md"
+    echo "  kept: ${ENGINE_REL}VERSION-LOG.md in the project's VERSION-LOG.md, under a dated heading" ;;
+esac
+case "$LEGACY_SOURCE" in
+  duplicate)
+    rm -f "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md"
+    echo "  removed: ${ENGINE_REL}FRAMEWORK-SOURCE.md (the same text is at the project root)" ;;
+  keep)
+    kept="$(kept_path FRAMEWORK-SOURCE.md)"
+    if ! cp "$CARRY_DIR/FRAMEWORK-SOURCE.md.previous" "$kept"; then
+      echo "Error: could not keep ${ENGINE_REL}FRAMEWORK-SOURCE.md at the project root. Nothing was replaced."
+      exit 1
+    fi
+    rm -f "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md"
+    echo "  kept: ${ENGINE_REL}FRAMEWORK-SOURCE.md as $(basename "$kept") at the project root" ;;
+esac
 
 # Step 4: Apply updates
 echo ""
@@ -635,22 +716,10 @@ if [ -s "$CARRY_DIR/conventions.remove" ]; then
   echo "  removed: $(wc -l < "$CARRY_DIR/conventions.remove" | tr -d ' ') framework convention copies from conventions/ (project root)"
 fi
 
-# Step 7: Migrate legacy project artifacts that used to live inside archetype/.
+# Step 7: Remove the empty docs folders older installs left inside the engine (their
+# VERSION-LOG.md and FRAMEWORK-SOURCE.md were handled with the project's words in step 3b).
 # Keeps the framework folder read-only. Safe to run repeatedly.
 if [ "$ARCHETYPE_DIR" != "$PROJECT_ROOT" ]; then
-  if [ -f "$ARCHETYPE_DIR/VERSION-LOG.md" ]; then
-    if [ -f "$PROJECT_ROOT/VERSION-LOG.md" ]; then
-      echo "  WARN: both ${ENGINE_REL}VERSION-LOG.md and project-root VERSION-LOG.md exist; deleting ${ENGINE_REL}VERSION-LOG.md"
-      rm -f "$ARCHETYPE_DIR/VERSION-LOG.md"
-    else
-      mv "$ARCHETYPE_DIR/VERSION-LOG.md" "$PROJECT_ROOT/VERSION-LOG.md"
-      echo "  migrated: VERSION-LOG.md ${ENGINE_REL} → project root"
-    fi
-  fi
-  if [ -f "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md" ]; then
-    rm -f "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md"
-    echo "  removed: ${ENGINE_REL}FRAMEWORK-SOURCE.md (redundant with VERSION-LOG.md)"
-  fi
   if [ -d "$ARCHETYPE_DIR/docs" ]; then
     rmdir "$ARCHETYPE_DIR/docs/systems" "$ARCHETYPE_DIR/docs/features" "$ARCHETYPE_DIR/docs" 2>/dev/null && \
       echo "  removed: ${ENGINE_REL}docs/ (empty; project docs live at project root)"
