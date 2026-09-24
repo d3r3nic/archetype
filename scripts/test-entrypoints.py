@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import os
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -328,6 +329,69 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual((clone / 'project-gate.py').read_text(), '# the project gate\n')
         self.assertEqual((clone / 'deploy.sh').read_text(), '#!/bin/bash\necho deploy\n')
 
+    def test_full_clone_update_hashes_bytes_without_any_git_filter(self):
+        remote, env = self.update_source()
+        clone = self.root / 'full-clone-filters'
+        result = self.run_command(['git', 'clone', str(remote), str(clone)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        # The project's git drops a LOCAL-ONLY line when it cleans a file, the user's global
+        # git configuration drops a GLOBAL-ONLY line, and each filter leaves a canary when it runs.
+        canaries = {name: self.root / (name + '-filter-ran') for name in ('local', 'global')}
+
+        def clean(name, marker):
+            return 'sh -c ' + shlex.quote('touch ' + shlex.quote(str(canaries[name])) + '; grep -v ' + marker)
+
+        global_config = self.root / 'global-gitconfig'
+        global_attributes = self.root / 'global-attributes'
+        global_attributes.write_text('*.md filter=global\n')
+        (clone / '.gitattributes').write_text('feature-tree.md filter=local\n')
+        for command in (['git', '-C', str(clone), 'config', 'filter.local.clean', clean('local', 'LOCAL-ONLY')],
+                        ['git', 'config', '--file', str(global_config), 'core.attributesFile', str(global_attributes)],
+                        ['git', 'config', '--file', str(global_config), 'filter.global.clean', clean('global', 'GLOBAL-ONLY')]):
+            result = self.run_command(command)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        env = dict(env, GIT_CONFIG_GLOBAL=str(global_config))
+        tree = clone / 'templates/feature-tree.md'
+        guide = clone / 'templates/progress.md'
+        debt = clone / 'templates/technical-debt.md'
+        task = clone / 'templates/task-context.md'
+        framework = {path: path.read_bytes() for path in (tree, guide, debt, task)}
+        tree.write_text(tree.read_text() + 'LOCAL-ONLY: a project edit the project filter hides\n')
+        guide.write_text(guide.read_text() + 'GLOBAL-ONLY: a project edit the global filter hides\n')
+        # Each filter would hide its edit from a plain hash-object, the global one even in another
+        # repository (given the physical path, as the updater gives it).
+        for path, where in ((tree, clone), (guide, remote)):
+            name = str(path.relative_to(clone))
+            shipped = self.run_command(['git', '-C', str(clone), 'rev-parse', 'HEAD:' + name]).stdout
+            hidden = self.run_command(['git', '-C', str(where), 'hash-object', '--stdin-paths'],
+                                      input=str(path.resolve()) + '\n', env=env).stdout
+            self.assertEqual(hidden, shipped, name + ' is not hidden by its filter')
+        for canary in canaries.values():
+            canary.unlink()
+        # Line endings converted by a checkout pass; a carriage return anywhere else does not.
+        crlf = clone / 'templates/pulse-monitor-spec.md'
+        crlf.write_bytes(crlf.read_bytes().replace(b'\n', b'\r\n'))
+        debt.write_bytes(framework[debt][:12] + b'\r' + framework[debt][12:])
+        task.write_bytes(framework[task] + b'\r')
+        update = ['bash', str(clone / 'update.sh')]
+        before = self.snapshot(clone)
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        for path in (tree, guide, debt, task):
+            self.assertIn('  ' + str(path.relative_to(clone)) +
+                          ' (differs from every version the framework shipped at this path)\n', result.stdout)
+        self.assertNotIn('pulse-monitor-spec.md', result.stdout)
+        for name, canary in canaries.items():
+            self.assertFalse(canary.exists(), 'the ' + name + ' filter ran')
+        self.assertEqual(self.snapshot(clone), before)
+        for path, content in framework.items():
+            path.write_bytes(content)
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for name, canary in canaries.items():
+            self.assertFalse(canary.exists(), 'the ' + name + ' filter ran')
+        self.assertEqual(crlf.read_bytes(), (remote / 'templates/pulse-monitor-spec.md').read_bytes())
+
     def test_full_clone_update_knows_files_from_every_framework_branch(self):
         remote, env = self.update_source()
         self.run_command(['git', '-C', str(remote), 'checkout', '-qb', 'release'])
@@ -586,6 +650,48 @@ class Entrypoints(unittest.TestCase):
             self.assertFalse((engine / name).exists())
         self.assertEqual(root_log.read_text().count('## Kept from archetype/VERSION-LOG.md'), 1)
         self.assertEqual(len(self.kept_copies('FRAMEWORK-SOURCE.md')), 1)
+
+    def test_update_stops_on_a_record_proof_that_is_not_a_regular_file(self):
+        self.inject()
+        source = self.project / 'archetype/FRAMEWORK-SOURCE.md'
+        source.write_text('Installed from an older framework location\n')
+        _, env = self.update_source()
+        proof = self.project / 'FRAMEWORK-SOURCE.md'
+        # A root link to the engine copy would pass as a duplicate and leave nothing once the
+        # engine copy is removed; a dangling link proves nothing either.
+        for target in (source, self.root / 'nowhere.md'):
+            with self.subTest(target=target.name):
+                proof.symlink_to(target)
+                try:
+                    before = self.snapshot(self.project)
+                    result = self.run_update(env)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    self.assertIn('FRAMEWORK-SOURCE.md at the project root is a symbolic link or not a regular file',
+                                  result.stdout)
+                    self.assertIn('Nothing was changed.', result.stdout)
+                    self.assertEqual(self.snapshot(self.project), before)
+                    self.assertTrue(proof.is_symlink())
+                    self.assertEqual(source.read_text(), 'Installed from an older framework location\n')
+                finally:
+                    proof.unlink()
+                    source.write_text('Installed from an older framework location\n')
+
+    def test_update_stops_on_an_engine_record_that_is_a_symbolic_link(self):
+        self.inject()
+        engine = self.project / 'archetype'
+        outside = self.root / 'outside-log.md'
+        outside.write_text('A file outside the project\n')
+        (engine / 'VERSION-LOG.md').symlink_to(outside)
+        (self.project / 'VERSION-LOG.md').unlink()
+        _, env = self.update_source()
+        before = self.snapshot(self.project)
+        command = ['bash', str(engine / 'update.sh'), '--project-root', str(self.project)]
+        result = self.run_command(command, input='y\n', env=env, cwd=self.project)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('archetype/VERSION-LOG.md is a symbolic link or not a regular file', result.stdout)
+        self.assertEqual(self.snapshot(self.project), before)
+        self.assertEqual(outside.read_text(), 'A file outside the project\n')
+        self.assertFalse((self.project / 'VERSION-LOG.md').exists())
 
     def test_rules_live_in_agents_and_claude_points_to_it(self):
         self.inject()
