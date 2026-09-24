@@ -135,6 +135,8 @@ if [ -n "$features_section" ]; then
         clean_row="$(printf '%s' "$row" | sed 's/\*\*//g')"
         # Skip table separators (|---|---|)
         echo "$clean_row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|' && continue
+        # Same row rule as the systems table: a row only counts if column 2 is a number.
+        echo "$clean_row" | grep -qE '^\|[[:space:]]*[0-9]+[[:space:]]*\|' || continue
         # Extract columns; tolerate variable column layouts
         c3="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
         c4="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $4); print $4}')"
@@ -205,6 +207,7 @@ if [ -n "$features_section" ]; then
       \|*)
         clean_row="$(printf '%s' "$row" | sed 's/\*\*//g')"
         echo "$clean_row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|' && continue
+        echo "$clean_row" | grep -qE '^\|[[:space:]]*[0-9]+[[:space:]]*\|' || continue
         c3="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
         case "$c3" in ""|"Feature"|"Name"|"#") continue ;; esac
         node_id="$(printf '%s' "$c3" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g')"
@@ -235,6 +238,7 @@ if [ -n "$features_section" ]; then
       \|*)
         clean_row="$(printf '%s' "$row" | sed 's/\*\*//g')"
         echo "$clean_row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|' && continue
+        echo "$clean_row" | grep -qE '^\|[[:space:]]*[0-9]+[[:space:]]*\|' || continue
         c3="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
         case "$c3" in ""|"Feature"|"Name"|"#") continue ;; esac
         declared_features="${declared_features}${c3}\n"

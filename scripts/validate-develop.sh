@@ -7,7 +7,8 @@
 #   1. No direct shared-class instantiation in features/ (bypassing getters)
 #   2. No console-level output in features/ (use shared logger)
 #   3. Every features/{name}/ has a matching test file
-#   4. Every feature in feature-tree.md has docs/features/{name}.md
+#   4. Every feature in feature-tree.md has docs/features/{name}.md (a feature is a row of
+#      the Features table whose first cell is a number; the template's placeholder row fails)
 #   5. No `throw new Error(` in features (use AppError subclasses)
 
 PROJECT_ROOT="$(pwd)"
@@ -106,19 +107,32 @@ group 4 "Every feature has a docs/features/ entry"
 # ----------------------------------------------------------------------
 if [ -f "$TREE" ] && [ -d "$DOCS_FEATURES" ]; then
   MISSING=0
-  # Extract feature names from feature-tree.md's Features section
-  # Pattern: rows with `| N | name | ...` under the Features section
+  # Feature rows of feature-tree.md's Features section, by the row rule scripts/pulse-inspect.sh
+  # applies: a row is a line that starts with a pipe and whose first cell, bold markers removed,
+  # is a number. Header and separator rows fail that test; any other line is prose and is
+  # ignored, pipes or not.
   in_features=0
-  while IFS= read -r line; do
+  while IFS= read -r line || [ -n "$line" ]; do
     if echo "$line" | grep -qE '^## Features'; then in_features=1; continue; fi
     if [ "$in_features" -eq 1 ] && echo "$line" | grep -qE '^## '; then in_features=0; continue; fi
     [ "$in_features" -eq 0 ] && continue
-    # Extract feature name (column 3 of markdown table)
-    name=$(echo "$line" | awk -F'|' 'NF>=3 {gsub(/^[ \t]+|[ \t]+$/, "", $3); print $3}' | tr -d ' ')
+    case "$line" in \|*) ;; *) continue ;; esac
+    row=$(printf '%s\n' "$line" | sed 's/\*\*//g')
+    printf '%s\n' "$row" | grep -qE '^\|[[:space:]]*[0-9]+[[:space:]]*\|' || continue
+    num=$(printf '%s\n' "$row" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
+    # Feature name: column 3 of the row, spaces removed
+    cell=$(printf '%s\n' "$row" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $3); print $3}')
+    name=$(printf '%s' "$cell" | tr -d ' ')
     [ -z "$name" ] && continue
     case "$name" in Feature|-*|'') continue ;; esac
     # Skip smoke/health features
     case "$name" in health|_health|ping|smoke) continue ;; esac
+    # A name that is one bracketed placeholder, such as [name], is the template's example row
+    if printf '%s\n' "$cell" | grep -qE '^\[[^]]*\]$'; then
+      fail "feature row $num is the placeholder row left from the template (name $cell); replace it with a real feature or delete it"
+      MISSING=$((MISSING + 1))
+      continue
+    fi
     if [ ! -f "$DOCS_FEATURES/${name}.md" ]; then
       fail "feature '$name' in feature-tree.md but no docs/features/${name}.md"
       MISSING=$((MISSING + 1))

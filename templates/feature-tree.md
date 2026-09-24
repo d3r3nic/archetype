@@ -8,7 +8,7 @@ Last audited: [date]
 
 Built during scaffolding. Every feature plugs into these.
 
-**Column order is contract.** `scripts/pulse-inspect.sh` reads these columns positionally: `# | Name | Convention | Location | Status`. Changing the order breaks the pulse dashboard. Extra trailing columns (like Docs/Notes) are fine.
+**Column order is contract.** `scripts/pulse-inspect.sh` reads these columns by position: #, Name, Convention, Location, Status. Changing the order breaks the pulse dashboard. Extra trailing columns (like Docs or Notes) are fine.
 
 | # | Name | Convention | Location | Status | Docs |
 |---|------|-----------|----------|--------|------|
@@ -37,13 +37,13 @@ Notes:
 
 ## Features
 
-**Column order is contract.** Pulse reads: `# | Feature | Location | Routes | Systems Used`. "Systems Used" values must match Foundational System names (case-insensitive, normalized) for drift detection and diagram generation to work.
+**Column order is contract.** Pulse reads these columns by position: #, Feature, Location, Routes, Systems Used. Systems Used values must match Foundational System names (case-insensitive, normalized) for the diagram to link each feature to its systems.
 
 | # | Feature | Location | Routes | Systems Used | Status | Docs |
 |---|---------|----------|--------|--------------|--------|------|
 | 01 | [name] | [location] | [routes] | [systems] | [status] | docs/features/[name].md |
 
-Status values: not started | in progress | implemented | needs audit
+Status values: not started, in progress, implemented, needs audit.
 
 ## Audit Log
 
