@@ -145,7 +145,12 @@ MISSING=0
 BLOCKED=0
 while IFS='|' read -r num name status docs_mode docs_cell; do
   [ -n "$num" ] || continue
-  [ -n "$name" ] || continue
+  # Every numbered row is a system, whatever its name; one with an empty Name cell is named.
+  if [ -z "$name" ]; then
+    warn "system row $num has no name (its Name cell is empty); name the system or delete the row"
+    MISSING=$((MISSING + 1))
+    continue
+  fi
   status_clean="$(printf '%s' "$status" | tr -d '`*')"
   status_lc="$(printf '%s' "$status_clean" | LC_ALL=C tr '[:upper:]' '[:lower:]')"
   hint=""

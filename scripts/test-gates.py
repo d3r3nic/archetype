@@ -184,6 +184,39 @@ class DevelopGate(unittest.TestCase):
             'replace it with a real feature or delete it',
         ])
 
+    def test_numbered_rows_named_like_header_cells_are_features(self):
+        rows = [
+            '| 01 | Feature | src/features/feature | /f | Auth | implemented | docs/features/Feature.md |',
+            '| 02 | Name | src/features/name | /n | Auth | implemented | docs/features/Name.md |',
+            '| 03 | -beta | src/features/beta | /b | Auth | implemented | docs/features/-beta.md |',
+        ]
+        missing = self.check(features_tree(rows))
+        self.assertEqual(missing.returncode, 1, missing.stdout)
+        self.assertEqual(group(missing.stdout, '4'), [
+            "FAIL: feature 'Feature' in feature-tree.md but no docs/features/Feature.md",
+            "FAIL: feature 'Name' in feature-tree.md but no docs/features/Name.md",
+            "FAIL: feature '-beta' in feature-tree.md but no docs/features/-beta.md",
+        ])
+        for name in ('Feature', 'Name', '-beta'):
+            self.document(name)
+        present = self.check(features_tree(rows))
+        self.assertEqual(present.returncode, 0, present.stdout)
+        self.assertEqual(group(present.stdout, '4'), ['OK: every feature in feature-tree.md has a docs/features/ entry'])
+
+    def test_numbered_row_with_an_empty_name_is_named(self):
+        result = self.check(features_tree(['| 04 |  | src/features/x | /x | Auth | implemented | docs/features/x.md |']))
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertEqual(group(result.stdout, '4'), [
+            'FAIL: feature row 04 has no name (its Feature cell is empty); name the feature or delete the row',
+        ])
+
+    def test_smoke_test_names_stay_exempt(self):
+        rows = ['| %02d | %s | src/features/%s | /%s | Auth | implemented | docs/features/%s.md |' % (i, n, n, n, n)
+                for i, n in enumerate(('health', '_health', 'ping', 'smoke'), 1)]
+        result = self.check(features_tree(rows))
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(group(result.stdout, '4'), ['OK: every feature in feature-tree.md has a docs/features/ entry'])
+
 
 class ScaffoldGate(unittest.TestCase):
     def setUp(self):
@@ -340,6 +373,14 @@ class ScaffoldGate(unittest.TestCase):
             "WARN: system '&&' has no letters or digits to name its page after, and its row names no Docs path; name the page in a Docs column",
         ])
 
+    def test_numbered_row_with_an_empty_name_is_named(self):
+        self.page('docs/systems/x.md')
+        result = self.check(systems_tree(['| 10 |  | #1 | x | implemented | docs/systems/x.md |']))
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(group(result.stdout, '1'), [
+            'WARN: system row 10 has no name (its Name cell is empty); name the system or delete the row',
+        ])
+
     def test_blocked_system_does_not_quiet_unrelated_checks(self):
         (self.project / 'hooks' / 'pre-commit.sh').unlink()
         self.page('docs/systems/payments.md')
@@ -456,6 +497,33 @@ class PulseInspect(unittest.TestCase):
         self.assertNotIn('Location', state['architectureDiagram'])
         self.assertEqual(state['drift']['features'], {'declaredButMissing': [], 'actualButUndeclared': ['stray']})
 
+    def test_numbered_rows_named_like_header_cells_are_features(self):
+        # systems_tree ends with the Features header and separator, so feature rows follow it.
+        (self.project / 'feature-tree.md').write_text(
+            systems_tree(['| 01 | Payments | #9 | src/shared/payments | implemented | docs/systems/payments.md |'])
+            + '| 01 | Feature | src/features/feature | /f | Payments | not started | docs/features/Feature.md |\n'
+            + '| 02 | Name | src/features/name | /n | Payments | not started | docs/features/Name.md |\n'
+        )
+        (self.project / 'src' / 'features' / 'feature').mkdir(parents=True)
+        result = self.inspect()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        state = json.loads(result.stdout)
+        self.assertEqual([f['name'] for f in state['features']], ['Feature', 'Name'])
+        diagram = state['architectureDiagram']
+        for line in ('feat_feature["Feature"]', 'feat_name["Name"]', 'feat_feature --> sys_payments', 'feat_name --> sys_payments'):
+            self.assertIn(line, diagram)
+        self.assertEqual(state['drift']['features'], {'declaredButMissing': ['Name'], 'actualButUndeclared': []})
+
+    def test_numbered_row_with_an_empty_name_is_left_out(self):
+        (self.project / 'feature-tree.md').write_text(features_tree([
+            '| 01 | checkout | src/features/checkout | /checkout | Payments | not started | docs/features/checkout.md |',
+            '| 02 |  | src/features/x | /x | Payments | not started | docs/features/x.md |',
+        ]))
+        state = json.loads(self.inspect().stdout)
+        self.assertEqual([f['name'] for f in state['features']], ['checkout'])
+        self.assertNotRegex(state['architectureDiagram'], r'feat_[\[ ]')
+        self.assertEqual(state['drift']['features'], {'declaredButMissing': ['checkout'], 'actualButUndeclared': []})
+
 
 class OneRowRule(unittest.TestCase):
     """The docs gate and the monitor read the same feature rows."""
@@ -470,13 +538,18 @@ class OneRowRule(unittest.TestCase):
                 '| 01 | alpha | src/features/alpha | /a | Auth | implemented | docs/features/alpha.md |',
                 '| **02** | beta | src/features/beta | /b | Auth | implemented | docs/features/beta.md |',
                 '| F3 | gamma | src/features/gamma | /c | Auth | implemented | docs/features/gamma.md |',
+                '| 04 | Feature | src/features/feature | /f | Auth | implemented | docs/features/Feature.md |',
+                '| 05 | Name | src/features/name | /n | Auth | implemented | docs/features/Name.md |',
+                '| 06 |  | src/features/x | /x | Auth | implemented | docs/features/x.md |',
             ], PIPE_PROSE))
             gate = subprocess.run([BASH, str(DEVELOP)], cwd=project, text=True, capture_output=True)
             monitor = subprocess.run([BASH, str(PULSE)], cwd=project, text=True, capture_output=True)
         flagged = set(re.findall(r"feature '([^']+)' in feature-tree\.md", ANSI.sub('', gate.stdout)))
         shown = {f['name'] for f in json.loads(monitor.stdout)['features']}
-        self.assertEqual(flagged, {'alpha', 'beta'}, gate.stdout)
+        self.assertEqual(flagged, {'alpha', 'beta', 'Feature', 'Name'}, gate.stdout)
         self.assertEqual(shown, flagged)
+        # The nameless row has nothing to show; the gate names it by its number instead.
+        self.assertIn('feature row 06 has no name', gate.stdout)
 
 
 if __name__ == '__main__':
