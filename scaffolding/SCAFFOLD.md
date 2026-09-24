@@ -81,7 +81,7 @@ Every shape-specific playbook ends with:
 
 ## VERSION-LOG Scaffold entry template
 
-Append to `VERSION-LOG.md` after scaffold completes:
+After scaffold completes, add a `## Scaffold` section at the end of `VERSION-LOG.md`. Update entries stay under Updates: the next framework update puts its entry under a new `## Updates` heading after this section.
 
 ```
 ## Scaffold

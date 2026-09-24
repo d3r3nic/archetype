@@ -30,6 +30,23 @@ Discovery: PROGRESS.md, unanswered hosting question
 Key decisions made: DECISIONS.md
 Open pre-production gates: hosting choice before deployment
 '''
+INSTALLED = '''# Version Log
+
+The Bootstrap section records the installation and what setup decided. update.sh appends each framework update under Updates.
+
+## Bootstrap
+
+Date: 2026-09-19
+Source: https://github.com/d3r3nic/archetype
+Commit: 1538b8c28d9bced68266c3c87fe2d84bbd804739
+Method: inject.sh
+'''
+SETUP = LOG.split('\n', 2)[2]  # the setup lines, without the heading and the date
+
+
+def update(day, commit):
+    return ('\n### 2026-09-%02d\nCommit: %s\nSource: https://github.com/d3r3nic/archetype.git\n'
+            'Updated by: update.sh\n' % (day, commit))
 
 
 class Bootstrap(unittest.TestCase):
@@ -96,6 +113,21 @@ class Bootstrap(unittest.TestCase):
 
     def test_markdown_link_is_a_value(self):
         self.assertEqual(self.run_gate('log', LOG.replace('Key decisions made: DECISIONS.md', 'Key decisions made: [decisions](DECISIONS.md)')).returncode, 0)
+
+    def test_installed_section_completed_by_setup_passes_with_updates_after_it(self):
+        body = INSTALLED + SETUP + '\n## Updates\n' + update(20, 'a' * 40) + update(21, 'b' * 40)
+        result = self.run_gate('log', body)
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_update_entries_inside_a_bootstrap_section_are_read_as_its_fields(self):
+        # A second Bootstrap section after Updates takes in every entry appended after it; the
+        # updater moves those entries under Updates.
+        entries = update(20, 'a' * 40) + update(21, 'b' * 40)
+        result = self.run_gate('log', INSTALLED + '\n## Updates\n\n' + LOG + entries)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('duplicate field: Commit', result.stdout)
+        result = self.run_gate('log', INSTALLED + '\n## Updates\n\n' + LOG + '\n## Updates\n' + entries)
+        self.assertEqual(result.returncode, 0, result.stdout)
 
 
 if __name__ == '__main__':

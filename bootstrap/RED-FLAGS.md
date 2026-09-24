@@ -41,7 +41,7 @@ Parallels vague-regulated:
 
 ### Vague answer about who decides
 
-If the owner answers the last Group 6 question vaguely ("you decide", "whatever works", "I don't know"): for a new project record `Decision authority: ai-decides` with `Authority source: defaulted` in PROFILE.md and log it in VERSION-LOG.md with one line, because the owner keeps every escalation category either way (#29) and delivery does not stall; for an existing project being migrated record `owner-decides` with `Authority source: defaulted`, because its team worked under approval rules until now. Tell the owner it can be changed any time by saying so; moving to `ai-decides` later needs the owner's statement recorded in the PROFILE.md change log, never an AI-written line alone. A clear "I want to approve technical choices" records `owner-decides`, `owner-stated`.
+If the owner answers the last Group 6 question vaguely ("you decide", "whatever works", "I don't know"): for a new project record `Decision authority: ai-decides` with `Authority source: defaulted` in PROFILE.md, which the Profile line of VERSION-LOG.md's Bootstrap section repeats at Step 6, because the owner keeps every escalation category either way (#29) and delivery does not stall; for an existing project being migrated record `owner-decides` with `Authority source: defaulted`, because its team worked under approval rules until now. Tell the owner it can be changed any time by saying so; moving to `ai-decides` later needs the owner's statement recorded in the PROFILE.md change log, never an AI-written line alone. A clear "I want to approve technical choices" records `owner-decides`, `owner-stated`.
 
 ### Vague stack preference ("use whatever", "I don't care")
 
@@ -50,7 +50,7 @@ This delegates the technical recommendation; it does not supply evidence for one
 ## Deploy Gate — unresolved regulated-data question
 
 If the regulated-data question is in "default-assumed yes, not explicitly answered" state at the end of bootstrap:
-1. Record it in `VERSION-LOG.md` as an open pre-production gate.
+1. Name it on the `Open pre-production gates` line of the Bootstrap section in `VERSION-LOG.md` (Step 6).
 2. Scaffolding and deploy steps (Phase 2 onward) must halt until the user affirmatively answers with either "yes, it is regulated — here's the regime" or "no, it is not regulated."
 3. Deflections ("go with defaults", "whatever you recommend") do NOT resolve this gate. The user must pick.
 
@@ -82,4 +82,4 @@ Do not proceed to Step 4 (file generation) until discovery is coherent with the 
 
 ## Discovery Turn Budget
 
-If you have re-asked the same core question 3 times and the user keeps deflecting, default to the most-likely interpretation, LOG the assumption in VERSION-LOG as an open pre-production gate, and move on. Infinite re-asking loops waste the user's attention. The gate ensures the assumption is surfaced before it causes real damage.
+If you have re-asked the same core question 3 times and the user keeps deflecting, default to the most-likely interpretation, record the assumption as an open pre-production gate (Step 6 names it on the `Open pre-production gates` line of the Bootstrap section in VERSION-LOG.md), and move on. Infinite re-asking loops waste the user's attention. The gate ensures the assumption is surfaced before it causes real damage.
