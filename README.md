@@ -120,10 +120,12 @@ For a custom application using the included feature-oriented scaffold, the resul
 
 ```
 your-project/
-├── AGENTS.md                 # Shared guidance (from framework)
-├── CLAUDE.md                 # Imports AGENTS.md (from framework)
-├── Conventions.md             # Convention index (from framework)
-├── conventions/               # Convention docs (from framework)
+├── AGENTS.md                 # Shared guidance (from framework, replaced by updates)
+├── CLAUDE.md                 # Imports AGENTS.md (from framework, replaced by updates)
+├── CLAUDE.md.additions        # YOUR project's own standing rules
+├── archetype/                 # The engine: conventions, playbooks, templates, scripts (from framework)
+├── conventions/overrides/     # YOUR project-specific rules per convention, when needed
+├── PROFILE.md                 # YOUR operating stage and who decides technical questions
 ├── References.md              # YOUR project's tech stack, systems, commands
 ├── feature-tree.md            # Living map of YOUR systems and features
 ├── .env.example               # Required environment variables documented
