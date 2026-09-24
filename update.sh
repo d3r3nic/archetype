@@ -140,13 +140,17 @@ trap 'rm -rf "$TEMP_DIR" "$CARRY_DIR"' EXIT
 RECORDED=""
 [ -f "$PROJECT_ROOT/VERSION-LOG.md" ] && RECORDED=$(sed -n 's/^Commit: *\([0-9a-f]\{7,40\}\).*/\1/p' "$PROJECT_ROOT/VERSION-LOG.md" | tail -1)
 strip_cr() { sed 's/\r$//' "$1"; }
-# The recorded revision is fetched once, on first need; call this outside a subshell.
+# The recorded revision is fetched once, on first need; call this outside a subshell. In a
+# full clone the framework's history is already here, so it is only looked up.
 RECORDED_FETCH=""
 recorded_available() {
   if [ -z "$RECORDED_FETCH" ]; then
     RECORDED_FETCH=no
-    if [ "${#RECORDED}" -eq 40 ] && git -C "$TEMP_DIR" fetch --quiet --depth 1 origin "$RECORDED" 2>/dev/null; then
-      RECORDED_FETCH=yes
+    if [ "${#RECORDED}" -eq 40 ]; then
+      if git -C "$TEMP_DIR" cat-file -e "$RECORDED^{commit}" 2>/dev/null || \
+         git -C "$TEMP_DIR" fetch --quiet --depth 1 origin "$RECORDED" 2>/dev/null; then
+        RECORDED_FETCH=yes
+      fi
     fi
   fi
   [ "$RECORDED_FETCH" = yes ]
@@ -155,33 +159,85 @@ recorded_file() {
   recorded_available && git -C "$TEMP_DIR" show "$RECORDED:$1" > "$2" 2>/dev/null
 }
 
-# In a full clone each framework folder sits at the project root and is replaced whole,
-# so a file in one that the incoming framework does not ship would be deleted. Unless the
-# recorded revision shipped it (the framework removed it upstream), the update stops here,
-# before anything is written, and names it. With no recorded revision every such file
-# counts. conventions/overrides/ survives the replacement; .DS_Store files and
-# __pycache__ folders are caches and are not listed.
+# In a full clone the framework's folders sit at the project root and each is replaced
+# whole, and the root Conventions.md and inject.sh are replaced too. A file there is the
+# framework's only if the framework shipped exactly that content (the same git blob) at
+# that path in some revision of its history. Anything else (a project file, a file at a
+# path the framework has started shipping, an edited framework file, shipped or retired)
+# would be overwritten or deleted, so the update stops here, before anything is written,
+# and names it. conventions/overrides/ survives the replacement; .DS_Store files and
+# __pycache__ folders are caches. README.md and the entry files have their own handling.
+# Every step's exit status is checked: a step that fails stops the update instead of
+# leaving the list of files incomplete.
+not_verified() {
+  echo "Error: $1 Nothing was changed."
+  exit 1
+}
 if [ "$PROJECT_ROOT" = "$ARCHETYPE_DIR" ]; then
+  HISTORY_ERROR="could not fetch the framework's history, which this layout needs to tell the framework's files from the project's. Check the connection and run the update again."
+  if [ "$(git -C "$TEMP_DIR" rev-parse --is-shallow-repository 2>/dev/null)" = true ] && \
+     ! git -C "$TEMP_DIR" fetch --quiet --unshallow origin; then
+    not_verified "$HISTORY_ERROR"
+  fi
+  if ! git -C "$TEMP_DIR" fetch --quiet --tags origin '+refs/heads/*:refs/remotes/origin/*' || \
+     [ "$(git -C "$TEMP_DIR" rev-parse --is-shallow-repository 2>/dev/null)" != false ]; then
+    not_verified "$HISTORY_ERROR"
+  fi
+  # The recorded revision may sit on no branch; its files count when it can be fetched.
+  HISTORY_REVS="--all"
+  if [ "${#RECORDED}" -eq 40 ]; then
+    git -C "$TEMP_DIR" cat-file -e "$RECORDED^{commit}" 2>/dev/null || \
+      git -C "$TEMP_DIR" fetch --quiet origin "$RECORDED" 2>/dev/null || true
+    if git -C "$TEMP_DIR" cat-file -e "$RECORDED^{commit}" 2>/dev/null; then HISTORY_REVS="--all $RECORDED"; fi
+  fi
+  if ! git -C "$TEMP_DIR" -c core.quotePath=false log $HISTORY_REVS --no-renames -m --root --raw --no-abbrev --format= \
+       > "$CARRY_DIR/history.raw" || \
+     ! awk -F'\t' '/^:/ { split($1, f, " "); if (f[4] !~ /^0+$/) print $2 "\t" f[4] }' "$CARRY_DIR/history.raw" \
+       > "$CARRY_DIR/history.unsorted" || \
+     ! LC_ALL=C sort -u "$CARRY_DIR/history.unsorted" > "$CARRY_DIR/history.pairs" || \
+     [ ! -s "$CARRY_DIR/history.pairs" ] || \
+     ! cut -f1 "$CARRY_DIR/history.pairs" > "$CARRY_DIR/history.paths"; then
+    not_verified "could not read the framework's history."
+  fi
   EXEMPT='(^|/)\.DS_Store$|(^|/)__pycache__/'
   [ -d "$ARCHETYPE_DIR/conventions/overrides" ] && EXEMPT="^conventions/overrides(/|\$)|$EXEMPT"
-  : > "$CARRY_DIR/foreign"
+  : > "$CARRY_DIR/local.files"
+  : > "$CARRY_DIR/local.other"
   for dir in $UNIVERSAL_DIRS; do
     [ -d "$TEMP_DIR/$dir" ] && [ -d "$ARCHETYPE_DIR/$dir" ] || continue
-    (cd "$TEMP_DIR" && find "$dir" ! -type d) | LC_ALL=C sort > "$CARRY_DIR/shipped"
-    (cd "$ARCHETYPE_DIR" && find "$dir" ! -type d) | grep -Ev "$EXEMPT" | LC_ALL=C sort > "$CARRY_DIR/present"
-    LC_ALL=C comm -23 "$CARRY_DIR/present" "$CARRY_DIR/shipped" > "$CARRY_DIR/unshipped"
-    [ -s "$CARRY_DIR/unshipped" ] || continue
-    if recorded_available; then
-      git -C "$TEMP_DIR" ls-tree -r -z --name-only "$RECORDED" -- "$dir" | tr '\000' '\n' | LC_ALL=C sort > "$CARRY_DIR/retired"
-      LC_ALL=C comm -23 "$CARRY_DIR/unshipped" "$CARRY_DIR/retired" >> "$CARRY_DIR/foreign"
-    else
-      cat "$CARRY_DIR/unshipped" >> "$CARRY_DIR/foreign"
+    if ! (cd "$ARCHETYPE_DIR" && find "$dir" -type f) > "$CARRY_DIR/found.files" || \
+       ! (cd "$ARCHETYPE_DIR" && find "$dir" ! -type d ! -type f) > "$CARRY_DIR/found.other"; then
+      not_verified "could not list every file in $dir/, so the update cannot tell the framework's files from the project's there."
+    fi
+    for kind in files other; do
+      status=0
+      grep -Ev "$EXEMPT" "$CARRY_DIR/found.$kind" >> "$CARRY_DIR/local.$kind" || status=$?
+      [ "$status" -le 1 ] || not_verified "could not filter the list of files in $dir/."
+    done
+  done
+  for file in Conventions.md inject.sh; do
+    if [ -f "$TEMP_DIR/$file" ] && [ -f "$ARCHETYPE_DIR/$file" ]; then
+      printf '%s\n' "$file" >> "$CARRY_DIR/local.files"
     fi
   done
-  if [ -s "$CARRY_DIR/foreign" ]; then
-    echo "Error: in this layout the update replaces each framework folder whole. These files in them are not part of the incoming framework, so the update would delete them:"
-    sed 's/^/  /' "$CARRY_DIR/foreign"
-    echo "Move each one out of the framework folders (or move this project to the engine-folder layout, where the framework has a folder of its own), then run the update again. Nothing was changed."
+  : > "$CARRY_DIR/local.pairs"
+  if [ -s "$CARRY_DIR/local.files" ]; then
+    if ! (cd "$ARCHETYPE_DIR" && git hash-object --stdin-paths) < "$CARRY_DIR/local.files" > "$CARRY_DIR/local.blobs" || \
+       [ "$(wc -l < "$CARRY_DIR/local.blobs")" -ne "$(wc -l < "$CARRY_DIR/local.files")" ] || \
+       ! paste "$CARRY_DIR/local.files" "$CARRY_DIR/local.blobs" > "$CARRY_DIR/local.unsorted" || \
+       ! LC_ALL=C sort "$CARRY_DIR/local.unsorted" > "$CARRY_DIR/local.pairs"; then
+      not_verified "could not read every file in the framework's folders."
+    fi
+  fi
+  if ! LC_ALL=C comm -23 "$CARRY_DIR/local.pairs" "$CARRY_DIR/history.pairs" > "$CARRY_DIR/local.unmatched" || \
+     ! cut -f1 "$CARRY_DIR/local.unmatched" > "$CARRY_DIR/unverified" || \
+     ! cat "$CARRY_DIR/local.other" >> "$CARRY_DIR/unverified"; then
+    not_verified "could not compare the files with the framework's history."
+  fi
+  if [ -s "$CARRY_DIR/unverified" ]; then
+    echo "Error: in this layout the update replaces the framework's files and folders at the project root. These files there are not the framework's as it shipped them, so the update would overwrite or delete them:"
+    LC_ALL=C sort -u "$CARRY_DIR/unverified" | awk 'NR == FNR { shipped[$0] = 1; next } { print "  " $0 (($0 in shipped) ? " (differs from every version the framework shipped at this path)" : " (the framework never shipped this path)") }' "$CARRY_DIR/history.paths" -
+    echo "Move each project file out of the framework folders. For an edited framework file, move the edit into conventions/overrides/, CLAUDE.md.additions, or a file the project owns, then undo the edit (a file inside a framework folder may be deleted instead; the update restores it). Or move this project to the engine-folder layout, where the framework has a folder of its own. Then run the update again. Nothing was changed."
     exit 1
   fi
 fi

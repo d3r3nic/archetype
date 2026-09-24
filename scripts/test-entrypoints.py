@@ -256,53 +256,130 @@ class Entrypoints(unittest.TestCase):
         # A README is not a rule: nothing of it goes to the additions file.
         self.assertFalse((clone / 'CLAUDE.md.additions').exists())
 
-    def test_full_clone_update_stops_before_deleting_project_files_in_framework_folders(self):
+    def snapshot(self, folder):
+        return {p.relative_to(folder): p.read_bytes() for p in folder.rglob('*') if p.is_file()}
+
+    def git_shim(self, match, really_fail):
+        """A git that fails whenever its arguments include `match`: after doing the real work,
+        or instead of it. Every other call goes to the real git."""
+        shim = Path(tempfile.mkdtemp(prefix='shim-', dir=self.root))
+        real = shutil.which('git')
+        work = 'echo "simulated failure" >&2' if really_fail else '"%s" "$@"' % real
+        (shim / 'git').write_text('#!/bin/sh\nfor arg in "$@"; do\n  if [ "$arg" = "%s" ]; then\n    %s\n    exit 1\n'
+                                  '  fi\ndone\nexec "%s" "$@"\n' % (match, work, real))
+        (shim / 'git').chmod(0o755)
+        return shim
+
+    def test_full_clone_update_stops_on_files_the_framework_never_shipped_as_they_are(self):
         remote, env = self.update_source()
-        (remote / 'scripts/retired-helper.sh').write_text('#!/bin/bash\n')
-        self.commit(remote, 'a helper the framework later retires')
-        shipped = self.run_command(['git', '-C', str(remote), 'rev-parse', 'HEAD']).stdout.strip()
-        clone = self.root / 'full-clone-folders'
+        (remote / 'scripts/retired-pristine.sh').write_text('#!/bin/bash\necho framework\n')
+        (remote / 'scripts/retired-edited.sh').write_text('#!/bin/bash\necho framework\n')
+        self.commit(remote, 'helpers the framework later retires')
+        clone = self.root / 'full-clone-ownership'
         result = self.run_command(['git', 'clone', str(remote), str(clone)])
         self.assertEqual(result.returncode, 0, result.stderr)
-        (remote / 'scripts/retired-helper.sh').unlink()
-        self.commit(remote, 'retire the helper')
-        update = ['bash', str(clone / 'update.sh')]
-
-        def snapshot():
-            return {p.relative_to(clone): p.read_bytes() for p in clone.rglob('*') if p.is_file()}
-
-        # No recorded revision: every file the incoming framework does not ship counts.
-        before = snapshot()
-        result = self.run_command(update, input='y\n', env=env, cwd=clone)
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        self.assertIn('  scripts/retired-helper.sh\n', result.stdout)
-        self.assertEqual(snapshot(), before)
-        # With the recorded revision, a file it shipped is the framework's to remove. A file
-        # the project keeps in a framework folder stops the update, named, with nothing written;
-        # overrides and caches do not.
-        (clone / 'VERSION-LOG.md').write_text('## Updates\n\nCommit: ' + shipped + '\n')
+        # The next framework revision retires both helpers and starts shipping a new gate.
+        for name in ('retired-pristine.sh', 'retired-edited.sh'):
+            (remote / 'scripts' / name).unlink()
+        (remote / 'scripts/new-gate.py').write_text('# the framework gate\n')
+        self.commit(remote, 'retire the helpers, ship a gate')
+        # No recorded revision: the rule reads the framework's history instead.
+        (clone / 'scripts/new-gate.py').write_text('# the project gate\n')
+        tree = clone / 'templates/feature-tree.md'
+        tree.write_text(tree.read_text() + 'A project edit.\n')
+        (clone / 'scripts/retired-edited.sh').write_text('#!/bin/bash\necho project edit\n')
         (clone / 'scripts/deploy.sh').write_text('#!/bin/bash\necho deploy\n')
+        (clone / 'scripts/deploy-link').symlink_to('deploy.sh')
+        conventions_index = clone / 'Conventions.md'
+        framework_index = conventions_index.read_bytes()
+        conventions_index.write_text(conventions_index.read_text() + 'A project edit.\n')
         override = clone / 'conventions/overrides/02-git.md'
         override.parent.mkdir(exist_ok=True)
         override.write_text('A justified local choice\n')
         (clone / 'scripts/.DS_Store').write_bytes(b'\0')
         (clone / 'scripts/__pycache__').mkdir()
         (clone / 'scripts/__pycache__/helper.cpython-39.pyc').write_bytes(b'\0')
-        before = snapshot()
+        update = ['bash', str(clone / 'update.sh')]
+        before = self.snapshot(clone)
         result = self.run_command(update, input='y\n', env=env, cwd=clone)
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        self.assertIn('  scripts/deploy.sh\n', result.stdout)
-        self.assertIn('out of the framework folders', result.stdout)
-        for name in ('retired-helper.sh', '02-git.md', '.DS_Store', '__pycache__'):
+        shipped_here = ' (differs from every version the framework shipped at this path)\n'
+        never = ' (the framework never shipped this path)\n'
+        for line in ('  scripts/new-gate.py' + shipped_here, '  templates/feature-tree.md' + shipped_here,
+                     '  scripts/retired-edited.sh' + shipped_here, '  Conventions.md' + shipped_here,
+                     '  scripts/deploy.sh' + never, '  scripts/deploy-link' + never):
+            self.assertIn(line, result.stdout)
+        for name in ('retired-pristine.sh', '02-git.md', '.DS_Store', '__pycache__'):
             self.assertNotIn(name, result.stdout)
-        self.assertEqual(snapshot(), before)
-        # Moved out of the framework folders, the file is safe and the update proceeds.
+        self.assertEqual(self.snapshot(clone), before)
+        # Put right as the message says: project files out, edits undone or deleted.
+        (clone / 'scripts/new-gate.py').rename(clone / 'project-gate.py')
         (clone / 'scripts/deploy.sh').rename(clone / 'deploy.sh')
+        (clone / 'scripts/deploy-link').unlink()
+        tree.unlink()
+        (clone / 'scripts/retired-edited.sh').unlink()
+        conventions_index.write_bytes(framework_index)
         result = self.run_command(update, input='y\n', env=env, cwd=clone)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertFalse((clone / 'scripts/retired-helper.sh').exists())
+        self.assertFalse((clone / 'scripts/retired-pristine.sh').exists())
+        self.assertEqual((clone / 'scripts/new-gate.py').read_text(), '# the framework gate\n')
+        self.assertEqual(tree.read_bytes(), (remote / 'templates/feature-tree.md').read_bytes())
         self.assertEqual(override.read_text(), 'A justified local choice\n')
+        self.assertEqual((clone / 'project-gate.py').read_text(), '# the project gate\n')
         self.assertEqual((clone / 'deploy.sh').read_text(), '#!/bin/bash\necho deploy\n')
+
+    def test_full_clone_update_knows_files_from_every_framework_branch(self):
+        remote, env = self.update_source()
+        self.run_command(['git', '-C', str(remote), 'checkout', '-qb', 'release'])
+        (remote / 'scripts/release-helper.sh').write_text('#!/bin/bash\necho release\n')
+        self.commit(remote, 'a helper only the release branch ships')
+        clone = self.root / 'full-clone-branch'
+        result = self.run_command(['git', 'clone', '-b', 'release', str(remote), str(clone)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.run_command(['git', '-C', str(remote), 'checkout', '-q', 'main'])
+        result = self.run_command(['bash', str(clone / 'update.sh')], input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse((clone / 'scripts/release-helper.sh').exists())
+
+    def test_full_clone_update_stops_when_a_history_or_inventory_step_fails(self):
+        remote, env = self.update_source()
+        clone = self.root / 'full-clone-failures'
+        result = self.run_command(['git', 'clone', str(remote), str(clone)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        update = ['bash', str(clone / 'update.sh')]
+        before = self.snapshot(clone)
+        # A true fetch failure, then steps that do their work but report failure: the update
+        # must stop on the status, never go on with what it happens to have.
+        cases = (('--unshallow', True, "could not fetch the framework's history"),
+                 ('+refs/heads/*:refs/remotes/origin/*', False, "could not fetch the framework's history"),
+                 ('log', False, "could not read the framework's history"),
+                 ('hash-object', False, "could not read every file in the framework's folders"))
+        for match, really_fail, message in cases:
+            with self.subTest(step=match):
+                shimmed = dict(env, PATH=str(self.git_shim(match, really_fail)) + os.pathsep + env['PATH'])
+                result = self.run_command(update, input='y\n', env=shimmed, cwd=clone)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn(message, result.stdout)
+                self.assertIn('Nothing was changed.', result.stdout)
+                self.assertEqual(self.snapshot(clone), before)
+
+    @unittest.skipIf(os.geteuid() == 0, 'permissions do not stop the superuser')
+    def test_full_clone_update_stops_when_a_framework_folder_cannot_be_listed(self):
+        remote, env = self.update_source()
+        clone = self.root / 'full-clone-unreadable'
+        result = self.run_command(['git', 'clone', str(remote), str(clone)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        private = clone / 'scripts/private'
+        private.mkdir()
+        (private / 'notes.md').write_text('A project file the listing cannot see\n')
+        before = self.snapshot(clone)
+        private.chmod(0)
+        self.addCleanup(private.chmod, 0o755)
+        result = self.run_command(['bash', str(clone / 'update.sh')], input='y\n', env=env, cwd=clone)
+        private.chmod(0o755)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('could not list every file in scripts/', result.stdout)
+        self.assertEqual(self.snapshot(clone), before)
 
     def test_update_finds_added_lines_from_the_recorded_revision_without_an_engine_copy(self):
         self.inject()
