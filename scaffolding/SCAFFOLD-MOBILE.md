@@ -106,7 +106,7 @@ Note: developer-program enrollment costs and review-cycle timing are referenced 
 Conventions: #26 (pulse monitor).
 
 Mobile projects don't bundle the pulse UI into the app. Instead, serve it locally on the developer's host machine:
-- Copy `archetype/templates/pulse-ui/` into a project-owned dev-static directory (for example `dev/pulse/`) and serve that directory with any static file server on a local port. No project artifact is written inside the framework folder.
+- Copy `archetype/templates/pulse-ui/` into a project-owned directory the app bundle never includes (for example `dev/pulse/`), with the snapshot git-ignored, and serve that directory with any static file server on a local port. No project artifact is written inside the framework folder.
 - Developer opens that local address in a browser; the page fetches `.pulse-state.json` from the same directory.
 - Run `archetype/scripts/pulse-inspect.sh --out <that project-owned directory>/.pulse-state.json` to refresh state.
 - Optionally scaffold a project-owned `scripts/pulse.sh` convenience wrapper that does both.

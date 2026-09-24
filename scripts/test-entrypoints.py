@@ -240,6 +240,7 @@ class Entrypoints(unittest.TestCase):
         self.assertIn('## Find the relevant work', (self.project / 'AGENTS.md').read_text())
         self.assertNotIn('## Find the relevant work', (self.project / 'CLAUDE.md').read_text())
         self.assertIn('AGENTS.md', (self.project / 'CLAUDE.md').read_text())
+        self.assertIn('@AGENTS.md', (self.project / 'CLAUDE.md').read_text().splitlines())
 
     def test_update_of_an_untouched_root_file_carries_nothing(self):
         self.inject()
@@ -261,6 +262,7 @@ class Entrypoints(unittest.TestCase):
         self.assertIn(MARKER, claude)
         self.assertIn('AGENTS.md', claude)
         self.assertNotIn('## Find the relevant work', claude)
+        self.assertIn('@AGENTS.md', claude.splitlines())
 
     def test_full_clone_update_keeps_parent_unchanged(self):
         remote, env = self.update_source()

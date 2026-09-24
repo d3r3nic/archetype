@@ -40,7 +40,7 @@ Manual: re-run `pulse-inspect.sh` then click Refresh. Chaining the inspector to 
 Fill in during scaffold:
 
 - **Backend projects:** a dev-only route that serves the UI and the snapshot. The route is registered only when the runtime is in development mode; production builds never register it.
-- **Frontend projects:** a dev-server-only route or static path. Production builds exclude the pulse UI.
+- **Frontend projects:** a route the dev server registers only in development, serving the UI and the snapshot from paths outside every folder the production build copies. Production builds contain neither.
 - **Mobile projects:** runs as a local web page on the developer's machine, served by any static file server. Not bundled into the mobile app itself.
 - **Platform projects:** N/A — no dev environment in the code sense. Skip.
 
@@ -55,7 +55,7 @@ Document the exact serve path for this project here:
 Read before wiring the serve path:
 
 - **Bundlers that refuse to follow external symlinks.** If the framework folder is symlinked to a sibling location (for example one framework checkout shared across several templates), a bundler with strict asset tracing may reject paths that escape the project root. Consequence: a server-rendered page cannot read the framework's UI files from the symlinked folder at build time. Signal: do not embed the starter UI by reading it from the framework folder. Either render a project-local page that fetches a static `.pulse-state.json` asset, or serve the starter UI via a separate static server. Either preserves the data-contract-is-stable rule (the UI is replaceable).
-- **Snapshot location.** Store `.pulse-state.json` where the project's dev server serves static assets (wherever that is for the chosen stack). Git-ignore it — it's generated.
+- **Snapshot and UI location.** Keep `.pulse-state.json` in a project-owned, git-ignored path outside every folder the production build or deployment copies, and let the dev-only route serve it with the UI (from the installed framework folder or a project-owned copy under the same rule). A dev server's public static folder is copied into the production build on common stacks, so it is the wrong place for either. After a production build, search its output for `.pulse-state` and for `Archetype pulse UI`, the header line every pulse UI file carries: a match means the build publishes the monitor.
 - **Monorepo layouts.** The inspector scans both a single-app layout (`src/features/*/`, `src/shared/*/`) and a multi-app layout (`apps/*/src/features/*/`, `apps/*/src/shared/*/`, union across apps). Declared rows in feature-tree.md are matched against the union.
 
 ## Data contract (`.pulse-state.json`)

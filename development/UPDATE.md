@@ -4,7 +4,7 @@ Read when a project pulls a newer framework. It says who owns which file, what t
 
 ## Who owns what
 
-- Framework-owned, replaced by every update: the engine folder, and the two root entry files. Root `AGENTS.md` holds the framework's rules. Root `CLAUDE.md` is a short pointer to it, kept because some hosts load only that name. Both carry the managed marker on their first line.
+- Framework-owned, replaced by every update: the engine folder, and the two root entry files. Root `AGENTS.md` holds the framework's rules. Root `CLAUDE.md` imports it, so a host that loads only that name loads the rules too. Both carry the managed marker on their first line.
 - Project-owned, never replaced: `CLAUDE.md.additions` (this project's own standing rules; `AGENTS.md` routes every session to it first), `References.md`, `PROFILE.md`, `feature-tree.md`, `PROGRESS.md`, `conventions/overrides/`, `protocols/`, `catalogs/`, `docs/`.
 
 A project's own rule goes in `CLAUDE.md.additions`, never in a root entry file.

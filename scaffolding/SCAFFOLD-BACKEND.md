@@ -264,7 +264,7 @@ Build:
 
 Conventions: #26 (pulse monitor).
 
-Copy the framework's base UI into the project's dev-static path and wire a dev-only route that serves both the UI and `.pulse-state.json`. Production builds MUST exclude the pulse UI.
+Wire a dev-only route that serves the framework's base UI and `.pulse-state.json` from paths outside every folder the production build or deployment copies. Production builds contain neither (#26).
 
 Build:
 - Dev-only route, guarded on the runtime's environment flag meaning "not production": `GET /dev/pulse` serves the starter UI (markup plus its style and script assets); `GET /dev/pulse/.pulse-state.json` serves the generated state.
@@ -272,7 +272,7 @@ Build:
 - Add a project task (the package manager's script runner, or equivalent) that runs `archetype/scripts/pulse-inspect.sh --out <project-owned path>/.pulse-state.json` before serving.
 - Create `docs/systems/pulse-monitor.md` from `archetype/templates/pulse-monitor-spec.md`; fill in the project-specific "Where it's served" section, and read that spec's implementation notes before wiring the serve path.
 
-**Verify:** start the dev server, open the pulse route, confirm every section renders with real data from References.md + feature-tree.md. Refresh re-fetches `.pulse-state.json` (re-run the inspector first for live updates).
+**Verify:** start the dev server, open the pulse route, confirm every section renders with real data from References.md + feature-tree.md. Refresh re-fetches `.pulse-state.json` (re-run the inspector first for live updates). Search the production build or deployment artifact for `.pulse-state` and `Archetype pulse UI`: no match.
 
 ## Step 18 — Smoke-test feature (scaffold exit gate)
 
