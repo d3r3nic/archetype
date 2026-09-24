@@ -831,5 +831,59 @@ class Entrypoints(unittest.TestCase):
             self.assertEqual(path.read_bytes(), content)
 
 
+    @unittest.skipUnless(LEGACY_SOURCE, 'set ARCHETYPE_LEGACY_SOURCE for release-to-release verification')
+    def test_previous_injected_release_prepared_as_documented_loses_nothing(self):
+        result = self.run_command(['bash', str(Path(LEGACY_SOURCE) / 'inject.sh'), str(self.project)])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        engine = self.project / 'archetype'
+        rules = {'CLAUDE.md': '- A project rule added to root CLAUDE.md.',
+                 'AGENTS.md': '- A project rule added to root AGENTS.md.'}
+        for name, rule in rules.items():
+            root = self.project / name
+            root.write_text(root.read_text() + rule + '\n')
+        additions = self.project / 'CLAUDE.md.additions'
+        additions.write_text('Project-only rules from before the update\n')
+        folder = self.project / 'conventions'
+        (folder / 'overrides').mkdir(parents=True)
+        override = folder / 'overrides/02-git.md'
+        override.write_text('A justified local choice\n')
+        notes = folder / 'notes.md'
+        notes.write_text('Project notes kept beside the overrides\n')
+        doc = self.project / 'docs/systems/sign-in.md'
+        doc.parent.mkdir(parents=True, exist_ok=True)
+        doc.write_text('How sign-in works in this project\n')
+        # The preparation development/UPDATE.md gives for older installs: each line only a root
+        # entry file has moves into the additions file, and project files leave conventions/.
+        for name in rules:
+            framework_lines = set((engine / name).read_text().splitlines())
+            root = self.project / name
+            own = [line for line in root.read_text().splitlines() if line not in framework_lines]
+            additions.write_text(additions.read_text() + ''.join(line + '\n' for line in own))
+            root.write_bytes((engine / name).read_bytes())
+        moved = self.project / 'docs/notes.md'
+        notes.rename(moved)
+        prepared = additions.read_text()
+        for rule in rules.values():
+            self.assertEqual(prepared.count(rule), 1)
+        kept = {path: path.read_bytes() for path in (override, moved, doc, self.project / 'References.md')}
+        remote, env = self.update_source()
+        command = ['bash', str(engine / 'update.sh')]
+        # The old updater runs first and replaces itself last.
+        first = self.run_command(command, input='y\n', env=env, cwd=self.project)
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        self.assertEqual((engine / 'update.sh').read_bytes(), (remote / 'update.sh').read_bytes())
+        self.assertTrue((folder / '02-git.md').is_file(), 'the old updater copies the conventions back')
+        second = self.run_command(command, input='y\n', env=env, cwd=self.project)
+        self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
+        self.assertIn('REMOVE:', second.stdout)
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), ['overrides'])
+        self.assertEqual(sorted(p.name for p in (folder / 'overrides').iterdir()), ['02-git.md'])
+        for path, content in kept.items():
+            self.assertEqual(path.read_bytes(), content)
+        self.assertEqual(additions.read_text(), prepared)
+        for name in rules:
+            self.assertEqual((self.project / name).read_bytes(), (remote / name).read_bytes())
+
+
 if __name__ == '__main__':
     unittest.main()
