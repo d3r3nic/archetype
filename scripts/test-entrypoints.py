@@ -1240,10 +1240,13 @@ class Entrypoints(unittest.TestCase):
         first = self.run_command(command, input='y\n', env=env, cwd=self.project)
         self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
         self.assertEqual((engine / 'update.sh').read_bytes(), (remote / 'update.sh').read_bytes())
-        self.assertTrue((folder / '02-git.md').is_file(), 'the old updater copies the conventions back')
+        # Updaters from before Step 76 copy the framework's conventions back to the project root;
+        # later ones do not. Either way the next run must leave only overrides/ there.
+        copied_back = (folder / '02-git.md').is_file()
         second = self.run_command(command, input='y\n', env=env, cwd=self.project)
         self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
-        self.assertIn('REMOVE:', second.stdout)
+        if copied_back:
+            self.assertIn('REMOVE:', second.stdout)
         self.assertEqual(sorted(p.name for p in folder.iterdir()), ['overrides'])
         self.assertEqual(sorted(p.name for p in (folder / 'overrides').iterdir()), ['02-git.md'])
         for path, content in kept.items():
