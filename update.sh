@@ -40,7 +40,8 @@ elif [ "$ARCHETYPE_DIR" != "$SCRIPT_DIR" ]; then
   PROJECT_ROOT="$SCRIPT_DIR"
 elif [ "$GIT_ROOT" = "$ARCHETYPE_DIR" ]; then
   PROJECT_ROOT="$ARCHETYPE_DIR"
-elif [ -f "$ENGINE_PARENT/CLAUDE.md" ] && [ -f "$ENGINE_PARENT/VERSION-LOG.md" ]; then
+elif { [ -f "$ENGINE_PARENT/CLAUDE.md" ] || [ -f "$ENGINE_PARENT/AGENTS.md" ]; } && [ -f "$ENGINE_PARENT/VERSION-LOG.md" ]; then
+  # Either entry file marks the project; step 5 recreates the other when it is missing.
   PROJECT_ROOT="$ENGINE_PARENT"
 else
   echo "Error: installation layout is ambiguous. Specify --project-root explicitly."
@@ -115,10 +116,13 @@ echo ""
 # baseline: the engine's copy from before this update, or, where the engine folder is the
 # project root (a full clone) or never carried the file, the file at the framework
 # revision VERSION-LOG.md records. Lines the project added are carried into
-# CLAUDE.md.additions for audit and the previous file is kept beside it. With no baseline,
-# or a root AGENTS.md without the managed marker, the previous file is kept whole and the
-# additions file points at it. Comparison ignores a trailing carriage return; the kept
-# copy keeps the original bytes. Nothing is written until the prompt is answered.
+# CLAUDE.md.additions for audit and the previous file is kept beside it. A file with
+# nothing new to carry whose framework lines were removed, reordered or repeated is kept
+# too, and the additions file asks for a review of that change. With no baseline, or a
+# root AGENTS.md without the managed marker, the previous file is kept whole and the
+# additions file points at it. Comparison ignores a trailing carriage return, and blank
+# lines when looking for removed or reordered lines; the kept copy keeps the original
+# bytes. Nothing is written until the prompt is answered.
 ADD="$PROJECT_ROOT/CLAUDE.md.additions"
 if [ -L "$ADD" ] || { [ -e "$ADD" ] && [ ! -f "$ADD" ]; }; then
   echo "Error: project CLAUDE.md.additions must be a regular file."
@@ -129,6 +133,21 @@ trap 'rm -rf "$TEMP_DIR" "$CARRY_DIR"' EXIT
 RECORDED=""
 [ -f "$PROJECT_ROOT/VERSION-LOG.md" ] && RECORDED=$(sed -n 's/^Commit: *\([0-9a-f]\{7,40\}\).*/\1/p' "$PROJECT_ROOT/VERSION-LOG.md" | tail -1)
 strip_cr() { sed 's/\r$//' "$1"; }
+# The recorded revision is fetched once, on first need; call this outside a subshell.
+RECORDED_FETCH=""
+recorded_available() {
+  if [ -z "$RECORDED_FETCH" ]; then
+    RECORDED_FETCH=no
+    if [ "${#RECORDED}" -eq 40 ] && git -C "$TEMP_DIR" fetch --quiet --depth 1 origin "$RECORDED" 2>/dev/null; then
+      RECORDED_FETCH=yes
+    fi
+  fi
+  [ "$RECORDED_FETCH" = yes ]
+}
+recorded_file() {
+  recorded_available && git -C "$TEMP_DIR" show "$RECORDED:$1" > "$2" 2>/dev/null
+}
+
 plan_carry() {
   name="$1"
   root="$PROJECT_ROOT/$name"
@@ -137,10 +156,7 @@ plan_carry() {
   base="$CARRY_DIR/$name.base"
   if [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ] && [ -f "$ARCHETYPE_DIR/$name" ]; then
     cp "$ARCHETYPE_DIR/$name" "$base"
-  elif [ "${#RECORDED}" -eq 40 ] && git -C "$TEMP_DIR" fetch --quiet --depth 1 origin "$RECORDED" 2>/dev/null && \
-       git -C "$TEMP_DIR" show "$RECORDED:$name" > "$base" 2>/dev/null; then
-    :
-  else
+  elif ! recorded_file "$name" "$base"; then
     rm -f "$base"
   fi
   if [ "$name" = AGENTS.md ] && ! grep -qF '<!-- archetype-managed-entrypoint -->' "$root"; then
@@ -154,8 +170,17 @@ plan_carry() {
     else
       cp "$CARRY_DIR/$name.added" "$CARRY_DIR/$name.lines"
     fi
-    [ -s "$CARRY_DIR/$name.lines" ] || return 0
-    echo lines > "$CARRY_DIR/$name.mode"
+    if [ -s "$CARRY_DIR/$name.lines" ]; then
+      echo lines > "$CARRY_DIR/$name.mode"
+    else
+      # Nothing to carry. The framework lines the root file still has, in order and
+      # without blank lines, must match the baseline's; otherwise the project removed,
+      # reordered or repeated some, and that arrangement is kept for review.
+      strip_cr "$root" | grep -xFf "$CARRY_DIR/$name.base.lf" | grep -v '^[[:space:]]*$' > "$CARRY_DIR/$name.order" || true
+      grep -v '^[[:space:]]*$' "$CARRY_DIR/$name.base.lf" > "$CARRY_DIR/$name.base.order" || true
+      cmp -s "$CARRY_DIR/$name.order" "$CARRY_DIR/$name.base.order" && return 0
+      echo reshaped > "$CARRY_DIR/$name.mode"
+    fi
   else
     echo whole > "$CARRY_DIR/$name.mode"
   fi
@@ -191,6 +216,14 @@ for file in $UNIVERSAL_FILES; do
     fi
   fi
 done
+if [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then
+  for file in AGENTS.md CLAUDE.md; do
+    if [ -f "$TEMP_DIR/$file" ] && [ ! -e "$PROJECT_ROOT/$file" ]; then
+      echo "  NEW: $file (project root)"
+      NEW_FILES=$((NEW_FILES + 1))
+    fi
+  done
+fi
 
 # License and notice: decided as a pair, never overwritten.
 LICENSE_ACTION="none"
@@ -277,6 +310,7 @@ for name in CLAUDE.md AGENTS.md; do
   CARRY_SHOWN=1
   case "$(cat "$CARRY_DIR/$name.mode")" in
     lines) echo "  CARRIED: $(wc -l < "$CARRY_DIR/$name.lines" | tr -d ' ') line(s) this project added to root $name go to CLAUDE.md.additions for audit; the previous file is kept" ;;
+    reshaped) echo "  KEPT: root $name had framework lines removed, reordered or repeated by this project; it is kept whole beside the managed file and named in CLAUDE.md.additions for review" ;;
     unmanaged) echo "  KEPT: root $name is this project's own guidance; it is kept whole beside the managed file and named in CLAUDE.md.additions" ;;
     whole) echo "  KEPT: root $name differs and no baseline exists to tell this project's lines apart; it is kept whole beside the managed file and named in CLAUDE.md.additions" ;;
   esac
@@ -310,29 +344,39 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   exit 0
 fi
 
-# Step 3b: Carry the project's own lines forward before anything is replaced
+# Step 3b: Keep the project's words before anything is replaced
 STAMP=$(date +%Y%m%d)
+kept_path() {
+  kept="$PROJECT_ROOT/$1.pre-update-$STAMP"
+  n=1
+  while [ -e "$kept" ] || [ -L "$kept" ]; do n=$((n + 1)); kept="$PROJECT_ROOT/$1.pre-update-$STAMP-$n"; done
+  printf '%s\n' "$kept"
+}
 for name in CLAUDE.md AGENTS.md; do
   [ -f "$CARRY_DIR/$name.mode" ] || continue
   mode="$(cat "$CARRY_DIR/$name.mode")"
-  kept="$PROJECT_ROOT/$name.pre-update-$STAMP"
-  n=1
-  while [ -e "$kept" ] || [ -L "$kept" ]; do n=$((n + 1)); kept="$PROJECT_ROOT/$name.pre-update-$STAMP-$n"; done
+  kept="$(kept_path "$name")"
   block="$CARRY_DIR/$name.block"
   {
     if [ -s "$ADD" ]; then
       [ -n "$(tail -c 1 "$ADD")" ] && echo ""
       echo ""
     fi
-    echo "## Carried over from root $name by the framework update of $(date +%Y-%m-%d): audit each line"
-    echo ""
-    echo "The update replaced root $name with the managed file. The previous file is kept whole as $(basename "$kept"). Audit what follows against the current rules: keep a line here, move it to References.md or conventions/overrides/, or retire it because the current rules cover it, and record the reason. Remove this heading when the audit is done."
-    echo ""
-    case "$mode" in
-      lines) cat "$CARRY_DIR/$name.lines" ;;
-      unmanaged) echo "Root $name carried no managed marker, so it was this project's own file: read $(basename "$kept") in full." ;;
-      whole) echo "No baseline existed to tell this project's lines from the framework's: read $(basename "$kept") in full." ;;
-    esac
+    if [ "$mode" = reshaped ]; then
+      echo "## Root $name kept by the framework update of $(date +%Y-%m-%d): review what this project removed or reordered"
+      echo ""
+      echo "The update replaced root $name with the managed file. The previous file is kept whole as $(basename "$kept"). In it this project had removed, reordered or repeated framework lines; any line of its own is already in this file. Compare it with the managed file and decide whether that intent still matters: if it does, record it in this file, References.md or conventions/overrides/ with the reason. Remove this heading when the review is done."
+    else
+      echo "## Carried over from root $name by the framework update of $(date +%Y-%m-%d): audit each line"
+      echo ""
+      echo "The update replaced root $name with the managed file. The previous file is kept whole as $(basename "$kept"). Audit what follows against the current rules: keep a line here, move it to References.md or conventions/overrides/, or retire it because the current rules cover it, and record the reason. Remove this heading when the audit is done."
+      echo ""
+      case "$mode" in
+        lines) cat "$CARRY_DIR/$name.lines" ;;
+        unmanaged) echo "Root $name carried no managed marker, so it was this project's own file: read $(basename "$kept") in full." ;;
+        whole) echo "No baseline existed to tell this project's lines from the framework's: read $(basename "$kept") in full." ;;
+      esac
+    fi
   } > "$block"
   if ! cp "$CARRY_DIR/$name.previous" "$kept"; then
     echo "Error: could not keep the previous root $name. Nothing was replaced."
@@ -342,7 +386,11 @@ for name in CLAUDE.md AGENTS.md; do
     echo "Error: could not write CLAUDE.md.additions. The previous root $name is kept as $(basename "$kept"); nothing was replaced."
     exit 1
   fi
-  echo "  carried: root $name → CLAUDE.md.additions (previous file kept as $(basename "$kept"))"
+  if [ "$mode" = reshaped ]; then
+    echo "  kept: root $name as $(basename "$kept") (named in CLAUDE.md.additions for review)"
+  else
+    echo "  carried: root $name → CLAUDE.md.additions (previous file kept as $(basename "$kept"))"
+  fi
 done
 
 # Step 4: Apply updates
@@ -384,14 +432,16 @@ for dir in $UNIVERSAL_DIRS; do
   fi
 done
 
-# Step 5: Update the root entry files
-if [ -f "$PROJECT_ROOT/CLAUDE.md" ] && [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then
-  cp "$TEMP_DIR/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.md"
-  echo "  updated: CLAUDE.md (project root)"
-fi
-if [ -f "$TEMP_DIR/AGENTS.md" ] && [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then
-  cp "$TEMP_DIR/AGENTS.md" "$PROJECT_ROOT/AGENTS.md"
-  echo "  updated: AGENTS.md (project root)"
+# Step 5: Update the root entry files, creating one that is missing, so the CLAUDE.md
+# that imports the rules reaches every installation. In a full clone the engine's copies
+# are the root files and step 4 already replaced them.
+if [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then
+  for file in CLAUDE.md AGENTS.md; do
+    [ -f "$TEMP_DIR/$file" ] || continue
+    if [ -f "$PROJECT_ROOT/$file" ]; then verb=updated; else verb=created; fi
+    cp "$TEMP_DIR/$file" "$PROJECT_ROOT/$file"
+    echo "  $verb: $file (project root)"
+  done
 fi
 
 # Step 6: Update promoted conventions/ at project root if they exist
@@ -501,4 +551,4 @@ echo "  - catalogs/ (project-specific)"
 echo "  - docs/ (project-specific)"
 echo "  - todo/ (project-specific)"
 echo ""
-echo "Next: follow archetype/development/UPDATE.md, section After (audit carried-over lines in CLAUDE.md.additions, run the checks, commit as one change)."
+echo "Next: follow archetype/development/UPDATE.md, section After (audit what the update added to CLAUDE.md.additions, run the checks, commit as one change)."

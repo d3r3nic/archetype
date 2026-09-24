@@ -254,6 +254,75 @@ class Entrypoints(unittest.TestCase):
         self.assertFalse((self.project / 'CLAUDE.md.additions').exists())
         self.assertEqual(self.kept_copies('CLAUDE.md'), [])
 
+    def test_update_keeps_a_root_file_whose_framework_lines_were_removed_or_reordered(self):
+        self.inject()
+        claude = self.project / 'CLAUDE.md'
+        claude.write_text(''.join(line for line in claude.read_text().splitlines(True) if line.strip() != '@AGENTS.md'))
+        agents = self.project / 'AGENTS.md'
+        lines = agents.read_text().splitlines(True)
+        first, second = [i for i, line in enumerate(lines) if line.startswith('## ')][:2]
+        lines[first], lines[second] = lines[second], lines[first]
+        agents.write_text(''.join(lines))
+        previous = {name: (self.project / name).read_bytes() for name in ('CLAUDE.md', 'AGENTS.md')}
+        _, env = self.update_source()
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('CARRIED', result.stdout)
+        for name in ('CLAUDE.md', 'AGENTS.md'):
+            self.assertIn('KEPT: root ' + name + ' had framework lines removed, reordered or repeated', result.stdout)
+        additions = (self.project / 'CLAUDE.md.additions').read_text()
+        self.assertEqual(additions.count('removed or reordered'), 2)
+        for name in ('CLAUDE.md', 'AGENTS.md'):
+            kept = self.kept_copies(name)
+            self.assertEqual(len(kept), 1)
+            self.assertEqual(kept[0].read_bytes(), previous[name])
+            self.assertIn(kept[0].name, additions)
+        self.assertIn('@AGENTS.md', claude.read_text().splitlines())
+        again = self.run_update(env)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertNotIn('KEPT: root', again.stdout)
+        self.assertEqual((self.project / 'CLAUDE.md.additions').read_text(), additions)
+        for name in ('CLAUDE.md', 'AGENTS.md'):
+            self.assertEqual(len(self.kept_copies(name)), 1)
+
+    def test_update_reshape_check_ignores_blank_lines_and_lines_already_carried(self):
+        self.inject()
+        rule = '- A project rule carried by an earlier update.'
+        additions = self.project / 'CLAUDE.md.additions'
+        additions.write_text(rule + '\n')
+        claude = self.project / 'CLAUDE.md'
+        # Blank lines are not words: a root file that differs only by them is simply replaced.
+        claude.write_text(claude.read_text().replace('\n\n', '\n\n\n') + '\n')
+        _, env = self.update_source()
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('KEPT: root', result.stdout)
+        self.assertEqual(self.kept_copies('CLAUDE.md'), [])
+        self.assertEqual(additions.read_text(), rule + '\n')
+        # A removed framework line beside a rule the additions file already holds: nothing is
+        # carried, and the file is still kept for review of the removal.
+        claude.write_text(''.join(line for line in claude.read_text().splitlines(True)
+                                  if line.strip() != '@AGENTS.md') + rule + '\n')
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('CARRIED', result.stdout)
+        self.assertIn('KEPT: root CLAUDE.md had framework lines removed, reordered or repeated', result.stdout)
+        self.assertEqual(len(self.kept_copies('CLAUDE.md')), 1)
+        self.assertEqual(additions.read_text().count(rule), 1)
+
+    def test_update_creates_a_missing_root_claude_file_that_imports_the_rules(self):
+        self.inject()
+        (self.project / 'CLAUDE.md').unlink()
+        remote, env = self.update_source()
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('NEW: CLAUDE.md (project root)', result.stdout)
+        claude = self.project / 'CLAUDE.md'
+        self.assertTrue(claude.is_file(), result.stdout)
+        self.assertEqual(claude.read_bytes(), (remote / 'CLAUDE.md').read_bytes())
+        self.assertIn('@AGENTS.md', claude.read_text().splitlines())
+        self.assertTrue((self.project / 'AGENTS.md').is_file())
+
     def test_rules_live_in_agents_and_claude_points_to_it(self):
         self.inject()
         agents = (self.project / 'AGENTS.md').read_text()
@@ -456,6 +525,46 @@ class Entrypoints(unittest.TestCase):
             self.assertEqual((self.project / 'archetype' / name).read_bytes(), (remote / name).read_bytes())
         self.assertEqual((self.project / 'CLAUDE.md.pre-archetype').read_bytes(), self.local['CLAUDE.md'])
         self.assertEqual((self.project / 'References.md').read_bytes(), self.local['References.md'])
+
+    @unittest.skipUnless(LEGACY_SOURCE, 'set ARCHETYPE_LEGACY_SOURCE for release-to-release verification')
+    def test_previous_injected_release_keeps_project_lines_in_both_root_files(self):
+        result = self.run_command(['bash', str(Path(LEGACY_SOURCE) / 'inject.sh'), str(self.project)])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        remote, env = self.update_source()
+        # The old updater replaces itself last on its first run. Here the new updater sits in
+        # the legacy engine, so the legacy engine's copies are the baselines it measures against.
+        shutil.copyfile(remote / 'update.sh', self.project / 'archetype/update.sh')
+        rules = {'CLAUDE.md': '- A project rule added to root CLAUDE.md.',
+                 'AGENTS.md': '- A project rule added to root AGENTS.md.'}
+        previous = {}
+        for name, rule in rules.items():
+            root = self.project / name
+            root.write_text(root.read_text() + rule + '\n')
+            previous[name] = root.read_bytes()
+        earlier = 'Project-only rules from before the update\n'
+        (self.project / 'CLAUDE.md.additions').write_text(earlier)
+        doc = self.project / 'docs/systems/sign-in.md'
+        doc.parent.mkdir(parents=True, exist_ok=True)
+        doc.write_text('How sign-in works in this project\n')
+        artifacts = {path: path.read_bytes() for path in (self.project / 'References.md', doc)}
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for name in rules:
+            self.assertIn('CARRIED: 1 line(s) this project added to root ' + name, result.stdout)
+        again = self.run_update(env)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertNotIn('CARRIED', again.stdout)
+        self.assertNotIn('KEPT: root', again.stdout)
+        additions = (self.project / 'CLAUDE.md.additions').read_text()
+        self.assertTrue(additions.startswith(earlier))
+        for name, rule in rules.items():
+            self.assertEqual(additions.count(rule), 1)
+            kept = self.kept_copies(name)
+            self.assertEqual(len(kept), 1)
+            self.assertEqual(kept[0].read_bytes(), previous[name])
+            self.assertEqual((self.project / name).read_bytes(), (remote / name).read_bytes())
+        for path, content in artifacts.items():
+            self.assertEqual(path.read_bytes(), content)
 
 
 if __name__ == '__main__':
