@@ -184,6 +184,7 @@ if [ "$PROJECT_ROOT" = "$ARCHETYPE_DIR" ]; then
     not_verified "$HISTORY_ERROR"
   fi
   # The recorded revision may sit on no branch; its files count when it can be fetched.
+  # Optional: if it cannot be fetched, the branch and tag history stands and unmatched files still stop.
   HISTORY_REVS="--all"
   if [ "${#RECORDED}" -eq 40 ]; then
     git -C "$TEMP_DIR" cat-file -e "$RECORDED^{commit}" 2>/dev/null || \
@@ -220,20 +221,49 @@ if [ "$PROJECT_ROOT" = "$ARCHETYPE_DIR" ]; then
       printf '%s\n' "$file" >> "$CARRY_DIR/local.files"
     fi
   done
+  # Each file's bytes are hashed as they are, in the framework clone's repository with
+  # filters off, so no git configuration, attribute or filter of the project is read or run.
+  # hash_list reads absolute paths (file $1) and writes each path relative to the project
+  # root with its blob, sorted (file $3); $2 holds those relative paths in the same order.
+  hash_list() {
+    git -C "$TEMP_DIR" hash-object --no-filters --stdin-paths < "$1" > "$CARRY_DIR/hashed.blobs" && \
+      [ "$(wc -l < "$CARRY_DIR/hashed.blobs")" -eq "$(wc -l < "$2")" ] && \
+      paste "$2" "$CARRY_DIR/hashed.blobs" > "$CARRY_DIR/hashed.unsorted" && \
+      LC_ALL=C sort "$CARRY_DIR/hashed.unsorted" > "$3"
+  }
   : > "$CARRY_DIR/local.pairs"
   if [ -s "$CARRY_DIR/local.files" ]; then
-    if ! (cd "$ARCHETYPE_DIR" && git hash-object --stdin-paths) < "$CARRY_DIR/local.files" > "$CARRY_DIR/local.blobs" || \
-       [ "$(wc -l < "$CARRY_DIR/local.blobs")" -ne "$(wc -l < "$CARRY_DIR/local.files")" ] || \
-       ! paste "$CARRY_DIR/local.files" "$CARRY_DIR/local.blobs" > "$CARRY_DIR/local.unsorted" || \
-       ! LC_ALL=C sort "$CARRY_DIR/local.unsorted" > "$CARRY_DIR/local.pairs"; then
+    while IFS= read -r path; do printf '%s/%s\n' "$ARCHETYPE_DIR" "$path"; done < "$CARRY_DIR/local.files" > "$CARRY_DIR/local.absolute"
+    hash_list "$CARRY_DIR/local.absolute" "$CARRY_DIR/local.files" "$CARRY_DIR/local.pairs" || \
       not_verified "could not read every file in the framework's folders."
-    fi
   fi
   if ! LC_ALL=C comm -23 "$CARRY_DIR/local.pairs" "$CARRY_DIR/history.pairs" > "$CARRY_DIR/local.unmatched" || \
-     ! cut -f1 "$CARRY_DIR/local.unmatched" > "$CARRY_DIR/unverified" || \
-     ! cat "$CARRY_DIR/local.other" >> "$CARRY_DIR/unverified"; then
+     ! cut -f1 "$CARRY_DIR/local.unmatched" > "$CARRY_DIR/unmatched.files"; then
     not_verified "could not compare the files with the framework's history."
   fi
+  # A checkout that converted line endings: the same bytes with each carriage return that
+  # comes before a line feed removed, by a plain text tool, may match too. Nothing else does.
+  : > "$CARRY_DIR/unverified"
+  if [ -s "$CARRY_DIR/unmatched.files" ]; then
+    mkdir "$CARRY_DIR/lf"
+    n=0
+    : > "$CARRY_DIR/lf.absolute"
+    while IFS= read -r path; do
+      n=$((n + 1))
+      if [ -z "$(tail -c 1 "$ARCHETYPE_DIR/$path")" ]; then script='s/\r$//'; else script='$!s/\r$//'; fi
+      LC_ALL=C sed "$script" "$ARCHETYPE_DIR/$path" > "$CARRY_DIR/lf/$n" || \
+        not_verified "could not read every file in the framework's folders."
+      printf '%s\n' "$CARRY_DIR/lf/$n" >> "$CARRY_DIR/lf.absolute"
+    done < "$CARRY_DIR/unmatched.files"
+    hash_list "$CARRY_DIR/lf.absolute" "$CARRY_DIR/unmatched.files" "$CARRY_DIR/lf.pairs" || \
+      not_verified "could not read every file in the framework's folders."
+    if ! LC_ALL=C comm -23 "$CARRY_DIR/lf.pairs" "$CARRY_DIR/history.pairs" > "$CARRY_DIR/lf.unmatched" || \
+       ! cut -f1 "$CARRY_DIR/lf.unmatched" > "$CARRY_DIR/unverified"; then
+      not_verified "could not compare the files with the framework's history."
+    fi
+  fi
+  cat "$CARRY_DIR/local.other" >> "$CARRY_DIR/unverified" || \
+    not_verified "could not compare the files with the framework's history."
   if [ -s "$CARRY_DIR/unverified" ]; then
     echo "Error: in this layout the update replaces the framework's files and folders at the project root. These files there are not the framework's as it shipped them, so the update would overwrite or delete them:"
     LC_ALL=C sort -u "$CARRY_DIR/unverified" | awk 'NR == FNR { shipped[$0] = 1; next } { print "  " $0 (($0 in shipped) ? " (differs from every version the framework shipped at this path)" : " (the framework never shipped this path)") }' "$CARRY_DIR/history.paths" -
