@@ -8,7 +8,8 @@
 #   2. No console-level output in features/ (use shared logger)
 #   3. Every features/{name}/ has a matching test file
 #   4. Every feature in feature-tree.md has docs/features/{name}.md (a feature is a row of
-#      the Features table whose first cell is a number; the template's placeholder row fails)
+#      the Features table whose first cell is a number, whatever its name; a row with an
+#      empty or placeholder name fails; the smoke-test names are exempt)
 #   5. No `throw new Error(` in features (use AppError subclasses)
 
 PROJECT_ROOT="$(pwd)"
@@ -120,12 +121,19 @@ if [ -f "$TREE" ] && [ -d "$DOCS_FEATURES" ]; then
     row=$(printf '%s\n' "$line" | sed 's/\*\*//g')
     printf '%s\n' "$row" | grep -qE '^\|[[:space:]]*[0-9]+[[:space:]]*\|' || continue
     num=$(printf '%s\n' "$row" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
-    # Feature name: column 3 of the row, spaces removed
+    # Feature name: column 3 of the row, spaces removed. The row rule has already dropped header
+    # and separator rows, so no name is skipped for looking like one: a numbered row named
+    # Feature, Name, or -beta is checked like any other.
     cell=$(printf '%s\n' "$row" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $3); print $3}')
     name=$(printf '%s' "$cell" | tr -d ' ')
-    [ -z "$name" ] && continue
-    case "$name" in Feature|-*|'') continue ;; esac
-    # Skip smoke/health features
+    if [ -z "$name" ]; then
+      fail "feature row $num has no name (its Feature cell is empty); name the feature or delete the row"
+      MISSING=$((MISSING + 1))
+      continue
+    fi
+    # The one exemption: the conventional smoke-test names, the same list group 3 and
+    # scripts/validate-maintain.sh use. The smoke-test feature is the scaffold's integration
+    # proof, recorded in VERSION-LOG.md's Scaffold entry rather than in docs/features/.
     case "$name" in health|_health|ping|smoke) continue ;; esac
     # A name that is one bracketed placeholder, such as [name], is the template's example row
     if printf '%s\n' "$cell" | grep -qE '^\[[^]]*\]$'; then

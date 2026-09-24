@@ -142,8 +142,11 @@ if [ -n "$features_section" ]; then
         c4="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $4); print $4}')"
         c5="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $5); print $5}')"
         c6="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $6); print $6}')"
-        # Skip header rows (be tolerant of renames).
-        case "$c3" in ""|"Feature"|"Name"|"#") continue ;; esac
+        # The row rule has already dropped header and separator rows, so no name is skipped for
+        # looking like one: a numbered row named Feature or Name is a feature like any other.
+        # A row with an empty Feature cell has nothing to show, draw, or match, so it is left out
+        # here and in the diagram; scripts/validate-develop.sh fails that row.
+        [ -z "$c3" ] && continue
         # c3 = feature name, c4 = location, c5 = routes, c6 = systems used
         [ "$first" -eq 0 ] && items="${items},"
         items="${items}{\"name\":\"$(json_escape "$c3")\",\"location\":\"$(json_escape "$c4")\",\"routes\":\"$(json_escape "$c5")\",\"systemsUsed\":\"$(json_escape "$c6")\"}"
@@ -209,7 +212,8 @@ if [ -n "$features_section" ]; then
         echo "$clean_row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|' && continue
         echo "$clean_row" | grep -qE '^\|[[:space:]]*[0-9]+[[:space:]]*\|' || continue
         c3="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
-        case "$c3" in ""|"Feature"|"Name"|"#") continue ;; esac
+        # Every numbered row is a node, whatever its name; an empty Feature cell has no name to draw.
+        [ -z "$c3" ] && continue
         node_id="$(printf '%s' "$c3" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g')"
         diagram="${diagram}    feat_${node_id}[\"${c3}\"]"$'\n'
         ;;
@@ -240,7 +244,7 @@ if [ -n "$features_section" ]; then
         echo "$clean_row" | grep -qE '^\|[[:space:]]*-+[[:space:]]*\|' && continue
         echo "$clean_row" | grep -qE '^\|[[:space:]]*[0-9]+[[:space:]]*\|' || continue
         c3="$(printf '%s' "$clean_row" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); print $3}')"
-        case "$c3" in ""|"Feature"|"Name"|"#") continue ;; esac
+        # Every numbered row is declared, whatever its name; the comparison below skips an empty one.
         declared_features="${declared_features}${c3}\n"
         ;;
     esac
