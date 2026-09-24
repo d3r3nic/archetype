@@ -118,6 +118,13 @@ class Entrypoints(unittest.TestCase):
     def kept_copies(self, name):
         return sorted(self.project.glob(name + '.pre-update-*'))
 
+    def commit(self, repo, message):
+        for command in (['git', 'add', '-A'],
+                        ['git', '-c', 'user.name=Archetype Tests', '-c', 'user.email=tests@example.invalid',
+                         'commit', '-qm', message]):
+            result = self.run_command(command, cwd=repo)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_update_keeps_unmanaged_agent_instructions_whole_and_proceeds(self):
         self.inject()
         (self.project / 'AGENTS.md').write_text('Unmanaged local guidance\n')
@@ -209,6 +216,90 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual(len(kept), 1)
         self.assertIn(rule, kept[0].read_text())
         self.assertIn(kept[0].name, (clone / 'CLAUDE.md.additions').read_text())
+
+    def test_full_clone_update_keeps_a_changed_readme(self):
+        remote, env = self.update_source()
+        clone = self.root / 'full-clone-readme'
+        result = self.run_command(['git', 'clone', str(remote), str(clone)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        readme = clone / 'README.md'
+        update = ['bash', str(clone / 'update.sh')]
+        # No recorded revision yet: a README that differs from the incoming copy is kept.
+        readme.write_text('# A product built on the framework\n')
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('KEPT: README.md', result.stdout)
+        kept = sorted(clone.glob('README.md.pre-update-*'))
+        self.assertEqual([p.read_text() for p in kept], ['# A product built on the framework\n'])
+        self.assertEqual(readme.read_bytes(), (remote / 'README.md').read_bytes())
+        # The recorded revision is the baseline: a README left as the framework shipped it is
+        # replaced without a copy, one this project changed is kept.
+        (remote / 'README.md').write_text((remote / 'README.md').read_text() + 'A later framework line.\n')
+        self.commit(remote, 'later readme')
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('KEPT: README.md', result.stdout)
+        self.assertEqual(len(sorted(clone.glob('README.md.pre-update-*'))), 1)
+        readme.write_text('# The product, second edition\n')
+        (remote / 'README.md').write_text((remote / 'README.md').read_text() + 'Another framework line.\n')
+        self.commit(remote, 'another readme change')
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('KEPT: README.md', result.stdout)
+        kept = sorted(clone.glob('README.md.pre-update-*'))
+        self.assertEqual(len(kept), 2)
+        self.assertIn('# The product, second edition\n', [p.read_text() for p in kept])
+        self.assertEqual(readme.read_bytes(), (remote / 'README.md').read_bytes())
+        # A README is not a rule: nothing of it goes to the additions file.
+        self.assertFalse((clone / 'CLAUDE.md.additions').exists())
+
+    def test_full_clone_update_stops_before_deleting_project_files_in_framework_folders(self):
+        remote, env = self.update_source()
+        (remote / 'scripts/retired-helper.sh').write_text('#!/bin/bash\n')
+        self.commit(remote, 'a helper the framework later retires')
+        shipped = self.run_command(['git', '-C', str(remote), 'rev-parse', 'HEAD']).stdout.strip()
+        clone = self.root / 'full-clone-folders'
+        result = self.run_command(['git', 'clone', str(remote), str(clone)])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        (remote / 'scripts/retired-helper.sh').unlink()
+        self.commit(remote, 'retire the helper')
+        update = ['bash', str(clone / 'update.sh')]
+
+        def snapshot():
+            return {p.relative_to(clone): p.read_bytes() for p in clone.rglob('*') if p.is_file()}
+
+        # No recorded revision: every file the incoming framework does not ship counts.
+        before = snapshot()
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('  scripts/retired-helper.sh\n', result.stdout)
+        self.assertEqual(snapshot(), before)
+        # With the recorded revision, a file it shipped is the framework's to remove. A file
+        # the project keeps in a framework folder stops the update, named, with nothing written;
+        # overrides and caches do not.
+        (clone / 'VERSION-LOG.md').write_text('## Updates\n\nCommit: ' + shipped + '\n')
+        (clone / 'scripts/deploy.sh').write_text('#!/bin/bash\necho deploy\n')
+        override = clone / 'conventions/overrides/02-git.md'
+        override.parent.mkdir(exist_ok=True)
+        override.write_text('A justified local choice\n')
+        (clone / 'scripts/.DS_Store').write_bytes(b'\0')
+        (clone / 'scripts/__pycache__').mkdir()
+        (clone / 'scripts/__pycache__/helper.cpython-39.pyc').write_bytes(b'\0')
+        before = snapshot()
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('  scripts/deploy.sh\n', result.stdout)
+        self.assertIn('out of the framework folders', result.stdout)
+        for name in ('retired-helper.sh', '02-git.md', '.DS_Store', '__pycache__'):
+            self.assertNotIn(name, result.stdout)
+        self.assertEqual(snapshot(), before)
+        # Moved out of the framework folders, the file is safe and the update proceeds.
+        (clone / 'scripts/deploy.sh').rename(clone / 'deploy.sh')
+        result = self.run_command(update, input='y\n', env=env, cwd=clone)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse((clone / 'scripts/retired-helper.sh').exists())
+        self.assertEqual(override.read_text(), 'A justified local choice\n')
+        self.assertEqual((clone / 'deploy.sh').read_text(), '#!/bin/bash\necho deploy\n')
 
     def test_update_finds_added_lines_from_the_recorded_revision_without_an_engine_copy(self):
         self.inject()

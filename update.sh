@@ -148,6 +148,37 @@ recorded_file() {
   recorded_available && git -C "$TEMP_DIR" show "$RECORDED:$1" > "$2" 2>/dev/null
 }
 
+# In a full clone each framework folder sits at the project root and is replaced whole,
+# so a file in one that the incoming framework does not ship would be deleted. Unless the
+# recorded revision shipped it (the framework removed it upstream), the update stops here,
+# before anything is written, and names it. With no recorded revision every such file
+# counts. conventions/overrides/ survives the replacement; .DS_Store files and
+# __pycache__ folders are caches and are not listed.
+if [ "$PROJECT_ROOT" = "$ARCHETYPE_DIR" ]; then
+  EXEMPT='(^|/)\.DS_Store$|(^|/)__pycache__/'
+  [ -d "$ARCHETYPE_DIR/conventions/overrides" ] && EXEMPT="^conventions/overrides(/|\$)|$EXEMPT"
+  : > "$CARRY_DIR/foreign"
+  for dir in $UNIVERSAL_DIRS; do
+    [ -d "$TEMP_DIR/$dir" ] && [ -d "$ARCHETYPE_DIR/$dir" ] || continue
+    (cd "$TEMP_DIR" && find "$dir" ! -type d) | LC_ALL=C sort > "$CARRY_DIR/shipped"
+    (cd "$ARCHETYPE_DIR" && find "$dir" ! -type d) | grep -Ev "$EXEMPT" | LC_ALL=C sort > "$CARRY_DIR/present"
+    LC_ALL=C comm -23 "$CARRY_DIR/present" "$CARRY_DIR/shipped" > "$CARRY_DIR/unshipped"
+    [ -s "$CARRY_DIR/unshipped" ] || continue
+    if recorded_available; then
+      git -C "$TEMP_DIR" ls-tree -r -z --name-only "$RECORDED" -- "$dir" | tr '\000' '\n' | LC_ALL=C sort > "$CARRY_DIR/retired"
+      LC_ALL=C comm -23 "$CARRY_DIR/unshipped" "$CARRY_DIR/retired" >> "$CARRY_DIR/foreign"
+    else
+      cat "$CARRY_DIR/unshipped" >> "$CARRY_DIR/foreign"
+    fi
+  done
+  if [ -s "$CARRY_DIR/foreign" ]; then
+    echo "Error: in this layout the update replaces each framework folder whole. These files in them are not part of the incoming framework, so the update would delete them:"
+    sed 's/^/  /' "$CARRY_DIR/foreign"
+    echo "Move each one out of the framework folders (or move this project to the engine-folder layout, where the framework has a folder of its own), then run the update again. Nothing was changed."
+    exit 1
+  fi
+fi
+
 plan_carry() {
   name="$1"
   root="$PROJECT_ROOT/$name"
@@ -188,6 +219,22 @@ plan_carry() {
 }
 plan_carry CLAUDE.md
 plan_carry AGENTS.md
+
+# In a full clone README.md at the project root is the project's own page. One that
+# differs from the recorded revision's copy (with none, from the incoming copy) is kept
+# beside the replacement; it is not a rule, so nothing goes to CLAUDE.md.additions.
+plan_keep_readme() {
+  root="$PROJECT_ROOT/README.md"
+  [ "$PROJECT_ROOT" = "$ARCHETYPE_DIR" ] && [ -f "$root" ] && [ -f "$TEMP_DIR/README.md" ] || return 0
+  cmp -s "$root" "$TEMP_DIR/README.md" && return 0
+  base="$CARRY_DIR/README.md.base"
+  recorded_file README.md "$base" || cp "$TEMP_DIR/README.md" "$base"
+  strip_cr "$root" > "$CARRY_DIR/README.md.lf"
+  strip_cr "$base" > "$CARRY_DIR/README.md.base.lf"
+  cmp -s "$CARRY_DIR/README.md.lf" "$CARRY_DIR/README.md.base.lf" && return 0
+  cp "$root" "$CARRY_DIR/README.md.previous"
+}
+plan_keep_readme
 
 # Step 2: Show what would change
 echo "Comparing files..."
@@ -315,6 +362,10 @@ for name in CLAUDE.md AGENTS.md; do
     whole) echo "  KEPT: root $name differs and no baseline exists to tell this project's lines apart; it is kept whole beside the managed file and named in CLAUDE.md.additions" ;;
   esac
 done
+if [ -f "$CARRY_DIR/README.md.previous" ]; then
+  CARRY_SHOWN=1
+  echo "  KEPT: README.md is this project's own version; it is kept as a dated README.md.pre-update copy beside the framework's (a README is not a rule, so nothing goes to CLAUDE.md.additions)"
+fi
 [ "$CARRY_SHOWN" -eq 1 ] && echo ""
 
 # Files that are NEVER touched (project-specific)
@@ -352,6 +403,14 @@ kept_path() {
   while [ -e "$kept" ] || [ -L "$kept" ]; do n=$((n + 1)); kept="$PROJECT_ROOT/$1.pre-update-$STAMP-$n"; done
   printf '%s\n' "$kept"
 }
+if [ -f "$CARRY_DIR/README.md.previous" ]; then
+  kept="$(kept_path README.md)"
+  if ! cp "$CARRY_DIR/README.md.previous" "$kept"; then
+    echo "Error: could not keep the previous README.md. Nothing was replaced."
+    exit 1
+  fi
+  echo "  kept: README.md as $(basename "$kept")"
+fi
 for name in CLAUDE.md AGENTS.md; do
   [ -f "$CARRY_DIR/$name.mode" ] || continue
   mode="$(cat "$CARRY_DIR/$name.mode")"
