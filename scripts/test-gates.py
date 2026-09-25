@@ -684,6 +684,25 @@ class RegulatedDataGate(unittest.TestCase):
         result = run()
         self.assertEqual(result.returncode, 0, result.stdout)
 
+    def test_a_regime_after_a_semicolon_counts_even_when_the_line_opens_with_none(self):
+        line = '- Regimes: None of the card data is stored here; HIPAA applies to the patient notes\n'
+        unit, run = self.run_unit('## Compliance\n\n' + line)
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('References.md declares regulated data but no audit log found', result.stdout)
+        unit, run = self.run_unit('## Compliance\n\n' + line + '- Audit log: not required, we only keep appointment times\n', 'yes')
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('but names a regime that requires one', result.stdout)
+        for quiet in ('- Regimes: N/A, PCI DSS handled by the payment provider\n',
+                      '* Regimes: none, the app keeps no card data, so PCI DSS is out of scope\n'):
+            with self.subTest(quiet=quiet):
+                unit, run = self.run_unit('## Compliance\n\n' + quiet)
+                (unit / 'src').mkdir()
+                self.assertEqual(run().returncode, 0)
+
     def test_a_regime_that_applies_counts_beside_one_that_does_not(self):
         unit, run = self.run_unit('- Regimes: HIPAA applies to the patient notes; PCI DSS does not apply (hosted checkout)\n')
         (unit / 'src').mkdir()
