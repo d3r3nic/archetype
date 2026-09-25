@@ -11,6 +11,7 @@ Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses t
 - Owner channel: [where escalations go and how quickly the owner usually answers]
 - Decision location: [existing decision record path or section; otherwise DECISIONS.md from templates/decisions.md, one location only]
 - Reporting pace: [every session / every release / on request]
+- Peer coding: [none; or peer-coding/SETTINGS.md, when the owner chose two AI assistants taking turns (development/PEER-CODING.md)]
 - API URL: [base URL]
 
 ## Tech Stack

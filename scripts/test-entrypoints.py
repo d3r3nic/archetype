@@ -1198,6 +1198,11 @@ class Entrypoints(unittest.TestCase):
         (self.project / 'docs/old.md').write_text('Original project knowledge\n')
         (copied / 'old.md').write_text('Original project knowledge\n')
         command = ['bash', str(self.project / 'shared-rules/scripts/validate-migration.sh')]
+        # The owner's peer-coding answer (bootstrap Step 2.6) is part of what the migration records.
+        result = self.run_command(command, cwd=self.project)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Peer coding: ask the owner whether another AI assistant', result.stdout)
+        (self.project / 'References.md').write_text('Local context\n\n- Peer coding: none\n')
         result = self.run_command(command, cwd=self.project)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         (copied / 'old.md').write_text('Accidentally changed knowledge\n')
@@ -1364,6 +1369,16 @@ class Entrypoints(unittest.TestCase):
         damaged = log.read_text()
         entries = ENTRY.findall(damaged)
         self.assertEqual(len(entries), 2)
+        if self.check_log().returncode == 0:
+            # A previous release whose updater already heads a trailing Bootstrap section's entries
+            # with Updates: the log was never damaged, and later updates keep that shape.
+            self.assertEqual(live_headings(damaged), ['## Bootstrap', '## Updates', '## Bootstrap', '## Updates'])
+            again = self.run_command(command, input='y\n', env=env, cwd=self.project)
+            self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+            self.assertEqual(live_headings(log.read_text()), ['## Bootstrap', '## Updates', '## Bootstrap', '## Updates'])
+            self.assertEqual(len(ENTRY.findall(log.read_text())), 3)
+            self.assertEqual(self.check_log().returncode, 0)
+            return
         # Both entries sit in the trailing Bootstrap section, where the check reads them as its own.
         self.assertTrue(damaged.endswith(OLD_SETUP + ''.join(entries)))
         check = self.check_log()

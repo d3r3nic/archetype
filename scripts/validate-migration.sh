@@ -11,6 +11,8 @@
 #   5. docs/migrated/ matches originals byte-for-byte (no accidental edits)
 #   6. CLAUDE.md.pre-archetype exists (original preserved)
 #   7. Project context artifacts exist
+#   8. References.md records the owner's peer-coding answer (bootstrap Step 2.6), through
+#      validate-bootstrap.py peer
 #
 # Exit 0 on pass, 1 on any error. Warnings do not fail.
 
@@ -175,6 +177,17 @@ for f in "${REQUIRED[@]}"; do
   fi
 done
 [ "$ERRORS" -eq 0 ] && pass "required artifacts present"
+
+# ----------------------------------------------------------------------
+group 8 "The owner's peer-coding answer (bootstrap Step 2.6)"
+# ----------------------------------------------------------------------
+if [ -f "$PROJECT_ROOT/References.md" ]; then
+  if PEER_RESULT="$(cd "$PROJECT_ROOT" && python3 "$ARCHETYPE/scripts/validate-bootstrap.py" peer 2>&1)"; then
+    pass "References.md records the owner's peer-coding answer"
+  else
+    fail "${PEER_RESULT#FAIL: }"
+  fi
+fi
 
 # ----------------------------------------------------------------------
 echo ""

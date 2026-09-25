@@ -13,6 +13,7 @@ PROJECT = '''## Project
 - Owner channel: project owner
 - Decision location: DECISIONS.md
 - Reporting pace: every session
+- Peer coding: none
 
 ## Foundational Systems
 Location: [filled during scaffold]
@@ -55,6 +56,8 @@ class Bootstrap(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         (self.root / 'feature-tree.md').write_text('# Feature tree\n')
+        # The log step reads the owner's peer-coding answer too; the context tests overwrite this file.
+        (self.root / 'References.md').write_text(PROJECT)
 
     def run_gate(self, mode, body):
         name = 'References.md' if mode == 'context' else 'VERSION-LOG.md'
@@ -110,6 +113,16 @@ class Bootstrap(unittest.TestCase):
         for replacement in ('- none', '- References.md'):
             body = LOG.replace('- References.md\n- PROFILE.md\n- feature-tree.md', replacement)
             self.assertEqual(self.run_gate('log', body).returncode, 1)
+
+    def test_an_existing_projects_references_carry_the_peer_coding_answer_in_any_section(self):
+        # An existing project skips Step 4.2; its migration check runs this mode.
+        (self.root / 'References.md').write_text('# References\n\n## Stack\n\n- Runtime: recorded\n')
+        run = lambda: subprocess.run(['python3', str(SCRIPT), 'peer'], cwd=self.root, capture_output=True, text=True)
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('Peer coding: ask the owner whether another AI assistant', result.stdout)
+        (self.root / 'References.md').write_text('# References\n\n## Stack\n\n- Peer coding: none (asked, awaiting the owner)\n')
+        self.assertEqual(run().returncode, 0)
 
     def test_markdown_link_is_a_value(self):
         self.assertEqual(self.run_gate('log', LOG.replace('Key decisions made: DECISIONS.md', 'Key decisions made: [decisions](DECISIONS.md)')).returncode, 0)
