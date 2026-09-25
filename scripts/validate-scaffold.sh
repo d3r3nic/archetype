@@ -303,12 +303,15 @@ if [ -f "$PROFILE_FILE" ]; then
   [ "$PROFILE_FILE" = "$PROJECT_ROOT/PROFILE.md" ] && PROFILE_HERE=1
 fi
 # A regime counts when any clause of a line (split at ";" and ",") names it without a negation,
-# so "HIPAA applies to the notes; PCI DSS does not apply" still declares HIPAA.
+# so "HIPAA applies to the notes; PCI DSS does not apply" still declares HIPAA. A value that opens
+# with a negation ("none, the app keeps no card data, so PCI DSS is out of scope") is negated whole.
 REFS_LINE="$(tr -d '\r' < "$REFS" | awk '
-  { n = split($0, part, /[;,]/)
+  { v = tolower($0); sub(/^[ \t]*[-*][ \t]+/, "", v); sub(/^[^:]*:[ \t]*/, "", v)
+    if (v ~ /^(none|n\/a|not applicable|not required|no regulated|not regulated)/) next
+    n = split($0, part, /[;,]/)
     for (i = 1; i <= n; i++) {
       c = tolower(part[i])
-      if (c ~ /(none|n\/a|not applicable|not required|no regulated|not regulated|skipped|deferred|not apply|n.t apply)/) continue
+      if (c ~ /(none|n\/a|not applicable|not required|no regulated|not regulated|skipped|deferred|not apply|n.t apply|out of scope)/) continue
       if (c ~ /(hipaa|soc ?2|pci( |-)?dss|pci compliance|gdpr compliance|regulated data (is|are|yes)|regulated data: *(yes|unknown)|compliance: (yes|required))/) {
         sub(/^[ \t]+/, ""); print; exit
       }

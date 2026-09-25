@@ -69,7 +69,7 @@ Build:
 
 Conventions: B4 (logging — audit subsection), #23 (app security).
 
-**This is a separate system from Step 4.** Different storage, retention, mutability, access controls. See B4's "Two distinct logging systems" callout. If References.md compliance section is empty AND regulated-data-gate is "no," this step may be skipped — but if EITHER is yes or default-assumed-yes, this is mandatory. Do not collapse into Step 4.
+**This is a separate system from Step 4.** Different storage, retention, mutability, access controls. See B4's "Two distinct logging systems" callout. If References.md compliance section is empty AND regulated-data-gate is "no," this step may be skipped — but if EITHER is yes or default-assumed-yes, this is mandatory, unless the regimes that apply require no audit trail: then record that on the Audit log line as not required, with the reason, and the exit gate reports the claim for review. Do not collapse into Step 4.
 
 Build:
 - Audit logger interface: `record(actorId, action, resource, details)`.

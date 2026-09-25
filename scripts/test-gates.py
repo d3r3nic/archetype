@@ -670,6 +670,20 @@ class RegulatedDataGate(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("References.md § Compliance says this unit keeps its audit log but no audit log found", result.stdout)
 
+    def test_none_with_a_reason_that_names_the_excluded_regime_declares_nothing(self):
+        line = '- Regimes: none, the app keeps no card data, so PCI DSS is out of scope\n'
+        unit, run = self.run_unit('## Compliance\n\n' + line)
+        (unit / 'src').mkdir()
+        self.assertEqual(run().returncode, 0)
+        unit, run = self.run_unit('## Compliance\n\n' + line, 'no')
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(group(result.stdout, '4'), ['OK: PROFILE.md records no regulated data — audit log check skipped'])
+        unit, run = self.run_unit('## Compliance\n\n- Regimes: none for this unit: it holds no patient records, so HIPAA is out of scope here\n', None, 'yes')
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(result.returncode, 0, result.stdout)
+
     def test_a_regime_that_applies_counts_beside_one_that_does_not(self):
         unit, run = self.run_unit('- Regimes: HIPAA applies to the patient notes; PCI DSS does not apply (hosted checkout)\n')
         (unit / 'src').mkdir()
