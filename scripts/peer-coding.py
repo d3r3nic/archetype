@@ -126,13 +126,20 @@ class Project:
         return succeeds(self.top, 'show-ref', '-q', '--verify', ref)
 
     def default_refs(self):
-        """The default branch here and on every remote (origin first)."""
+        """The default branch here, on origin, and on the remote the local default branch tracks. Another remote's
+        branch of the same name (a deploy target, a fork) is not the project's default branch."""
         if not self.default:
             return []
-        remotes = git(self.top, 'remote', check=False).stdout.split()
-        remotes = (['origin'] if 'origin' in remotes else []) + [name for name in remotes if name != 'origin']
-        refs = ['refs/heads/' + self.default] + ['refs/remotes/%s/%s' % (name, self.default) for name in remotes]
-        return [ref for ref in refs if self.ref_exists(ref)]
+        refs = ['refs/heads/' + self.default, 'refs/remotes/origin/' + self.default]
+        tracked = git(self.top, 'config', '--get', 'branch.%s.remote' % self.default, check=False).stdout.strip()
+        merge = git(self.top, 'config', '--get', 'branch.%s.merge' % self.default, check=False).stdout.strip()
+        if tracked and tracked != '.' and merge.startswith('refs/heads/'):
+            refs.append('refs/remotes/%s/%s' % (tracked, merge[len('refs/heads/'):]))
+        seen = []
+        for ref in refs:
+            if ref not in seen and self.ref_exists(ref):
+                seen.append(ref)
+        return seen
 
     def _engine_here(self):
         # The engine as this worktree carries it: the same place relative to the repository top as
@@ -609,10 +616,11 @@ def own_product_changes(project, since):
     """Product files changed by this branch's own commits after `since`, leaving out a merge of the default branch."""
     if not is_ancestor(project, since, 'HEAD'):
         return []
-    not_default = ['--not'] + project.default_refs() if project.default_refs() else []
-    files = set(out(project.top, 'log', '--no-show-signature', '--no-merges', '--format=', '--name-only', '%s..HEAD' % since,
-                    *(not_default + ['--', '.', ':(exclude)%s' % RECORD])).splitlines())
-    for merge in out(project.top, 'rev-list', '--merges', '%s..HEAD' % since, *not_default).split():
+    # The branch's own line: first parents from HEAD back to `since`. Whatever a merge brought in from another
+    # branch (the default branch on any remote) sits on the merge's other side and is not this branch's work.
+    files = set(out(project.top, 'log', '--no-show-signature', '--first-parent', '--no-merges', '--format=',
+                    '--name-only', '%s..HEAD' % since, '--', '.', ':(exclude)%s' % RECORD).splitlines())
+    for merge in out(project.top, 'rev-list', '--first-parent', '--merges', '%s..HEAD' % since).split():
         files.update(line for line in merge_changes(project, merge) if not line.startswith(RECORD + '/'))
     return sorted(line for line in files if line)
 
@@ -627,12 +635,14 @@ def merge_changes(project, merge):
     return [line for line in own.stdout.splitlines() if line]
 
 
-def attributed(folder, commit):
-    """Whether a packet of this folder names the commit (its first 7 or more characters)."""
+def attributed(folder, commit, names):
+    """Whether a packet of this folder says who made the commit: a line with its id (7 or more characters) and
+    "made by <name>", the name one of the peers or owner."""
     ids = re.compile(r'\b([0-9a-f]{7,40})\b')
     for _, _, packet in packets(folder):
-        for found in ids.findall(read(packet)):
-            if commit.startswith(found):
+        for line in read(packet).splitlines():
+            maker = re.search(r'\bmade by\s+`?([A-Za-z][A-Za-z0-9-]*)', line, re.I)
+            if maker and maker.group(1).lower() in names and any(commit.startswith(found) for found in ids.findall(line)):
                 return True
     return False
 
@@ -655,12 +665,11 @@ def unnamed_commits(project, folder, peers):
     since = opening_head(project, folder)
     if not since or not is_ancestor(project, since, 'HEAD'):
         return []
-    not_default = ['--not'] + project.default_refs() if project.default_refs() else []
     remote, tracked = upstream_of(project)
     pushed = 'refs/remotes/%s/%s' % (remote, tracked) if remote and remote != '.' and tracked == project.branch else ''
     pushed = pushed if pushed and project.ref_exists(pushed) else ''
-    raw = git(project.top, 'log', '--no-show-signature', '--format=%H%x00%P%x00%B%x1e', '%s..HEAD' % since,
-              *not_default).stdout
+    raw = git(project.top, 'log', '--no-show-signature', '--first-parent', '--format=%H%x00%P%x00%B%x1e',
+              '%s..HEAD' % since).stdout
     found = []
     for entry in raw.split('\x1e'):
         fields = entry.strip('\n').split('\x00')
@@ -752,11 +761,11 @@ def check_folder(project, folder, peers, report, you=''):
         wrong = [value.lstrip('?') for value in names if value not in peers + ['owner']]
         given = ('its Peer line names %s, which is not %s or owner' % (', '.join(wrong), ' or '.join(peers))) if names \
             else 'it has no Peer: line'
-        if pushed and attributed(folder, commit):
-            report.warn('%s: commit %s does not name who made it (%s); a packet names it' % (name, commit[:12], given))
+        if pushed and attributed(folder, commit, peers + ['owner']):
+            report.warn('%s: commit %s does not name who made it (%s); a packet says who did' % (name, commit[:12], given))
         elif pushed:
             report.fail('%s: commit %s does not name who made it (%s). It is already pushed and history is never '
-                        'rewritten, so write its id and who made it in your packet' % (name, commit[:12], given))
+                        'rewritten, so write in your packet: Commit %s made by <name>' % (name, commit[:12], given, commit[:12]))
         else:
             report.fail('%s: commit %s does not name who made it (%s). Add a line Peer: <name> to its message before '
                         'it is pushed: git commit --amend for the last commit, otherwise reword it' % (name, commit[:12], given))
@@ -808,7 +817,7 @@ def check_closed(project, folder, report, peers):
     if git(project.top, 'status', '--porcelain', '-uall', '--', RECORD).stdout.strip():
         report.fail('%s/ has uncommitted changes: commit the close (with your Peer line) before the merge' % RECORD)
     for commit, names, pushed in unnamed_commits(project, folder, peers):
-        if not (pushed and attributed(folder, commit)):
+        if not (pushed and attributed(folder, commit, peers + ['owner'])):
             report.fail('%s: commit %s does not name who made it; add a Peer line before it is pushed, or name it in '
                         'a packet if it already is' % (name, commit[:12]))
     current = current_state(folder)

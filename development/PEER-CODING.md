@@ -106,7 +106,7 @@ After every alignment move and every turn:
 
 ## Rules for every turn
 
-- Name yourself in every commit message you write, with a line of its own `Peer: <name>` (the owner's own commits say `Peer: owner`), so the history shows what each assistant did at its turn. `check` fails on a branch commit without it: reword it while it is unpushed; once it is pushed, history is never rewritten with a force-push, so write its id and who made it in your packet, which `check` then accepts.
+- Name yourself in every commit message you write, with a line of its own `Peer: <name>` (the owner's own commits say `Peer: owner`), so the history shows what each assistant did at its turn. `check` fails on a branch commit without it: reword it while it is unpushed; once it is pushed, history is never rewritten with a force-push, so write in your packet `Commit <id> made by <name>`, which `check` then accepts. A branch's own commits are its first-parent line since the folder opened; what a merge brings in from another branch is not counted.
 - Nothing is left uncommitted when a turn ends, however it ends: a hand-over, NEEDS USER, SCOPE CLOSED or a close.
 - One writer. Only the assistant holding the writing turn changes product files. The folder files you own (your packet, your ALIGNMENT.md sections, CURRENT.md at hand-over) are yours to edit in any move of yours. Re-read a shared file before changing it; if it changed since you read it, reconcile rather than overwrite.
 - Never state that something works, passed, exists or was deployed unless you verified it in this session. Saved evidence is dated history, not fresh proof.

@@ -1159,14 +1159,14 @@ class History(Reviewed):
         self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
         pushed = self.pc(where, 'check')
         self.assertEqual(pushed.returncode, 1, pushed.stdout)
-        self.assertIn('It is already pushed and history is never rewritten, so write its id and who made it in your packet', pushed.stdout)
+        self.assertIn('It is already pushed and history is never rewritten, so write in your packet: Commit %s made by <name>' % unnamed[:12], pushed.stdout)
         self.assertIn('the checks above must pass', self.pc(where, 'cue', '--as', 'claude').stdout)
         self.assertEqual(self.pc(where, 'packet', '--as', 'claude').returncode, 0)
         with open(folder / 'rounds' / 'R1' / 'claude.md', 'a') as packet:
             packet.write('\nCommit %s was made by claude without its Peer line.\n' % unnamed[:12])
         named = self.pc(where, 'check')
         self.assertEqual(named.returncode, 0, named.stdout)
-        self.assertIn('WARN: peer-coding/feature-plots: commit %s does not name who made it (it has no Peer: line); a packet names it' % unnamed[:12], named.stdout)
+        self.assertIn('WARN: peer-coding/feature-plots: commit %s does not name who made it (it has no Peer: line); a packet says who did' % unnamed[:12], named.stdout)
 
     def test_the_owner_may_commit_and_an_unknown_name_is_refused(self):
         where, folder, product = self.reviewed()
@@ -1284,6 +1284,67 @@ class History(Reviewed):
         self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
         result = self.pc(where, 'cue', '--as', 'claude')
         self.assertIn('WARN: peer-coding/feature-plots: CURRENT.md has no Accepted head line', result.stdout)
+
+
+    def test_a_push_of_the_branch_to_another_remotes_main_changes_nothing(self):
+        where, folder = self.started()
+        self.commit(where, 'open', 'peer-coding')
+        (where / 'app.py').write_text('print("early and unnamed")\n')
+        early = self.commit(where, 'early', 'app.py', peer=None)
+        self.set_head(folder, 'feature/plots', early)
+        self.commit(where, 'record', 'peer-coding')
+        before = self.pc(where, 'check').stdout
+        self.git(self.root, 'init', '-q', '--bare', 'staging.git')
+        self.git(where, 'remote', 'add', 'staging', str(self.root / 'staging.git'))
+        self.git(where, 'push', '-q', 'staging', 'HEAD:refs/heads/main')
+        self.git(where, 'fetch', '-q', 'staging')
+        after = self.pc(where, 'check')
+        self.assertEqual(after.returncode, 1, after.stdout)
+        for expected in ('product files changed while ALIGNMENT.md is not CONFIRMED: app.py', 'commit %s does not name who made it' % early[:12]):
+            self.assertIn(expected, before)
+            self.assertIn(expected, after.stdout)
+
+    def test_a_mention_is_not_an_attribution_and_a_mid_line_peer_is_not_a_line(self):
+        where, folder, product = self.reviewed()
+        (where / 'app.py').write_text('print("pushed unnamed")\n')
+        unnamed = self.commit(where, 'unnamed\n\nsee the note from Peer: claude', 'app.py', peer=None)
+        self.set_head(folder, 'feature/plots', unnamed)
+        self.commit(where, 'record', 'peer-coding')
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        self.assertEqual(self.pc(where, 'packet', '--as', 'codex').returncode, 0)
+        packet = folder / 'rounds' / 'R1' / 'codex.md'
+        with open(packet, 'a') as notes:
+            notes.write('\nReviewed range: %s..%s\n' % (product[:12], unnamed[:12]))
+        self.assertIn('write in your packet: Commit %s made by <name>' % unnamed[:12], self.pc(where, 'check').stdout)
+        with open(packet, 'a') as notes:
+            notes.write('Commit %s made by claude.\n' % unnamed[:12])
+        self.assertEqual(self.pc(where, 'check').returncode, 0)
+
+    def test_a_closed_folder_needs_its_pushed_commits_attributed_and_close_shows_warnings(self):
+        where, folder, product = self.reviewed()
+        (where / 'app.py').write_text('print("unnamed then pushed")\n')
+        unnamed = self.commit(where, 'unnamed', 'app.py', peer=None)
+        self.set_head(folder, 'feature/plots', unnamed)
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        self.assertEqual(self.pc(where, 'packet', '--as', 'codex').returncode, 0)
+        packet = folder / 'rounds' / 'R1' / 'codex.md'
+        self.edit(packet, r'^Status: WIP.*\n', '')
+        with open(packet, 'a') as notes:
+            notes.write('Commit %s made by claude.\n' % unnamed[:12])
+        self.edit(folder / 'CURRENT.md', r'^- \*\*Accepted head:\*\*.*$', '- **Accepted head:** %s by codex' % unnamed)
+        self.commit(where, 'accept', 'peer-coding', peer='codex')
+        self.git(where, 'push', '-q')
+        closed = self.pc(where, 'close', '--as', 'codex', '--merged', 'PR 3')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+        self.assertIn('WARN: peer-coding/feature-plots: commit %s does not name who made it' % unnamed[:12], closed.stdout)
+        self.git(where, 'commit', '-q', '-m', 'close', '-m', 'Peer: codex', '--', 'peer-coding')
+        self.assertEqual(self.pc(where, 'check').returncode, 0, self.pc(where, 'check').stdout)
+        done = folder.parent / 'feature-plots--done' / 'rounds' / 'R1' / 'codex.md'
+        self.edit(done, r'^Commit [0-9a-f]+ made by claude\.\n', '')
+        self.commit(where, 'drop the attribution', 'peer-coding', peer='codex')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 1, check.stdout)
+        self.assertIn('commit %s does not name who made it; add a Peer line before it is pushed, or name it in a packet' % unnamed[:12], check.stdout)
 
 
 class Bootstrap(unittest.TestCase):
