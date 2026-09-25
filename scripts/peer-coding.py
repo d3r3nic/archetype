@@ -598,12 +598,13 @@ def own_product_changes(project, since):
     if not is_ancestor(project, since, 'HEAD'):
         return []
     not_default = ['--not'] + project.default_refs() if project.default_refs() else []
-    files = set(out(project.top, 'log', '--no-merges', '--format=', '--name-only', '%s..HEAD' % since,
+    files = set(out(project.top, 'log', '--no-show-signature', '--no-merges', '--format=', '--name-only', '%s..HEAD' % since,
                     *(not_default + ['--', '.', ':(exclude)%s' % RECORD])).splitlines())
     # A merge commit's own changes: what differs from git's automatic merge (a conflict resolution, or an edit
     # made in the merge). An older git without that comparison counts every file that differs from all parents.
     for merge in out(project.top, 'rev-list', '--merges', '%s..HEAD' % since, *not_default).split():
-        own = git(project.top, 'show', '--remerge-diff', '--format=', '--name-only', merge, check=False)
+        own = git(project.top, 'show', '--no-show-signature', '--remerge-diff', '--format=', '--name-only', merge,
+                  check=False)
         if own.returncode != 0:
             own = git(project.top, 'diff-tree', '-r', '--cc', '--name-only', '--no-commit-id', merge)
         files.update(line for line in own.stdout.splitlines() if not line.startswith(RECORD + '/'))

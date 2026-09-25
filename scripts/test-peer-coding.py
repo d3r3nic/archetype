@@ -1079,6 +1079,27 @@ class RoundFour(Reviewed):
         result = self.pc(where, 'cue', '--as', 'claude')
         self.assertIn('READY FOR CODEX · peer-coding/feature-plots no packet ·', result.stdout)
 
+    def test_signatures_shown_do_not_turn_into_file_names_during_alignment(self):
+        keygen = subprocess.run(['sh', '-c', 'command -v ssh-keygen'], stdout=subprocess.PIPE).stdout.strip()
+        if not keygen:
+            self.skipTest('ssh-keygen is not available to sign commits')
+        key = Path(self.temp.name) / 'key'
+        subprocess.run(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(key)], check=True)
+        where, folder, product = self.reviewed()
+        for name, value in (('gpg.format', 'ssh'), ('user.signingkey', str(key)), ('commit.gpgsign', 'true'),
+                            ('log.showSignature', 'true')):
+            self.git(where, 'config', name, value)
+        self.rebrief(where, folder)
+        self.commit(where, 're-brief, signed', 'peer-coding')
+        (self.project / 'other.txt').write_text('from main\n')
+        self.commit(self.project, 'main moves on', 'other.txt')
+        self.git(where, 'merge', '-q', '--no-edit', 'main')
+        self.set_head(folder, 'feature/plots', self.git(where, 'rev-parse', 'HEAD'))
+        self.commit(where, 'record the merge', 'peer-coding')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 0, check.stdout)
+        self.assertNotIn('signature', check.stdout)
+
     def test_start_warns_when_the_branch_tracks_another_branch(self):
         where = self.worktree('feature/plots')
         self.git(where, 'branch', '-q', '--set-upstream-to', 'origin/main')
