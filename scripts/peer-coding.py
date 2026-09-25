@@ -404,10 +404,11 @@ def check_folder(project, folder, peers, report, you=''):
             report.fail('%s: CURRENT.md gives the writing turn to %s; the peers are %s' % (name, current['turn'], ' and '.join(peers)))
         elif alignment['status'] != 'CONFIRMED':
             report.fail('%s: CURRENT.md gives %s the writing turn before ALIGNMENT.md is CONFIRMED' % (name, current['turn']))
-    if current['next_move'] and current['next_move'] not in peers:
+    if current['next_move'] and current['next_move'] not in peers + ['none']:
         report.fail('%s: CURRENT.md gives the next move to %s; the peers are %s' % (name, current['next_move'], ' and '.join(peers)))
     if not current['accepted_line']:
-        report.fail('%s: CURRENT.md has no Accepted head line (none yet, or the accepted commit and who accepted it)' % name)
+        report.warn('%s: CURRENT.md has no Accepted head line; closing after a merge needs one (the accepted commit '
+                    'and who accepted it)' % name)
 
     head = resolve_commit(project, current['head']) if current['head'] else ''
     if not current['head']:

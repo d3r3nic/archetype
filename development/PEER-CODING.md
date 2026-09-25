@@ -27,6 +27,15 @@ One folder per branch, at the top of the repository: `peer-coding/<branch>/`, th
 
 Each branch has its own folder and there are no shared files above them, so parallel branches never edit the same file. The script `scripts/peer-coding.py` in the engine folder does the mechanical parts; run it with python3 from anywhere in the worktree: `start`, `packet`, `check`, `cue`, `close`, each with `--as <your name>`.
 
+## Resume from a relay line
+
+Go to the worktree the line names (or your own checkout of its branch) and read AGENTS.md there, then the branch folder's CURRENT.md and ALIGNMENT.md. The line names `<branch>@<commit>`: make sure your checkout contains that commit (pull when it is clean; otherwise stop and tell the owner). Run `check`. Then take the first case that applies:
+
+1. ALIGNMENT.md is not CONFIRMED: your move in the Alignment section below when its Status is REQUESTED and you are the Context holder, or BRIEFED and you are the Receiver; when its roles are still placeholders, `start` was interrupted and the Start section's step 3 is yours. Nobody changes product files in this state.
+2. CURRENT.md says NEEDS USER or SCOPE CLOSED: repeat the open question or the closure to the owner and wait.
+3. CURRENT.md gives you the writing turn: Each turn, below.
+4. Otherwise it is the other assistant's move, and the line may have reached the wrong chat: tell the owner so in one line, and stop.
+
 ## Start a branch
 
 1. Work on a branch of its own, never the default branch. A separate worktree per branch keeps parallel work apart. The branch name becomes the folder name, so name it for the work; it cannot end in `--done`.
@@ -44,7 +53,7 @@ Each branch has its own folder and there are no shared files above them, so para
 
 ## Each turn
 
-1. Read CURRENT.md, ALIGNMENT.md and the incoming packet, and only the findings and evidence it links; read the project's rules files before editing. The relay line names `<branch>@<commit>`: make sure your worktree contains that commit (pull when the worktree is clean; otherwise stop and tell the owner). Run `check`.
+1. Having resumed as above, read the incoming packet, and only the findings and evidence it links. Read the project's rules files before editing.
 2. Review the incoming range: each finding with severity, location, the case that triggers it, the wrong result and the evidence. Give the verdict for that exact range: ACCEPTED, CHANGES REQUESTED, or BLOCKED with the reason. Self-review is not independent review. Accepted work stays closed unless new evidence contradicts it, and no number of rounds turns an unresolved finding into acceptance.
 3. When CURRENT.md gives you the writing turn, repair the supported findings and implement the agreed scope, keeping agreed behavior. Widening the scope needs the owner's words recorded in CURRENT.md. Run proportional checks after your final edit (References.md § Commands and the applicable framework gate) and save the exact commands, exit codes and output under your evidence folder, in files the repository does not ignore. Commit the product work.
 4. `packet` opens your packet, marked WIP: your verdict, the new commits awaiting review, the evidence and its limits, the next action.
@@ -61,7 +70,7 @@ A turn can end without handing over:
 
 - A merge needs the other assistant's ACCEPTED verdict on the final product head, recorded on CURRENT.md's Accepted head line; passing checks; and the authorization PROFILE.md and #29 require for that merge (the owner's when it deploys or touches a live environment).
 - Carry every unresolved finding to the project's own records first (development/TASKS.md, or its technical-debt record) and note in your packet where each went; the folder closes only with FINDINGS.md empty.
-- The merging assistant runs `close --merged <pull request or ref>`, commits the renamed folder as the branch's last change, pushes, then merges. Work the owner abandons: `close --abandoned "<reason>"`.
+- The merging assistant runs `close --merged <pull request or ref>`, commits the renamed folder as the branch's last change, pushes, then merges, and tells the owner in one line that the branch merged; no relay line is needed. Work the owner abandons: `close --abandoned "<reason>"`.
 - `check` reports a folder whose branch merged or disappeared without being closed. Close it from the branch at hand with `close --folder <folder> --merged <ref>` (or `--abandoned`) and commit that.
 
 ## Rules for every turn
