@@ -78,6 +78,8 @@ Build:
 - Separate access control: engineers should NOT have read access by default; only compliance/audit roles.
 - Adapter API documented so production implementation can swap stores without changing callers.
 
+Record where the audit log lives on the Audit log line of References.md § Compliance: its path in this unit, or kept by <the service that keeps it>. The scaffold exit gate checks that path.
+
 **Verify:** audit records written during a test flow are retrievable. Tampering (editing a record) breaks the hash chain and verification fails.
 
 ## Step 6 — Database + migrations

@@ -51,7 +51,7 @@ PROFILE.md records whether the project handles regulated data (#30). This sectio
 - Regulated data: see PROFILE.md
 - Regimes: [each law, contract or standard that applies, with the discovery answer or research behind it; none, with why; or unknown, with the open question]
 - Obligations: [what each regime requires of this unit, such as an audit log, encryption, retention and deletion, or access review; none]
-- Audit log: [where this unit keeps its audit log when a regime requires one (a path in this unit), or kept by <the unit or service that keeps it>; not required, with why]
+- Audit log: [where this unit keeps its audit log when a regime requires one: its path in this unit, recorded when scaffold builds it; kept by <another unit or service>; or not required, with why]
 - Promises to users: [what the project has already told its users about their data, in the owner's words; none]
 
 ## Foundational Systems

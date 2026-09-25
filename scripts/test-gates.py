@@ -628,6 +628,18 @@ class RegulatedDataGate(unittest.TestCase):
                 self.assertEqual(result.returncode, code, result.stdout)
                 self.assertIn(text, ANSI.sub('', result.stdout))
 
+    def test_kept_by_this_unit_is_not_another_keeper_and_trailing_punctuation_is_trimmed(self):
+        unit, run = self.run_unit('## Compliance\n\n- Audit log: kept by this unit; the path is recorded when scaffold builds it\n', 'yes')
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('no audit log found: record where this unit keeps it on the Audit log line', result.stdout)
+        unit, run = self.run_unit('## Compliance\n\n- Audit log: src/server/audit-log/, an append-only table\n', 'yes')
+        (unit / 'src' / 'server' / 'audit-log').mkdir(parents=True)
+        result = run()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('audit log path exists: src/server/audit-log', result.stdout)
+
     def test_a_regime_that_applies_counts_beside_one_that_does_not(self):
         unit, run = self.run_unit('- Regimes: HIPAA applies to the patient notes; PCI DSS does not apply (hosted checkout)\n')
         (unit / 'src').mkdir()

@@ -330,12 +330,13 @@ AUDIT_BAD=""
 AUDIT_PLAIN="$(printf '%s' "$AUDIT_RECORD" | tr -d '`')"
 case "$(printf '%s' "$AUDIT_PLAIN" | tr '[:upper:]' '[:lower:]')" in
   '') ;;
+  'kept by this unit'*|'kept by itself'*|'kept by this service'*|'kept by here'*) ;;   # names no other keeper: the path decides
   'kept by '*) AUDIT_ELSEWHERE="${AUDIT_PLAIN#????????}" ;;
   'not required'*|'none'|'none '*|'none,'*|'n/a'*|'not applicable'*) AUDIT_NONE="$AUDIT_RECORD" ;;
   *)
     case "$AUDIT_RECORD" in
       '`'*'`'*) AUDIT_PATH="${AUDIT_RECORD#?}"; AUDIT_PATH="${AUDIT_PATH%%\`*}" ;;
-      *) AUDIT_PATH="$(printf '%s' "$AUDIT_RECORD" | awk '{ print $1 }')" ;;
+      *) AUDIT_PATH="$(printf '%s' "$AUDIT_RECORD" | awk '{ print $1 }' | sed 's/[,;:.]*$//')" ;;
     esac
     AUDIT_PATH="${AUDIT_PATH%/}"
     case "$AUDIT_PATH" in
