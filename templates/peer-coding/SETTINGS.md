@@ -6,6 +6,6 @@ This project's choices for peer coding: two AI assistants take turns on its bran
 - Who writes: [the owner's preference, in the owner's words: who writes new work and who reviews it, whether they take turns, or whether the owner names the writer each time]
 - Checks each turn: [what runs before every hand-over: the commands in References.md § Commands by their labels, or the commands themselves]
 - Branch names: [how peer branches are named here, or: any name except the default branch]
-- Push: [yes: each hand-over pushes the branch; or no: both assistants work in this one repository]
+- Push: [yes: each checkpoint and each hand-over pushes the branch; no only when a push to a work branch would itself start a deploy or release build, or the project has no remote, saying which]
 - Merge: [what a merge needs besides the other assistant's acceptance and passing checks: the owner's go-ahead each time, or, until the owner decides otherwise, nothing more than PROFILE.md requires]
 - Project rules: [what this project adds to the framework's peer rules, or none]

@@ -126,10 +126,20 @@ class Project:
         return succeeds(self.top, 'show-ref', '-q', '--verify', ref)
 
     def default_refs(self):
+        """The default branch here, on origin, and on the remote the local default branch tracks. Another remote's
+        branch of the same name (a deploy target, a fork) is not the project's default branch."""
         if not self.default:
             return []
-        return [ref for ref in ('refs/heads/' + self.default, 'refs/remotes/origin/' + self.default)
-                if self.ref_exists(ref)]
+        refs = ['refs/heads/' + self.default, 'refs/remotes/origin/' + self.default]
+        tracked = git(self.top, 'config', '--get', 'branch.%s.remote' % self.default, check=False).stdout.strip()
+        merge = git(self.top, 'config', '--get', 'branch.%s.merge' % self.default, check=False).stdout.strip()
+        if tracked and tracked != '.' and merge.startswith('refs/heads/'):
+            refs.append('refs/remotes/%s/%s' % (tracked, merge[len('refs/heads/'):]))
+        seen = []
+        for ref in refs:
+            if ref not in seen and self.ref_exists(ref):
+                seen.append(ref)
+        return seen
 
     def _engine_here(self):
         # The engine as this worktree carries it: the same place relative to the repository top as
@@ -283,6 +293,10 @@ def settings_problems(path, complete=True):
     missing = [key for key in keys if key != 'Peers' and not filled(fields.get(key, ''))]
     if missing:
         problems.append('fill in: %s' % ', '.join(missing))
+    push = plain(fields.get('Push', ''))
+    if re.match(r'^no\b', push, re.I) and not re.sub(r'^no\b[\s:,.;-]*', '', push, flags=re.I).strip():
+        problems.append('Push: no needs its reason (a push to a work branch would itself start a deploy or release '
+                        'build, or there is no remote)')
     return problems
 
 
@@ -564,6 +578,11 @@ def opening_head(project, folder):
     commit = resolve_commit(project, match.group(1)) if match else ''
     if commit and is_ancestor(project, commit, 'HEAD'):
         return commit
+    # A rebase gave the branch new commit ids: peer coding began just before the commit that added the folder.
+    added = git(project.top, 'log', '--no-show-signature', '--format=%H', '--reverse', '--no-renames',
+                '--diff-filter=A', 'HEAD', '--', '%s/%s/CURRENT.md' % (RECORD, folder.name), check=False).stdout.split()
+    if added:
+        return resolve_commit(project, added[0] + '^') or added[0]
     for ref in project.default_refs():
         base = git(project.top, 'merge-base', 'HEAD', ref, check=False).stdout.strip()
         if base:
@@ -597,18 +616,93 @@ def own_product_changes(project, since):
     """Product files changed by this branch's own commits after `since`, leaving out a merge of the default branch."""
     if not is_ancestor(project, since, 'HEAD'):
         return []
-    not_default = ['--not'] + project.default_refs() if project.default_refs() else []
-    files = set(out(project.top, 'log', '--no-show-signature', '--no-merges', '--format=', '--name-only', '%s..HEAD' % since,
-                    *(not_default + ['--', '.', ':(exclude)%s' % RECORD])).splitlines())
-    # A merge commit's own changes: what differs from git's automatic merge (a conflict resolution, or an edit
-    # made in the merge). An older git without that comparison counts every file that differs from all parents.
-    for merge in out(project.top, 'rev-list', '--merges', '%s..HEAD' % since, *not_default).split():
-        own = git(project.top, 'show', '--no-show-signature', '--remerge-diff', '--format=', '--name-only', merge,
-                  check=False)
-        if own.returncode != 0:
-            own = git(project.top, 'diff-tree', '-r', '--cc', '--name-only', '--no-commit-id', merge)
-        files.update(line for line in own.stdout.splitlines() if not line.startswith(RECORD + '/'))
+    # The branch's own commits: since `since`, and not on the project's default branch (here, on origin, or on
+    # the remote the local default branch tracks). Both assistants' commits count, whichever way they arrived.
+    files = set(out(project.top, 'log', '--no-show-signature', '--no-merges', '--format=', '--name-only',
+                    '%s..HEAD' % since, *(not_default(project) + ['--', '.', ':(exclude)%s' % RECORD])).splitlines())
+    for merge in out(project.top, 'rev-list', '--merges', '%s..HEAD' % since, *not_default(project)).split():
+        files.update(line for line in merge_changes(project, merge) if not line.startswith(RECORD + '/'))
     return sorted(line for line in files if line)
+
+
+def not_default(project):
+    refs = project.default_refs()
+    return ['--not'] + refs if refs else []
+
+
+def elsewhere_default(project, folder, commit):
+    """Another remote's branch named like the default branch that holds the commit but not this branch itself
+    (the commit that added the folder), so the commit came from there; '' otherwise. A deploy target the branch
+    was pushed to holds the folder's commit too, and is not named."""
+    if not project.default:
+        return ''
+    added = git(project.top, 'log', '--no-show-signature', '--format=%H', '--reverse', '--no-renames',
+                '--diff-filter=A', 'HEAD', '--', '%s/%s/CURRENT.md' % (RECORD, folder.name), check=False).stdout.split()
+    for ref in git(project.top, 'for-each-ref', '--format=%(refname)', 'refs/remotes', check=False).stdout.split():
+        if (ref.endswith('/' + project.default) and ref not in project.default_refs()
+                and is_ancestor(project, commit, ref) and not (added and is_ancestor(project, added[0], ref))):
+            return ref[len('refs/remotes/'):]
+    return ''
+
+
+def merge_changes(project, merge):
+    """A merge commit's own changes: what differs from git's automatic merge (a conflict resolution, or an edit
+    made in the merge). An older git without that comparison counts every file that differs from all parents."""
+    own = git(project.top, 'show', '--no-show-signature', '--remerge-diff', '--format=', '--name-only', merge,
+              check=False)
+    if own.returncode != 0:
+        own = git(project.top, 'diff-tree', '-r', '--cc', '--name-only', '--no-commit-id', merge)
+    return [line for line in own.stdout.splitlines() if line]
+
+
+def attributed(folder, commit, names):
+    """Whether a packet of this folder says who made the commit: a line with its id (7 or more characters) and
+    "made by <name>", the name one of the peers or owner."""
+    ids = re.compile(r'\b([0-9a-f]{7,40})\b')
+    for _, _, packet in packets(folder):
+        for line in read(packet).splitlines():
+            maker = re.search(r'\bmade by\s+`?([A-Za-z][A-Za-z0-9-]*)', line, re.I)
+            if maker and maker.group(1).lower() in names and any(commit.startswith(found) for found in ids.findall(line)):
+                return True
+    return False
+
+
+def peer_line_names(message):
+    """The names on a commit message's Peer lines: `Peer: claude`, `Peer: claude (its tool)`, `Peer: claude, codex`."""
+    names = []
+    for value in re.findall(r'^peer:[ \t]*(.*)$', message, re.M | re.I):
+        value = re.sub(r'\([^)]*\)', ' ', value)
+        for part in re.split(r',|;|&|\band\b', value):
+            part = part.strip()
+            if part:
+                names.append(part.lower() if re.match(r'^[A-Za-z][A-Za-z0-9-]*$', part) else '?' + part)
+    return names
+
+
+def unnamed_commits(project, folder, peers):
+    """This branch's own commits since its folder was opened whose message names no assistant with a Peer line:
+    (commit, the names it gives, whether it is already on the branch's own remote branch)."""
+    since = opening_head(project, folder)
+    if not since or not is_ancestor(project, since, 'HEAD'):
+        return []
+    remote, tracked = upstream_of(project)
+    pushed = 'refs/remotes/%s/%s' % (remote, tracked) if remote and remote != '.' and tracked == project.branch else ''
+    pushed = pushed if pushed and project.ref_exists(pushed) else ''
+    raw = git(project.top, 'log', '--no-show-signature', '--format=%H%x00%P%x00%B%x1e', '%s..HEAD' % since,
+              *not_default(project)).stdout
+    found = []
+    for entry in raw.split('\x1e'):
+        fields = entry.strip('\n').split('\x00')
+        if len(fields) < 3 or not fields[0]:
+            continue
+        commit, parents, message = fields[0], fields[1].split(), fields[2]
+        names = peer_line_names(message)
+        if names and all(name in peers + ['owner'] for name in names):
+            continue
+        if len(parents) > 1 and not merge_changes(project, commit):
+            continue  # a merge that only brings in the default branch's work
+        found.append((commit, names, bool(pushed) and is_ancestor(project, commit, pushed)))
+    return found
 
 
 def confirmed(alignment):
@@ -683,6 +777,24 @@ def check_folder(project, folder, peers, report, you=''):
     if dirty:
         report.fail('uncommitted product changes in this worktree: %s. Commit them on your writing turn, '
                     'or leave them out; never hand them over' % listed(dirty))
+    for commit, names, pushed in unnamed_commits(project, folder, peers):
+        wrong = [value.lstrip('?') for value in names if value not in peers + ['owner']]
+        given = ('its Peer line names %s, which is not %s or owner' % (', '.join(wrong), ' or '.join(peers))) if names \
+            else 'it has no Peer: line'
+        if pushed and attributed(folder, commit, peers + ['owner']):
+            report.warn('%s: commit %s does not name who made it (%s); a packet says who did' % (name, commit[:12], given))
+        elif pushed:
+            report.fail('%s: commit %s does not name who made it (%s). It is already pushed and history is never '
+                        'rewritten, so write in your packet: Commit %s made by <name>' % (name, commit[:12], given, commit[:12]))
+        else:
+            hint = ''
+            other = elsewhere_default(project, folder, commit)
+            if other:
+                hint = (' If it came to this branch from the default branch on %s, bring your local %s up to date '
+                        'with it and check again.' % (other, project.default))
+            report.fail('%s: commit %s does not name who made it (%s). Add a line Peer: <name> to its message before '
+                        'it is pushed: git commit --amend for the last commit, otherwise reword it.%s'
+                        % (name, commit[:12], given, hint))
 
     for number, peer, packet in packets(folder):
         if peer not in peers:
@@ -725,9 +837,15 @@ def check_folder(project, folder, peers, report, you=''):
     report.note('%s (%s)' % (name, summary))
 
 
-def check_closed(project, folder, report):
+def check_closed(project, folder, report, peers):
     name = display(project, folder)
     report.note('%s is closed: its branch finished. New work gets a new branch' % name)
+    if git(project.top, 'status', '--porcelain', '-uall', '--', RECORD).stdout.strip():
+        report.fail('%s/ has uncommitted changes: commit the close (with your Peer line) before the merge' % RECORD)
+    for commit, names, pushed in unnamed_commits(project, folder, peers):
+        if not (pushed and attributed(folder, commit, peers + ['owner'])):
+            report.fail('%s: commit %s does not name who made it; add a Peer line before it is pushed, or name it in '
+                        'a packet if it already is' % (name, commit[:12]))
     current = current_state(folder)
     if not current['closed_for_merge']:
         return
@@ -795,7 +913,7 @@ def command_check(project, args):
     else:
         own, state = branch_folder(project, project.branch)
         if state == 'done' and own.is_dir():
-            check_closed(project, own, report)
+            check_closed(project, own, report, peers)
         elif state == 'done':
             report.note('the closed folder of branch %s is on %s: this branch already merged' % (project.branch, project.default))
         elif state == 'none':
@@ -924,6 +1042,8 @@ def command_start(project, args):
               % (remote, tracked, remote if remote != '.' else '<remote>', project.branch))
     print('Created %s for branch %s.' % (display(project, folder), project.branch))
     print('Who writes new work (%s/%s): %s' % (RECORD, SETTINGS, values['ROLES']))
+    print('Every commit names its assistant: git add -- %s && git commit -m "<message>" -m "Peer: %s" -- %s'
+          % (RECORD, you, RECORD))
     print('Next: decide whether you hold the context for this work and fill ALIGNMENT.md '
           '(development/PEER-CODING.md, Start a branch).')
     return 0
@@ -998,6 +1118,8 @@ def command_cue(project, args):
     if report.fails:
         report.show()
         raise Refusal('the checks above must pass before handing over')
+    for text in report.warns:
+        print('WARN: ' + text)
     relative = '%s/%s' % (RECORD, folder.name)
     if git(project.top, 'status', '--porcelain', '-uall', '--', RECORD).stdout.strip():
         raise Refusal('%s/ has uncommitted changes; commit it first: git add -- %s && git commit -m '
@@ -1151,6 +1273,8 @@ def command_close(project, args):
         if report.fails:
             report.show()
             raise Refusal('the checks above must pass before closing')
+        for text in report.warns:
+            print('WARN: ' + text)
         if not confirmed(alignment_state(folder)):
             raise Refusal('ALIGNMENT.md is not CONFIRMED; work that was never aligned closes as --abandoned, not for a merge')
         remote, tracked = upstream_of(project)

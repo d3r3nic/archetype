@@ -28,5 +28,6 @@ Keep failed runs with their diagnosis. A larger test count alone is not proof. N
 
 - Findings updated: <IDs, or none>
 - Last product commit: <full commit id>; hand-over commits touch only this folder.
+- Pushed commits without a Peer line: <one line each, `Commit <id> made by <name>`; or none>
 - Next: <who moves next, and the bounded action>
 - Current state: {{CURRENT}}
