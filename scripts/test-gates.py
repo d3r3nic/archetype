@@ -496,7 +496,7 @@ class RegulatedDataGate(unittest.TestCase):
                         shutil.rmtree(store)
                     missing = self.check(self.TREE)
                     self.assertEqual(missing.returncode, 1, missing.stdout)
-                    self.assertIn('PROFILE.md records regulated data: %s but no audit-log path found' % value, missing.stdout)
+                    self.assertIn('PROFILE.md records regulated data: %s but no audit log found: record where this unit keeps it on the Audit log line' % value, missing.stdout)
                     self.audit_store()
                     memory_only = self.check(self.TREE)
                     self.assertEqual(memory_only.returncode, 1, memory_only.stdout)
@@ -536,7 +536,54 @@ class RegulatedDataGate(unittest.TestCase):
         self.references('\n## Compliance\n\n- Regulated data: yes (patient records)\n')
         result = self.check(self.TREE)
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn('References.md declares regulated data but no audit-log path found', result.stdout)
+        self.assertIn('References.md declares regulated data but no audit log found', result.stdout)
+
+    def test_a_recorded_audit_log_path_is_checked_where_it_says(self):
+        self.profile('yes')
+        self.references('\n## Compliance\n\n- Regimes: GDPR, members in Germany\n'
+                        '- Audit log: `src/server/audit-log` (append-only table)\n')
+        missing = self.check(self.TREE)
+        self.assertEqual(missing.returncode, 1, missing.stdout)
+        self.assertIn('records the audit log at src/server/audit-log, which does not exist', missing.stdout)
+        store = self.project / 'src' / 'server' / 'audit-log'
+        store.mkdir(parents=True)
+        (store / 'store.ts').write_text('export class InMemoryAuditStore { records: Array<string> = [] }\n')
+        memory_only = self.check(self.TREE)
+        self.assertEqual(memory_only.returncode, 1, memory_only.stdout)
+        self.assertIn('in-memory store only', memory_only.stdout)
+        (store / 'store.ts').write_text('export class PostgresAuditStore {}\n')
+        result = self.check(self.TREE)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(group(result.stdout, '4'), [
+            'OK: audit log path exists: src/server/audit-log (PROFILE.md records regulated data: yes)'])
+
+    def test_a_recorded_path_outside_src_counts(self):
+        self.profile('yes')
+        self.references('\n## Compliance\n\n- Audit log: gardenapp/audit\n')
+        (self.project / 'gardenapp' / 'audit').mkdir(parents=True)
+        result = self.check(self.TREE)
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_an_endpoint_whose_log_another_unit_keeps_passes_and_one_that_keeps_it_is_held_to_it(self):
+        unit = self.endpoint('## Compliance\n\n- Regulated data: see PROFILE.md\n- Audit log: kept by backend\n')
+        self.profile('yes')
+        result = self.check(folder=unit)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(group(result.stdout, '4'), ['OK: audit log kept by backend (References.md § Compliance)'])
+        backend = self.project / 'backend'
+        backend.mkdir()
+        self.unit(backend)
+        (backend / 'References.md').write_text('# References\n\n## Compliance\n\n- Regimes: GDPR, members in Germany\n'
+                                               '- Audit log: src/audit\n')
+        result = self.check(folder=backend)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('records the audit log at src/audit, which does not exist', result.stdout)
+
+    def test_a_regime_that_does_not_apply_is_not_a_contradiction(self):
+        self.profile('no')
+        self.references('\n## Compliance\n\n- Regimes: HIPAA does not apply: no health data\n')
+        result = self.check(self.TREE)
+        self.assertEqual(group(result.stdout, '4'), ['OK: PROFILE.md records no regulated data — audit log check skipped'])
 
     def test_a_regulated_unit_still_needs_its_audit_log_and_a_real_store(self):
         self.references('\n## Compliance\n\n- Regimes: HIPAA applies to intake notes\n')
@@ -546,7 +593,7 @@ class RegulatedDataGate(unittest.TestCase):
                 self.profile(profile)
             missing = self.check(self.TREE)
             self.assertEqual(missing.returncode, 1, profile)
-            self.assertIn('no audit-log path found', missing.stdout)
+            self.assertIn('no audit log found', missing.stdout)
         self.audit_store()
         memory_only = self.check(self.TREE)
         self.assertEqual(memory_only.returncode, 1)

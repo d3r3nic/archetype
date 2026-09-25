@@ -163,7 +163,8 @@ class Hooks(unittest.TestCase):
         guard = '"$CLAUDE_PROJECT_DIR"/archetype/' + GUARD
         for matcher, covered in (('Edit, Bash', True), ('Edit | Bash', True), ('Bash ', True), ('^Ba', True),
                                  ('.*', True), ('Edit|Write', False), ('Bas', False), ('(?i)bash', False),
-                                 ('\\ABash\\Z', False)):
+                                 ('\\ABash\\Z', False), ('Bash{,1}', False), ('(?#c)Bash', False),
+                                 ('(?>Bash)', False), ('Bas*+h', False)):
             with self.subTest(matcher=matcher):
                 self.settings(self.guard_only(guard, matcher=matcher))
                 result = self.check()
@@ -181,6 +182,13 @@ class Hooks(unittest.TestCase):
         self.settings(self.guard_only('archetype/' + GUARD))
         result = self.check()
         self.assertIn('WARN: the guard\'s command uses a relative path', result.stdout)
+
+    def test_a_relative_guard_after_an_interpreter_and_another_shell_are_named(self):
+        self.inject()
+        self.settings(self.guard_only('/bin/bash archetype/' + GUARD))
+        self.assertIn("WARN: the guard's command uses a relative path", self.check().stdout)
+        self.settings(self.guard_only('"$CLAUDE_PROJECT_DIR"/archetype/' + GUARD, shell='powershell'))
+        self.assertIn('run the guard under "powershell"', self.check().stdout)
 
     def test_the_retired_reminder_reads_its_input_and_says_nothing(self):
         result = subprocess.run(['bash', str(ENGINE / STUB)], input='{"hook_event_name": "Stop"}',

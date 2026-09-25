@@ -305,7 +305,7 @@ fi
 REFS_REGULATED=0
 REFS_LINE=""
 while IFS= read -r line; do
-  if echo "$line" | grep -qiE '(none|N/A|not applicable|not required|no regulated|not regulated|skipped|deferred)'; then
+  if echo "$line" | grep -qiE "(none|N/A|not applicable|not required|no regulated|not regulated|skipped|deferred|not apply|doesn't apply|don't apply)"; then
     continue
   fi
   if echo "$line" | grep -qiE '(HIPAA|SOC ?2|PCI( |-)?DSS|PCI compliance|GDPR compliance|regulated data (is|are|yes)|regulated data: *(yes|unknown)|compliance: (yes|required))'; then
@@ -314,6 +314,19 @@ while IFS= read -r line; do
     break
   fi
 done < "$REFS"
+
+# Where the audit log is kept: the "- Audit log:" line of References.md § Compliance, as a path
+# in this unit, or "kept by <unit or service>". Without a recorded path, the usual folders count.
+AUDIT_RECORD="$(tr -d '\r' < "$REFS" | sed -n 's/^- Audit log:[[:space:]]*//p' | head -1 | sed 's/[[:space:]]*$//')"
+case "$AUDIT_RECORD" in '['*) AUDIT_RECORD="" ;; esac
+AUDIT_ELSEWHERE=""
+AUDIT_PATH=""
+case "$(printf '%s' "$AUDIT_RECORD" | tr '[:upper:]' '[:lower:]')" in
+  '') ;;
+  'kept by '*) AUDIT_ELSEWHERE="${AUDIT_RECORD#????????}" ;;
+  *) AUDIT_PATH="$(printf '%s' "$AUDIT_RECORD" | awk '{ print $1 }' | tr -d '`')" ;;
+esac
+DEFAULT_AUDIT="src/shared/audit-log, src/shared/audit and src/audit (or the same under app/, lib/ or project/src/)"
 
 case "$PROFILE_REGULATED" in
   no) ;;
@@ -324,25 +337,39 @@ case "$PROFILE_REGULATED" in
   *) [ "$REFS_REGULATED" = 1 ] && { REGULATED=1; REG_SOURCE="References.md declares regulated data"; } ;;
 esac
 
-if [ "$REGULATED" -eq 1 ]; then
+# A unit that records its audit log's path keeps it, whatever else it declares.
+if [ "$REGULATED" -eq 0 ] && [ -n "$AUDIT_PATH" ] && [ "$PROFILE_REGULATED" != "no" ]; then
+  REGULATED=1; REG_SOURCE="References.md § Compliance records this unit's audit log"
+fi
+if [ "$REGULATED" -eq 1 ] && [ -n "$AUDIT_ELSEWHERE" ]; then
+  pass "audit log kept by $AUDIT_ELSEWHERE (References.md § Compliance; $REG_SOURCE)"
+elif [ "$REGULATED" -eq 1 ] && [ -n "$AUDIT_PATH" ]; then
+  if [ -e "$PROJECT_ROOT/$AUDIT_PATH" ]; then
+    pass "audit log path exists: $AUDIT_PATH ($REG_SOURCE)"
+  else
+    fail "$REG_SOURCE, and References.md § Compliance records the audit log at $AUDIT_PATH, which does not exist (audit log must be SEPARATE from app log — see B4)"
+  fi
+elif [ "$REGULATED" -eq 1 ]; then
   FOUND=0
   for candidate in \
     "$SRC_DIR/shared/audit-log" \
     "$SRC_DIR/shared/audit" \
     "$SRC_DIR/audit"; do
-    [ -d "$candidate" ] && FOUND=1 && break
+    [ -n "$SRC_DIR" ] && [ -d "$candidate" ] && FOUND=1 && break
   done
   if [ "$FOUND" -eq 1 ]; then
     pass "audit log path exists ($REG_SOURCE)"
   else
-    fail "$REG_SOURCE but no audit-log path found (audit log must be SEPARATE from app log — see B4)"
+    fail "$REG_SOURCE but no audit log found: record where this unit keeps it on the Audit log line of References.md § Compliance (a path, or kept by <unit or service>); without it the check looks in $DEFAULT_AUDIT (audit log must be SEPARATE from app log — see B4)"
   fi
+elif [ -n "$AUDIT_ELSEWHERE" ] && [ "$PROFILE_REGULATED" != "no" ]; then
+  pass "audit log kept by $AUDIT_ELSEWHERE (References.md § Compliance)"
 elif [ "$PROFILE_REGULATED" = "no" ] && [ "$REFS_REGULATED" = 1 ]; then
   warn "PROFILE.md records no regulated data, but References.md names it: \"$REFS_LINE\". Correct whichever record is wrong"
 elif [ "$PROFILE_REGULATED" = "no" ]; then
   pass "PROFILE.md records no regulated data — audit log check skipped"
 elif [ "$PROFILE_REGULATED" = "yes" ] || [ "$PROFILE_REGULATED" = "unknown" ]; then
-  warn "PROFILE.md above this folder records regulated data: $PROFILE_REGULATED, and this unit's References.md does not say this unit handles it. The audit log belongs to the unit that does: record in each unit's Compliance section which one keeps it"
+  warn "PROFILE.md above this folder records regulated data: $PROFILE_REGULATED, and this unit's References.md does not say where the audit log is kept. Record it on the Audit log line of References.md § Compliance: this unit's path when it keeps the log, or kept by <unit>"
 else
   pass "no regulated data declared (or explicitly N/A) — audit log check skipped"
 fi
@@ -363,23 +390,25 @@ case "$PROFILE_REGULATED" in
      fi ;;
 esac
 if [ "$RUN_4B" -eq 1 ]; then
-  if [ -n "$SRC_DIR" ]; then
-    AUDIT_DIR=""
+  AUDIT_DIR=""
+  if [ -n "$AUDIT_PATH" ] && [ -e "$PROJECT_ROOT/$AUDIT_PATH" ]; then
+    AUDIT_DIR="$PROJECT_ROOT/$AUDIT_PATH"
+  elif [ -z "$AUDIT_ELSEWHERE" ] && [ -n "$SRC_DIR" ]; then
     for candidate in "$SRC_DIR/shared/audit-log" "$SRC_DIR/shared/audit" "$SRC_DIR/audit"; do
       [ -d "$candidate" ] && AUDIT_DIR="$candidate" && break
     done
-    if [ -n "$AUDIT_DIR" ]; then
-      # In-memory store pattern: class name or variable names suggesting ephemeral storage
-      if grep -rqE '(InMemoryAuditStore|MemoryAuditStore|inMemoryStore|this\.records[[:space:]]*=[[:space:]]*\[\]|records:[[:space:]]*Array|push\(record\))' "$AUDIT_DIR" 2>/dev/null; then
-        # Check if there's ALSO a real backing store adapter
-        if grep -rqE '(PostgresAuditStore|PrismaAuditStore|DatabaseAuditStore|S3AuditStore|AppendOnlyStore|WORMStore|CloudAuditStore)' "$AUDIT_DIR" 2>/dev/null; then
-          pass "audit log has both in-memory (test) and backing store (production) implementations"
-        else
-          fail "audit log uses in-memory store only ($REG_SOURCE). Ship to production = compliance failure. Add a real backing-store adapter (append-only table, WORM storage, or audit-log platform)."
-        fi
+  fi
+  if [ -n "$AUDIT_DIR" ]; then
+    # In-memory store pattern: class name or variable names suggesting ephemeral storage
+    if grep -rqE '(InMemoryAuditStore|MemoryAuditStore|inMemoryStore|this\.records[[:space:]]*=[[:space:]]*\[\]|records:[[:space:]]*Array|push\(record\))' "$AUDIT_DIR" 2>/dev/null; then
+      # Check if there's ALSO a real backing store adapter
+      if grep -rqE '(PostgresAuditStore|PrismaAuditStore|DatabaseAuditStore|S3AuditStore|AppendOnlyStore|WORMStore|CloudAuditStore)' "$AUDIT_DIR" 2>/dev/null; then
+        pass "audit log has both in-memory (test) and backing store (production) implementations"
       else
-        pass "audit log implementation does not rely on in-memory-only storage"
+        fail "audit log uses in-memory store only ($REG_SOURCE). Ship to production = compliance failure. Add a real backing-store adapter (append-only table, WORM storage, or audit-log platform)."
       fi
+    else
+      pass "audit log implementation does not rely on in-memory-only storage"
     fi
   fi
 fi

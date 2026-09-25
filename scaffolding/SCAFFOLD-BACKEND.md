@@ -297,7 +297,7 @@ Run `scripts/validate-scaffold.sh`. Do not commit until it passes. The validator
 - Every foundational system in feature-tree.md has a `docs/systems/{name}.md`
 - Env validation exists as a dedicated module or a named validation function in source
 - No console-level output in source outside dev-guarded blocks
-- When References.md declares regulated data: an audit-log path separate from the app log, and not an in-memory-only store. When it declares mobile/public GraphQL clients: persisted queries. When it names a telemetry standard: a configured exporter
+- When the unit handles regulated data (PROFILE.md, or its References.md): an audit log separate from the app log, where References.md § Compliance records it (its Audit log line), and not an in-memory-only store. When it declares mobile/public GraphQL clients: persisted queries. When it names a telemetry standard: a configured exporter
 - A smoke-test feature, a pre-commit hook, and a VERSION-LOG Scaffold entry; migrations not in an auto-apply CI step
 
 If validator fails, FIX before committing. Do not paper over.

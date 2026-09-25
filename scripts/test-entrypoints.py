@@ -1012,15 +1012,20 @@ class Entrypoints(unittest.TestCase):
             self.assertEqual(self.snapshot(self.project), before)
             log.chmod(0o644)
             # A later step that fails leaves the log as it was: it is written after the rest of the update.
+            # Read-only file and folder: some cp implementations replace a read-only file they may unlink.
             agents = self.project / 'archetype/AGENTS.md'
+            engine = self.project / 'archetype'
             agents.chmod(0o444)
+            engine.chmod(0o555)
             self.addCleanup(agents.chmod, 0o644)
+            self.addCleanup(engine.chmod, 0o755)
             result = self.run_update(env)
             self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn('ADD: an Updates heading to VERSION-LOG.md at line', result.stdout)
             self.assertIn('Applying updates...', result.stdout)
             self.assertEqual(log.read_text(), damaged)
             self.assertEqual(sorted(p.name for p in self.project.iterdir() if p.name.startswith('.VERSION-LOG')), [])
+            engine.chmod(0o755)
             agents.chmod(0o644)
         result = self.run_update(env)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

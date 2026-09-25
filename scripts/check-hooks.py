@@ -65,7 +65,7 @@ def text(hook):
 # of exact names separated by "|" or ","; anything else is a JavaScript regular expression tested
 # unanchored. Python and JavaScript read some constructs differently; those are refused here.
 EXACT = re.compile(r'[A-Za-z0-9_\- ,|]*')
-NOT_JAVASCRIPT = re.compile(r'\(\?[A-Za-z<]|\\[AZz]')
+NOT_JAVASCRIPT = re.compile(r'\(\?[A-Za-z<>#]|\\[AZz]|\{,|[*+?}]\+')
 
 
 def covers_shell(matcher):
@@ -169,10 +169,14 @@ def main():
             fail('the guard runs only for tool calls matching "%s", so it cannot block other commands' % hook['if'])
             continue
         command = str(hook.get('command', ''))
-        if not PLACEHOLDER.search(text(hook)) and not command.lstrip('"\'').startswith('/'):
+        script = next((word.strip('"\'') for word in text(hook).split() if GUARD in word), '')
+        if script and not script.startswith('/') and not PLACEHOLDER.search(script):
             print('WARN: the guard\'s command uses a relative path; the host runs hooks from the session\'s '
                   'current folder, which is not always the project root. Name it through the project-folder '
                   'placeholder as the settings templates do.')
+        if hook.get('shell') not in (None, '', 'sh', 'bash', '/bin/sh', '/bin/bash'):
+            print('WARN: the registration asks the host to run the guard under "%s"; this check ran it through '
+                  '/bin/sh, so what that shell does with it is not shown here.' % hook['shell'])
         loose = not isinstance(hook.get('args'), list) and unquoted_placeholder(command)
         if loose:
             print('WARN: the guard\'s command leaves the project-folder placeholder unquoted; a project '
