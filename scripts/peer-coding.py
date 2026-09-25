@@ -630,12 +630,17 @@ def not_default(project):
     return ['--not'] + refs if refs else []
 
 
-def elsewhere_default(project, commit):
-    """Another remote's branch named like the default branch that holds the commit, or ''."""
+def elsewhere_default(project, folder, commit):
+    """Another remote's branch named like the default branch that holds the commit but not this branch itself
+    (the commit that added the folder), so the commit came from there; '' otherwise. A deploy target the branch
+    was pushed to holds the folder's commit too, and is not named."""
     if not project.default:
         return ''
+    added = git(project.top, 'log', '--no-show-signature', '--format=%H', '--reverse', '--no-renames',
+                '--diff-filter=A', 'HEAD', '--', '%s/%s/CURRENT.md' % (RECORD, folder.name), check=False).stdout.split()
     for ref in git(project.top, 'for-each-ref', '--format=%(refname)', 'refs/remotes', check=False).stdout.split():
-        if ref.endswith('/' + project.default) and ref not in project.default_refs() and is_ancestor(project, commit, ref):
+        if (ref.endswith('/' + project.default) and ref not in project.default_refs()
+                and is_ancestor(project, commit, ref) and not (added and is_ancestor(project, added[0], ref))):
             return ref[len('refs/remotes/'):]
     return ''
 
@@ -783,7 +788,7 @@ def check_folder(project, folder, peers, report, you=''):
                         'rewritten, so write in your packet: Commit %s made by <name>' % (name, commit[:12], given, commit[:12]))
         else:
             hint = ''
-            other = elsewhere_default(project, commit)
+            other = elsewhere_default(project, folder, commit)
             if other:
                 hint = (' If it came to this branch from the default branch on %s, bring your local %s up to date '
                         'with it and check again.' % (other, project.default))

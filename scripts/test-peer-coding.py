@@ -1308,6 +1308,8 @@ class History(Reviewed):
         for expected in ('product files changed while ALIGNMENT.md is not CONFIRMED: app.py', 'commit %s does not name who made it' % early[:12]):
             self.assertIn(expected, before)
             self.assertIn(expected, after.stdout)
+        # The branch itself went to that remote, so its commits did not come from there: no hint to sync main with it.
+        self.assertNotIn('bring your local main up to date', after.stdout)
 
     def test_a_mention_is_not_an_attribution_and_a_mid_line_peer_is_not_a_line(self):
         where, folder, product = self.reviewed()
