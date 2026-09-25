@@ -126,10 +126,13 @@ class Project:
         return succeeds(self.top, 'show-ref', '-q', '--verify', ref)
 
     def default_refs(self):
+        """The default branch here and on every remote (origin first)."""
         if not self.default:
             return []
-        return [ref for ref in ('refs/heads/' + self.default, 'refs/remotes/origin/' + self.default)
-                if self.ref_exists(ref)]
+        remotes = git(self.top, 'remote', check=False).stdout.split()
+        remotes = (['origin'] if 'origin' in remotes else []) + [name for name in remotes if name != 'origin']
+        refs = ['refs/heads/' + self.default] + ['refs/remotes/%s/%s' % (name, self.default) for name in remotes]
+        return [ref for ref in refs if self.ref_exists(ref)]
 
     def _engine_here(self):
         # The engine as this worktree carries it: the same place relative to the repository top as
@@ -283,6 +286,10 @@ def settings_problems(path, complete=True):
     missing = [key for key in keys if key != 'Peers' and not filled(fields.get(key, ''))]
     if missing:
         problems.append('fill in: %s' % ', '.join(missing))
+    push = plain(fields.get('Push', ''))
+    if re.match(r'^no\b', push, re.I) and not re.sub(r'^no\b[\s:,.;-]*', '', push, flags=re.I).strip():
+        problems.append('Push: no needs its reason (a push to a work branch would itself start a deploy or release '
+                        'build, or there is no remote)')
     return problems
 
 
@@ -564,6 +571,11 @@ def opening_head(project, folder):
     commit = resolve_commit(project, match.group(1)) if match else ''
     if commit and is_ancestor(project, commit, 'HEAD'):
         return commit
+    # A rebase gave the branch new commit ids: peer coding began just before the commit that added the folder.
+    added = git(project.top, 'log', '--no-show-signature', '--format=%H', '--reverse', '--no-renames',
+                '--diff-filter=A', 'HEAD', '--', '%s/%s/CURRENT.md' % (RECORD, folder.name), check=False).stdout.split()
+    if added:
+        return resolve_commit(project, added[0] + '^') or added[0]
     for ref in project.default_refs():
         base = git(project.top, 'merge-base', 'HEAD', ref, check=False).stdout.strip()
         if base:
@@ -615,6 +627,28 @@ def merge_changes(project, merge):
     return [line for line in own.stdout.splitlines() if line]
 
 
+def attributed(folder, commit):
+    """Whether a packet of this folder names the commit (its first 7 or more characters)."""
+    ids = re.compile(r'\b([0-9a-f]{7,40})\b')
+    for _, _, packet in packets(folder):
+        for found in ids.findall(read(packet)):
+            if commit.startswith(found):
+                return True
+    return False
+
+
+def peer_line_names(message):
+    """The names on a commit message's Peer lines: `Peer: claude`, `Peer: claude (its tool)`, `Peer: claude, codex`."""
+    names = []
+    for value in re.findall(r'^peer:[ \t]*(.*)$', message, re.M | re.I):
+        value = re.sub(r'\([^)]*\)', ' ', value)
+        for part in re.split(r',|;|&|\band\b', value):
+            part = part.strip()
+            if part:
+                names.append(part.lower() if re.match(r'^[A-Za-z][A-Za-z0-9-]*$', part) else '?' + part)
+    return names
+
+
 def unnamed_commits(project, folder, peers):
     """This branch's own commits since its folder was opened whose message names no assistant with a Peer line:
     (commit, the names it gives, whether it is already on the branch's own remote branch)."""
@@ -633,8 +667,8 @@ def unnamed_commits(project, folder, peers):
         if len(fields) < 3 or not fields[0]:
             continue
         commit, parents, message = fields[0], fields[1].split(), fields[2]
-        names = [name.lower() for name in re.findall(r'^Peer:\s*([A-Za-z][A-Za-z0-9-]*)\s*$', message, re.M)]
-        if any(name in peers + ['owner'] for name in names):
+        names = peer_line_names(message)
+        if names and all(name in peers + ['owner'] for name in names):
             continue
         if len(parents) > 1 and not merge_changes(project, commit):
             continue  # a merge that only brings in the default branch's work
@@ -715,11 +749,14 @@ def check_folder(project, folder, peers, report, you=''):
         report.fail('uncommitted product changes in this worktree: %s. Commit them on your writing turn, '
                     'or leave them out; never hand them over' % listed(dirty))
     for commit, names, pushed in unnamed_commits(project, folder, peers):
-        given = ('it says Peer: %s, which is not %s or owner' % (names[0], ' or '.join(peers))) if names else \
-            'it has no Peer: line'
-        if pushed:
-            report.warn('%s: commit %s does not name who made it (%s); it is already pushed and history is never '
-                        'rewritten, so your packet names who made it' % (name, commit[:12], given))
+        wrong = [value.lstrip('?') for value in names if value not in peers + ['owner']]
+        given = ('its Peer line names %s, which is not %s or owner' % (', '.join(wrong), ' or '.join(peers))) if names \
+            else 'it has no Peer: line'
+        if pushed and attributed(folder, commit):
+            report.warn('%s: commit %s does not name who made it (%s); a packet names it' % (name, commit[:12], given))
+        elif pushed:
+            report.fail('%s: commit %s does not name who made it (%s). It is already pushed and history is never '
+                        'rewritten, so write its id and who made it in your packet' % (name, commit[:12], given))
         else:
             report.fail('%s: commit %s does not name who made it (%s). Add a line Peer: <name> to its message before '
                         'it is pushed: git commit --amend for the last commit, otherwise reword it' % (name, commit[:12], given))
@@ -765,9 +802,15 @@ def check_folder(project, folder, peers, report, you=''):
     report.note('%s (%s)' % (name, summary))
 
 
-def check_closed(project, folder, report):
+def check_closed(project, folder, report, peers):
     name = display(project, folder)
     report.note('%s is closed: its branch finished. New work gets a new branch' % name)
+    if git(project.top, 'status', '--porcelain', '-uall', '--', RECORD).stdout.strip():
+        report.fail('%s/ has uncommitted changes: commit the close (with your Peer line) before the merge' % RECORD)
+    for commit, names, pushed in unnamed_commits(project, folder, peers):
+        if not (pushed and attributed(folder, commit)):
+            report.fail('%s: commit %s does not name who made it; add a Peer line before it is pushed, or name it in '
+                        'a packet if it already is' % (name, commit[:12]))
     current = current_state(folder)
     if not current['closed_for_merge']:
         return
@@ -835,7 +878,7 @@ def command_check(project, args):
     else:
         own, state = branch_folder(project, project.branch)
         if state == 'done' and own.is_dir():
-            check_closed(project, own, report)
+            check_closed(project, own, report, peers)
         elif state == 'done':
             report.note('the closed folder of branch %s is on %s: this branch already merged' % (project.branch, project.default))
         elif state == 'none':
@@ -1040,6 +1083,8 @@ def command_cue(project, args):
     if report.fails:
         report.show()
         raise Refusal('the checks above must pass before handing over')
+    for text in report.warns:
+        print('WARN: ' + text)
     relative = '%s/%s' % (RECORD, folder.name)
     if git(project.top, 'status', '--porcelain', '-uall', '--', RECORD).stdout.strip():
         raise Refusal('%s/ has uncommitted changes; commit it first: git add -- %s && git commit -m '
@@ -1193,6 +1238,8 @@ def command_close(project, args):
         if report.fails:
             report.show()
             raise Refusal('the checks above must pass before closing')
+        for text in report.warns:
+            print('WARN: ' + text)
         if not confirmed(alignment_state(folder)):
             raise Refusal('ALIGNMENT.md is not CONFIRMED; work that was never aligned closes as --abandoned, not for a merge')
         remote, tracked = upstream_of(project)
