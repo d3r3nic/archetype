@@ -339,6 +339,7 @@ case "$(printf '%s' "$AUDIT_PLAIN" | tr '[:upper:]' '[:lower:]')" in
       '`'*'`'*) AUDIT_PATH="${AUDIT_RECORD#?}"; AUDIT_PATH="${AUDIT_PATH%%\`*}" ;;
       *) AUDIT_PATH="$(printf '%s' "$AUDIT_RECORD" | awk '{ print $1 }' | sed 's/[,;:.]*$//')" ;;
     esac
+    AUDIT_PATH="$(printf '%s' "$AUDIT_PATH" | tr -s '/')"   # a doubled slash is one
     while case "$AUDIT_PATH" in ./*) true ;; *) false ;; esac; do AUDIT_PATH="${AUDIT_PATH#./}"; done
     AUDIT_PATH="${AUDIT_PATH%/}"
     case "$AUDIT_PATH" in
