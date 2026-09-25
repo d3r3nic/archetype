@@ -924,14 +924,14 @@ class PortableCharacterLists(unittest.TestCase):
     run time are not read here, since a test run on one system cannot see another system's reading."""
 
     NOT_REGEX = {
-        ('scripts/next-step.sh', '[\\ ,.\;:]'): 'a bash case pattern',
+        ('scripts/next-step.sh', '[\\ ,.\\;:]'): 'a bash case pattern',
         ('scripts/pulse-inspect.sh', '[\\"Foundational Systems\\"]'): 'a Mermaid label in a double-quoted string',
         ('scripts/pulse-inspect.sh', '[\\"Features\\"]'): 'a Mermaid label in a double-quoted string',
         ('scripts/pulse-inspect.sh', '[\\"${name}\\"]'): 'a Mermaid label in a double-quoted string',
         ('scripts/pulse-inspect.sh', '[\\"${c3}\\"]'): 'a Mermaid label in a double-quoted string',
         ('scripts/validate-claims.sh', '[^A-Za-z0-9\\"\'#&]'): 'a grep pattern in a double-quoted string',
     }
-    TEXT_TOOL = re.compile(r'(^|[\s|;&(`])(awk|grep|sed|tr|sort|cut|comm|uniq)\s')
+    TEXT_TOOL = re.compile(r'(^|[\s|;&(`])(awk|grep|sed|tr|sort|cut|comm|uniq)(\s|$)')
 
     @staticmethod
     def scripts():
@@ -1012,9 +1012,10 @@ class PortableCharacterLists(unittest.TestCase):
         for script in self.scripts():
             code = [line.strip() for line in script.read_text(encoding='utf-8', errors='replace').splitlines()[1:]
                     if line.strip() and not line.lstrip().startswith('#')]
-            if any(self.TEXT_TOOL.search(line) for line in code) and code[0] != 'export LC_ALL=C':
+            first = next((i for i, line in enumerate(code) if self.TEXT_TOOL.search(line)), None)
+            if first is not None and 'export LC_ALL=C' not in code[:first]:
                 missing.append(script.relative_to(SOURCE).as_posix())
-        self.assertEqual(missing, [], 'each of these must run "export LC_ALL=C" before its first command')
+        self.assertEqual(missing, [], 'each of these must run "export LC_ALL=C" before its first text tool')
 
 if __name__ == '__main__':
     unittest.main()

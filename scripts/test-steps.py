@@ -6,6 +6,7 @@ import importlib.util
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -553,6 +554,20 @@ class Steps(unittest.TestCase):
         closed = self.run_tool('--close', 'boot.1')
         self.assertEqual(closed.returncode, 0, closed.stdout)
         self.assertRegex(self.closed()[-1], r'check passed: project: typecheck, test$')
+
+    def test_the_projects_commands_keep_the_locale_the_caller_set(self):
+        # The tool reads text as bytes; the project's own tests run in the caller's locale, or a test
+        # that depends on it (an encoding, a sort order) would fail only when a step closes.
+        caller = 'en_US.UTF-8' if sys.platform == 'darwin' else 'C.UTF-8'
+        self.project_playbook(); self.commands(test='`test "$LC_ALL" = %s`' % caller)
+        result = self.run_tool('--close', 'boot.1', env=dict(os.environ, LC_ALL=caller))
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_the_projects_commands_see_no_locale_the_caller_did_not_set(self):
+        self.project_playbook(); self.commands(test='`test -z "${LC_ALL+set}"`')
+        env = {key: value for key, value in os.environ.items() if key != 'LC_ALL'}
+        result = self.run_tool('--close', 'boot.1', env=env)
+        self.assertEqual(result.returncode, 0, result.stdout)
 
     def test_a_command_never_recorded_fails_and_none_is_not_applicable(self):
         self.project_playbook(); self.commands(typecheck='[command to run type checker]')
