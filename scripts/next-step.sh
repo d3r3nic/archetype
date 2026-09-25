@@ -23,10 +23,11 @@
 # step, before any sub-heading, the lines "Read:", "Produces:", "Check:", and optionally
 # "Skip when:". A step with sub-steps (2 with 2.1, 2.2) is a container; only its sub-steps
 # open and close. A check passes when it exits 0. A check that runs the project's own commands
-# finds each on its label's line in the project's References.md, section Commands, in backticks:
-# only the text between them runs (build: `<command>` and any note after it, which never runs).
-# A value in brackets is not recorded yet and fails; none or n/a, plain or in backticks, means the
-# project has no such command; any other value fails, and nothing outside the backticks is ever run.
+# finds each on its label's line (or list item) in the project's References.md, section Commands,
+# in backticks: only the text between them runs (build: `<command>` and any note after it, which
+# never runs). A value in brackets is not recorded yet and fails; none or n/a, plain or in
+# backticks, means the project has no such command; any other value fails, and nothing outside
+# the backticks is ever run.
 #
 # What it cannot do: tell whether a step was done well, whether quoted evidence is what the
 # owner said, whether a skip's reason is true, or stop anyone editing PROGRESS.md by hand.
@@ -229,11 +230,13 @@ project_references() {
   done
   return 1
 }
+# The label opens its line, or its list item: "- label:" or "* label:".
 project_command() {
   local refs
   refs="$(project_references)" || return 1
   tr -d '\r' < "$refs" | L="$1" awk '/^## Commands/ { f = 1; next } /^## / { f = 0 }
-    f { l = ENVIRON["L"] ":"; if (index($0, l) == 1) { v = substr($0, length(l) + 1); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); print v; exit } }'
+    f { s = $0; if (match(s, /^[-*][ \t]+/)) s = substr(s, RLENGTH + 1)
+        l = ENVIRON["L"] ":"; if (index(s, l) == 1) { v = substr(s, length(l) + 1); sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v); print v; exit } }'
 }
 
 # A recorded value is one of: the command in backticks, then any note, which never runs

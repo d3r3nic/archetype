@@ -760,6 +760,30 @@ class Steps(unittest.TestCase):
                     self.assertTrue((self.project / 'ran.txt').exists())
                     self.assertEqual(self.closed(), [])
 
+    def test_a_commands_section_written_as_a_list_is_read(self):
+        # "- " or "* " may open the line; the label has to start the item.
+        for bullet in ('- ', '* ', '-   ', '*\t'):
+            with self.subTest(bullet=bullet):
+                self.setUp(); self.project_playbook()
+                (self.project / 'References.md').write_text(
+                    '# References\n\n## Commands\n\n{0}dev: `start`\n{0}typecheck: `true` (no emit)\n{0}test: `test -f flag.txt`\n'.format(bullet))
+                refused = self.run_tool('--close', 'boot.1')
+                self.assertEqual(refused.returncode, 1, refused.stdout)
+                self.assertIn("FAIL: the project's test command failed: test -f flag.txt", refused.stdout)
+                self.assertEqual(self.closed(), [])
+                (self.project / 'flag.txt').write_text('x')
+                closed = self.run_tool('--close', 'boot.1')
+                self.assertEqual(closed.returncode, 0, closed.stdout)
+                self.assertRegex(self.closed()[-1], r'check passed: project: typecheck, test$')
+        for line in ('- run typecheck: `true`', '-typecheck: `true`'):
+            with self.subTest(line=line):
+                self.setUp(); self.project_playbook()
+                (self.project / 'References.md').write_text('# References\n\n## Commands\n\n%s\n- test: `true`\n' % line)
+                result = self.run_tool('--close', 'boot.1')
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn("records no command for 'typecheck'", result.stdout)
+                self.assertEqual(self.closed(), [])
+
     def test_closed_project_checks_rerun_as_before_and_meet_the_contract(self):
         # A closed step whose recorded command is now a sentence: a bare run and a listing still
         # leave it alone; a close, a skip, and --verify re-run it and refuse it with the migration message.
