@@ -440,7 +440,9 @@ class NoPush(Base):
         self.assertIn('READY FOR CODEX · peer-coding/feature-plots ALIGN BRIEFED', result.stdout)
 
 
-class Close(Base):
+class Reviewed(Base):
+    """Helpers for a branch whose work was reviewed; holds no tests of its own."""
+
     def reviewed(self, branch='feature/plots'):
         where, folder = self.started(branch)
         self.confirm(where, branch)
@@ -454,6 +456,9 @@ class Close(Base):
     def accept(self, where, folder, commit, note='by codex, R1'):
         self.edit(folder / 'CURRENT.md', r'^- \*\*Accepted head:\*\*.*$', '- **Accepted head:** %s %s' % (commit, note))
         self.commit(where, 'accepted', 'peer-coding')
+
+
+class Close(Reviewed):
 
     def test_close_needs_acceptance_of_the_last_product_change(self):
         where, folder, product = self.reviewed()
@@ -560,7 +565,7 @@ class Close(Base):
         self.assertIn('DONE, abandoned: owner dropped the feature', (folder.parent / 'feature-plots--done' / 'CURRENT.md').read_text())
 
 
-class AuditFindings(Close):
+class AuditFindings(Reviewed):
     """Cases found by the independent audit: each would have let wrong work through, or blocked right work."""
 
     def test_only_a_leading_commit_id_is_an_acceptance(self):
@@ -851,7 +856,7 @@ class TwoUnits(unittest.TestCase):
             self.assertIn('read frontend/AGENTS.md there, then peer-coding/feature-both/CURRENT.md', result.stdout)
 
 
-class RoundThree(Close):
+class RoundThree(Reviewed):
     """Cases from the second round of the independent script audit."""
 
     def test_no_product_change_while_realigning_even_after_rounds(self):
@@ -988,7 +993,7 @@ class RoundThree(Close):
         self.assertNotIn('Traceback', result.stdout)
 
 
-class RoundFour(Close):
+class RoundFour(Reviewed):
     """The last small points of the independent script audit."""
 
     def rebrief(self, where, folder):
