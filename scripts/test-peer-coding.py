@@ -1253,6 +1253,11 @@ class History(Reviewed):
         self.git(where, 'merge', '-q', '--no-edit', 'upstream/main')
         self.set_head(folder, 'feature/plots', self.git(where, 'rev-parse', 'HEAD'))
         self.commit(where, 'record the merge', 'peer-coding')
+        stale = self.pc(where, 'check')
+        self.assertIn('If it came to this branch from the default branch on upstream/main, bring your local main up to date', stale.stdout)
+        # A fork keeps its local default branch in step with the canonical one; then nothing is flagged.
+        self.git(self.project, 'fetch', '-q', str(upstream), 'main:refs/heads/synced')
+        self.git(self.project, 'merge', '-q', '--ff-only', 'synced')
         check = self.pc(where, 'check')
         self.assertNotIn('does not name who made it', check.stdout)
 
@@ -1345,6 +1350,39 @@ class History(Reviewed):
         check = self.pc(where, 'check')
         self.assertEqual(check.returncode, 1, check.stdout)
         self.assertIn('commit %s does not name who made it; add a Peer line before it is pushed, or name it in a packet' % unnamed[:12], check.stdout)
+
+
+    def test_a_pull_that_merges_keeps_the_other_assistants_commits_in_view(self):
+        where, folder, product = self.reviewed()
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        other = self.root / 'codex clone'
+        self.git(self.root, 'clone', '-q', '-b', 'feature/plots', str(self.root / 'remote.git'), str(other))
+        (other / 'theirs.py').write_text('print("codex, no Peer line")\n')
+        theirs = self.commit(other, 'codex work', 'theirs.py', peer=None)
+        self.git(other, 'push', '-q')
+        (where / 'mine.py').write_text('print("claude, local")\n')
+        self.commit(where, 'claude work', 'mine.py')
+        self.git(where, 'pull', '-q', '--no-rebase', '--no-edit')
+        self.assertEqual(len(self.git(where, 'rev-list', '--merges', '-1', 'HEAD').split()), 1)
+        check = self.pc(where, 'check')
+        self.assertIn('commit %s does not name who made it' % theirs[:12], check.stdout)
+
+    def test_another_remotes_main_does_not_count_as_merged_for_close_and_reopen(self):
+        where, folder, product = self.reviewed()
+        self.accept(where, folder, product)
+        self.git(self.root, 'init', '-q', '--bare', 'staging.git')
+        self.git(where, 'remote', 'add', 'staging', str(self.root / 'staging.git'))
+        self.git(where, 'push', '-q', 'staging', 'HEAD:refs/heads/main')
+        self.git(where, 'fetch', '-q', 'staging')
+        self.git(where, 'branch', '-q', 'helper')
+        self.git(where, 'checkout', '-q', 'helper')
+        refused = self.pc(where, 'close', '--as', 'claude', '--folder', 'feature-plots', '--merged', 'PR 9')
+        self.assertIn('branch feature/plots still exists and is not merged into main', refused.stdout)
+        self.git(where, 'checkout', '-q', 'feature/plots')
+        self.assertEqual(self.pc(where, 'close', '--as', 'claude', '--merged', 'PR 9').returncode, 0)
+        self.git(where, 'commit', '-q', '-m', 'close', '-m', 'Peer: claude', '--', 'peer-coding')
+        reopened = self.pc(where, 'close', '--as', 'claude', '--reopen', 'the merge was refused')
+        self.assertEqual(reopened.returncode, 0, reopened.stdout)
 
 
 class Bootstrap(unittest.TestCase):

@@ -616,13 +616,28 @@ def own_product_changes(project, since):
     """Product files changed by this branch's own commits after `since`, leaving out a merge of the default branch."""
     if not is_ancestor(project, since, 'HEAD'):
         return []
-    # The branch's own line: first parents from HEAD back to `since`. Whatever a merge brought in from another
-    # branch (the default branch on any remote) sits on the merge's other side and is not this branch's work.
-    files = set(out(project.top, 'log', '--no-show-signature', '--first-parent', '--no-merges', '--format=',
-                    '--name-only', '%s..HEAD' % since, '--', '.', ':(exclude)%s' % RECORD).splitlines())
-    for merge in out(project.top, 'rev-list', '--first-parent', '--merges', '%s..HEAD' % since).split():
+    # The branch's own commits: since `since`, and not on the project's default branch (here, on origin, or on
+    # the remote the local default branch tracks). Both assistants' commits count, whichever way they arrived.
+    files = set(out(project.top, 'log', '--no-show-signature', '--no-merges', '--format=', '--name-only',
+                    '%s..HEAD' % since, *(not_default(project) + ['--', '.', ':(exclude)%s' % RECORD])).splitlines())
+    for merge in out(project.top, 'rev-list', '--merges', '%s..HEAD' % since, *not_default(project)).split():
         files.update(line for line in merge_changes(project, merge) if not line.startswith(RECORD + '/'))
     return sorted(line for line in files if line)
+
+
+def not_default(project):
+    refs = project.default_refs()
+    return ['--not'] + refs if refs else []
+
+
+def elsewhere_default(project, commit):
+    """Another remote's branch named like the default branch that holds the commit, or ''."""
+    if not project.default:
+        return ''
+    for ref in git(project.top, 'for-each-ref', '--format=%(refname)', 'refs/remotes', check=False).stdout.split():
+        if ref.endswith('/' + project.default) and ref not in project.default_refs() and is_ancestor(project, commit, ref):
+            return ref[len('refs/remotes/'):]
+    return ''
 
 
 def merge_changes(project, merge):
@@ -668,8 +683,8 @@ def unnamed_commits(project, folder, peers):
     remote, tracked = upstream_of(project)
     pushed = 'refs/remotes/%s/%s' % (remote, tracked) if remote and remote != '.' and tracked == project.branch else ''
     pushed = pushed if pushed and project.ref_exists(pushed) else ''
-    raw = git(project.top, 'log', '--no-show-signature', '--first-parent', '--format=%H%x00%P%x00%B%x1e',
-              '%s..HEAD' % since).stdout
+    raw = git(project.top, 'log', '--no-show-signature', '--format=%H%x00%P%x00%B%x1e', '%s..HEAD' % since,
+              *not_default(project)).stdout
     found = []
     for entry in raw.split('\x1e'):
         fields = entry.strip('\n').split('\x00')
@@ -767,8 +782,14 @@ def check_folder(project, folder, peers, report, you=''):
             report.fail('%s: commit %s does not name who made it (%s). It is already pushed and history is never '
                         'rewritten, so write in your packet: Commit %s made by <name>' % (name, commit[:12], given, commit[:12]))
         else:
+            hint = ''
+            other = elsewhere_default(project, commit)
+            if other:
+                hint = (' If it came to this branch from the default branch on %s, bring your local %s up to date '
+                        'with it and check again.' % (other, project.default))
             report.fail('%s: commit %s does not name who made it (%s). Add a line Peer: <name> to its message before '
-                        'it is pushed: git commit --amend for the last commit, otherwise reword it' % (name, commit[:12], given))
+                        'it is pushed: git commit --amend for the last commit, otherwise reword it.%s'
+                        % (name, commit[:12], given, hint))
 
     for number, peer, packet in packets(folder):
         if peer not in peers:
