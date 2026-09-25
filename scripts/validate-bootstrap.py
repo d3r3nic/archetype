@@ -117,6 +117,14 @@ def check_context():
     print('OK: required project facts recorded; scaffold implementation fields are left to scaffold')
 
 
+def check_peer():
+    """An existing project's migration writes References.md in its own shape: the answer may sit in any section."""
+    lines = live_lines(Path('References.md').read_text()) if Path('References.md').is_file() else []
+    answer = [line for line in lines if line.startswith('- Peer coding:')]
+    check_peer_line(answer[0].split(':', 1)[1] if answer else '')
+    print('OK: the owner\'s peer-coding answer is recorded')
+
+
 def check_log():
     lines = section(Path('VERSION-LOG.md'), 'Bootstrap', latest=True)
     data = fields(lines)
@@ -144,18 +152,15 @@ def check_log():
     for name in ('References.md', 'PROFILE.md', 'feature-tree.md'):
         if name not in named:
             raise ValueError(f'Files generated: missing required {name} entry')
-    answer = [line for line in live_lines(Path('References.md').read_text()) if line.startswith('- Peer coding:')] \
-        if Path('References.md').is_file() else []
-    check_peer_line(answer[0].split(':', 1)[1] if answer else '')
     print('OK: bootstrap handoff records discovery and open gates; reviewer must verify the claims')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=('context', 'log'))
+    parser.add_argument('mode', choices=('context', 'log', 'peer'))
     args = parser.parse_args()
     try:
-        (check_context if args.mode == 'context' else check_log)()
+        {'context': check_context, 'log': check_log, 'peer': check_peer}[args.mode]()
     except (ValueError, OSError) as error:
         print(f'FAIL: {error}')
         return 1

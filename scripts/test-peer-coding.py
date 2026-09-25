@@ -400,7 +400,7 @@ class Turns(Base):
         result = self.pc(where, 'cue', '--as', 'claude')
         self.assertEqual(result.returncode, 0, result.stdout)
         sha = self.git(where, 'rev-parse', '--short=12', 'HEAD')
-        self.assertIn('READY FOR CODEX · peer-coding/feature-plots ALIGN · feature/plots@%s' % sha, result.stdout)
+        self.assertIn('READY FOR CODEX · peer-coding/feature-plots ALIGN BRIEFED · feature/plots@%s' % sha, result.stdout)
         self.assertIn('Continue peer coding on branch feature/plots (worktree: %s)' % where.resolve(), result.stdout)
         refused = self.pc(where, 'cue', '--as', 'codex')
         self.assertEqual(refused.returncode, 1, refused.stdout)
@@ -437,7 +437,7 @@ class NoPush(Base):
         result = self.pc(where, 'cue', '--as', 'claude')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn('says Push: no', result.stdout)
-        self.assertIn('READY FOR CODEX · peer-coding/feature-plots ALIGN', result.stdout)
+        self.assertIn('READY FOR CODEX · peer-coding/feature-plots ALIGN BRIEFED', result.stdout)
 
 
 class Close(Base):
@@ -688,7 +688,12 @@ class AuditFindings(Close):
         self.git(where, 'push', '-q', 'origin', 'feature/plots')
         self.git(where, 'branch', '-q', '--set-upstream-to', 'origin/main')
         refused = self.pc(where, 'cue', '--as', 'claude')
-        self.assertIn('no packet of yours written after the last product commit', refused.stdout)
+        self.assertIn('does not track its own remote branch (it tracks origin/main)', refused.stdout)
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        noted = self.pc(where, 'cue', '--as', 'claude')
+        self.assertEqual(noted.returncode, 0, noted.stdout)
+        self.assertIn('NOTE: no packet of yours was written after the last product commit', noted.stdout)
+        self.git(where, 'branch', '-q', '--set-upstream-to', 'origin/main')
         self.assertEqual(self.pc(where, 'packet', '--as', 'claude').returncode, 0)
         self.edit(folder / 'rounds' / 'R1' / 'claude.md', r'^Status: WIP.*\n', '')
         self.commit(where, 'R1 packet', 'peer-coding')

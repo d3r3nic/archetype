@@ -177,6 +177,17 @@ done
 [ "$ERRORS" -eq 0 ] && pass "required artifacts present"
 
 # ----------------------------------------------------------------------
+group 8 "The owner's peer-coding answer (bootstrap Step 2.6)"
+# ----------------------------------------------------------------------
+if [ -f "$PROJECT_ROOT/References.md" ]; then
+  if PEER_RESULT="$(cd "$PROJECT_ROOT" && python3 "$ARCHETYPE/scripts/validate-bootstrap.py" peer 2>&1)"; then
+    pass "References.md records the owner's peer-coding answer"
+  else
+    fail "${PEER_RESULT#FAIL: }"
+  fi
+fi
+
+# ----------------------------------------------------------------------
 echo ""
 echo "==="
 if [ "$ERRORS" -gt 0 ]; then

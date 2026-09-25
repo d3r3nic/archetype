@@ -858,6 +858,10 @@ def command_start(project, args):
     }
     for template in ('CURRENT.md', 'ALIGNMENT.md', 'FINDINGS.md'):
         render(template, folder / template, values)
+    remote, tracked = upstream_of(project)
+    if remote and tracked != project.branch:
+        print('WARN: the branch tracks %s/%s; set its own upstream when you first push: git push -u %s %s'
+              % (remote, tracked, remote if remote != '.' else '<remote>', project.branch))
     print('Created %s for branch %s.' % (display(project, folder), project.branch))
     print('Who writes new work (%s/%s): %s' % (RECORD, SETTINGS, values['ROLES']))
     print('Next: decide whether you hold the context for this work and fill ALIGNMENT.md '
@@ -943,20 +947,23 @@ def command_cue(project, args):
         raise Refusal('a packet is still WIP: %s' % ', '.join(wip))
     current, alignment = current_state(folder), alignment_state(folder)
     opened = opening_head(project, folder)
+    note = ''
     if confirmed(alignment) and opened and product_changes(project, opened) and not current['waiting']:
         mine = [packet for _, peer, packet in packets(folder) if peer == you]
         written = out(project.top, 'log', '-1', '--format=%H', '--', display(project, mine[-1])) if mine else ''
         if not written or not is_ancestor(project, last_product_commit(project), written):
-            raise Refusal('this hand-over has no packet of yours written after the last product commit; open one '
-                          'with packet --as %s' % you)
+            # Returning the move after recording the owner's answer needs no packet; a turn that reviewed or
+            # changed product work does.
+            note = ('NOTE: no packet of yours was written after the last product commit. If this turn reviewed or '
+                    'changed product work, write it first (packet --as %s).' % you)
     if current['waiting']:
         recipient = label = ''
     elif not confirmed(alignment):
-        recipient, label = current['next_move'], 'ALIGN'
+        recipient, label = current['next_move'], 'ALIGN %s' % (alignment['status'] or 'started')
     else:
         recipient = current['turn'] if current['turn'] != 'none' else ''
         mine = [number for number, peer, _ in packets(folder) if peer == you]
-        label = 'R%d' % mine[-1] if mine else 'ALIGN'
+        label = 'R%d' % mine[-1] if mine else 'ALIGN CONFIRMED'
     if not current['waiting'] and recipient != other:
         raise Refusal('CURRENT.md gives the next move to %s. Before handing over, give it to %s; or write NEEDS USER '
                       'or SCOPE CLOSED as the Next action instead' % (recipient or 'no one', other))
@@ -964,8 +971,9 @@ def command_cue(project, args):
     if not pushes(fields):
         print('NOTE: %s/%s says Push: no, so the other assistant must work in this same repository.' % (RECORD, SETTINGS))
     elif not out(project.top, 'remote'):
-        raise Refusal('%s/%s says Push: yes, but this repository has no remote. Add the remote, or record the '
-                      'owner\'s decision Push: no' % (RECORD, SETTINGS))
+        raise Refusal('%s/%s says Push: yes, but this repository has no remote. Add the remote, or set Push: no '
+                      '(a technical choice under PROFILE.md\'s decision authority, recorded at the decision location)'
+                      % (RECORD, SETTINGS))
     elif not remote or remote == '.' or tracked != project.branch:
         raise Refusal('the branch does not track its own remote branch%s: push it with git push -u <remote> %s'
                       % (' (it tracks %s/%s)' % (remote, tracked) if remote else '', project.branch))
@@ -973,6 +981,8 @@ def command_cue(project, args):
             not is_ancestor(project, 'HEAD', 'refs/remotes/%s/%s' % (remote, tracked)):
         raise Refusal('push the branch first: %s/%s does not have this commit yet (git push %s %s)'
                       % (remote, tracked, remote, project.branch))
+    if note:
+        print(note)
     commit = out(project.top, 'rev-parse', '--short=12', 'HEAD')
     if current['waiting'] == 'NEEDS USER':
         print('NEEDS USER · %s · %s@%s' % (relative, project.branch, commit))

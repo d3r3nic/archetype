@@ -114,14 +114,15 @@ class Bootstrap(unittest.TestCase):
             body = LOG.replace('- References.md\n- PROFILE.md\n- feature-tree.md', replacement)
             self.assertEqual(self.run_gate('log', body).returncode, 1)
 
-    def test_the_log_step_needs_the_peer_coding_answer_on_both_paths(self):
-        # An existing project skips Step 4.2, so the log step, which both paths run, checks the answer.
+    def test_an_existing_projects_references_carry_the_peer_coding_answer_in_any_section(self):
+        # An existing project skips Step 4.2; its migration check runs this mode.
         (self.root / 'References.md').write_text('# References\n\n## Stack\n\n- Runtime: recorded\n')
-        result = self.run_gate('log', LOG)
+        run = lambda: subprocess.run(['python3', str(SCRIPT), 'peer'], cwd=self.root, capture_output=True, text=True)
+        result = run()
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn('Peer coding: ask the owner whether another AI assistant', result.stdout)
         (self.root / 'References.md').write_text('# References\n\n## Stack\n\n- Peer coding: none (asked, awaiting the owner)\n')
-        self.assertEqual(self.run_gate('log', LOG).returncode, 0)
+        self.assertEqual(run().returncode, 0)
 
     def test_markdown_link_is_a_value(self):
         self.assertEqual(self.run_gate('log', LOG.replace('Key decisions made: DECISIONS.md', 'Key decisions made: [decisions](DECISIONS.md)')).returncode, 0)

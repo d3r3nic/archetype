@@ -1198,6 +1198,11 @@ class Entrypoints(unittest.TestCase):
         (self.project / 'docs/old.md').write_text('Original project knowledge\n')
         (copied / 'old.md').write_text('Original project knowledge\n')
         command = ['bash', str(self.project / 'shared-rules/scripts/validate-migration.sh')]
+        # The owner's peer-coding answer (bootstrap Step 2.6) is part of what the migration records.
+        result = self.run_command(command, cwd=self.project)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Peer coding: ask the owner whether another AI assistant', result.stdout)
+        (self.project / 'References.md').write_text('Local context\n\n- Peer coding: none\n')
         result = self.run_command(command, cwd=self.project)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         (copied / 'old.md').write_text('Accidentally changed knowledge\n')

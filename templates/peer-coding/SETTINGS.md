@@ -7,5 +7,5 @@ This project's choices for peer coding: two AI assistants take turns on its bran
 - Checks each turn: [what runs before every hand-over: the commands in References.md § Commands by their labels, or the commands themselves]
 - Branch names: [how peer branches are named here, or: any name except the default branch]
 - Push: [yes: each hand-over pushes the branch; or no: both assistants work in this one repository]
-- Merge: [what a merge needs besides the other assistant's acceptance and passing checks: the owner's go-ahead each time, or nothing more under PROFILE.md's decision authority]
+- Merge: [what a merge needs besides the other assistant's acceptance and passing checks: the owner's go-ahead each time, or, until the owner decides otherwise, nothing more than PROFILE.md requires]
 - Project rules: [what this project adds to the framework's peer rules, or none]

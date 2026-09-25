@@ -5,9 +5,9 @@ Status: WIP. Remove this line when the packet is ready to hand over.
 ## Incoming review
 
 - Incoming packet: {{INCOMING}}
-- Reviewed range and worktree state: <base..head on `{{BRANCH}}`, and clean or what is uncommitted>
+- Reviewed range and worktree state: <base..head on `{{BRANCH}}`, and clean or what is uncommitted>. The product changes alone: `git diff <base> <head> -- . ':(exclude)peer-coding'`
 - Verdict: <ACCEPTED | CHANGES REQUESTED | BLOCKED, for this exact range; or none, when there was nothing to review>
-- Findings: <ID, severity, location, triggering case, wrong result, evidence; or no findings>
+- Findings: <ID (R<round>-F<number>), severity, location, triggering case, wrong result, evidence; or no findings>
 - What the evidence establishes, and its limits: <...>
 
 ## New commits

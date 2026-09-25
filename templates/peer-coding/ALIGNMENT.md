@@ -46,7 +46,7 @@ The Context holder writes §1 and answers in §2; the Receiver writes the rest o
 
 ## 2. Receiver: already verified, and questions
 
-Verified by the receiver before the brief:
+What the receiver verified on its own, before or beside the brief (none yet, when the holder briefed first):
 
 - <fact> [verified: how]
 

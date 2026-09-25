@@ -17,8 +17,8 @@ When the owner chooses peer coding, at setup (bootstrap/ONBOARD-2.6-CARE-AND-AUT
 
 - Peers: the two assistants, each as its short name with its tool. The owner's decision.
 - Who writes: who writes new work and who reviews it, in the owner's words. The owner's decision.
-- Merge: what a merge needs besides the other assistant's acceptance and passing checks. The owner's decision, within PROFILE.md's decision authority.
-- Checks each turn: what runs before every hand-over, from References.md § Commands and the applicable framework gates.
+- Merge: what a merge needs besides the other assistant's acceptance and passing checks. The owner's decision, within PROFILE.md's decision authority; until the owner says otherwise, record `nothing more than PROFILE.md requires`.
+- Checks each turn: what runs before every hand-over, from References.md § Commands and the applicable framework gates, naming any framework gate that does not fit this project's layout and why.
 - Branch names: the project's naming for peer branches.
 - Push: whether each hand-over pushes the branch (yes when the project has a remote both assistants can reach).
 - Project rules: anything this project adds, such as an extra independent review before merge.
@@ -48,8 +48,8 @@ Each branch has its own folder, so parallel branches never edit the same file. T
 
 Go to the worktree the line names (or your own checkout of its branch) and read the AGENTS.md the line names, then the branch folder's CURRENT.md and ALIGNMENT.md. The line names `<branch>@<commit>`: make sure your checkout contains that commit (pull when it is clean; otherwise stop and tell the owner). Run `check`. Then take the first case that applies:
 
-1. ALIGNMENT.md is not CONFIRMED: your move in the Alignment section below when its Status is REQUESTED and you are the Context holder, or BRIEFED and you are the Receiver; when its roles are still placeholders, `start` was interrupted and the Start section's step 3 is yours. Nobody changes product files in this state.
-2. CURRENT.md's Next action says NEEDS USER or SCOPE CLOSED: see Waiting on the owner, below.
+1. CURRENT.md's Next action says NEEDS USER or SCOPE CLOSED: see Waiting on the owner, below.
+2. ALIGNMENT.md is not CONFIRMED: your move in the Alignment section below when its Status is REQUESTED and you are the Context holder, or BRIEFED and you are the Receiver; when its roles are still placeholders, `start` was interrupted and the Start section's step 3 is yours. Nobody changes product files in this state.
 3. CURRENT.md gives you the writing turn: Each turn, below.
 4. Otherwise it is the other assistant's move, and the line may have reached the wrong chat: tell the owner so in one line, and stop.
 
@@ -66,7 +66,7 @@ Go to the worktree the line names (or your own checkout of its branch) and read 
 ## Alignment
 
 - Holder: fill §1 and answer each §2 question. Tag every claim `[verified: command or file]`, `[decision: who, date]` or `[unverified]`. Link only files inside the repository; copy in, with source and date, anything from notes the other assistant cannot read. A decision that exists only in conversation is tagged and recorded at the decision location in the first round (#29). Propose the first round: writer (per the settings' Who writes), bounded scope, acceptance checks. Set Status BRIEFED and hand over. When something only the owner can answer blocks the brief, leave that row open and wait on the owner instead.
-- Receiver: check every §1 claim against the repository and record each in §3 as CONFIRMED, DISCREPANCY or UNVERIFIABLE. A discrepancy, an unanswered question, or an unverifiable fact the first round depends on blocks: add numbered follow-ups, set Status REQUESTED, and hand over. An attributed decision that code cannot prove is accepted as attributed; an honest `[unverified]` stays a caveat. Otherwise write the Receiver verdict, set Status CONFIRMED, and give the first round's writer the writing turn: when that is you, go straight to Each turn; otherwise hand over.
+- Receiver: check every §1 claim against the repository and record each in §3 as CONFIRMED, DISCREPANCY or UNVERIFIABLE. Any discrepancy blocks, and so does an unanswered question or an unverifiable fact that the first round depends on: add numbered follow-ups, set Status REQUESTED, and hand over. On a later pass, update §3 in place: add rows for new or changed claims, keep earlier results, and date the pass. An attributed decision that code cannot prove is accepted as attributed; an honest `[unverified]` stays a caveat. Otherwise write the Receiver verdict, set Status CONFIRMED, and give the first round's writer the writing turn: when that is you, go straight to Each turn; otherwise hand over.
 - Only the receiver confirms. Neither assistant changes product files before CONFIRMED.
 - When scope or direction changes mid-branch, the holder updates §1, notes the change at the top, sets Status BRIEFED, sets the writing turn to none, and hands over; the receiver re-verifies what changed.
 
@@ -76,14 +76,14 @@ Go to the worktree the line names (or your own checkout of its branch) and read 
 2. `packet` opens your packet for this turn, marked WIP, and names your evidence folder.
 3. Review the incoming range: each finding with severity, location, the case that triggers it, the wrong result and the evidence. Give the verdict for that exact range: ACCEPTED, CHANGES REQUESTED, or BLOCKED with the reason. Self-review is not independent review. Accepted work stays closed unless new evidence contradicts it, and no number of rounds turns an unresolved finding into acceptance.
 4. Repair the supported findings and implement the agreed scope, keeping agreed behavior. Widening the scope needs the owner's words recorded in CURRENT.md. After your final edit, run the settings' Checks each turn and anything the change calls for, and save the exact commands, exit codes and output in your evidence folder, in files the repository does not ignore. Commit the product work.
-5. Fill your packet: the verdict, the new commits awaiting review, the evidence and its limits, the next action. In CURRENT.md record the last product commit, the latest round, and the accepted head when you accepted the other's final range with no new commits of your own. Update only the affected rows of FINDINGS.md.
+5. Fill your packet: the verdict, the new commits awaiting review, the evidence and its limits, the next action. In CURRENT.md record the last product commit, the latest round, and the accepted head when you accepted the other's final range with no new commits of your own. Update only the affected rows of FINDINGS.md: it holds what stays unresolved at the hand-over; a finding you repaired this turn is in your packet, with its repair awaiting review.
 6. Hand over. When your verdict accepted the final range with no new commits of your own and nothing more is in scope, the branch is ready: close and merge it yourself (Closing the branch) when the settings' Merge line and PROFILE.md let you merge without asking; otherwise wait on the owner with NEEDS USER, asking for the merge. With nothing to merge, wait with SCOPE CLOSED. Never invent a change to keep the loop going.
 
 ## Hand over
 
 After every alignment move and every turn:
 
-1. In CURRENT.md, give the move to the other assistant: before CONFIRMED on the Alignment line (its status and `Next move: <name>`), after CONFIRMED on the Product writing turn line (every hand-over passes the turn). Write in Next action what that move is.
+1. In CURRENT.md, give the move to the other assistant: before CONFIRMED on the Alignment line (its status and `Next move: <name>`), after CONFIRMED on the Product writing turn line (every hand-over passes the turn). Keep the Alignment line's status the same as ALIGNMENT.md's whenever it changes. Write in Next action what that move is.
 2. Remove the WIP line from your packet. Run the project's format and documentation checks over the record, then `check`, and fix what they report.
 3. Commit the record alone: `git add -- peer-coding && git commit -m "<message>" -- peer-coding`, so nothing else staged is swept in. When the settings say Push: yes, push the branch to its own remote branch, and open a draft pull request if the project uses them and none exists. Never make a push that itself deploys.
 4. `cue` prints the relay line. Give the owner only that, plus anything only the owner can decide, numbered, one line each. Then stop changing product files.
@@ -92,19 +92,20 @@ After every alignment move and every turn:
 
 - NEEDS USER: a question only the owner can answer blocks the next move. Write it in Next action as `NEEDS USER: <the questions>`, then hand over steps 2 and 3, and `cue` prints `NEEDS USER · <folder> · <branch>@<commit>`. Give the owner that line and the numbered questions, one line each.
 - SCOPE CLOSED: a clean verdict closed the scope and no next scope is recorded. Write `SCOPE CLOSED: awaiting the owner` in Next action, commit and push the same way, and `cue` prints the line.
-- Whichever assistant receives the owner's answer records it as `[decision: owner, date]` (in ALIGNMENT.md §2 for a brief, otherwise in CURRENT.md with the owner's words), replaces the Next action, and continues when the move is its own; otherwise it hands over.
+- Whichever assistant receives the owner's answer records it as `[decision: owner, date]` (in ALIGNMENT.md §2 for a brief, otherwise in CURRENT.md with the owner's words), replaces the Next action, and continues when the move is its own; otherwise it hands the move back. Returning the move this way needs no packet: a packet goes with a turn that reviewed or changed product work. An answer about work outside this branch goes to the decision location in the next writing turn; until then CURRENT.md holds the owner's words.
 
 ## Closing the branch
 
 - A merge needs the other assistant's ACCEPTED verdict on the final product head, recorded on CURRENT.md's Accepted head line; passing checks; what the settings' Merge line requires; and the authorization PROFILE.md and #29 require (the owner's when it deploys or touches a live environment).
 - Carry every unresolved finding to the project's own records first (the canonical task source development/TASKS.md names, or TECHNICAL-DEBT.md) and note in your packet where each went; the folder closes only with FINDINGS.md empty.
-- The merging assistant is the one whose review accepted the final range, unless the owner names the other. It runs `close --merged <pull request or ref>`: the folder becomes `<branch>--done`, marked closed for that merge. Commit it as the branch's last change, push, merge, and tell the owner in one line that the branch merged; no relay line is needed. The record says "closed for merge", never that the merge happened.
+- The merging assistant is the one whose review accepted the final range, unless the owner names the other. It runs `close --merged <pull request or ref>`: the folder becomes `<branch>--done`, marked closed for that merge. Commit it as the branch's last change, push, and merge the way the project merges (its pull request, or a merge into the default branch and a push, as References.md and #2 record; never a force-push). Tell the owner in one line that the branch merged; no relay line is needed. The record says "closed for merge", never that the merge happened.
 - If the merge then does not happen (a check fails, the merge is refused), `close --reopen "<reason>"` renames the folder back, and the work continues. A branch that merged stays closed.
 - Work the owner abandons: `close --abandoned "<reason>"`.
 - A folder left open by a merge: `check` reports one whose branch was merged by a merge commit or no longer exists. After a merge that squashed the branch's commits, delete the branch, here and on the remote, and the next `check` names the folder. Close it from the branch at hand with `close --folder <folder> --merged <ref>` (or `--abandoned`) and commit that.
 
 ## Rules for every turn
 
+- Name yourself in every commit message you write, with a line `Peer: <name>`, so the history shows who made each change.
 - One writer. Only the assistant holding the writing turn changes product files. The folder files you own (your packet, your ALIGNMENT.md sections, CURRENT.md at hand-over) are yours to edit in any move of yours. Re-read a shared file before changing it; if it changed since you read it, reconcile rather than overwrite.
 - Never state that something works, passed, exists or was deployed unless you verified it in this session. Saved evidence is dated history, not fresh proof.
 - The relay stays between the two chats and the owner: no automatic messages, watchers, or extra sessions standing in for either assistant. An extra independent review the settings' Project rules ask for is not a stand-in.
