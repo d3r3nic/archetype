@@ -991,7 +991,7 @@ def command_cue(project, args):
     relative = '%s/%s' % (RECORD, folder.name)
     if git(project.top, 'status', '--porcelain', '-uall', '--', RECORD).stdout.strip():
         raise Refusal('%s/ has uncommitted changes; commit it first: git add -- %s && git commit -m '
-                      '"<message>" -- %s' % (RECORD, RECORD, RECORD))
+                      '"<message>" -m "Peer: %s" -- %s' % (RECORD, RECORD, you, RECORD))
     wip = [display(project, packet) for _, _, packet in packets(folder) if is_wip(packet)]
     if wip:
         raise Refusal('a packet is still WIP: %s' % ', '.join(wip))
@@ -1181,7 +1181,8 @@ def command_close(project, args):
                '- **Status:** DONE, %s (%s, %s)' % (outcome, today, you), 'none (closed)')
     git(project.top, 'add', '--', relative + DONE + '/CURRENT.md')
     print('Closed %s -> %s%s (%s).' % (name, name, DONE, outcome))
-    print('Commit and push it as its own change: git add -- %s && git commit -m "<message>" -- %s' % (RECORD, RECORD))
+    print('Commit and push it as its own change: git add -- %s && git commit -m "<message>" -m "Peer: %s" -- %s'
+          % (RECORD, you, RECORD))
     if args.merged is not None and own:
         print('If the merge then does not happen, reopen the folder with: close --as %s --reopen "<reason>"' % you)
     return 0

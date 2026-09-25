@@ -18,7 +18,7 @@ Branch `{{BRANCH}}` · opened {{DATE}} by {{BY}} at `{{OPENED}}` · rules: {{PLA
 
 1. {{BY}}: decide who holds the context for this work, then fill ALIGNMENT.md.
 
-When only the owner can answer, the first item reads `NEEDS USER: <the questions>`; when a clean verdict closed the scope and none is next, `SCOPE CLOSED: awaiting the owner`.
+When only the owner can answer, the first item reads `NEEDS USER: <the questions>`; when the scope closed with nothing waiting to merge, or the owner keeps the branch open, `SCOPE CLOSED: awaiting the owner`.
 
 ## Authorizations
 

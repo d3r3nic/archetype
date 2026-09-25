@@ -11,6 +11,8 @@
 #   5. docs/migrated/ matches originals byte-for-byte (no accidental edits)
 #   6. CLAUDE.md.pre-archetype exists (original preserved)
 #   7. Project context artifacts exist
+#   8. References.md records the owner's peer-coding answer (bootstrap Step 2.6), through
+#      validate-bootstrap.py peer
 #
 # Exit 0 on pass, 1 on any error. Warnings do not fail.
 

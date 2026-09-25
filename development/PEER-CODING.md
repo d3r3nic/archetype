@@ -77,7 +77,7 @@ Go to the worktree the line names (or your own checkout of its branch) and read 
 3. Review the incoming range: each finding with severity, location, the case that triggers it, the wrong result and the evidence. Give the verdict for that exact range: ACCEPTED, CHANGES REQUESTED, or BLOCKED with the reason. Self-review is not independent review. Accepted work stays closed unless new evidence contradicts it, and no number of rounds turns an unresolved finding into acceptance.
 4. Repair the supported findings and implement the agreed scope, keeping agreed behavior. Widening the scope needs the owner's words recorded in CURRENT.md. After your final edit, run the settings' Checks each turn and anything the change calls for, and save the exact commands, exit codes and output in your evidence folder, in files the repository does not ignore. Commit the product work.
 5. Fill your packet: the verdict, the new commits awaiting review, the evidence and its limits, the next action. In CURRENT.md record the last product commit, the latest round, and the accepted head when you accepted the other's final range with no new commits of your own. Update only the affected rows of FINDINGS.md: it holds what stays unresolved at the hand-over; a finding you repaired this turn is in your packet, with its repair awaiting review.
-6. Hand over. When your verdict accepted the final range with no new commits of your own and nothing more is in scope, the branch is ready: close and merge it yourself (Closing the branch) when the settings' Merge line and PROFILE.md let you merge without asking; otherwise wait on the owner with NEEDS USER, asking for the merge. With nothing to merge, wait with SCOPE CLOSED. Never invent a change to keep the loop going.
+6. Hand over, unless the branch is ready: your verdict accepted the final range with no new commits of your own and nothing more is in scope. Then, instead of handing over, remove the WIP line, run Hand over steps 2 and 3 (checks, commit and push the record), and close and merge the branch yourself (Closing the branch) when the settings' Merge line and PROFILE.md let you merge without asking; otherwise wait on the owner with NEEDS USER, asking for the merge. Never invent a change to keep the loop going.
 
 ## Hand over
 
@@ -85,13 +85,14 @@ After every alignment move and every turn:
 
 1. In CURRENT.md, give the move to the other assistant: before CONFIRMED on the Alignment line (its status and `Next move: <name>`), after CONFIRMED on the Product writing turn line (every hand-over passes the turn). Keep the Alignment line's status the same as ALIGNMENT.md's whenever it changes. Write in Next action what that move is.
 2. Remove the WIP line from your packet. Run the project's format and documentation checks over the record, then `check`, and fix what they report.
-3. Commit the record alone: `git add -- peer-coding && git commit -m "<message>" -- peer-coding`, so nothing else staged is swept in. When the settings say Push: yes, push the branch to its own remote branch, and open a draft pull request if the project uses them and none exists. Never make a push that itself deploys.
+3. Commit the record alone: `git add -- peer-coding && git commit -m "<message>" -m "Peer: <your name>" -- peer-coding`, so nothing else staged is swept in. When the settings say Push: yes, push the branch to its own remote branch, and open a draft pull request if the project uses them and none exists. Never make a push that itself deploys.
 4. `cue` prints the relay line. Give the owner only that, plus anything only the owner can decide, numbered, one line each. Then stop changing product files.
 
 ## Waiting on the owner
 
 - NEEDS USER: a question only the owner can answer blocks the next move. Write it in Next action as `NEEDS USER: <the questions>`, then hand over steps 2 and 3, and `cue` prints `NEEDS USER · <folder> · <branch>@<commit>`. Give the owner that line and the numbered questions, one line each.
-- SCOPE CLOSED: a clean verdict closed the scope and no next scope is recorded. Write `SCOPE CLOSED: awaiting the owner` in Next action, commit and push the same way, and `cue` prints the line.
+- SCOPE CLOSED: the scope closed with nothing waiting to merge, or the owner keeps the branch open for a later scope. Write `SCOPE CLOSED: awaiting the owner` in Next action, commit and push the same way, and `cue` prints the line; product changes on the branch must be accepted first.
+- A NEEDS USER or SCOPE CLOSED line that reaches you without the owner's answer: repeat the questions, or the closure, to the owner and wait.
 - Whichever assistant receives the owner's answer records it as `[decision: owner, date]` (in ALIGNMENT.md §2 for a brief, otherwise in CURRENT.md with the owner's words), replaces the Next action, and continues when the move is its own; otherwise it hands the move back. Returning the move this way needs no packet: a packet goes with a turn that reviewed or changed product work. An answer about work outside this branch goes to the decision location in the next writing turn; until then CURRENT.md holds the owner's words.
 
 ## Closing the branch
