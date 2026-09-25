@@ -5,15 +5,22 @@ import argparse
 import datetime
 import importlib.util
 import re
+import subprocess
 import sys
 
 
-def peer_names(value):
-    # One reading of the Peer coding line, shared with the peer-coding script.
+def peer_settings_problems(path):
+    # One reading of the settings file, shared with the peer-coding script.
     spec = importlib.util.spec_from_file_location('peer_coding', Path(__file__).with_name('peer-coding.py'))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.parse_peers(value)
+    return module.settings_problems(path)
+
+
+def repository_top():
+    probe = subprocess.run(['git', 'rev-parse', '--show-toplevel'], stdout=subprocess.PIPE,
+                           stderr=subprocess.DEVNULL, universal_newlines=True)
+    return Path(probe.stdout.strip()) if probe.returncode == 0 and probe.stdout.strip() else Path('.')
 
 
 def live_lines(text):
@@ -86,17 +93,17 @@ def check_context():
     for key in ('Name', 'Purpose', 'Stage', 'Decision location'):
         if re.match(r'^(unknown|none|n/a)\b', normalized(data[key]), re.I):
             raise ValueError(f'{key}: a resolved bootstrap fact is required')
-    if 'Peer coding' not in data:
+    peer = normalized(data.get('Peer coding', ''))
+    if not filled(peer):
         raise ValueError('Peer coding: ask the owner whether another AI assistant will take turns on this '
-                         'project and who writes new work (bootstrap/ONBOARD-2.6-CARE-AND-AUTHORITY.md), then '
-                         'record none or both assistants on this line and the preference on Peer roles')
-    try:
-        peers = peer_names(data['Peer coding'])
-    except ValueError as error:
-        raise ValueError(f'Peer coding: {error}') from None
-    if peers and (not filled(data.get('Peer roles', ''))
-                  or re.match(r'^(unknown|none|n/a)\b', normalized(data.get('Peer roles', '')), re.I)):
-        raise ValueError('Peer roles: record who writes new work and who reviews it, in the owner\'s words')
+                         'project (bootstrap/ONBOARD-2.6-CARE-AND-AUTHORITY.md), then record none, or set '
+                         'peer coding up and record peer-coding/SETTINGS.md (development/PEER-CODING.md)')
+    if not re.match(r'^none\b', peer, re.I):
+        if 'peer-coding/SETTINGS.md' not in peer:
+            raise ValueError('Peer coding: record none, or peer-coding/SETTINGS.md')
+        problems = peer_settings_problems(repository_top() / 'peer-coding' / 'SETTINGS.md')
+        if problems:
+            raise ValueError('Peer coding: peer-coding/SETTINGS.md: ' + '; '.join(problems))
     tree = Path('feature-tree.md')
     if not tree.is_file() or not tree.read_text().strip():
         raise ValueError('feature-tree.md is missing or empty')

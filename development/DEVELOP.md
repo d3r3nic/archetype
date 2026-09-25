@@ -44,7 +44,7 @@ Run the applicable verification commands in References.md, including the require
 
 For a screen, run the recorded capture command and retain a capture per applicable state, committed scheme and context. Open the captures and exercise the relevant interactions. Obtain independent review against the current artifact and decision basis (#27, #29). A screenshot alone cannot establish keyboard behavior, timing or task completion.
 
-When References.md names a second AI assistant on its Peer coding line, that assistant reviews each change before merge, turn by turn (development/PEER-CODING.md).
+When the project uses peer coding (References.md § Project, Peer coding), the other AI assistant reviews each change before merge, turn by turn (development/PEER-CODING.md).
 
 Investigate failures and warnings. Fix a real defect rather than suppressing the evidence. If a framework heuristic does not recognize a justified project approach, reproduce the mismatch and seek a correction or an explicitly supported path; do not report a failing gate as passed or bypass a protected obligation.
 

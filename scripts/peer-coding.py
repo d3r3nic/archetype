@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """Peer coding: two AI assistants taking turns on a branch (development/PEER-CODING.md).
 
-Run with python3 from anywhere inside the branch's worktree:
-  peer-coding.py start --as NAME       open this branch's folder, peer-coding/<branch>/
+Run with python3 from anywhere inside the repository's worktree:
+  peer-coding.py setup                 create peer-coding/SETTINGS.md, the project's choices, to fill in
+  peer-coding.py start --as NAME       open this branch's folder
   peer-coding.py packet --as NAME      open your next packet, rounds/R<n>/NAME.md, marked WIP
-  peer-coding.py check [--as NAME]     check the folder, the recorded commits, links, other folders
+  peer-coding.py check [--as NAME]     check the settings, the branch folder, recorded commits, links
+  peer-coding.py which                 print this branch's folder and whether it is active, done or none
   peer-coding.py cue --as NAME         print the line the owner pastes into the other chat
-  peer-coding.py close --as NAME (--merged REF | --abandoned REASON) [--folder FOLDER]
-                                       rename the folder to <folder>--done and mark it done
+  peer-coding.py close --as NAME (--merged REF | --abandoned REASON | --reopen REASON) [--folder FOLDER]
+                                       close the folder as <folder>--done before the merge, record
+                                       abandoned work, or reopen a folder whose merge did not happen
 
-NAME is one of the two short names on the Peer coding line of References.md, section Project.
-The folder name is the branch name with slashes and other unusual characters as dashes.
+NAME is one of the two short names on the Peers line of peer-coding/SETTINGS.md. A branch's folder is
+the branch name with slashes and other unusual characters as dashes, with a short code added when
+another branch already uses that name; `which` prints it.
 
 What it cannot do: judge whether a review was good, or know which assistant made a commit.
 
@@ -19,20 +23,25 @@ Exit 0: done, or the check passed. 1: a check failed or the command refused. 2: 
 """
 import argparse
 import datetime
+import hashlib
 import os
 import re
 import subprocess
 import sys
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import unquote
 
 ENGINE = Path(__file__).resolve().parent.parent
 TEMPLATES = ENGINE / 'templates' / 'peer-coding'
 PLAYBOOK = Path('development') / 'PEER-CODING.md'
 RECORD = 'peer-coding'
+SETTINGS = 'SETTINGS.md'
 DONE = '--done'
-PEERS_FORMAT = ('name the two assistants as "<name> (<tool>), <name> (<tool>)", '
-                'or write none when no second assistant works on the project')
+# Names in peer-coding/ that are not branch folders: this project's settings, and the shared
+# files an earlier copy of these rules put there.
+RESERVED = ('SETTINGS.md', 'README.md', 'PROTOCOL.md', 'templates')
+SETTINGS_KEYS = ('Peers', 'Who writes', 'Checks each turn', 'Branch names', 'Push', 'Merge', 'Project rules')
+PEERS_FORMAT = 'name the two assistants as "<name> (<tool>), <name> (<tool>)"'
 
 
 class Refusal(Exception):
@@ -55,58 +64,22 @@ def succeeds(top, *args):
     return git(top, *args, check=False).returncode == 0
 
 
-# ---------------------------------------------------------------- the project and the branch
-
-class Project:
-    def __init__(self, where):
-        probe = git(where, 'rev-parse', '--show-toplevel', check=False)
-        if probe.returncode != 0:
-            raise Refusal('%s is not inside a git worktree; peer coding keeps its record in the '
-                          'repository' % where)
-        self.top = Path(probe.stdout.strip()).resolve()
-        self.branch = git(self.top, 'symbolic-ref', '-q', '--short', 'HEAD', check=False).stdout.strip()
-        self.default = self._default_branch()
-        self.engine = self._engine_here()
-        self.references = self._references()
-
-    def _default_branch(self):
-        head = git(self.top, 'symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD',
-                   check=False).stdout.strip()
-        if head.startswith('origin/'):
-            return head[len('origin/'):]
-        configured = git(self.top, 'config', '--get', 'init.defaultBranch', check=False).stdout.strip()
-        for name in [configured, 'main', 'master']:
-            if name and (succeeds(self.top, 'show-ref', '-q', '--verify', 'refs/heads/' + name) or
-                         succeeds(self.top, 'show-ref', '-q', '--verify', 'refs/remotes/origin/' + name)):
-                return name
-        return ''
-
-    def _engine_here(self):
-        # The engine as this worktree carries it: the same place relative to the repository top
-        # as the engine this script ran from, so another checkout's script reads this branch.
-        engine_top = git(ENGINE, 'rev-parse', '--show-toplevel', check=False)
-        if engine_top.returncode == 0:
-            relative = os.path.relpath(str(ENGINE), str(Path(engine_top.stdout.strip()).resolve()))
-            candidate = (self.top / relative).resolve() if relative != '.' else self.top
-            if (candidate / PLAYBOOK).is_file():
-                return candidate
-        return ENGINE
-
-    def _references(self):
-        if (self.engine / 'References.md').is_file():
-            return self.engine / 'References.md'
-        return self.engine.parent / 'References.md'
-
-    def slug(self, branch=None):
-        name = branch if branch is not None else self.branch
-        slug = re.sub(r'[^A-Za-z0-9._-]', '-', name.replace('/', '-'))
-        return slug if re.match(r'[A-Za-z0-9]', slug) else 'branch-' + slug
-
-    def record(self):
-        return self.top / RECORD
+def read(path):
+    return path.read_text(encoding='utf-8') if path.is_file() else ''
 
 
-# ---------------------------------------------------------------- References.md
+def write(path, text):
+    path.write_text(text, encoding='utf-8')
+
+
+def plain(value):
+    return re.sub(r'[*_`]', '', value or '').strip()
+
+
+def filled(value):
+    text = plain(value)
+    return bool(text) and not text.startswith('[')
+
 
 def live_lines(text):
     fence = None
@@ -123,61 +96,60 @@ def live_lines(text):
             yield line
 
 
-def project_facts(references):
-    if not references.is_file():
-        return {}
-    facts, inside = {}, False
-    for line in live_lines(read(references)):
-        if line.startswith('## '):
-            inside = line.strip() == '## Project'
-            continue
-        match = re.match(r'^- ([^:]+):\s*(.*)$', line) if inside else None
-        if match and match.group(1).strip() not in facts:
-            facts[match.group(1).strip()] = match.group(2).strip()
-    return facts
+# ---------------------------------------------------------------- the project and the branch
 
+class Project:
+    def __init__(self, where):
+        probe = git(where, 'rev-parse', '--show-toplevel', check=False)
+        if probe.returncode != 0:
+            raise Refusal('%s is not inside a git worktree; peer coding keeps its record in the '
+                          'repository' % where)
+        self.top = Path(probe.stdout.strip()).resolve()
+        self.branch = git(self.top, 'symbolic-ref', '-q', '--short', 'HEAD', check=False).stdout.strip()
+        self.default = self._default_branch()
+        self.engine = self._engine_here()
 
-def plain(value):
-    return re.sub(r'[*_`]', '', value or '').strip()
+    def _default_branch(self):
+        head = git(self.top, 'symbolic-ref', '-q', '--short', 'refs/remotes/origin/HEAD',
+                   check=False).stdout.strip()
+        if head.startswith('origin/'):
+            return head[len('origin/'):]
+        configured = git(self.top, 'config', '--get', 'init.defaultBranch', check=False).stdout.strip()
+        for name in [configured, 'main', 'master']:
+            if name and (self.ref_exists('refs/heads/' + name) or self.ref_exists('refs/remotes/origin/' + name)):
+                return name
+        return ''
 
+    def ref_exists(self, ref):
+        return succeeds(self.top, 'show-ref', '-q', '--verify', ref)
 
-def parse_peers(value):
-    """The two short names on a Peer coding line: [] when none, ValueError when unreadable."""
-    text = plain(value)
-    if not text or text.startswith('['):
-        raise ValueError('the Peer coding line is not answered: ' + PEERS_FORMAT)
-    if re.match(r'^(none|no|n/a)\b', text, re.I):
-        return []
-    text = re.sub(r'\([^)]*\)', ' ', text)
-    names = []
-    for part in re.split(r',|;|&|\band\b', text):
-        part = part.strip()
-        if not part:
-            continue
-        match = re.match(r'^([A-Za-z][A-Za-z0-9-]*)$', part)
-        if not match:
-            raise ValueError('cannot read "%s" on the Peer coding line: %s' % (part, PEERS_FORMAT))
-        names.append(match.group(1).lower())
-    if len(names) != 2 or names[0] == names[1] or DONE in ''.join(names):
-        raise ValueError('the Peer coding line must name two different assistants: ' + PEERS_FORMAT)
-    return names
+    def default_refs(self):
+        if not self.default:
+            return []
+        return [ref for ref in ('refs/heads/' + self.default, 'refs/remotes/origin/' + self.default)
+                if self.ref_exists(ref)]
 
+    def _engine_here(self):
+        # The engine as this worktree carries it: the same place relative to the repository top as
+        # the engine this script ran from, so another checkout's script reads this branch's files.
+        engine_top = git(ENGINE, 'rev-parse', '--show-toplevel', check=False)
+        if engine_top.returncode == 0:
+            relative = os.path.relpath(str(ENGINE), str(Path(engine_top.stdout.strip()).resolve()))
+            candidate = (self.top / relative).resolve() if relative != '.' else self.top
+            if (candidate / PLAYBOOK).is_file():
+                return candidate
+        return ENGINE
 
-def peers_of(project):
-    facts = project_facts(project.references)
-    if 'Peer coding' not in facts:
-        raise Refusal('%s records no Peer coding line in its Project section. Ask the owner whether '
-                      'another AI assistant will take turns on this project and who writes new work, '
-                      'then record the answers (bootstrap/ONBOARD-2.6-CARE-AND-AUTHORITY.md)'
-                      % display(project, project.references))
-    try:
-        names = parse_peers(facts['Peer coding'])
-    except ValueError as error:
-        raise Refusal('%s: %s' % (display(project, project.references), error))
-    if not names:
-        raise Refusal('%s says Peer coding: none. Peer coding starts only when the owner asks for it; '
-                      'record the owner\'s words on that line first' % display(project, project.references))
-    return names, facts.get('Peer roles', '').strip()
+    def record(self):
+        return self.top / RECORD
+
+    def version(self):
+        """The framework revision this engine was installed from, when the project's log records it."""
+        for log in (self.engine.parent / 'VERSION-LOG.md', self.engine / 'VERSION-LOG.md', self.engine / 'VERSION'):
+            commits = re.findall(r'^(?:Commit:\s*)?([0-9a-f]{7,40})\s*$', read(log), re.M)
+            if commits:
+                return commits[-1][:12]
+        return ''
 
 
 def display(project, path):
@@ -187,21 +159,125 @@ def display(project, path):
         return str(path)
 
 
-# ---------------------------------------------------------------- the branch folder's files
+def slug(branch):
+    name = re.sub(r'[^A-Za-z0-9._-]', '-', branch.replace('/', '-'))
+    return name if re.match(r'[A-Za-z0-9]', name) else 'branch-' + name
 
-def read(path):
-    return path.read_text(encoding='utf-8') if path.is_file() else ''
+
+def short_hash(branch):
+    return hashlib.sha1(branch.encode('utf-8')).hexdigest()[:6]
 
 
-def write(path, text):
-    path.write_text(text, encoding='utf-8')
+def recorded_branch(text):
+    match = re.search(r'^Branch `([^`]+)`', text, re.M)
+    return match.group(1) if match else ''
 
+
+def branch_folder(project, branch):
+    """This branch's folder and its state: active, done, or none (not opened yet, and the name it would get)."""
+    record = project.record()
+    base = slug(branch)
+    hashed = '%s-%s' % (base, short_hash(branch))
+    for name in (base, hashed):
+        if recorded_branch(read(record / name / 'CURRENT.md')) == branch:
+            return record / name, 'active'
+        if recorded_branch(read(record / (name + DONE) / 'CURRENT.md')) == branch:
+            return record / (name + DONE), 'done'
+    if base in RESERVED:
+        return record / hashed, 'none'
+    for name in (base, base + DONE):
+        other = recorded_branch(read(record / name / 'CURRENT.md'))
+        if (other and other != branch) or ((record / name).exists() and not other):
+            return record / hashed, 'none'
+    # A branch not merged here yet, or a folder already on the default branch, may hold the name.
+    refs = git(project.top, 'for-each-ref', '--format=%(refname)', 'refs/heads', 'refs/remotes').stdout.split()
+    for ref in refs:
+        name = ref[len('refs/heads/'):] if ref.startswith('refs/heads/') else ref.split('/', 3)[-1]
+        if name not in ('HEAD', branch) and slug(name) == base:
+            return record / hashed, 'none'
+    for ref in project.default_refs():
+        for name in (base, base + DONE, hashed + DONE):
+            shown = git(project.top, 'show', '%s:%s/%s/CURRENT.md' % (ref, RECORD, name), check=False)
+            other = recorded_branch(shown.stdout) if shown.returncode == 0 else ''
+            if other == branch and name.endswith(DONE):
+                return record / name, 'done'  # a merged branch's name, used again
+            if other and other != branch:
+                return record / hashed, 'none'
+    return record / base, 'none'
+
+
+# ---------------------------------------------------------------- the project's settings
+
+def settings_fields(text):
+    fields = {}
+    for line in live_lines(text):
+        if line.startswith('#'):
+            continue
+        match = re.match(r'^- ([^:]+):\s*(.*)$', line)
+        if match and match.group(1).strip() not in fields:
+            fields[match.group(1).strip()] = match.group(2).strip()
+    return fields
+
+
+def parse_peers(value):
+    """The two short names on a Peers line; ValueError when the line cannot be read that way."""
+    text = plain(value)
+    if not text or text.startswith('['):
+        raise ValueError('the Peers line is not filled in: ' + PEERS_FORMAT)
+    text = re.sub(r'\([^)]*\)', ' ', text)
+    names = []
+    for part in re.split(r',|;|&|\band\b', text):
+        part = part.strip()
+        if not part:
+            continue
+        match = re.match(r'^([A-Za-z][A-Za-z0-9-]*)$', part)
+        if not match:
+            raise ValueError('cannot read "%s" on the Peers line: %s' % (part, PEERS_FORMAT))
+        names.append(match.group(1).lower())
+    if len(names) != 2 or names[0] == names[1] or any(name.endswith(DONE) or name == 'none' for name in names):
+        raise ValueError('the Peers line must name two different assistants: ' + PEERS_FORMAT)
+    return names
+
+
+def settings_problems(path, complete=True):
+    """What keeps a settings file from being usable: an empty list when it is."""
+    if not path.is_file():
+        return ['%s does not exist' % path.name]
+    fields = settings_fields(read(path))
+    problems = []
+    try:
+        parse_peers(fields.get('Peers', ''))
+    except ValueError as error:
+        problems.append(str(error))
+    keys = SETTINGS_KEYS if complete else ('Who writes',)
+    missing = [key for key in keys if key != 'Peers' and not filled(fields.get(key, ''))]
+    if missing:
+        problems.append('fill in, with the owner\'s decisions: %s' % ', '.join(missing))
+    return problems
+
+
+def settings_of(project):
+    path = project.record() / SETTINGS
+    if not path.is_file():
+        raise Refusal('peer coding is not set up in this repository: there is no %s/%s. When the owner has '
+                      'chosen peer coding (the questions are in bootstrap/ONBOARD-2.6-CARE-AND-AUTHORITY.md), '
+                      'run setup and fill it with the owner\'s answers' % (RECORD, SETTINGS))
+    problems = settings_problems(path)
+    if problems:
+        raise Refusal('%s/%s: %s' % (RECORD, SETTINGS, '; '.join(problems)))
+    fields = settings_fields(read(path))
+    return parse_peers(fields['Peers']), fields
+
+
+def pushes(fields):
+    return not re.match(r'^no\b', plain(fields.get('Push', '')), re.I)
+
+
+# ---------------------------------------------------------------- a branch folder's files
 
 def current_state(folder):
     text = read(folder / 'CURRENT.md')
-    state = {'text': text}
-    branch = re.search(r'^Branch `([^`]+)`', text, re.M)
-    state['branch'] = branch.group(1) if branch else ''
+    state = {'text': text, 'branch': recorded_branch(text)}
     status = re.search(r'^- \*\*Status:\*\*\s*([A-Za-z]+)', text, re.M)
     state['status'] = status.group(1).upper() if status else ''
     alignment = re.search(r'^- \*\*Alignment:\*\*(.*)$', text, re.M)
@@ -243,11 +319,11 @@ def alignment_state(folder):
 def open_findings(folder):
     rows, table = 0, False
     for line in read(folder / 'FINDINGS.md').splitlines():
-        cells = [cell.strip() for cell in line.strip().strip('|').split('|')] if line.strip().startswith('|') else None
-        if cells is None:
+        if not line.strip().startswith('|'):
             if table:
                 break
             continue
+        cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
         if not table:
             table = bool(cells) and cells[0] == 'ID'
             continue
@@ -287,10 +363,10 @@ def anchors(path):
     for line in live_lines(read(path)):
         heading = re.match(r'^#{1,6}\s+(.+?)\s*#*\s*$', line)
         if heading:
-            slug = re.sub(r'[^\w\- ]', '', heading.group(1).lower()).replace(' ', '-')
-            count = counts.get(slug, 0)
-            found.add(slug if not count else '%s-%d' % (slug, count))
-            counts[slug] = count + 1
+            name = re.sub(r'[^\w\- ]', '', heading.group(1).lower()).replace(' ', '-')
+            count = counts.get(name, 0)
+            found.add(name if not count else '%s-%d' % (name, count))
+            counts[name] = count + 1
     return found
 
 
@@ -298,33 +374,40 @@ def link_problems(project, folder):
     problems = []
     record = project.record()
     for path in sorted(folder.rglob('*.md')):
+        where = display(project, path)
         for line in live_lines(read(path)):
             line = re.sub(r'`[^`\n]*`', '', line)
             for match in re.finditer(r'!?\[[^\]\n]*\]\(([^)\n]+)\)', line):
                 target = match.group(1).strip()
-                target = target[1:target.index('>')] if target.startswith('<') and '>' in target else target.split()[0]
-                where = display(project, path)
-                parts = urlsplit(target)
-                if parts.scheme or parts.netloc:
+                if target.startswith('<') and '>' in target:
+                    target = target[1:target.index('>')]
+                else:
+                    target = target.split()[0]
+                # A web or mail address is not checked; "notes.md:12" is a file name with a line number, not an address.
+                if re.match(r'^[A-Za-z][A-Za-z0-9+.-]*://', target) or re.match(r'^(mailto|tel|data):', target, re.I):
                     continue
-                if parts.path.startswith('/'):
-                    problems.append('%s: link %s uses an absolute path; link inside the repository, relative to the file' % (where, target))
+                local, _, fragment = target.partition('#')
+                local = local.split('?')[0]
+                if local.startswith('/'):
+                    problems.append('%s: link %s uses an absolute path; link inside the repository, relative '
+                                    'to the file' % (where, target))
                     continue
-                resolved = Path(os.path.normpath(str(path.parent / unquote(parts.path)))) if parts.path else path
+                resolved = Path(os.path.normpath(str(path.parent / unquote(local)))) if local else path
                 try:
                     inside = resolved.relative_to(project.top)
                 except ValueError:
                     problems.append('%s: link %s leaves the repository' % (where, target))
                     continue
                 if not resolved.exists():
-                    problems.append('%s: link %s points to nothing' % (where, target))
+                    problems.append('%s: link %s points to nothing (a line number belongs after the link, '
+                                    'not inside it)' % (where, target))
                     continue
                 pieces = inside.parts
                 if (len(pieces) > 1 and pieces[0] == RECORD and pieces[1] != folder.name
                         and not pieces[1].endswith(DONE) and (record / pieces[1] / 'CURRENT.md').is_file()):
                     problems.append('%s: link %s points into the open folder of another branch, which closing '
                                     'renames; name it in text instead' % (where, target))
-                if parts.fragment and resolved.suffix == '.md' and unquote(parts.fragment) not in anchors(resolved):
+                if fragment and resolved.suffix == '.md' and unquote(fragment) not in anchors(resolved):
                     problems.append('%s: link %s names a heading that does not exist' % (where, target))
     return problems
 
@@ -356,6 +439,10 @@ class Report:
         return 1 if self.fails else 0
 
 
+def listed(items):
+    return ', '.join(items[:8]) + (' ...' if len(items) > 8 else '')
+
+
 def product_changes(project, since):
     return [line for line in out(project.top, 'diff', '--name-only', since, 'HEAD', '--', '.',
                                  ':(exclude)%s' % RECORD).splitlines() if line]
@@ -383,10 +470,6 @@ def check_folder(project, folder, peers, report, you=''):
     if report.fails:
         return
     current, alignment = current_state(folder), alignment_state(folder)
-    if current['branch'] != project.branch:
-        report.fail('%s belongs to branch %s, not %s: two branch names give one folder name, so '
-                    'rename this branch' % (name, current['branch'] or '(none recorded)', project.branch))
-        return
     if current['status'] != 'ACTIVE':
         report.fail('%s: CURRENT.md Status is %s; an open folder is ACTIVE, and a finished one is closed '
                     'with close' % (name, current['status'] or 'missing'))
@@ -407,12 +490,12 @@ def check_folder(project, folder, peers, report, you=''):
     if current['next_move'] and current['next_move'] not in peers + ['none']:
         report.fail('%s: CURRENT.md gives the next move to %s; the peers are %s' % (name, current['next_move'], ' and '.join(peers)))
     if not current['accepted_line']:
-        report.warn('%s: CURRENT.md has no Accepted head line; closing after a merge needs one (the accepted commit '
-                    'and who accepted it)' % name)
+        report.warn('%s: CURRENT.md has no Accepted head line; closing for a merge needs one (the accepted '
+                    'commit and who accepted it)' % name)
 
     head = resolve_commit(project, current['head']) if current['head'] else ''
     if not current['head']:
-        report.fail('%s: CURRENT.md records no last product commit for `%s` in its Heads table' % (name, project.branch))
+        report.fail('%s: CURRENT.md records no last product commit for `%s` in its Heads table' % (name, current['branch']))
     elif not head:
         report.fail('%s: the recorded last product commit %s does not exist here; pull, or correct CURRENT.md' % (name, current['head']))
     elif not succeeds(project.top, 'merge-base', '--is-ancestor', head, 'HEAD'):
@@ -420,14 +503,12 @@ def check_folder(project, folder, peers, report, you=''):
     else:
         changed = product_changes(project, head)
         if changed:
-            listed = ', '.join(changed[:8]) + (' ...' if len(changed) > 8 else '')
             report.fail('%s: product files changed after the recorded last product commit %s, and no hand-over '
-                        'recorded them: %s' % (name, current['head'], listed))
+                        'recorded them: %s' % (name, current['head'], listed(changed)))
     dirty = uncommitted_product(project)
     if dirty:
-        listed = ', '.join(dirty[:8]) + (' ...' if len(dirty) > 8 else '')
         report.fail('uncommitted product changes in this worktree: %s. Commit them on your writing turn, '
-                    'or leave them out; never hand them over' % listed)
+                    'or leave them out; never hand them over' % listed(dirty))
 
     for number, peer, packet in packets(folder):
         if peer not in peers:
@@ -466,62 +547,63 @@ def check_folder(project, folder, peers, report, you=''):
     report.note('%s (%s)' % (name, summary))
 
 
-def stale_folders(project, report):
+def other_entries(project, report, own):
     record = project.record()
     if not record.is_dir():
         return
-    own = project.slug() if project.branch else None
+    leftovers = [entry.name for entry in sorted(record.iterdir())
+                 if entry.name in ('README.md', 'PROTOCOL.md', 'templates')]
+    if leftovers:
+        report.warn('%s/: %s hold an earlier copy of peer-coding rules; the framework\'s playbook is the one '
+                    'that applies, so remove them in a change of their own' % (RECORD, ', '.join(leftovers)))
     for entry in sorted(record.iterdir()):
-        if not entry.is_dir() or entry.name.endswith(DONE) or entry.name == own:
+        if not entry.is_dir() or entry.name.endswith(DONE) or entry == own or entry.name in RESERVED:
             continue
-        if not (entry / 'CURRENT.md').is_file():
-            continue
-        branch = current_state(entry)['branch']
+        branch = recorded_branch(read(entry / 'CURRENT.md'))
         if not branch or branch.startswith('<'):
-            continue  # not a branch folder: another tool's shared templates, or unrelated files
-        tip = ''
-        for ref in ('refs/heads/' + branch, 'refs/remotes/origin/' + branch):
-            if succeeds(project.top, 'show-ref', '-q', '--verify', ref):
-                tip = ref
-                break
+            continue
+        tip = next((ref for ref in ('refs/heads/' + branch, 'refs/remotes/origin/' + branch) if project.ref_exists(ref)), '')
         if not tip:
             report.warn('%s: its branch %s no longer exists here. If it merged or was abandoned, close the '
                         'folder from this branch: close --folder %s' % (display(project, entry), branch, entry.name))
             continue
-        target = project.default and next((ref for ref in ('refs/heads/' + project.default, 'refs/remotes/origin/' + project.default)
-                                           if succeeds(project.top, 'show-ref', '-q', '--verify', ref)), '')
+        target = next(iter(project.default_refs()), '')
         if target and branch != project.default and succeeds(project.top, 'merge-base', '--is-ancestor', tip, target):
             report.warn('%s: its branch %s is merged into %s but the folder is still open; close it from this '
                         'branch: close --folder %s --merged <ref>' % (display(project, entry), branch, project.default, entry.name))
 
 
-def own_folder(project):
-    if not project.branch:
-        raise Refusal('detached HEAD: check out the branch for this work')
-    return project.record() / project.slug()
-
-
 def command_check(project, args):
     report = Report()
-    peers, _ = peers_of(project)
+    peers, _ = settings_of(project)
+    report.note('%s/%s: peers %s' % (RECORD, SETTINGS, ' and '.join(peers)))
     you = (args.you or '').lower()
-    if project.branch and project.branch != project.default:
-        folder = own_folder(project)
-        if (project.record() / (folder.name + DONE)).is_dir() and not folder.exists():
-            report.note('%s%s is closed: its branch finished. New work gets a new branch' % (display(project, folder), DONE))
-        elif not (folder / 'CURRENT.md').is_file():
+    own = None
+    if not project.branch:
+        report.fail('detached HEAD: check out the branch for this work')
+    elif project.branch == project.default:
+        report.note('%s is the default branch; branch folders live on their own branches' % project.branch)
+    else:
+        own, state = branch_folder(project, project.branch)
+        if state == 'done':
+            report.note('%s is closed: its branch finished. New work gets a new branch' % display(project, own))
+        elif state == 'none':
             report.fail('no peer-coding folder for branch %s; open one with start' % project.branch)
         else:
-            check_folder(project, folder, peers, report, you)
-    elif not project.branch:
-        report.fail('detached HEAD: check out the branch for this work')
-    else:
-        report.note('%s is the default branch; branch folders live on their own branches' % project.branch)
-    stale_folders(project, report)
+            check_folder(project, own, peers, report, you)
+    other_entries(project, report, own)
     return report.show()
 
 
-# ---------------------------------------------------------------- start
+def command_which(project, args):
+    if not project.branch:
+        raise Refusal('detached HEAD: check out the branch for this work')
+    folder, state = branch_folder(project, project.branch)
+    print('%s %s' % (display(project, folder), state))
+    return 0
+
+
+# ---------------------------------------------------------------- setup and start
 
 def render(template, destination, values):
     text = read(TEMPLATES / template)
@@ -533,74 +615,103 @@ def render(template, destination, values):
     write(destination, text)
 
 
-def playbook_link(project, folder):
+def playbook_link(project, source_dir):
     target = project.engine / PLAYBOOK
     try:
         target.relative_to(project.top)
     except ValueError:
-        return '`%s`' % target
-    relative = os.path.relpath(str(target), str(folder))
-    return '[%s](%s)' % (PLAYBOOK.as_posix(), Path(relative).as_posix())
+        return "the framework's %s" % PLAYBOOK.as_posix()
+    return '[%s](%s)' % (PLAYBOOK.as_posix(), Path(os.path.relpath(str(target), str(source_dir))).as_posix())
+
+
+def ignored_by(project, path):
+    rule = git(project.top, 'check-ignore', '-v', '--no-index', '--', path, check=False)
+    return rule.stdout.split('\t')[0] if rule.returncode == 0 else ''
+
+
+def command_setup(project, args):
+    record = project.record()
+    if record.is_symlink() or (record.exists() and not record.is_dir()):
+        raise Refusal('%s exists and is not a plain folder' % record)
+    path = record / SETTINGS
+    if path.exists():
+        problems = settings_problems(path)
+        print('%s/%s already exists%s' % (RECORD, SETTINGS, ': ' + '; '.join(problems) if problems else ' and is complete'))
+        return 1 if problems else 0
+    rule = ignored_by(project, '%s/%s' % (RECORD, SETTINGS))
+    if rule:
+        raise Refusal('%s/%s would be excluded by the repository\'s ignore rules (%s); change that rule first' % (RECORD, SETTINGS, rule))
+    render(SETTINGS, path, {'PLAYBOOK': playbook_link(project, record)})
+    print('Created %s/%s. Fill each line with the owner\'s answers and what you verified about this project, '
+          'record it on References.md\'s Peer coding line when the project has one, and commit it.' % (RECORD, SETTINGS))
+    return 0
 
 
 def command_start(project, args):
-    peers, roles = peers_of(project)
+    peers, fields = settings_of(project)
     you = args.you.lower()
     if you not in peers:
-        raise Refusal('--as %s is not one of the peers on the Peer coding line: %s' % (you, ' and '.join(peers)))
-    folder = own_folder(project)
+        raise Refusal('--as %s is not one of the peers: %s' % (you, ' and '.join(peers)))
+    if not project.branch:
+        raise Refusal('detached HEAD: check out the branch for this work')
     if project.default and project.branch == project.default:
         raise Refusal('%s is the default branch. Peer work runs on a branch of its own, for example in a new '
                       'worktree: git worktree add ../<folder> -b <branch>' % project.branch)
     if not project.default:
         print('WARN: the default branch could not be determined (no origin HEAD, main or master); '
               'make sure %s is not the branch releases come from' % project.branch)
-    if folder.name.endswith(DONE):
+    if project.branch.endswith(DONE):
         raise Refusal('the branch name ends in %s, which marks closed folders; use another branch name' % DONE)
     if re.search(r'[`|]', project.branch):
         raise Refusal('the branch name contains ` or |, which the record\'s tables cannot hold; rename the branch')
     record = project.record()
     if record.is_symlink() or (record.exists() and not record.is_dir()):
         raise Refusal('%s exists and is not a plain folder' % record)
-    if (folder / 'CURRENT.md').is_file():
-        recorded = current_state(folder)['branch']
-        if recorded != project.branch:
-            raise Refusal('%s already belongs to branch %s: two branch names give one folder name, so rename '
-                          'this branch' % (display(project, folder), recorded))
-        print('%s is already open for branch %s: resume it (development/PEER-CODING.md, Each turn)' % (display(project, folder), project.branch))
+    folder, state = branch_folder(project, project.branch)
+    if state == 'active':
+        print('%s is already open for branch %s: resume it (development/PEER-CODING.md, Resume)' % (display(project, folder), project.branch))
         return 3
-    if folder.exists():
-        raise Refusal('%s exists but is not a branch folder' % display(project, folder))
-    if (record / (folder.name + DONE)).exists():
-        raise Refusal('%s%s is closed; start new work on a new branch' % (display(project, folder), DONE))
+    if state == 'done':
+        raise Refusal('%s is closed; new work gets a new branch (or reopen it with close --reopen when its merge '
+                      'did not happen)' % display(project, folder))
     for probe in ('CURRENT.md', 'rounds/R1/%s.md' % you, 'rounds/R1/evidence/%s/output.txt' % you):
         path = '%s/%s/%s' % (RECORD, folder.name, probe)
-        rule = git(project.top, 'check-ignore', '-v', '--no-index', '--', path, check=False)
-        if rule.returncode == 0:
+        rule = ignored_by(project, path)
+        if rule:
             raise Refusal('%s would be excluded by the repository\'s ignore rules (%s), so the record could '
-                          'not be committed; change that rule first' % (path, rule.stdout.split('\t')[0]))
-    closed = '%s/%s%s/CURRENT.md' % (RECORD, folder.name, DONE)
-    rule = git(project.top, 'check-ignore', '-v', '--no-index', '--', closed, check=False)
-    if rule.returncode == 0:
-        raise Refusal('%s would be excluded by the repository\'s ignore rules (%s); change that rule first'
-                      % (closed, rule.stdout.split('\t')[0]))
+                          'not be committed; change that rule first' % (path, rule))
+    rule = ignored_by(project, '%s/%s%s/CURRENT.md' % (RECORD, folder.name, DONE))
+    if rule:
+        raise Refusal('%s/%s%s would be excluded by the repository\'s ignore rules (%s); change that rule first'
+                      % (RECORD, folder.name, DONE, rule))
+    version = project.version()
     values = {
         'FOLDER': '%s/%s' % (RECORD, folder.name),
         'BRANCH': project.branch,
         'DATE': datetime.date.today().isoformat(),
         'BY': you,
         'PEERS': ' | '.join(peers),
-        'PLAYBOOK': playbook_link(project, folder),
+        'PLAYBOOK': playbook_link(project, folder) + (' (framework revision %s)' % version if version else ''),
         'HEAD': out(project.top, 'rev-parse', 'HEAD'),
-        'ROLES': plain(roles) or 'not recorded; ask the owner',
+        'ROLES': plain(fields['Who writes']),
     }
     for template in ('CURRENT.md', 'ALIGNMENT.md', 'FINDINGS.md'):
         render(template, folder / template, values)
     print('Created %s for branch %s.' % (display(project, folder), project.branch))
-    print('Who writes new work (References.md, Peer roles): %s' % values['ROLES'])
+    print('Who writes new work (%s/%s): %s' % (RECORD, SETTINGS, values['ROLES']))
     print('Next: decide whether you hold the context for this work and fill ALIGNMENT.md '
           '(development/PEER-CODING.md, Start a branch).')
     return 0
+
+
+def own_folder(project, required=True):
+    if not project.branch:
+        raise Refusal('detached HEAD: check out the branch for this work')
+    folder, state = branch_folder(project, project.branch)
+    if required and state != 'active':
+        raise Refusal('no open peer-coding folder for branch %s%s' % (project.branch, '' if state == 'none' else
+                      ' (%s is closed)' % display(project, folder)))
+    return folder
 
 
 # ---------------------------------------------------------------- packet
@@ -609,15 +720,17 @@ def relative_link(source, target, label):
     return '[%s](%s)' % (label, Path(os.path.relpath(str(target), str(source.parent))).as_posix())
 
 
-def command_packet(project, args):
-    peers, _ = peers_of(project)
-    you = args.you.lower()
+def peer_names(project, you):
+    peers, fields = settings_of(project)
+    you = you.lower()
     if you not in peers:
         raise Refusal('--as %s is not one of the peers: %s' % (you, ' and '.join(peers)))
-    other = [peer for peer in peers if peer != you][0]
+    return peers, fields, you, [peer for peer in peers if peer != you][0]
+
+
+def command_packet(project, args):
+    peers, _, you, other = peer_names(project, args.you)
     folder = own_folder(project)
-    if not (folder / 'CURRENT.md').is_file():
-        raise Refusal('no peer-coding folder for branch %s; open one with start' % project.branch)
     if alignment_state(folder)['status'] != 'CONFIRMED':
         raise Refusal('ALIGNMENT.md is not CONFIRMED; alignment moves happen in ALIGNMENT.md, not in packets')
     existing = rounds(folder)
@@ -652,21 +765,15 @@ def command_packet(project, args):
 # ---------------------------------------------------------------- cue
 
 def command_cue(project, args):
-    peers, _ = peers_of(project)
-    you = args.you.lower()
-    if you not in peers:
-        raise Refusal('--as %s is not one of the peers: %s' % (you, ' and '.join(peers)))
-    other = [peer for peer in peers if peer != you][0]
+    peers, fields, you, other = peer_names(project, args.you)
     folder = own_folder(project)
-    if not (folder / 'CURRENT.md').is_file():
-        raise Refusal('no peer-coding folder for branch %s' % project.branch)
     report = Report()
     check_folder(project, folder, peers, report, you)
     if report.fails:
         report.show()
         raise Refusal('the checks above must pass before handing over')
-    status = git(project.top, 'status', '--porcelain', '-uall', '--', '%s/%s' % (RECORD, folder.name)).stdout.strip()
-    if status:
+    relative = '%s/%s' % (RECORD, folder.name)
+    if git(project.top, 'status', '--porcelain', '-uall', '--', relative).stdout.strip():
         raise Refusal('the folder has uncommitted changes; commit it first: git add -- %s && git commit -m '
                       '"<message>" -- %s' % (RECORD, RECORD))
     wip = [display(project, packet) for _, _, packet in packets(folder) if is_wip(packet)]
@@ -683,7 +790,9 @@ def command_cue(project, args):
         raise Refusal('CURRENT.md gives the next move to %s. Before handing over, give it to %s; or end with '
                       'NEEDS USER or SCOPE CLOSED instead' % (recipient or 'no one', other))
     upstream = git(project.top, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}', check=False)
-    if upstream.returncode == 0:
+    if not pushes(fields):
+        print('NOTE: %s/%s says Push: no, so the other assistant must work in this same repository.' % (RECORD, SETTINGS))
+    elif upstream.returncode == 0:
         if not succeeds(project.top, 'merge-base', '--is-ancestor', 'HEAD', '@{u}'):
             raise Refusal('push the branch first: %s does not have this commit yet' % upstream.stdout.strip())
     elif out(project.top, 'remote'):
@@ -691,26 +800,61 @@ def command_cue(project, args):
     else:
         print('NOTE: this repository has no remote, so the other assistant must work in this same repository.')
     commit = out(project.top, 'rev-parse', '--short=12', 'HEAD')
-    print('READY FOR %s · %s/%s %s · %s@%s' % (other.upper(), RECORD, folder.name, label, project.branch, commit))
-    print('Continue peer coding on branch %s (worktree: %s): read AGENTS.md there, then %s/%s/CURRENT.md.'
-          % (project.branch, project.top, RECORD, folder.name))
+    print('READY FOR %s · %s %s · %s@%s' % (other.upper(), relative, label, project.branch, commit))
+    print('Continue peer coding on branch %s (worktree: %s): read AGENTS.md there, then %s/CURRENT.md.'
+          % (project.branch, project.top, relative))
     return 0
 
 
 # ---------------------------------------------------------------- close
 
+def set_status(path, line, turn):
+    text = read(path)
+    text, count = re.subn(r'^- \*\*Status:\*\*.*$', lambda _: line, text, count=1, flags=re.M)
+    if not count:
+        text = re.sub(r'\A(# [^\n]*\n)', lambda match: match.group(1) + '\n' + line + '\n', text, count=1)
+    text = re.sub(r'^- \*\*Product writing turn:\*\*.*$', lambda _: '- **Product writing turn:** ' + turn, text, count=1, flags=re.M)
+    write(path, text)
+
+
+def command_reopen(project, you, reason):
+    folder, state = branch_folder(project, project.branch) if project.branch else (None, 'none')
+    if state != 'done':
+        raise Refusal('no closed folder for branch %s to reopen' % (project.branch or '(detached HEAD)'))
+    tip = out(project.top, 'rev-parse', 'HEAD')
+    for ref in project.default_refs():
+        if succeeds(project.top, 'merge-base', '--is-ancestor', tip, ref):
+            raise Refusal('branch %s is already merged into %s: its folder stays closed, and new work gets a new '
+                          'branch' % (project.branch, project.default))
+    relative = '%s/%s' % (RECORD, folder.name)
+    if git(project.top, 'status', '--porcelain', '-uall', '--', relative).stdout.strip():
+        raise Refusal('%s has uncommitted changes; commit them first' % relative)
+    opened = relative[:-len(DONE)]
+    if (project.top / opened).exists():
+        raise Refusal('%s already exists' % opened)
+    git(project.top, 'mv', '--', relative, opened)
+    set_status(project.top / opened / 'CURRENT.md',
+               '- **Status:** ACTIVE (reopened %s by %s: %s)' % (datetime.date.today().isoformat(), you, reason),
+               'none until the assistants agree who continues')
+    git(project.top, 'add', '--', opened + '/CURRENT.md')
+    print('Reopened %s -> %s. Record who continues in CURRENT.md, then commit and push it.' % (relative, opened))
+    return 0
+
+
 def command_close(project, args):
-    peers, _ = peers_of(project)
-    you = args.you.lower()
-    if you not in peers:
-        raise Refusal('--as %s is not one of the peers: %s' % (you, ' and '.join(peers)))
+    peers, _, you, _ = peer_names(project, args.you)
+    if args.reopen is not None:
+        if args.folder:
+            raise Refusal('--reopen works on this branch\'s own closed folder')
+        return command_reopen(project, you, args.reopen)
     record = project.record()
     if args.folder:
-        if '/' in args.folder or args.folder in ('.', '..'):
-            raise Refusal('--folder takes a folder name under %s/' % RECORD)
+        if '/' in args.folder or args.folder in ('.', '..') or args.folder in RESERVED:
+            raise Refusal('--folder takes the name of a branch folder under %s/' % RECORD)
         folder = record / args.folder
+        own = project.branch and branch_folder(project, project.branch)[0] == folder
     else:
-        folder = own_folder(project)
+        folder, own = own_folder(project), True
     name = display(project, folder)
     if folder.name.endswith(DONE):
         raise Refusal('%s is already closed' % name)
@@ -731,42 +875,39 @@ def command_close(project, args):
                       '(development/TASKS.md or its technical-debt record), note where in your packet, and '
                       'remove the row' % (name, open_findings(folder)))
     today = datetime.date.today().isoformat()
-    if args.merged is not None:
-        if not args.folder or folder.name == project.slug():
-            report = Report()
-            check_folder(project, folder, peers, report, you)
-            if report.fails:
-                report.show()
-                raise Refusal('the checks above must pass before closing')
-            current = current_state(folder)
-            last = last_product_commit(project)
-            accepted = resolve_commit(project, current['accepted']) if current['accepted'] else ''
-            if not accepted:
-                raise Refusal('CURRENT.md records no accepted head. A merge needs the other assistant\'s ACCEPTED '
-                              'verdict on the final product commit %s, recorded on the Accepted head line' % last[:12])
-            if not succeeds(project.top, 'merge-base', '--is-ancestor', accepted, 'HEAD'):
-                raise Refusal('the accepted head %s is not in this branch\'s history' % current['accepted'])
-            changed = product_changes(project, accepted)
-            if changed:
-                raise Refusal('product files changed after the accepted head %s (last product commit %s): that change '
-                              'needs the other assistant\'s review first' % (accepted[:12], last[:12]))
-        outcome = 'merged via %s' % args.merged
+    if args.merged is not None and own:
+        report = Report()
+        check_folder(project, folder, peers, report, you)
+        if report.fails:
+            report.show()
+            raise Refusal('the checks above must pass before closing')
+        current = current_state(folder)
+        last = last_product_commit(project)
+        accepted = resolve_commit(project, current['accepted']) if current['accepted'] else ''
+        if not accepted:
+            raise Refusal('CURRENT.md records no accepted head. A merge needs the other assistant\'s ACCEPTED '
+                          'verdict on the final product commit %s, recorded on the Accepted head line' % last[:12])
+        if not succeeds(project.top, 'merge-base', '--is-ancestor', accepted, 'HEAD'):
+            raise Refusal('the accepted head %s is not in this branch\'s history' % current['accepted'])
+        changed = product_changes(project, accepted)
+        if changed:
+            raise Refusal('product files changed after the accepted head %s (last product commit %s): that change '
+                          'needs the other assistant\'s review first' % (accepted[:12], last[:12]))
+        outcome = 'closed for merge via %s' % args.merged
+    elif args.merged is not None:
+        outcome = 'closed after merge via %s, from branch %s' % (args.merged, project.branch or 'HEAD')
     else:
         outcome = 'abandoned: %s' % args.abandoned
-    if args.folder and folder.name != project.slug():
-        outcome += ', closed from branch %s' % (project.branch or 'HEAD')
+        if not own:
+            outcome += ', closed from branch %s' % (project.branch or 'HEAD')
     git(project.top, 'mv', '--', relative, relative + DONE)
-    closed = record / (folder.name + DONE) / 'CURRENT.md'
-    text = read(closed)
-    line = '- **Status:** DONE, %s (closed %s by %s)' % (outcome, today, you)
-    text, count = re.subn(r'^- \*\*Status:\*\*.*$', lambda _: line, text, count=1, flags=re.M)
-    if not count:
-        text = re.sub(r'\A(# [^\n]*\n)', lambda match: match.group(1) + '\n' + line + '\n', text, count=1)
-    text = re.sub(r'^- \*\*Product writing turn:\*\*.*$', '- **Product writing turn:** none (closed)', text, count=1, flags=re.M)
-    write(closed, text)
+    set_status(record / (folder.name + DONE) / 'CURRENT.md',
+               '- **Status:** DONE, %s (%s, %s)' % (outcome, today, you), 'none (closed)')
     git(project.top, 'add', '--', relative + DONE + '/CURRENT.md')
     print('Closed %s -> %s%s (%s).' % (name, name, DONE, outcome))
     print('Commit and push it as its own change: git add -- %s && git commit -m "<message>" -- %s' % (RECORD, RECORD))
+    if args.merged is not None and own:
+        print('If the merge then does not happen, reopen the folder with: close --as %s --reopen "<reason>"' % you)
     return 0
 
 
@@ -777,6 +918,8 @@ def main(argv=None):
         sys.stdout.reconfigure(errors='replace')
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest='command')
+    commands.add_parser('setup')
+    commands.add_parser('which')
     for name in ('start', 'packet', 'cue', 'close'):
         sub = commands.add_parser(name)
         sub.add_argument('--as', dest='you', required=True)
@@ -784,6 +927,7 @@ def main(argv=None):
             outcome = sub.add_mutually_exclusive_group(required=True)
             outcome.add_argument('--merged')
             outcome.add_argument('--abandoned')
+            outcome.add_argument('--reopen')
             sub.add_argument('--folder')
     sub = commands.add_parser('check')
     sub.add_argument('--as', dest='you')
@@ -791,14 +935,16 @@ def main(argv=None):
     if not args.command:
         parser.print_usage()
         return 2
-    for value in (getattr(args, 'merged', None), getattr(args, 'abandoned', None), getattr(args, 'folder', None)):
+    for key in ('merged', 'abandoned', 'reopen', 'folder'):
+        value = getattr(args, key, None)
         if value is not None and (not value.strip() or re.search(r'[\x00-\x1f]', value)):
-            print('FAIL: an empty value or a control character in the arguments', file=sys.stderr)
+            print('FAIL: --%s needs a value without control characters' % key, file=sys.stderr)
             return 2
     try:
         project = Project(Path.cwd())
-        handler = {'start': command_start, 'packet': command_packet, 'check': command_check,
-                   'cue': command_cue, 'close': command_close}[args.command]
+        handler = {'setup': command_setup, 'which': command_which, 'start': command_start,
+                   'packet': command_packet, 'check': command_check, 'cue': command_cue,
+                   'close': command_close}[args.command]
         return handler(project, args)
     except Refusal as refusal:
         print('FAIL: %s' % refusal)

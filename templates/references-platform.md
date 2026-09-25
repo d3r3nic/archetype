@@ -13,8 +13,7 @@ Use this template when the user's project is built on a third-party platform (a 
 - Owner channel: [where escalations go and how quickly the owner usually answers]
 - Decision location: [existing decision record path or section; otherwise DECISIONS.md from templates/decisions.md, one location only]
 - Reporting pace: [every session / every release / on request]
-- Peer coding: [none; or the two AI assistants that take turns on this project, each as its short name with its tool in parentheses, separated by a comma (development/PEER-CODING.md)]
-- Peer roles: [when Peer coding names two: who writes new work and who reviews it, in the owner's words; n/a when it is none]
+- Peer coding: [none; or peer-coding/SETTINGS.md, when the owner chose two AI assistants taking turns (development/PEER-CODING.md)]
 - Public URL (if any):
 - Owner (who holds the account):
 

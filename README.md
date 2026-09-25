@@ -55,7 +55,7 @@ Run the installed update.sh to fetch current shared rules. It is a manual latest
 
 **Updating:** development/UPDATE.md says who owns which file and what a session does before and after. Root AGENTS.md holds the rules and root CLAUDE.md imports it; both are replaced by each update, and lines a project added to them are carried into CLAUDE.md.additions for audit, never deleted. An old injected updater first replaces itself: run it twice. For an old full-clone installation, use the current updater with an explicit verified root instead of running the legacy root-detection code.
 
-**Peer coding:** two AI assistants, each in its own chat, can take turns on a branch: the one holding the writing turn implements, the other reviews every change and can repair what it finds and hand it back for another review. The owner passes one short line between the chats at each hand-over, and says who writes new work. Each branch keeps its hand-over record in `peer-coding/<branch>/`, committed with the branch and renamed `<branch>--done` when it merges. Setup asks whether a second assistant will work on the project. See [development/PEER-CODING.md](development/PEER-CODING.md); `python3 scripts/test-peer-coding.py` exercises the helper script.
+**Peer coding:** two AI assistants, each in its own chat, can take turns on a branch: the one holding the writing turn implements, the other reviews every change and can repair what it finds and hand it back for another review. The owner passes one short line between the chats at each hand-over. The framework owns the rules; each project tailors them in one settings file, `peer-coding/SETTINGS.md` (which two assistants, who writes new work, the checks before each hand-over, branch naming, push and merge, extra project rules), and each branch keeps its hand-over record in `peer-coding/<branch>/`, committed with the branch and renamed `<branch>--done` when it closes for its merge. Setup asks whether a second assistant will work on the project. See [development/PEER-CODING.md](development/PEER-CODING.md); `python3 scripts/test-peer-coding.py` exercises the helper script.
 
 Verification: `bash scripts/validate-framework.sh` checks structural consistency and runs the timeless-content check (`scripts/validate-timeless.sh`: no tool or vendor names outside Research Notes, no factory step references, no dated AI statistics, no tool-bound numeric limits, no changelog language); `python3 scripts/test-entrypoints.py` exercises distribution and preservation. Set `ARCHETYPE_LEGACY_SOURCE` to an exported previous release directory to include the two-step upgrade regression. These checks do not prove that an agent obeys instructions or that a platform enforces them.
 
@@ -131,7 +131,7 @@ your-project/
 ├── PROFILE.md                 # YOUR operating stage and who decides technical questions
 ├── References.md              # YOUR project's tech stack, systems, commands
 ├── feature-tree.md            # Living map of YOUR systems and features
-├── peer-coding/               # Hand-over records, one folder per branch, when two AI assistants take turns
+├── peer-coding/               # When two AI assistants take turns: SETTINGS.md, and one hand-over folder per branch
 ├── .env.example               # Required environment variables documented
 ├── docs/
 │   ├── systems/               # One doc per foundational system (how to use it)

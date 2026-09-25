@@ -20,8 +20,8 @@ Branch `{{BRANCH}}` · opened {{DATE}} by {{BY}} · rules: {{PLAYBOOK}}. Replace
 
 ## Authorizations
 
-Who writes new work: {{ROLES}} (References.md, Peer roles), unless the owner's words below say otherwise for this branch.
+Who writes new work: {{ROLES}} (peer-coding/SETTINGS.md), unless the owner's words below say otherwise for this branch.
 
-A merge needs the other assistant's acceptance of the final product head, passing checks, and the authorization PROFILE.md and the decision-authority convention require. Deployments, live-environment actions and data changes need the owner's authorization.
+A merge needs the other assistant's acceptance of the final product head, passing checks, and what SETTINGS.md's Merge line and PROFILE.md's decision authority require. Deployments, live-environment actions and data changes need the owner's authorization.
 
 Owner's words for this branch (date, scope): none recorded.
