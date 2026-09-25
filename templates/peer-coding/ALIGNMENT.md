@@ -60,4 +60,4 @@ What the receiver verified on its own, before or beside the brief (none yet, whe
 |---|---|---|
 | <claim> | <command or file read> | <CONFIRMED / DISCREPANCY / UNVERIFIABLE> |
 
-Receiver verdict: <CONFIRMED, naming any attributed decisions accepted without proof in code; or the follow-ups added to §2>.
+Receiver verdict: <CONFIRMED, naming any attributed decisions accepted without proof in code; or REQUESTED, with the follow-ups added to §2>.

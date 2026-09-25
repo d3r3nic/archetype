@@ -600,7 +600,7 @@ class AuditFindings(Close):
         self.commit(where, 'record it', 'peer-coding')
         check = self.pc(where, 'check')
         self.assertEqual(check.returncode, 1, check.stdout)
-        self.assertIn('product files changed before ALIGNMENT.md was CONFIRMED: app.py', check.stdout)
+        self.assertIn('product files changed while ALIGNMENT.md is not CONFIRMED: app.py', check.stdout)
         self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
         self.assertIn('the checks above must pass', self.pc(where, 'cue', '--as', 'claude').stdout)
         self.edit(folder / 'CURRENT.md', r'^- \*\*Accepted head:\*\*.*$', '- **Accepted head:** %s by codex' % early)
@@ -613,7 +613,7 @@ class AuditFindings(Close):
         self.edit(folder / 'ALIGNMENT.md', r'^Status: .*$', 'Status: CONFIRMED')
         check = self.pc(where, 'check')
         self.assertEqual(check.returncode, 1, check.stdout)
-        self.assertIn("CONFIRMED without both roles named and the receiver's verdict filled in", check.stdout)
+        self.assertIn('CONFIRMED without both roles named and a Receiver verdict that begins CONFIRMED', check.stdout)
         self.assertIn('not CONFIRMED', self.pc(where, 'packet', '--as', 'claude').stdout.replace('is CONFIRMED without', ''))
 
     def test_close_refuses_while_the_remote_branch_has_commits_this_checkout_lacks(self):
@@ -851,6 +851,140 @@ class TwoUnits(unittest.TestCase):
             self.assertIn('read frontend/AGENTS.md there, then peer-coding/feature-both/CURRENT.md', result.stdout)
 
 
+class RoundThree(Close):
+    """Cases from the second round of the independent script audit."""
+
+    def test_no_product_change_while_realigning_even_after_rounds(self):
+        where, folder, product = self.reviewed()
+        self.assertEqual(self.pc(where, 'packet', '--as', 'claude').returncode, 0)
+        self.edit(folder / 'rounds' / 'R1' / 'claude.md', r'^Status: WIP.*\n', '')
+        self.commit(where, 'R1', 'peer-coding')
+        self.edit(folder / 'ALIGNMENT.md', r'^Status: .*$', 'Status: BRIEFED')
+        self.edit(folder / 'CURRENT.md', r'^- \*\*Alignment:\*\*.*$', '- **Alignment:** BRIEFED. Next move: codex.')
+        self.edit(folder / 'CURRENT.md', r'^- \*\*Product writing turn:\*\*.*$', '- **Product writing turn:** none')
+        self.commit(where, 're-brief', 'peer-coding')
+        (where / 'app.py').write_text('print("v2 during the re-brief")\n')
+        v2 = self.commit(where, 'v2', 'app.py')
+        self.set_head(folder, 'feature/plots', v2)
+        self.commit(where, 'record v2', 'peer-coding')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 1, check.stdout)
+        self.assertIn('product files changed while ALIGNMENT.md is not CONFIRMED: app.py', check.stdout)
+
+    def test_a_merge_of_the_default_branch_during_alignment_is_allowed(self):
+        where, folder = self.started()
+        self.commit(where, 'open', 'peer-coding')
+        (self.project / 'other.txt').write_text('from main\n')
+        self.commit(self.project, 'main moves on', 'other.txt')
+        self.git(where, 'merge', '-q', '--no-edit', 'main')
+        self.set_head(folder, 'feature/plots', self.git(where, 'rev-parse', 'HEAD'))
+        self.commit(where, 'record the merge', 'peer-coding')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 0, check.stdout)
+
+    def test_a_hand_written_packet_does_not_open_the_way_before_confirmation(self):
+        where, folder = self.started()
+        (folder / 'rounds' / 'R1').mkdir(parents=True)
+        (folder / 'rounds' / 'R1' / 'claude.md').write_text('# packet\n')
+        self.commit(where, 'open with a packet', 'peer-coding')
+        (where / 'app.py').write_text('print("early")\n')
+        early = self.commit(where, 'early', 'app.py')
+        self.set_head(folder, 'feature/plots', early)
+        self.commit(where, 'record it', 'peer-coding')
+        self.assertIn('product files changed while ALIGNMENT.md is not CONFIRMED', self.pc(where, 'check').stdout)
+
+    def test_scope_closed_needs_the_acceptance_of_the_product_changes(self):
+        where, folder, product = self.reviewed()
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        self.edit(folder / 'CURRENT.md', r'^1\. .*$', '1. SCOPE CLOSED: awaiting the owner')
+        self.commit(where, 'scope closed', 'peer-coding')
+        self.git(where, 'push', '-q')
+        refused = self.pc(where, 'cue', '--as', 'claude')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn("SCOPE CLOSED needs the other assistant's acceptance", refused.stdout)
+        self.accept(where, folder, product)
+        self.git(where, 'push', '-q')
+        self.assertIn('SCOPE CLOSED · peer-coding/feature-plots', self.pc(where, 'cue', '--as', 'claude').stdout)
+
+    def test_close_for_merge_needs_a_confirmed_alignment(self):
+        where, folder = self.started()
+        self.edit(folder / 'ALIGNMENT.md', r'^Status: .*$', 'Status: BRIEFED')
+        self.edit(folder / 'CURRENT.md', r'^- \*\*Alignment:\*\*.*$', '- **Alignment:** BRIEFED. Next move: codex.')
+        head = self.git(where, 'rev-parse', 'HEAD')
+        self.edit(folder / 'CURRENT.md', r'^- \*\*Accepted head:\*\*.*$', '- **Accepted head:** %s by codex' % head)
+        self.commit(where, 'brief', 'peer-coding')
+        refused = self.pc(where, 'close', '--as', 'claude', '--merged', 'PR 1')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('ALIGNMENT.md is not CONFIRMED', refused.stdout)
+
+    def test_the_verdict_must_say_confirmed_and_roles_may_name_their_tools(self):
+        where, folder = self.started()
+        self.confirm(where, 'feature/plots')
+        self.edit(folder / 'ALIGNMENT.md', r'^Receiver verdict: .*$', 'Receiver verdict: REQUESTED; claim 2 is a DISCREPANCY')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 1, check.stdout)
+        self.assertIn('a Receiver verdict that begins CONFIRMED', check.stdout)
+        self.assertIn('not CONFIRMED', self.pc(where, 'packet', '--as', 'claude').stdout)
+        self.edit(folder / 'ALIGNMENT.md', r'^Receiver verdict: .*$', 'Receiver verdict: CONFIRMED by codex.')
+        self.edit(folder / 'ALIGNMENT.md', r'^Context holder: .*$', 'Context holder: claude (Claude Code) · Receiver: codex (Codex)')
+        self.assertEqual(self.pc(where, 'check').returncode, 0)
+
+    def test_close_compares_only_with_the_branchs_own_remote_branch(self):
+        where, folder, product = self.reviewed()
+        self.accept(where, folder, product)
+        self.git(where, 'branch', '-q', '--set-upstream-to', 'origin/main')
+        (self.project / 'other.txt').write_text('main moved\n')
+        self.commit(self.project, 'main moves on', 'other.txt')
+        self.git(self.project, 'push', '-q')
+        self.git(where, 'fetch', '-q', 'origin')
+        closed = self.pc(where, 'close', '--as', 'claude', '--merged', 'PR 2')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+
+    def test_more_links_a_clone_cannot_follow_and_things_that_are_not_links(self):
+        where, folder = self.started()
+        evidence = folder / 'rounds' / 'R1' / 'evidence' / 'claude'
+        evidence.mkdir(parents=True)
+        (evidence / 'real.txt').write_text('ok\n')
+        os.symlink('real.txt', str(evidence / 'alias.txt'))
+        with open(folder / 'FINDINGS.md', 'a') as notes:
+            notes.write('\nSee <file:///etc/hosts>, <a href="../../../../o.md">here</a>, [ed](vscode://file/x), '
+                        '<https://example.com/fine>.\n\n[^1]: Seen twice in logs.\n[unverified]: this claim was not checked.\n')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 1, check.stdout)
+        for expected in ("link file:///etc/hosts points into this machine's files", 'link ../../../../o.md leaves the repository',
+                         'link vscode://file/x opens something on this machine', 'alias.txt is a symbolic link'):
+            self.assertIn(expected, check.stdout)
+        for quiet in ('Seen', 'this claim', 'example.com'):
+            self.assertNotIn(quiet, check.stdout)
+
+    def test_commit_signatures_shown_by_git_log_do_not_break_the_hand_over(self):
+        where, folder = self.started()
+        self.git(where, 'config', 'log.showSignature', 'true')
+        self.confirm(where, 'feature/plots', writer='codex')
+        (where / 'app.py').write_text('print("r1")\n')
+        product = self.commit(where, 'r1', 'app.py')
+        self.set_head(folder, 'feature/plots', product)
+        self.assertEqual(self.pc(where, 'packet', '--as', 'claude').returncode, 0)
+        self.edit(folder / 'rounds' / 'R1' / 'claude.md', r'^Status: WIP.*\n', '')
+        self.commit(where, 'R1', 'peer-coding')
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        result = self.pc(where, 'cue', '--as', 'claude')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertNotIn('NOTE: no packet', result.stdout)
+
+    def test_a_file_system_error_is_a_refusal_not_a_traceback(self):
+        where = self.worktree('feature/plots')
+        record = where / 'peer-coding'
+        os.chmod(str(record), 0o500)
+        self.addCleanup(os.chmod, str(record), 0o700)
+        result = self.pc(where, 'start', '--as', 'claude')
+        if os.geteuid() == 0:
+            self.skipTest('root ignores folder permissions')
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('FAIL:', result.stdout)
+        self.assertNotIn('Traceback', result.stdout)
+
+
 class Bootstrap(unittest.TestCase):
     def check(self, peer, settings=None):
         with tempfile.TemporaryDirectory() as temp:
@@ -875,6 +1009,19 @@ class Bootstrap(unittest.TestCase):
             result = self.check(peer, settings)
             self.assertEqual(result.returncode, code, peer + result.stdout)
             self.assertIn(expected, result.stdout)
+
+    def test_a_project_inside_another_repository_reads_its_own_settings(self):
+        with tempfile.TemporaryDirectory() as temp:
+            outer = Path(temp)
+            subprocess.run(['git', 'init', '-q', str(outer)], check=True)
+            project = outer / 'app'
+            (project / 'peer-coding').mkdir(parents=True)
+            (project / 'References.md').write_text(REFERENCES.format(peer=ON))
+            (project / 'feature-tree.md').write_text('# Features\n')
+            (project / 'peer-coding' / 'SETTINGS.md').write_text(SETTINGS.format(push='yes'))
+            result = subprocess.run(['python3', str(ENGINE / 'scripts' / 'validate-bootstrap.py'), 'context'], cwd=str(project),
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+            self.assertEqual(result.returncode, 0, result.stdout)
 
 
 if __name__ == '__main__':

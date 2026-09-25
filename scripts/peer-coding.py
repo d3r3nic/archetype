@@ -350,12 +350,13 @@ def alignment_state(folder):
     names = []
     if roles:
         for raw in roles.groups():
-            match = re.match(r'^([A-Za-z][A-Za-z0-9-]*)$', plain(raw))
+            # "claude" or "claude (its tool)"; a placeholder such as "<claude | codex>" names no one.
+            match = re.match(r'^([A-Za-z][A-Za-z0-9-]*)\s*(\([^)]*\))?\s*$', plain(raw))
             names.append(match.group(1).lower() if match else '')
     verdict = re.search(r'^Receiver verdict:\s*(.*)$', text, re.M)
     return {'status': word.group(1) if word else '', 'raw': value,
             'holder': names[0] if names else '', 'receiver': names[1] if len(names) > 1 else '',
-            'verdict': filled(verdict.group(1)) and not plain(verdict.group(1)).startswith('<') if verdict else False}
+            'verdict': bool(verdict) and bool(re.match(r'^CONFIRMED\b', plain(verdict.group(1))))}
 
 
 def open_findings(folder):
@@ -425,7 +426,12 @@ def exists_exactly(top, parts):
 def link_targets(line):
     for match in re.finditer(r'!?\[[^\]\n]*\]\(([^)\n]*)\)', line):
         yield match.group(1)
-    definition = re.match(r'^ {0,3}\[[^\]]+\]:\s*(.*)$', line)
+    for match in re.finditer(r'<([A-Za-z][A-Za-z0-9+.-]*:[^>\s]+)>', line):
+        yield match.group(1)
+    for match in re.finditer(r'\b(?:href|src)\s*=\s*["\']([^"\']*)["\']', line, re.I):
+        yield match.group(1)
+    # A reference definition: a destination, an optional quoted title, nothing else (not a footnote).
+    definition = re.match(r'^ {0,3}\[(?!\^)[^\]]+\]:\s*(<[^>]*>|\S+)\s*(?:"[^"]*"|\'[^\']*\'|\([^)]*\))?\s*$', line)
     if definition:
         yield definition.group(1)
 
@@ -452,7 +458,11 @@ def link_problems(project, folder):
                                     'relative to the file' % (where, target))
                     continue
                 # A web or mail address is not checked; "notes.md:12" is a file name with a line number, not an address.
-                if re.match(r'^[A-Za-z][A-Za-z0-9+.-]*://', target) or re.match(r'^(mailto|tel|data):', target, re.I):
+                if re.match(r'^(https?://|mailto:)', target, re.I):
+                    continue
+                if re.match(r'^[A-Za-z][A-Za-z0-9+.-]*://', target):
+                    problems.append('%s: link %s opens something on this machine that another clone cannot follow'
+                                    % (where, target))
                     continue
                 local, _, fragment = target.partition('#')
                 local = local.split('?')[0]
@@ -531,7 +541,7 @@ def uncommitted_product(project):
 
 
 def last_product_commit(project):
-    return out(project.top, 'log', '-1', '--format=%H', 'HEAD', '--', '.', ':(exclude)%s' % RECORD)
+    return out(project.top, 'rev-list', '-1', 'HEAD', '--', '.', ':(exclude)%s' % RECORD)
 
 
 def resolve_commit(project, commit):
@@ -555,6 +565,40 @@ def opening_head(project, folder):
         if base:
             return base
     return ''
+
+
+def aligned_in(project, commit, relative):
+    shown = git(project.top, 'show', '%s:%s' % (commit, relative), check=False)
+    if shown.returncode != 0:
+        return None
+    status = re.search(r'^Status:\s*(.*)$', shown.stdout, re.M)
+    return bool(status) and bool(re.match(r'^CONFIRMED\b', plain(status.group(1))))
+
+
+def unconfirmed_since(project, folder):
+    """The commit from which ALIGNMENT.md has not been CONFIRMED: where it last left CONFIRMED in the
+    branch's history, or where the branch stood when the folder was opened; HEAD when the change is not
+    committed yet."""
+    relative = '%s/%s/ALIGNMENT.md' % (RECORD, folder.name)
+    history = git(project.top, 'rev-list', 'HEAD', '--', relative, check=False).stdout.split()
+    left = ''
+    for commit in history:  # newest first
+        state = aligned_in(project, commit, relative)
+        if state:
+            return left or out(project.top, 'rev-parse', 'HEAD')
+        if state is False:
+            left = commit
+    return opening_head(project, folder)
+
+
+def own_product_changes(project, since):
+    """Product files changed by this branch's own commits after `since`, leaving out a merge of the default branch."""
+    if not is_ancestor(project, since, 'HEAD'):
+        return []
+    args = ['log', '--no-merges', '--format=', '--name-only', '%s..HEAD' % since]
+    args += ['--not'] + project.default_refs() if project.default_refs() else []
+    args += ['--', '.', ':(exclude)%s' % RECORD]
+    return sorted({line for line in out(project.top, *args).splitlines() if line})
 
 
 def confirmed(alignment):
@@ -589,8 +633,8 @@ def check_folder(project, folder, peers, report, you=''):
     if alignment['holder'] and alignment['holder'] == alignment['receiver']:
         report.fail('%s: ALIGNMENT.md names the same assistant as holder and receiver' % name)
     if alignment['status'] == 'CONFIRMED' and not (alignment['holder'] and alignment['receiver'] and alignment['verdict']):
-        report.fail('%s: ALIGNMENT.md is CONFIRMED without both roles named and the receiver\'s verdict filled in; '
-                    'only the receiver confirms, after verifying the brief' % name)
+        report.fail('%s: ALIGNMENT.md is CONFIRMED without both roles named and a Receiver verdict that begins '
+                    'CONFIRMED; only the receiver confirms, after verifying the brief' % name)
     if current['accepted_unreadable']:
         report.fail('%s: the Accepted head line must start with the accepted commit id, or say none' % name)
     if alignment['status'] and current['alignment'] and alignment['status'] != current['alignment']:
@@ -618,11 +662,13 @@ def check_folder(project, folder, peers, report, you=''):
         if changed:
             report.fail('%s: product files changed after the recorded last product commit %s, and no hand-over '
                         'recorded them: %s' % (name, current['head'], listed(changed)))
-    if not confirmed(alignment) and not list(packets(folder)):
-        opened = opening_head(project, folder)
-        early = product_changes(project, opened) if opened and is_ancestor(project, opened, 'HEAD') else []
+    if not confirmed(alignment):
+        since = unconfirmed_since(project, folder)
+        early = own_product_changes(project, since) if since else []
         if early:
-            report.fail('%s: product files changed before ALIGNMENT.md was CONFIRMED: %s' % (name, listed(early)))
+            report.fail('%s: product files changed while ALIGNMENT.md is not CONFIRMED: %s. Product work waits for '
+                        'the receiver\'s confirmation; a merge of the default branch is not counted'
+                        % (name, listed(early)))
     dirty = uncommitted_product(project)
     if dirty:
         report.fail('uncommitted product changes in this worktree: %s. Commit them on your writing turn, '
@@ -644,6 +690,10 @@ def check_folder(project, folder, peers, report, you=''):
 
     for problem in link_problems(project, folder):
         report.fail(problem)
+    for path in sorted(folder.rglob('*')):
+        if path.is_symlink():
+            report.fail('%s is a symbolic link; the record keeps the file itself, which every clone can read'
+                        % path.relative_to(project.top).as_posix())
     files = [str(path.relative_to(project.top)) for path in folder.rglob('*') if path.is_file()]
     if files:
         ignored = git(project.top, 'check-ignore', '--', *files, check=False).stdout.split('\n')
@@ -950,7 +1000,7 @@ def command_cue(project, args):
     note = ''
     if confirmed(alignment) and opened and product_changes(project, opened) and not current['waiting']:
         mine = [packet for _, peer, packet in packets(folder) if peer == you]
-        written = out(project.top, 'log', '-1', '--format=%H', '--', display(project, mine[-1])) if mine else ''
+        written = out(project.top, 'rev-list', '-1', 'HEAD', '--', display(project, mine[-1])) if mine else ''
         if not written or not is_ancestor(project, last_product_commit(project), written):
             # Returning the move after recording the owner's answer needs no packet; a turn that reviewed or
             # changed product work does.
@@ -981,6 +1031,11 @@ def command_cue(project, args):
             not is_ancestor(project, 'HEAD', 'refs/remotes/%s/%s' % (remote, tracked)):
         raise Refusal('push the branch first: %s/%s does not have this commit yet (git push %s %s)'
                       % (remote, tracked, remote, project.branch))
+    if current['waiting'] == 'SCOPE CLOSED' and opened and own_product_changes(project, opened):
+        accepted = resolve_commit(project, current['accepted']) if current['accepted'] else ''
+        if not accepted or not is_ancestor(project, accepted, 'HEAD') or product_changes(project, accepted):
+            raise Refusal('SCOPE CLOSED needs the other assistant\'s acceptance of the product changes: the Accepted '
+                          'head must cover the last product commit %s' % last_product_commit(project)[:12])
     if note:
         print(note)
     commit = out(project.top, 'rev-parse', '--short=12', 'HEAD')
@@ -1089,7 +1144,7 @@ def command_close(project, args):
         if not confirmed(alignment_state(folder)):
             raise Refusal('ALIGNMENT.md is not CONFIRMED; work that was never aligned closes as --abandoned, not for a merge')
         remote, tracked = upstream_of(project)
-        if remote and remote != '.' and tracked:
+        if remote and remote != '.' and tracked == project.branch:
             try:
                 fetched = git(project.top, 'fetch', '--quiet', remote, tracked, check=False, timeout=60).returncode == 0
             except subprocess.TimeoutExpired:
