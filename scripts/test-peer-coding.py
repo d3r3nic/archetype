@@ -1039,6 +1039,41 @@ class RoundFour(Close):
         self.assertIn('product files changed while ALIGNMENT.md is not CONFIRMED: app.py', check.stdout)
         self.assertNotIn('other.txt', check.stdout)
 
+    def test_a_clean_merge_of_the_default_branch_into_a_file_both_changed_is_not_product_work(self):
+        where, folder, product = self.reviewed()
+        # The branch changed feature-plots.py; main changes another line of it; the merge needs no hand.
+        path = 'feature-plots.py'
+        (where / path).write_text('first\nsecond\nthird\nfourth\nfifth\n')
+        self.set_head(folder, 'feature/plots', self.commit(where, 'five lines', path))
+        self.commit(where, 'record', 'peer-coding')
+        self.git(self.project, 'merge', '-q', '--no-edit', 'feature/plots')
+        (self.project / path).write_text('first\nsecond\nthird\nfourth\nFIFTH\n')
+        self.commit(self.project, 'main edits the last line', path)
+        (where / path).write_text('FIRST\nsecond\nthird\nfourth\nfifth\n')
+        self.set_head(folder, 'feature/plots', self.commit(where, 'branch edits the first line', path))
+        self.commit(where, 'record', 'peer-coding')
+        self.rebrief(where, folder)
+        self.commit(where, 're-brief', 'peer-coding')
+        self.git(where, 'merge', '-q', '--no-edit', 'main')
+        self.assertEqual((where / path).read_text(), 'FIRST\nsecond\nthird\nfourth\nFIFTH\n')
+        self.set_head(folder, 'feature/plots', self.git(where, 'rev-parse', 'HEAD'))
+        self.commit(where, 'record the merge', 'peer-coding')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 0, check.stdout)
+
+    def test_the_label_says_no_packet_even_when_an_older_packet_exists(self):
+        where, folder = self.started()
+        self.confirm(where, 'feature/plots', writer='codex')
+        self.assertEqual(self.pc(where, 'packet', '--as', 'claude').returncode, 0)
+        self.edit(folder / 'rounds' / 'R1' / 'claude.md', r'^Status: WIP.*\n', '')
+        self.commit(where, 'R1 before any code', 'peer-coding')
+        (where / 'app.py').write_text('print("later work")\n')
+        self.set_head(folder, 'feature/plots', self.commit(where, 'later work', 'app.py'))
+        self.commit(where, 'hand over', 'peer-coding')
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        result = self.pc(where, 'cue', '--as', 'claude')
+        self.assertIn('READY FOR CODEX · peer-coding/feature-plots no packet ·', result.stdout)
+
     def test_start_warns_when_the_branch_tracks_another_branch(self):
         where = self.worktree('feature/plots')
         self.git(where, 'branch', '-q', '--set-upstream-to', 'origin/main')

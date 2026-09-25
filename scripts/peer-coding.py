@@ -600,10 +600,13 @@ def own_product_changes(project, since):
     not_default = ['--not'] + project.default_refs() if project.default_refs() else []
     files = set(out(project.top, 'log', '--no-merges', '--format=', '--name-only', '%s..HEAD' % since,
                     *(not_default + ['--', '.', ':(exclude)%s' % RECORD])).splitlines())
-    # A merge commit's own changes (a conflict resolution, or an edit made in the merge) differ from every parent.
+    # A merge commit's own changes: what differs from git's automatic merge (a conflict resolution, or an edit
+    # made in the merge). An older git without that comparison counts every file that differs from all parents.
     for merge in out(project.top, 'rev-list', '--merges', '%s..HEAD' % since, *not_default).split():
-        files.update(line for line in out(project.top, 'diff-tree', '-r', '--cc', '--name-only', '--no-commit-id',
-                                          merge).splitlines() if not line.startswith(RECORD + '/'))
+        own = git(project.top, 'show', '--remerge-diff', '--format=', '--name-only', merge, check=False)
+        if own.returncode != 0:
+            own = git(project.top, 'diff-tree', '-r', '--cc', '--name-only', '--no-commit-id', merge)
+        files.update(line for line in own.stdout.splitlines() if not line.startswith(RECORD + '/'))
     return sorted(line for line in files if line)
 
 
@@ -1019,7 +1022,7 @@ def command_cue(project, args):
     else:
         recipient = current['turn'] if current['turn'] != 'none' else ''
         mine = [number for number, peer, _ in packets(folder) if peer == you]
-        label = 'R%d' % mine[-1] if mine else ('no packet' if note else 'ALIGN CONFIRMED')
+        label = 'no packet' if note else ('R%d' % mine[-1] if mine else 'ALIGN CONFIRMED')
     if not current['waiting'] and recipient != other:
         raise Refusal('CURRENT.md gives the next move to %s. Before handing over, give it to %s; or write NEEDS USER '
                       'or SCOPE CLOSED as the Next action instead' % (recipient or 'no one', other))
