@@ -15,6 +15,10 @@
 # Emits JSON conforming to the data contract documented in
 # templates/pulse-monitor-spec.md (dataContractVersion is emitted in the output).
 
+# Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
+# character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
+export LC_ALL=C
+
 set -euo pipefail
 
 PROJECT_ROOT="$(pwd)"
@@ -22,8 +26,10 @@ OUT=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --out) OUT="$2"; shift 2 ;;
-    --root) PROJECT_ROOT="$2"; shift 2 ;;
+    --out) [ $# -ge 2 ] || { echo "pulse-inspect: --out needs the snapshot path after it, for example --out .pulse-state.json" >&2; exit 1; }
+      OUT="$2"; shift 2 ;;
+    --root) [ $# -ge 2 ] || { echo "pulse-inspect: --root needs the project folder after it" >&2; exit 1; }
+      PROJECT_ROOT="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
@@ -41,20 +47,33 @@ if [ -z "$REFS" ] || [ -z "$TREE" ]; then
 fi
 
 # Helper: extract a named ## section using a flag state machine.
-# Stops cleanly at the next ## header.
+# Stops cleanly at the next ## header. A line's Windows carriage return is dropped, so values and
+# the folder block carry none.
 extract_section() {
   local file="$1"
   local header="$2"
   awk -v hdr="$header" '
+    { sub(/\r$/, "") }
     $0 ~ "^## " hdr { flag=1; next }
     /^## [A-Za-z]/ { flag=0 }
     flag { print }
   ' "$file"
 }
 
+# JSON string escaping, one byte at a time: the backslash, the quote, and every control character.
+# A loop rather than gsub, because busybox awk does not double a backslash through gsub's
+# replacement text; and control characters, because a raw one makes the whole snapshot invalid.
+JSON_ESCAPE_AWK='BEGIN { for (i = 1; i < 32; i++) ctl[sprintf("%c", i)] = sprintf("\\u%04x", i); ctl["\t"] = "\\t" }
+function esc(s,   out, i, c) { out = ""; for (i = 1; i <= length(s); i++) { c = substr(s, i, 1); if (c == "\\") out = out "\\\\"; else if (c == "\"") out = out "\\\""; else if (c in ctl) out = out ctl[c]; else out = out c } return out }'
+
 json_escape() {
-  # Escape for JSON string context.
-  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e "s/$(printf '\t')/\\\\t/g"
+  # One value; a value of several lines keeps them, joined by \n.
+  printf '%s' "$1" | awk "$JSON_ESCAPE_AWK"' { printf "%s%s", (NR > 1 ? "\\n" : ""), esc($0) }'
+}
+
+json_escape_block() {
+  # A block of lines, each followed by \n.
+  printf '%s' "$1" | awk "$JSON_ESCAPE_AWK"' { printf "%s\\n", esc($0) }'
 }
 
 # ---------- Section 1: Project overview ----------
@@ -174,7 +193,7 @@ arch_section="$(extract_section "$REFS" "Folder Structure")"
 if [ -n "$arch_section" ]; then
   architecture="$(printf '%s\n' "$arch_section" | awk '/^```/{flag=!flag; next} flag')"
 fi
-architecture_escaped="$(printf '%s' "$architecture" | awk '{ gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); printf "%s\\n", $0 }')"
+architecture_escaped="$(json_escape_block "$architecture")"
 
 # ---------- Section 6: Architecture diagram (Mermaid flowchart) ----------
 diagram="flowchart LR"$'\n'
@@ -227,7 +246,7 @@ if [ -n "$features_edges" ]; then
   diagram="${diagram}${features_edges}"
 fi
 
-diagram_escaped="$(printf '%s' "$diagram" | awk '{ gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); printf "%s\\n", $0 }')"
+diagram_escaped="$(json_escape_block "$diagram")"
 
 # ---------- Drift detection (static, universal) ----------
 # Compare declared state (feature-tree.md) to actual state (filesystem).

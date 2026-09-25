@@ -12,6 +12,10 @@
 #      empty or placeholder name fails; the smoke-test names are exempt)
 #   5. No `throw new Error(` in features (use AppError subclasses)
 
+# Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
+# character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
+export LC_ALL=C
+
 PROJECT_ROOT="$(pwd)"
 
 # Find src directory (tolerant of layout variations)

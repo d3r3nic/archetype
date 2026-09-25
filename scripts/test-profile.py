@@ -9,7 +9,10 @@ Run from anywhere: python3 scripts/test-profile.py
 
 import os
 import re
+import shlex
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -125,15 +128,18 @@ TRIGGER_CASES = {
 
 
 class ValidateProfileTests(unittest.TestCase):
-    def run_validator(self, profile=None, debt=None, strict=False, declared=False):
+    def run_validator(self, profile=None, debt=None, strict=False, declared=False, env=None):
         with tempfile.TemporaryDirectory() as root:
             if profile is not None:
                 Path(root, "PROFILE.md").write_text(profile)
             if debt is not None:
-                Path(root, "TECHNICAL-DEBT.md").write_text(debt)
-            env = dict(os.environ, VALIDATE_PROFILE_TODAY=TODAY)
+                if isinstance(debt, bytes):
+                    Path(root, "TECHNICAL-DEBT.md").write_bytes(debt)
+                else:
+                    Path(root, "TECHNICAL-DEBT.md").write_text(debt)
+            run_env = dict(os.environ, VALIDATE_PROFILE_TODAY=TODAY, **(env or {}))
             args = ["bash", str(SCRIPT)] + (["--strict"] if strict else []) + (["--declared"] if declared else [])
-            proc = subprocess.run(args, cwd=root, env=env, capture_output=True, text=True)
+            proc = subprocess.run(args, cwd=root, env=run_env, capture_output=True, text=True, errors="replace")
             return proc.returncode, ANSI.sub("", proc.stdout + proc.stderr)
 
     def assert_fail(self, out, code, fragment):
@@ -1189,6 +1195,32 @@ class ValidateProfileTests(unittest.TestCase):
         entry = "**TD**-176 underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
         code, out = self.run_validator(profile_text(), entry)
         self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
+
+    def test_curly_quotes_accents_and_bytes_that_are_not_utf8_hide_no_later_entry(self):
+        # In a UTF-8 locale the macOS awk exited on a character that substr cut in two, or on a byte
+        # that is not UTF-8, and every entry after it went unread: a postponed floor item passed as
+        # "no deferrals". The validator reads bytes whatever the caller's locale.
+        utf8 = {"LC_ALL": "en_US.UTF-8" if sys.platform == "darwin" else "C.UTF-8"}
+        later = b"\n## TD-175 floor shortcut\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
+        for line in ("- \u201cQuoted\u201d remark".encode(), "- \u00e9t\u00e9 note".encode(), "- \u2014 an aside".encode(),
+                     b"- caf\xe9 written in Latin-1"):
+            with self.subTest(line=line):
+                entry = b"## TD-174 \xe2\x80\x94 note\n\n- **Status:** open\n- **Kind:** shortcut\n" + line + b"\n" + later
+                code, out = self.run_validator(profile_text(), entry, env=utf8)
+                self.assert_fail(out, code, "TD-175: a floor item (secrets) is never postponed")
+                self.assertNotIn("has no deferrals", out)
+
+    def test_a_parser_that_stops_early_fails_the_check(self):
+        # Whatever stops the parser, what it did not read must not pass: here an awk that exits for
+        # the entry parser alone, as the macOS awk did.
+        with tempfile.TemporaryDirectory() as bin_dir:
+            fake = Path(bin_dir, "awk")
+            fake.write_text('#!/bin/sh\ncase "$*" in *UNCLOSED-FENCE*) exit 2 ;; esac\nexec %s "$@"\n' % shlex.quote(shutil.which("awk")))
+            fake.chmod(0o755)
+            code, out = self.run_validator(profile_text(), debt_entry(1), env={"PATH": bin_dir + os.pathsep + os.environ["PATH"]})
+        self.assert_fail(out, code, "TECHNICAL-DEBT.md was not read to the end (the parser exited with status 2)")
+        self.assertNotIn("has no deferrals", out)
+        self.assertNotIn("every deferral is well-formed", out)
 
     def test_reversed_nesting_and_code_span_labels_fail_loudly(self):
         forms = ("*{first}**{tail}*** {v}", "` {n} ` {v} (**review note here**)", "`` {n} `` {v}")

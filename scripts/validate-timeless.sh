@@ -48,6 +48,10 @@
 # META-BATTLE-TESTING.md, templates/*.md, bootstrap/ (with hooks/README.md),
 # scaffolding/, and development/. Pass file arguments to scan a subset.
 
+# Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
+# character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
+export LC_ALL=C
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 FRAMEWORK_DIR=""

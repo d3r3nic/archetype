@@ -43,6 +43,10 @@
 # This script reads declared facts. It observes nothing about users, data, or money, cannot tell
 # whether a stated fact is true, and has no memory of earlier profiles.
 
+# Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
+# character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
+export LC_ALL=C
+
 STRICT="${VALIDATE_PROFILE_STRICT:-0}"
 DECLARED=0
 for arg in "$@"; do
@@ -296,8 +300,12 @@ else
   SEEN=0
   SUPPRESS_PASS=0
   SEEN_IDS=" "
+  PARSER_EXIT=""
   while IFS="$US" read -r id status kind control due review closure dups strays kindpresent metapresent mentions; do
     [ -z "$id" ] && continue
+    # The parser's exit status arrives as the last record; a parser that stopped early has read only
+    # part of the file, and what it did not read must not pass as "no deferrals".
+    if [ "$id" = "PARSER-EXIT" ]; then PARSER_EXIT="$status"; continue; fi
     ENTRY_ERRORS=$ERRORS
     PENDING_DEFER=""
     if [ "$id" = "UNCLOSED-FENCE" ]; then
@@ -726,7 +734,11 @@ else
       else if (name == "Closure-evidence") closure = v
     }
     END { flush(); if (infence) printf "UNCLOSED-FENCE%s%d\n", US, fence_line }
-  ' "$TD")
+  ' "$TD"; printf 'PARSER-EXIT%s%s\n' "$US" "$?")
+  if [ "$PARSER_EXIT" != "0" ]; then
+    fail "TECHNICAL-DEBT.md was not read to the end (the parser exited with status ${PARSER_EXIT:-unknown}); nothing after the point where it stopped was checked"
+    SUPPRESS_PASS=1
+  fi
   if [ "$SUPPRESS_PASS" -eq 1 ]; then
     :
   elif [ "$SEEN" -eq 0 ]; then

@@ -36,6 +36,10 @@
 # Exit 0: a next step was named, a step was closed or skipped, or everything is closed.
 # Exit 1: refused, or a closed step's check now fails, or the lint found a fault.
 
+# Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
+# character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
+export LC_ALL=C
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENGINE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 START_DIR="$(pwd)"

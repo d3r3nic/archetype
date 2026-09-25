@@ -3,6 +3,10 @@
 # Run from the project root: scripts/validate-design.sh [--required known-screen]
 # Use --required known-screen when the caller already knows the project has a screen.
 
+# Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
+# character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
+export LC_ALL=C
+
 REQUIRED=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
