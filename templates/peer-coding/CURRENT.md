@@ -1,6 +1,6 @@
 # {{FOLDER}}: current state
 
-Branch `{{BRANCH}}` · opened {{DATE}} by {{BY}} · rules: {{PLAYBOOK}}. Replace this file in place; never append a diary. Check git before relying on a recorded commit.
+Branch `{{BRANCH}}` · opened {{DATE}} by {{BY}} at `{{OPENED}}` · rules: {{PLAYBOOK}}. Replace this file in place; never append a diary. Check git before relying on a recorded commit.
 
 - **Status:** ACTIVE
 - **Alignment:** not started, see [ALIGNMENT.md](ALIGNMENT.md). Next move: {{BY}}.

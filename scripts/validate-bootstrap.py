@@ -101,7 +101,8 @@ def check_context():
     if not re.match(r'^none\b', peer, re.I):
         if 'peer-coding/SETTINGS.md' not in peer:
             raise ValueError('Peer coding: record none, or peer-coding/SETTINGS.md')
-        problems = peer_settings_problems(repository_top() / 'peer-coding' / 'SETTINGS.md')
+        here = Path('peer-coding') / 'SETTINGS.md'
+        problems = peer_settings_problems(here if here.is_file() else repository_top() / 'peer-coding' / 'SETTINGS.md')
         if problems:
             raise ValueError('Peer coding: peer-coding/SETTINGS.md: ' + '; '.join(problems))
     tree = Path('feature-tree.md')

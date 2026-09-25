@@ -108,6 +108,7 @@ class Base(unittest.TestCase):
         folder = self.folder(where, branch)
         self.edit(folder / 'ALIGNMENT.md', r'^Status: .*$', 'Status: CONFIRMED')
         self.edit(folder / 'ALIGNMENT.md', r'^Context holder: .*$', 'Context holder: %s · Receiver: %s' % (holder, receiver))
+        self.edit(folder / 'ALIGNMENT.md', r'^Receiver verdict: .*$', 'Receiver verdict: CONFIRMED by %s after checking every claim.' % receiver)
         self.edit(folder / 'CURRENT.md', r'^- \*\*Alignment:\*\*.*$', '- **Alignment:** CONFIRMED, see [ALIGNMENT.md](ALIGNMENT.md).')
         self.edit(folder / 'CURRENT.md', r'^- \*\*Product writing turn:\*\*.*$', '- **Product writing turn:** %s' % writer)
         return folder
@@ -232,7 +233,8 @@ class Start(Base):
         self.git(self.project, 'worktree', 'add', '-q', str(again), '-b', 'feature/plots', old_base)
         result = self.pc(again, 'start', '--as', 'claude')
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn('is closed; new work gets a new branch', result.stdout)
+        self.assertIn('is closed on main: this branch name was used for work that merged', result.stdout)
+        self.assertIn('is on main: this branch already merged', self.pc(again, 'check').stdout)
 
     def test_start_refuses_a_record_the_repository_would_ignore(self):
         where = self.worktree('feature/plots')
@@ -325,7 +327,7 @@ class Check(Base):
                          'link ../../../outside.md leaves the repository',
                          'link ../feature-other/CURRENT.md points into the open folder of another branch',
                          'link ALIGNMENT.md#no-such-heading names a heading that does not exist',
-                         'link ALIGNMENT.md:12 points to nothing (a line number belongs after the link'):
+                         'link ALIGNMENT.md:12 points to nothing (check the spelling and letter case; a line number belongs after the link'):
             self.assertIn(expected, result.stdout)
         for quiet in ('3-verification-receiver', 'old--done/ALIGNMENT', 'example.com', 'not-a-link'):
             self.assertNotIn(quiet, result.stdout)
@@ -386,14 +388,14 @@ class Turns(Base):
 
     def test_the_relay_line_needs_a_committed_pushed_hand_over_to_the_other(self):
         where, folder = self.started()
-        self.assertIn('the folder has uncommitted changes', self.pc(where, 'cue', '--as', 'claude').stdout)
+        self.assertIn('peer-coding/ has uncommitted changes', self.pc(where, 'cue', '--as', 'claude').stdout)
         self.edit(folder / 'ALIGNMENT.md', r'^Status: .*$', 'Status: BRIEFED')
         self.edit(folder / 'ALIGNMENT.md', r'^Context holder: .*$', 'Context holder: claude · Receiver: codex')
         self.edit(folder / 'CURRENT.md', r'^- \*\*Alignment:\*\*.*$', '- **Alignment:** BRIEFED, see [ALIGNMENT.md](ALIGNMENT.md). Next move: codex.')
         self.commit(where, 'brief', 'peer-coding')
         result = self.pc(where, 'cue', '--as', 'claude')
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn('push the branch and set its upstream first', result.stdout)
+        self.assertIn('the branch does not track its own remote branch: push it with git push -u <remote> feature/plots', result.stdout)
         self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
         result = self.pc(where, 'cue', '--as', 'claude')
         self.assertEqual(result.returncode, 0, result.stdout)
@@ -556,6 +558,226 @@ class Close(Base):
         result = self.pc(where, 'close', '--as', 'claude', '--abandoned', 'owner dropped the feature')
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn('DONE, abandoned: owner dropped the feature', (folder.parent / 'feature-plots--done' / 'CURRENT.md').read_text())
+
+
+class AuditFindings(Close):
+    """Cases found by the independent audit: each would have let wrong work through, or blocked right work."""
+
+    def test_only_a_leading_commit_id_is_an_acceptance(self):
+        where, folder, product = self.reviewed()
+        self.accept(where, folder, 'none', 'yet; codex returned CHANGES REQUESTED on %s (R1)' % product[:12])
+        refused = self.pc(where, 'close', '--as', 'claude', '--merged', 'PR 4')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('records no accepted head', refused.stdout)
+        self.accept(where, folder, 'approved', product[:12])
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 1, check.stdout)
+        self.assertIn('the Accepted head line must start with the accepted commit id, or say none', check.stdout)
+
+    def test_close_folder_is_only_for_a_folder_left_over_from_a_merge(self):
+        where, folder, product = self.reviewed()
+        refused = self.pc(where, 'close', '--as', 'claude', '--folder', 'feature-plots', '--merged', 'PR 5')
+        self.assertIn("is this branch's own folder: close it without --folder", refused.stdout)
+        self.git(where, 'checkout', '-q', '--detach')
+        refused = self.pc(where, 'close', '--as', 'claude', '--folder', 'feature-plots', '--merged', 'PR 5')
+        self.assertIn('detached HEAD', refused.stdout)
+        self.git(where, 'checkout', '-q', '-b', 'helper')
+        refused = self.pc(where, 'close', '--as', 'claude', '--folder', 'feature-plots', '--merged', 'PR 5')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('branch feature/plots still exists and is not merged into main', refused.stdout)
+        for bad in ('../x', 'SETTINGS.md', '.'):
+            self.assertIn('--folder takes the name of a branch folder', self.pc(where, 'close', '--as', 'claude', '--folder', bad, '--merged', 'x').stdout)
+        self.assertTrue((where / 'peer-coding' / 'feature-plots').is_dir())
+
+    def test_no_product_change_before_the_first_confirmation(self):
+        where, folder = self.started()
+        self.edit(folder / 'ALIGNMENT.md', r'^Status: .*$', 'Status: REQUESTED')
+        self.commit(where, 'open', 'peer-coding')
+        (where / 'app.py').write_text('print("too early")\n')
+        early = self.commit(where, 'code before alignment', 'app.py')
+        self.set_head(folder, 'feature/plots', early)
+        self.edit(folder / 'CURRENT.md', r'^- \*\*Alignment:\*\*.*$', '- **Alignment:** REQUESTED. Next move: codex.')
+        self.commit(where, 'record it', 'peer-coding')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 1, check.stdout)
+        self.assertIn('product files changed before ALIGNMENT.md was CONFIRMED: app.py', check.stdout)
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        self.assertIn('the checks above must pass', self.pc(where, 'cue', '--as', 'claude').stdout)
+        self.edit(folder / 'CURRENT.md', r'^- \*\*Accepted head:\*\*.*$', '- **Accepted head:** %s by codex' % early)
+        self.commit(where, 'claim acceptance', 'peer-coding')
+        refused = self.pc(where, 'close', '--as', 'claude', '--merged', 'PR 1')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+
+    def test_confirmed_needs_named_roles_and_the_receivers_verdict(self):
+        where, folder = self.started()
+        self.edit(folder / 'ALIGNMENT.md', r'^Status: .*$', 'Status: CONFIRMED')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 1, check.stdout)
+        self.assertIn("CONFIRMED without both roles named and the receiver's verdict filled in", check.stdout)
+        self.assertIn('not CONFIRMED', self.pc(where, 'packet', '--as', 'claude').stdout.replace('is CONFIRMED without', ''))
+
+    def test_close_refuses_while_the_remote_branch_has_commits_this_checkout_lacks(self):
+        where, folder, product = self.reviewed()
+        self.accept(where, folder, product)
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        other = self.root / 'other clone'
+        self.git(self.root, 'clone', '-q', '-b', 'feature/plots', str(self.root / 'remote.git'), str(other))
+        (other / 'app.py').write_text('print("v2")\n')
+        self.commit(other, 'v2 from the other clone', 'app.py')
+        self.git(other, 'push', '-q')
+        refused = self.pc(where, 'close', '--as', 'claude', '--merged', 'PR 3')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('origin/feature/plots has 1 commit(s) this checkout does not', refused.stdout)
+
+    def test_a_closed_folder_is_rechecked_against_later_product_changes(self):
+        where, folder, product = self.reviewed()
+        self.accept(where, folder, product)
+        self.assertEqual(self.pc(where, 'close', '--as', 'claude', '--merged', 'PR 3').returncode, 0)
+        self.git(where, 'commit', '-q', '-m', 'close', '--', 'peer-coding')
+        self.assertEqual(self.pc(where, 'check').returncode, 0)
+        (where / 'app.py').write_text('print("after the close")\n')
+        self.commit(where, 'after the close', 'app.py')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 1, check.stdout)
+        self.assertIn('product files changed after the accepted head of the close: app.py', check.stdout)
+
+    def test_reopen_refuses_after_a_squash_merge_and_when_the_open_name_is_taken(self):
+        where, folder, product = self.reviewed()
+        self.accept(where, folder, product)
+        self.assertEqual(self.pc(where, 'close', '--as', 'claude', '--merged', 'PR 3').returncode, 0)
+        self.git(where, 'commit', '-q', '-m', 'close', '--', 'peer-coding')
+        (where / 'peer-coding' / 'feature-plots').mkdir()
+        taken = self.pc(where, 'close', '--as', 'claude', '--reopen', 'retry')
+        self.assertIn('peer-coding/feature-plots already exists', taken.stdout)
+        (where / 'peer-coding' / 'feature-plots').rmdir()
+        self.git(self.project, 'merge', '-q', '--squash', 'feature/plots')
+        self.git(self.project, 'commit', '-q', '-m', 'squash-merge feature/plots')
+        refused = self.pc(where, 'close', '--as', 'claude', '--reopen', 'more work')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('is already merged into main', refused.stdout)
+
+    def test_links_that_would_break_in_another_clone(self):
+        where, folder = self.started()
+        (where / '.gitignore').write_text('.env\n')
+        (where / '.env').write_text('SECRET=1\n')
+        self.commit(where, 'ignore env', '.gitignore')
+        self.set_head(folder, 'feature/plots', self.git(where, 'rev-parse', 'HEAD'))
+        evidence = folder / 'rounds' / 'R1' / 'evidence' / 'claude'
+        evidence.mkdir(parents=True)
+        os.symlink(tempfile.gettempdir(), str(evidence / 'ext'))
+        with open(folder / 'FINDINGS.md', 'a') as notes:
+            notes.write('\nSee [f](file:///etc/hosts), [env](../../.env), [case](alignment.md), [out](rounds/R1/evidence/claude/ext), '
+                        '[empty]( ), and [r1].\n\n[r1]: ../../../../outside-the-repo.md\n')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 1, check.stdout)
+        for expected in ("link file:///etc/hosts points into this machine's files",
+                         'link ../../.env points to a file the repository ignores',
+                         'link alignment.md points to nothing (check the spelling and letter case',
+                         'link rounds/R1/evidence/claude/ext leaves the repository through a symbolic link',
+                         'a link with no target',
+                         'link ../../../../outside-the-repo.md leaves the repository'):
+            self.assertIn(expected, check.stdout)
+
+    def test_the_relay_line_needs_the_branchs_own_upstream_and_a_packet_for_new_work(self):
+        where, folder = self.started()
+        self.confirm(where, 'feature/plots', writer='codex')
+        (where / 'app.py').write_text('print("r1")\n')
+        product = self.commit(where, 'r1', 'app.py')
+        self.set_head(folder, 'feature/plots', product)
+        self.commit(where, 'hand over without a packet', 'peer-coding')
+        self.git(where, 'push', '-q', 'origin', 'feature/plots')
+        self.git(where, 'branch', '-q', '--set-upstream-to', 'origin/main')
+        refused = self.pc(where, 'cue', '--as', 'claude')
+        self.assertIn('no packet of yours written after the last product commit', refused.stdout)
+        self.assertEqual(self.pc(where, 'packet', '--as', 'claude').returncode, 0)
+        self.edit(folder / 'rounds' / 'R1' / 'claude.md', r'^Status: WIP.*\n', '')
+        self.commit(where, 'R1 packet', 'peer-coding')
+        refused = self.pc(where, 'cue', '--as', 'claude')
+        self.assertIn('does not track its own remote branch (it tracks origin/main)', refused.stdout)
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        (where / 'peer-coding' / 'SETTINGS.md').write_text(SETTINGS.format(push='no'))
+        self.assertIn('peer-coding/ has uncommitted changes', self.pc(where, 'cue', '--as', 'claude').stdout)
+        self.git(where, 'checkout', '--', 'peer-coding/SETTINGS.md')
+        result = self.pc(where, 'cue', '--as', 'claude')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('READY FOR CODEX · peer-coding/feature-plots R1', result.stdout)
+
+    def test_push_yes_without_a_remote_is_refused(self):
+        where, folder = self.started()
+        self.edit(folder / 'ALIGNMENT.md', r'^Status: .*$', 'Status: BRIEFED')
+        self.edit(folder / 'CURRENT.md', r'^- \*\*Alignment:\*\*.*$', '- **Alignment:** BRIEFED. Next move: codex.')
+        self.commit(where, 'brief', 'peer-coding')
+        self.git(where, 'remote', 'remove', 'origin')
+        refused = self.pc(where, 'cue', '--as', 'claude')
+        self.assertIn('says Push: yes, but this repository has no remote', refused.stdout)
+
+    def test_odd_branch_names(self):
+        for branch, expected in (('x-/done', 'which marks closed folders'), ('tick`name', 'cannot hold'),
+                                 ('pipe|name', 'cannot hold'), ('b' * 230, 'too long for a folder name')):
+            if subprocess.run(['git', 'check-ref-format', '--branch', branch], stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE).returncode != 0:
+                continue
+            where = self.root / ('odd %s' % PEER.short_hash(branch))
+            self.git(self.project, 'worktree', 'add', '-q', str(where), '-b', branch, 'main')
+            result = self.pc(where, 'start', '--as', 'claude')
+            self.assertEqual(result.returncode, 1, branch + result.stdout)
+            self.assertIn(expected, result.stdout, branch)
+
+    def test_a_tag_named_like_the_branch_does_not_change_the_branch_name(self):
+        self.git(self.project, 'tag', 'release-1')
+        where = self.worktree('release-1')
+        self.assertEqual(self.pc(where, 'start', '--as', 'claude').returncode, 0)
+        self.assertIn('Branch `release-1`', (where / 'peer-coding' / 'release-1' / 'CURRENT.md').read_text())
+
+    def test_a_remote_only_branch_with_the_same_folder_name_gives_a_code(self):
+        self.git(self.project, 'push', '-q', 'origin', 'main:refs/heads/feature-plots')
+        self.git(self.project, 'fetch', '-q', 'origin')
+        where = self.worktree('feature/plots')
+        self.assertEqual(self.pc(where, 'which').stdout.strip(), 'peer-coding/feature-plots-%s none' % PEER.short_hash('feature/plots'))
+
+    def test_a_missing_template_is_refused_not_written_empty(self):
+        copy = self.root / 'engine copy'
+        subprocess.run(['cp', '-R', str(self.project / 'archetype'), str(copy)], check=True)
+        subprocess.run(['rm', '-r', str(copy / 'templates' / 'peer-coding')], check=True)
+        where = self.worktree('feature/plots')
+        result = subprocess.run(['python3', str(copy / 'scripts' / 'peer-coding.py'), 'start', '--as', 'claude'], cwd=str(where),
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, env=self.env)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('templates/peer-coding/CURRENT.md is missing', result.stdout)
+        self.assertFalse(self.folder(where, 'feature/plots').exists())
+
+    def test_every_findings_table_counts_and_a_linked_setting_is_filled(self):
+        where, folder, product = self.reviewed()
+        self.accept(where, folder, product)
+        with open(folder / 'FINDINGS.md', 'a') as findings:
+            findings.write('\n## Later\n\n| ID | Severity | Remaining work | Owner | Evidence |\n|---|---|---|---|---|\n| F7 | low | x | codex | R1 |\n')
+        self.commit(where, 'second table', 'peer-coding')
+        self.assertIn('still lists 1 unresolved item', self.pc(where, 'close', '--as', 'claude', '--merged', 'PR 2').stdout)
+        linked = SETTINGS.format(push='yes').replace('- Checks each turn: test', '- Checks each turn: [the test command](../References.md), before each hand-over')
+        self.assertEqual(PEER.settings_problems(self._write(linked)), [])
+
+    def _write(self, text):
+        path = Path(self.temp.name) / 'SETTINGS.md'
+        path.write_text(text)
+        return path
+
+    def test_the_checks_inside_cue_and_close_hold_on_their_own(self):
+        where, folder, product = self.reviewed()
+        self.accept(where, folder, product)
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        (where / 'app.py').write_text('print("uncommitted")\n')
+        self.assertIn('uncommitted product changes', self.pc(where, 'cue', '--as', 'claude').stdout)
+        self.assertIn('uncommitted product changes', self.pc(where, 'close', '--as', 'claude', '--merged', 'PR 1').stdout)
+        self.git(where, 'checkout', '--', 'app.py')
+        side = self.git(where, 'rev-parse', 'main')
+        self.git(self.project, 'commit', '-q', '--allow-empty', '-m', 'elsewhere on main')
+        elsewhere = self.git(self.project, 'rev-parse', 'main')
+        self.accept(where, folder, elsewhere)
+        refused = self.pc(where, 'close', '--as', 'claude', '--merged', 'PR 1')
+        self.assertIn('is not in this branch\'s history', refused.stdout)
+        self.set_head(folder, 'feature/plots', elsewhere)
+        self.assertIn("the recorded last product commit %s is not in this branch's history" % elsewhere, self.pc(where, 'check').stdout)
+        self.assertTrue(side)
 
 
 class Bootstrap(unittest.TestCase):
