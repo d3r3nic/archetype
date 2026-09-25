@@ -60,13 +60,28 @@ def text(hook):
     return ' '.join(words)
 
 
+# How the host reads a matcher (its hooks documentation, 2026-09-24): empty or "*" matches every
+# tool; a matcher of only letters, digits, "_", "-", spaces, "," and "|" is an exact name or a list
+# of exact names separated by "|" or ","; anything else is a JavaScript regular expression tested
+# unanchored. Python and JavaScript read some constructs differently; those are refused here.
+EXACT = re.compile(r'[A-Za-z0-9_\- ,|]*')
+NOT_JAVASCRIPT = re.compile(r'\(\?[A-Za-z<]|\\[AZz]')
+
+
 def covers_shell(matcher):
+    """(covers the shell tool, reason when it does not or cannot be told)."""
     if matcher in ('', '*', None):
-        return True
+        return True, ''
+    matcher = str(matcher)
+    if EXACT.fullmatch(matcher):
+        names = [name.strip() for name in re.split(r'[|,]', matcher)]
+        return SHELL_TOOL in names, ''
+    if NOT_JAVASCRIPT.search(matcher):
+        return False, 'it uses syntax a JavaScript regular expression reads differently, so what the host matches is unknown'
     try:
-        return re.fullmatch(str(matcher), SHELL_TOOL) is not None
+        return re.search(matcher, SHELL_TOOL) is not None, ''
     except re.error:
-        return str(matcher) == SHELL_TOOL
+        return False, 'it is not a valid regular expression'
 
 
 def unquoted_placeholder(command):
@@ -79,10 +94,14 @@ def unquoted_placeholder(command):
     return False
 
 
+BRACED = re.compile(r'\$\{CLAUDE_PROJECT_DIR\}')
+
+
 def run(hook, root, payload):
     env = dict(os.environ, CLAUDE_PROJECT_DIR=str(root))
     if isinstance(hook.get('args'), list):
-        expand = lambda value: PLACEHOLDER.sub(lambda _: str(root), str(value))
+        # Without a shell the host substitutes only the braced placeholder; "$" passes verbatim.
+        expand = lambda value: BRACED.sub(lambda _: str(root), str(value))
         argv = [expand(hook.get('command', ''))] + [expand(a) for a in hook['args']]
     else:
         argv = ['/bin/sh', '-c', str(hook.get('command', ''))]
@@ -124,6 +143,9 @@ def main():
         fail('%s does not hold a settings object' % options.settings)
         return 1
 
+    if settings.get('disableAllHooks') is True:
+        fail('%s sets disableAllHooks, which turns every hook off, the guard included' % options.settings)
+
     found = False
     for name, matcher, hook in registrations(settings):
         if RETIRED in text(hook):
@@ -135,11 +157,22 @@ def main():
             fail('the guard is registered for %s; it only blocks as a before-tool-call (PreToolUse) hook' % name)
             continue
         found = True
-        if not covers_shell(matcher):
-            fail('the guard is registered for the tools "%s", which do not include the shell tool (%s)'
-                 % (matcher, SHELL_TOOL))
+        covered, why = covers_shell(matcher)
+        if not covered:
+            fail('the guard is registered for the tools "%s", which %s' % (matcher, why or
+                 'do not include the shell tool (%s)' % SHELL_TOOL))
+            continue
+        if hook.get('async') is True or hook.get('asyncRewake') is True:
+            fail('the guard runs in the background ("async" or "asyncRewake"), so it cannot block a command')
+            continue
+        if hook.get('if'):
+            fail('the guard runs only for tool calls matching "%s", so it cannot block other commands' % hook['if'])
             continue
         command = str(hook.get('command', ''))
+        if not PLACEHOLDER.search(text(hook)) and not command.lstrip('"\'').startswith('/'):
+            print('WARN: the guard\'s command uses a relative path; the host runs hooks from the session\'s '
+                  'current folder, which is not always the project root. Name it through the project-folder '
+                  'placeholder as the settings templates do.')
         loose = not isinstance(hook.get('args'), list) and unquoted_placeholder(command)
         if loose:
             print('WARN: the guard\'s command leaves the project-folder placeholder unquoted; a project '
@@ -172,10 +205,11 @@ def main():
 
     inside = git(root, 'rev-parse', '--is-inside-work-tree')
     if inside.returncode == 0 and inside.stdout.strip() == 'true':
-        ignored = git(root, 'check-ignore', '-v', '--', options.settings)
-        if ignored.returncode == 0:
+        # -q decides (a negation such as !.claude/settings.json un-ignores it); -v only names the rule.
+        if git(root, 'check-ignore', '-q', '--', options.settings).returncode == 0:
+            rule = git(root, 'check-ignore', '-v', '--', options.settings).stdout.strip()
             print('WARN: git ignores %s (%s); add !%s to the project\'s .gitignore so the guard is '
-                  'committed with the project' % (options.settings, ignored.stdout.strip(), options.settings))
+                  'committed with the project' % (options.settings, rule, options.settings))
         elif git(root, 'ls-files', '--error-unmatch', '--', options.settings).returncode != 0:
             print('NOTE: %s is not committed yet' % options.settings)
 

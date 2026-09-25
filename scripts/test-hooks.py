@@ -133,6 +133,55 @@ class Hooks(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn('WARN: git ignores .claude/settings.json (.gitignore:1:settings.json', result.stdout)
 
+    def test_a_negation_rule_that_un_ignores_the_settings_ends_the_warning(self):
+        self.inject()
+        self.settings(self.guard_only('"$CLAUDE_PROJECT_DIR"/archetype/' + GUARD))
+        subprocess.run(['git', 'init', '-q'], cwd=self.project, env=self.env, check=True)
+        (self.project / '.gitignore').write_text('settings.json\n!.claude/settings.json\n')
+        result = self.check()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertNotIn('WARN: git ignores', result.stdout)
+
+    def test_settings_under_which_the_guard_never_blocks_fail(self):
+        self.inject()
+        guard = '"$CLAUDE_PROJECT_DIR"/archetype/' + GUARD
+        cases = {
+            'turned off': (dict(self.guard_only(guard), disableAllHooks=True), 'disableAllHooks'),
+            'async': (self.guard_only(guard, **{'async': True}), 'runs in the background'),
+            'asyncRewake': (self.guard_only(guard, asyncRewake=True), 'runs in the background'),
+            'if': (self.guard_only(guard, **{'if': 'Bash(git *)'}), 'runs only for tool calls matching "Bash(git *)"'),
+        }
+        for name, (data, message) in cases.items():
+            with self.subTest(name):
+                self.settings(data)
+                result = self.check()
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn(message, result.stdout)
+
+    def test_matchers_are_read_as_the_host_reads_them(self):
+        self.inject()
+        guard = '"$CLAUDE_PROJECT_DIR"/archetype/' + GUARD
+        for matcher, covered in (('Edit, Bash', True), ('Edit | Bash', True), ('Bash ', True), ('^Ba', True),
+                                 ('.*', True), ('Edit|Write', False), ('Bas', False), ('(?i)bash', False),
+                                 ('\\ABash\\Z', False)):
+            with self.subTest(matcher=matcher):
+                self.settings(self.guard_only(guard, matcher=matcher))
+                result = self.check()
+                self.assertEqual(result.returncode, 0 if covered else 1, result.stdout)
+
+    def test_the_argument_form_substitutes_only_the_braced_placeholder(self):
+        self.inject()
+        self.settings(self.guard_only('$CLAUDE_PROJECT_DIR/archetype/' + GUARD, args=[]))
+        result = self.check()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('could not start', result.stdout)
+
+    def test_a_relative_command_path_is_named(self):
+        self.inject()
+        self.settings(self.guard_only('archetype/' + GUARD))
+        result = self.check()
+        self.assertIn('WARN: the guard\'s command uses a relative path', result.stdout)
+
     def test_the_retired_reminder_reads_its_input_and_says_nothing(self):
         result = subprocess.run(['bash', str(ENGINE / STUB)], input='{"hook_event_name": "Stop"}',
                                 capture_output=True, text=True)

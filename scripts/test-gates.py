@@ -6,6 +6,7 @@ from pathlib import Path
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -459,29 +460,83 @@ class RegulatedDataGate(unittest.TestCase):
     def test_a_compliance_section_that_says_no_does_not_trigger_the_audit_store_check(self):
         self.references(self.COMPLIANCE)
         self.audit_store()
-        for profile in (None, 'no'):
-            if profile:
-                self.profile(profile)
-            result = self.check(self.TREE)
-            self.assertNotIn('in-memory store only', result.stdout, profile)
-            self.assertEqual(result.returncode, 0, result.stdout)
-
-    def test_a_profile_that_says_no_settles_it_whatever_the_references_say(self):
-        self.references('\n## Compliance\n\n- Regimes: HIPAA applies to intake notes\n')
         self.profile('no')
         result = self.check(self.TREE)
         self.assertEqual(group(result.stdout, '4'), ['OK: PROFILE.md records no regulated data — audit log check skipped'])
+        self.assertNotIn('in-memory store only', result.stdout)
         self.assertEqual(result.returncode, 0, result.stdout)
 
-    def test_an_endpoint_reads_the_profile_above_it(self):
-        subprocess.run(['git', 'init', '-q'], cwd=self.project, check=True)
-        endpoint = self.project / 'frontend'
-        endpoint.mkdir()
-        self.unit(endpoint)
-        (endpoint / 'References.md').write_text('# References\n\n- Regimes: HIPAA applies to intake notes\n')
+    def test_without_a_profile_any_mention_still_applies_the_audit_store_check(self):
+        # An older project without PROFILE.md keeps the earlier reading: a mention is enough.
+        self.references(self.COMPLIANCE)
+        self.audit_store()
+        result = self.check(self.TREE)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('in-memory store only (References.md mentions regulated data)', result.stdout)
+
+    def test_a_profile_that_says_no_flags_a_references_md_that_names_a_regime(self):
+        self.references('\n## Compliance\n\n- Regimes: HIPAA applies to intake notes\n')
         self.profile('no')
-        result = self.check(folder=endpoint)
-        self.assertEqual(group(result.stdout, '4'), ['OK: PROFILE.md records no regulated data — audit log check skipped'])
+        result = self.check(self.TREE)
+        self.assertEqual(group(result.stdout, '4'), [
+            'WARN: PROFILE.md records no regulated data, but References.md names it: '
+            '"- Regimes: HIPAA applies to intake notes". Correct whichever record is wrong'])
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_a_single_unit_whose_profile_says_yes_or_unknown_keeps_the_audit_log(self):
+        for regimes in ('- Regimes: GDPR, because most members live in Germany',
+                        '- Regimes: PCI, card numbers pass through the checkout',
+                        '- Regimes: HIPAA (patient records); PCI DSS none, payments go through a hosted checkout'):
+            for value in ('yes', 'unknown'):
+                with self.subTest(regimes=regimes, value=value):
+                    self.references('\n## Compliance\n\n' + regimes + '\n')
+                    self.profile(value)
+                    store = self.project / 'src'
+                    if store.exists():
+                        shutil.rmtree(store)
+                    missing = self.check(self.TREE)
+                    self.assertEqual(missing.returncode, 1, missing.stdout)
+                    self.assertIn('PROFILE.md records regulated data: %s but no audit-log path found' % value, missing.stdout)
+                    self.audit_store()
+                    memory_only = self.check(self.TREE)
+                    self.assertEqual(memory_only.returncode, 1, memory_only.stdout)
+                    self.assertIn('in-memory store only (PROFILE.md records regulated data: %s)' % value, memory_only.stdout)
+                    self.audit_store(backing=True)
+                    self.assertEqual(self.check(self.TREE).returncode, 0)
+
+    def endpoint(self, references):
+        subprocess.run(['git', 'init', '-q'], cwd=self.project, check=True)
+        unit = self.project / 'frontend'
+        unit.mkdir()
+        self.unit(unit)
+        (unit / 'References.md').write_text('# References\n\n' + references)
+        return unit
+
+    def test_an_endpoint_reads_the_profile_above_it(self):
+        unit = self.endpoint('- Regimes: HIPAA applies to intake notes\n')
+        self.profile('no')
+        result = self.check(folder=unit)
+        self.assertIn('WARN: PROFILE.md records no regulated data, but References.md names it', group(result.stdout, '4')[0])
+
+    def test_an_endpoint_of_a_regulated_project_warns_when_its_references_are_silent(self):
+        unit = self.endpoint('## Tech Stack\n\n- Language: recorded\n')
+        self.profile('yes')
+        result = self.check(folder=unit)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        [line] = group(result.stdout, '4')
+        self.assertTrue(line.startswith('WARN: PROFILE.md above this folder records regulated data: yes'), line)
+        store = unit / 'src' / 'shared' / 'audit-log'
+        store.mkdir(parents=True)
+        (store / 'store.ts').write_text('export class InMemoryAuditStore {}\n')
+        result = self.check(folder=unit)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('in-memory store only (PROFILE.md records regulated data: yes)', result.stdout)
+
+    def test_the_label_form_regulated_data_yes_counts_as_declared(self):
+        self.references('\n## Compliance\n\n- Regulated data: yes (patient records)\n')
+        result = self.check(self.TREE)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('References.md declares regulated data but no audit-log path found', result.stdout)
 
     def test_a_regulated_unit_still_needs_its_audit_log_and_a_real_store(self):
         self.references('\n## Compliance\n\n- Regimes: HIPAA applies to intake notes\n')

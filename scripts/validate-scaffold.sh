@@ -11,7 +11,7 @@
 #   2.  An env-validation module or a named validation function exists in source
 #       (that the call sits at startup is the scaffold step's own verify line)
 #   3.  No console-level output in source outside dev-guarded blocks
-#   4.  Audit log path exists if References.md mentions regulated data
+#   4.  Audit log path exists when the unit handles regulated data (PROFILE.md, or References.md)
 #   4b. In-memory audit store not shipped to regulated production
 #   5.  Smoke-test feature exists
 #   6.  CI workflow doesn't auto-run migrations on main/master pushes
@@ -274,15 +274,18 @@ fi
 # ----------------------------------------------------------------------
 group 4 "Audit log if regulated data"
 # ----------------------------------------------------------------------
-# Only trigger on affirmative regulated-data declarations, not negative phrasing.
-# Matches: "HIPAA" (standalone regime), "SOC 2 Type 2", "PCI compliance".
-# Does NOT match: "Regulated data: none", "HIPAA: N/A", "no regulated data",
-# "audit log: not applicable", etc.
+# Whether this unit must keep an audit log. PROFILE.md holds the project's regulated-data fact
+# (#30), one per repository: an endpoint folder looks above itself, as validate-profile.sh does.
+# - "no" settles it; a References.md that still names a regime is flagged as a contradiction.
+# - "yes" or "unknown" (assume regulated until answered) in this folder's own PROFILE.md: this
+#   unit is the project, so it keeps the audit log.
+# - "yes" or "unknown" in a PROFILE.md above this folder: this unit's References.md says whether
+#   it handles the data; silence is a warning, because the audit log belongs to the unit that does.
+# - No PROFILE.md (an older project): References.md decides, as before.
+# References.md counts only affirmative lines: a regime such as HIPAA, SOC 2 or PCI DSS, or
+# "regulated data is/are/yes", on a line without a negation such as none, N/A or not applicable.
 REGULATED=0
-# PROFILE.md holds the project's regulated-data fact (#30), one per repository: an endpoint
-# folder looks above itself, as validate-profile.sh does. When it records "no", that settles it
-# and no References.md wording can trigger these checks. Otherwise this folder's References.md
-# decides, because an audit log lives in the unit that handles the data, not in every endpoint.
+REG_SOURCE=""
 PROFILE_FILE="$PROJECT_ROOT/PROFILE.md"
 if [ ! -f "$PROFILE_FILE" ]; then
   TOP="$(cd "$PROJECT_ROOT" && git rev-parse --show-toplevel 2>/dev/null)"
@@ -294,19 +297,32 @@ if [ ! -f "$PROFILE_FILE" ]; then
   if [ ! -f "$PROFILE_FILE" ] && [ -f "$(dirname "$PROJECT_ROOT")/PROFILE.md" ]; then PROFILE_FILE="$(dirname "$PROJECT_ROOT")/PROFILE.md"; fi
 fi
 PROFILE_REGULATED=""
-[ -f "$PROFILE_FILE" ] && PROFILE_REGULATED="$(tr -d '\r' < "$PROFILE_FILE" | awk '/^## / { exit } /^- Regulated data:/ { sub(/^- Regulated data:[ \t]*/, ""); print tolower($1); exit }')"
-# Match regimes + require the line to NOT contain a negation after them
-[ "$PROFILE_REGULATED" = "no" ] || while IFS= read -r line; do
-  # Skip if the line looks like a negation
+PROFILE_HERE=0
+if [ -f "$PROFILE_FILE" ]; then
+  PROFILE_REGULATED="$(tr -d '\r' < "$PROFILE_FILE" | awk '/^## / { exit } /^- Regulated data:/ { sub(/^- Regulated data:[ \t]*/, ""); print tolower($1); exit }')"
+  [ "$PROFILE_FILE" = "$PROJECT_ROOT/PROFILE.md" ] && PROFILE_HERE=1
+fi
+REFS_REGULATED=0
+REFS_LINE=""
+while IFS= read -r line; do
   if echo "$line" | grep -qiE '(none|N/A|not applicable|not required|no regulated|not regulated|skipped|deferred)'; then
     continue
   fi
-  # Affirmative match: a regulated-data regime appears without negation on the same line
-  if echo "$line" | grep -qiE '(HIPAA|SOC ?2|PCI( |-)?DSS|PCI compliance|GDPR compliance|regulated data (is|are|yes)|compliance: (yes|required))'; then
-    REGULATED=1
+  if echo "$line" | grep -qiE '(HIPAA|SOC ?2|PCI( |-)?DSS|PCI compliance|GDPR compliance|regulated data (is|are|yes)|regulated data: *(yes|unknown)|compliance: (yes|required))'; then
+    REFS_REGULATED=1
+    REFS_LINE="$(printf '%s' "$line" | tr -d '\r' | sed 's/^[[:space:]]*//')"
     break
   fi
 done < "$REFS"
+
+case "$PROFILE_REGULATED" in
+  no) ;;
+  yes|unknown)
+    if [ "$PROFILE_HERE" = 1 ]; then REGULATED=1; REG_SOURCE="PROFILE.md records regulated data: $PROFILE_REGULATED"
+    elif [ "$REFS_REGULATED" = 1 ]; then REGULATED=1; REG_SOURCE="References.md declares regulated data"
+    fi ;;
+  *) [ "$REFS_REGULATED" = 1 ] && { REGULATED=1; REG_SOURCE="References.md declares regulated data"; } ;;
+esac
 
 if [ "$REGULATED" -eq 1 ]; then
   FOUND=0
@@ -317,12 +333,16 @@ if [ "$REGULATED" -eq 1 ]; then
     [ -d "$candidate" ] && FOUND=1 && break
   done
   if [ "$FOUND" -eq 1 ]; then
-    pass "audit log path exists (regulated data detected)"
+    pass "audit log path exists ($REG_SOURCE)"
   else
-    fail "References.md declares regulated data but no audit-log path found (audit log must be SEPARATE from app log — see B4)"
+    fail "$REG_SOURCE but no audit-log path found (audit log must be SEPARATE from app log — see B4)"
   fi
+elif [ "$PROFILE_REGULATED" = "no" ] && [ "$REFS_REGULATED" = 1 ]; then
+  warn "PROFILE.md records no regulated data, but References.md names it: \"$REFS_LINE\". Correct whichever record is wrong"
 elif [ "$PROFILE_REGULATED" = "no" ]; then
   pass "PROFILE.md records no regulated data — audit log check skipped"
+elif [ "$PROFILE_REGULATED" = "yes" ] || [ "$PROFILE_REGULATED" = "unknown" ]; then
+  warn "PROFILE.md above this folder records regulated data: $PROFILE_REGULATED, and this unit's References.md does not say this unit handles it. The audit log belongs to the unit that does: record in each unit's Compliance section which one keeps it"
 else
   pass "no regulated data declared (or explicitly N/A) — audit log check skipped"
 fi
@@ -330,10 +350,19 @@ fi
 # ----------------------------------------------------------------------
 group 4b "In-memory audit store not shipped to regulated production"
 # ----------------------------------------------------------------------
-# If group 4 found regulated data AND the project has an audit-log path, check that it's
-# not a test-only in-memory store. The same finding as group 4, not any mention of a regime
-# or of the words "regulated data" (a Compliance section names them to say "no").
-if [ "$REGULATED" -eq 1 ]; then
+# A unit that has its own audit-log folder, in a project that handles regulated data, must not
+# rely on a test-only in-memory store. PROFILE.md "no" settles it; "yes" or "unknown" applies to
+# every unit (only a unit with an audit-log folder is checked); without PROFILE.md, as before,
+# any mention of a regime or of regulated data in References.md applies it.
+RUN_4B=0
+case "$PROFILE_REGULATED" in
+  no) ;;
+  yes|unknown) RUN_4B=1; [ -n "$REG_SOURCE" ] || REG_SOURCE="PROFILE.md records regulated data: $PROFILE_REGULATED" ;;
+  *) if [ "$REGULATED" -eq 1 ] || grep -qiE '(HIPAA|SOC ?2|PCI|GDPR|regulated data)' "$REFS"; then
+       RUN_4B=1; [ -n "$REG_SOURCE" ] || REG_SOURCE="References.md mentions regulated data"
+     fi ;;
+esac
+if [ "$RUN_4B" -eq 1 ]; then
   if [ -n "$SRC_DIR" ]; then
     AUDIT_DIR=""
     for candidate in "$SRC_DIR/shared/audit-log" "$SRC_DIR/shared/audit" "$SRC_DIR/audit"; do
@@ -346,7 +375,7 @@ if [ "$REGULATED" -eq 1 ]; then
         if grep -rqE '(PostgresAuditStore|PrismaAuditStore|DatabaseAuditStore|S3AuditStore|AppendOnlyStore|WORMStore|CloudAuditStore)' "$AUDIT_DIR" 2>/dev/null; then
           pass "audit log has both in-memory (test) and backing store (production) implementations"
         else
-          fail "audit log uses in-memory store only but References.md declares regulated data. Ship to production = compliance failure. Add a real backing-store adapter (append-only table, WORM storage, or audit-log platform)."
+          fail "audit log uses in-memory store only ($REG_SOURCE). Ship to production = compliance failure. Add a real backing-store adapter (append-only table, WORM storage, or audit-log platform)."
         fi
       else
         pass "audit log implementation does not rely on in-memory-only storage"

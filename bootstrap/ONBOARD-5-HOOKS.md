@@ -1,7 +1,7 @@
 # Bootstrap: hooks
 
 ## Step 5: Set Up Hooks (optional - can be done later)
-Read: templates/hooks-spec.md
+Read: templates/hooks-spec.md; bootstrap/hooks/README.md
 Produces: the framework's destructive-command guard, or the host's equivalent, installed for the working session
 Check: evidence: which hooks were set up and where, and for the framework's guard what scripts/check-hooks.py reported
 Depends on: bootstrap.4.3
