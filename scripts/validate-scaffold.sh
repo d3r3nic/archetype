@@ -302,31 +302,58 @@ if [ -f "$PROFILE_FILE" ]; then
   PROFILE_REGULATED="$(tr -d '\r' < "$PROFILE_FILE" | awk '/^## / { exit } /^- Regulated data:/ { sub(/^- Regulated data:[ \t]*/, ""); print tolower($1); exit }')"
   [ "$PROFILE_FILE" = "$PROJECT_ROOT/PROFILE.md" ] && PROFILE_HERE=1
 fi
+# A regime counts when any clause of a line (split at ";" and ",") names it without a negation,
+# so "HIPAA applies to the notes; PCI DSS does not apply" still declares HIPAA.
+REFS_LINE="$(tr -d '\r' < "$REFS" | awk '
+  { n = split($0, part, /[;,]/)
+    for (i = 1; i <= n; i++) {
+      c = tolower(part[i])
+      if (c ~ /(none|n\/a|not applicable|not required|no regulated|not regulated|skipped|deferred|not apply|n.t apply)/) continue
+      if (c ~ /(hipaa|soc ?2|pci( |-)?dss|pci compliance|gdpr compliance|regulated data (is|are|yes)|regulated data: *(yes|unknown)|compliance: (yes|required))/) {
+        sub(/^[ \t]+/, ""); print; exit
+      }
+    } }')"
 REFS_REGULATED=0
-REFS_LINE=""
-while IFS= read -r line; do
-  if echo "$line" | grep -qiE "(none|N/A|not applicable|not required|no regulated|not regulated|skipped|deferred|not apply|doesn't apply|don't apply)"; then
-    continue
-  fi
-  if echo "$line" | grep -qiE '(HIPAA|SOC ?2|PCI( |-)?DSS|PCI compliance|GDPR compliance|regulated data (is|are|yes)|regulated data: *(yes|unknown)|compliance: (yes|required))'; then
-    REFS_REGULATED=1
-    REFS_LINE="$(printf '%s' "$line" | tr -d '\r' | sed 's/^[[:space:]]*//')"
-    break
-  fi
-done < "$REFS"
+[ -n "$REFS_LINE" ] && REFS_REGULATED=1
 
-# Where the audit log is kept: the "- Audit log:" line of References.md § Compliance, as a path
-# in this unit, or "kept by <unit or service>". Without a recorded path, the usual folders count.
-AUDIT_RECORD="$(tr -d '\r' < "$REFS" | sed -n 's/^- Audit log:[[:space:]]*//p' | head -1 | sed 's/[[:space:]]*$//')"
-case "$AUDIT_RECORD" in '['*) AUDIT_RECORD="" ;; esac
+# Where the audit log is kept: the first filled "- Audit log:" line of References.md § Compliance.
+# A path in this unit (in backticks when it holds spaces; a note may follow), "kept by <unit or
+# service>", or "not required" (or none, n/a) with the reason. Without the line the usual folders count.
+AUDIT_RECORD="$(tr -d '\r' < "$REFS" | awk '
+  /^## / { inside = ($0 ~ /^## Compliance[ \t]*$/); next }
+  inside && /^- Audit log:/ { v = $0; sub(/^- Audit log:[ \t]*/, "", v); sub(/[ \t]+$/, "", v)
+    if (v != "" && v !~ /^\[/) { print v; exit } }')"
 AUDIT_ELSEWHERE=""
 AUDIT_PATH=""
-case "$(printf '%s' "$AUDIT_RECORD" | tr '[:upper:]' '[:lower:]')" in
+AUDIT_NONE=""
+AUDIT_BAD=""
+AUDIT_PLAIN="$(printf '%s' "$AUDIT_RECORD" | tr -d '`')"
+case "$(printf '%s' "$AUDIT_PLAIN" | tr '[:upper:]' '[:lower:]')" in
   '') ;;
-  'kept by '*) AUDIT_ELSEWHERE="${AUDIT_RECORD#????????}" ;;
-  *) AUDIT_PATH="$(printf '%s' "$AUDIT_RECORD" | awk '{ print $1 }' | tr -d '`')" ;;
+  'kept by '*) AUDIT_ELSEWHERE="${AUDIT_PLAIN#????????}" ;;
+  'not required'*|'none'|'none '*|'none,'*|'n/a'*|'not applicable'*) AUDIT_NONE="$AUDIT_RECORD" ;;
+  *)
+    case "$AUDIT_RECORD" in
+      '`'*'`'*) AUDIT_PATH="${AUDIT_RECORD#?}"; AUDIT_PATH="${AUDIT_PATH%%\`*}" ;;
+      *) AUDIT_PATH="$(printf '%s' "$AUDIT_RECORD" | awk '{ print $1 }')" ;;
+    esac
+    AUDIT_PATH="${AUDIT_PATH%/}"
+    case "$AUDIT_PATH" in
+      /*|..|../*|*/..|*/../*) AUDIT_BAD="records the audit log at $AUDIT_PATH: record a path inside this unit" ;;
+      ''|.|./) AUDIT_BAD="records the audit log as the whole unit: record the audit log's own folder or file" ;;
+    esac
+    if [ -z "$AUDIT_BAD" ] && [ -n "$SRC_DIR" ] && [ "$PROJECT_ROOT/$AUDIT_PATH" = "$SRC_DIR" ]; then
+      AUDIT_BAD="records the audit log as the whole source folder ($AUDIT_PATH): record the audit log's own folder or file"
+    fi
+    [ -n "$AUDIT_BAD" ] && AUDIT_PATH="" ;;
 esac
 DEFAULT_AUDIT="src/shared/audit-log, src/shared/audit and src/audit (or the same under app/, lib/ or project/src/)"
+LOCAL_AUDIT=""
+if [ -n "$SRC_DIR" ]; then
+  for candidate in "$SRC_DIR/shared/audit-log" "$SRC_DIR/shared/audit" "$SRC_DIR/audit"; do
+    [ -d "$candidate" ] && LOCAL_AUDIT="$candidate" && break
+  done
+fi
 
 case "$PROFILE_REGULATED" in
   no) ;;
@@ -341,7 +368,11 @@ esac
 if [ "$REGULATED" -eq 0 ] && [ -n "$AUDIT_PATH" ] && [ "$PROFILE_REGULATED" != "no" ]; then
   REGULATED=1; REG_SOURCE="References.md § Compliance records this unit's audit log"
 fi
-if [ "$REGULATED" -eq 1 ] && [ -n "$AUDIT_ELSEWHERE" ]; then
+if [ -n "$AUDIT_BAD" ] && [ "$PROFILE_REGULATED" != "no" ]; then
+  fail "References.md § Compliance $AUDIT_BAD"
+elif [ "$REGULATED" -eq 1 ] && [ -n "$AUDIT_NONE" ]; then
+  warn "References.md § Compliance records the audit log as \"$AUDIT_NONE\" while $REG_SOURCE: that holds only if no regime that applies requires one; the owner's regime decides"
+elif [ "$REGULATED" -eq 1 ] && [ -n "$AUDIT_ELSEWHERE" ]; then
   pass "audit log kept by $AUDIT_ELSEWHERE (References.md § Compliance; $REG_SOURCE)"
 elif [ "$REGULATED" -eq 1 ] && [ -n "$AUDIT_PATH" ]; then
   if [ -e "$PROJECT_ROOT/$AUDIT_PATH" ]; then
@@ -350,20 +381,15 @@ elif [ "$REGULATED" -eq 1 ] && [ -n "$AUDIT_PATH" ]; then
     fail "$REG_SOURCE, and References.md § Compliance records the audit log at $AUDIT_PATH, which does not exist (audit log must be SEPARATE from app log — see B4)"
   fi
 elif [ "$REGULATED" -eq 1 ]; then
-  FOUND=0
-  for candidate in \
-    "$SRC_DIR/shared/audit-log" \
-    "$SRC_DIR/shared/audit" \
-    "$SRC_DIR/audit"; do
-    [ -n "$SRC_DIR" ] && [ -d "$candidate" ] && FOUND=1 && break
-  done
-  if [ "$FOUND" -eq 1 ]; then
+  if [ -n "$LOCAL_AUDIT" ]; then
     pass "audit log path exists ($REG_SOURCE)"
   else
     fail "$REG_SOURCE but no audit log found: record where this unit keeps it on the Audit log line of References.md § Compliance (a path, or kept by <unit or service>); without it the check looks in $DEFAULT_AUDIT (audit log must be SEPARATE from app log — see B4)"
   fi
 elif [ -n "$AUDIT_ELSEWHERE" ] && [ "$PROFILE_REGULATED" != "no" ]; then
   pass "audit log kept by $AUDIT_ELSEWHERE (References.md § Compliance)"
+elif [ -n "$AUDIT_NONE" ] && [ "$PROFILE_REGULATED" != "no" ]; then
+  pass "References.md § Compliance records no audit log in this unit: $AUDIT_NONE"
 elif [ "$PROFILE_REGULATED" = "no" ] && [ "$REFS_REGULATED" = 1 ]; then
   warn "PROFILE.md records no regulated data, but References.md names it: \"$REFS_LINE\". Correct whichever record is wrong"
 elif [ "$PROFILE_REGULATED" = "no" ]; then
@@ -390,13 +416,13 @@ case "$PROFILE_REGULATED" in
      fi ;;
 esac
 if [ "$RUN_4B" -eq 1 ]; then
+  # The recorded path, or this unit's own audit folder: a store in this unit is checked even when
+  # the record says another unit or service keeps the log.
   AUDIT_DIR=""
   if [ -n "$AUDIT_PATH" ] && [ -e "$PROJECT_ROOT/$AUDIT_PATH" ]; then
     AUDIT_DIR="$PROJECT_ROOT/$AUDIT_PATH"
-  elif [ -z "$AUDIT_ELSEWHERE" ] && [ -n "$SRC_DIR" ]; then
-    for candidate in "$SRC_DIR/shared/audit-log" "$SRC_DIR/shared/audit" "$SRC_DIR/audit"; do
-      [ -d "$candidate" ] && AUDIT_DIR="$candidate" && break
-    done
+  else
+    AUDIT_DIR="$LOCAL_AUDIT"
   fi
   if [ -n "$AUDIT_DIR" ]; then
     # In-memory store pattern: class name or variable names suggesting ephemeral storage

@@ -585,6 +585,65 @@ class RegulatedDataGate(unittest.TestCase):
         result = self.check(self.TREE)
         self.assertEqual(group(result.stdout, '4'), ['OK: PROFILE.md records no regulated data — audit log check skipped'])
 
+    def run_unit(self, references, profile=None, above=None):
+        """Run the gate on a fresh unit: its References.md, optional PROFILE.md here or above it."""
+        root = Path(tempfile.mkdtemp(prefix='archetype-regulated-case-'))
+        self.addCleanup(shutil.rmtree, root, True)
+        unit = root / 'unit' if above else root
+        unit.mkdir(exist_ok=True)
+        if above:
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            (root / 'PROFILE.md').write_text('# Profile\n\n- Regulated data: %s\n' % above)
+        if profile:
+            (unit / 'PROFILE.md').write_text('# Profile\n\n- Regulated data: %s\n' % profile)
+        self.unit(unit)
+        (unit / 'References.md').write_text('# References\n\n' + references)
+        return unit, lambda: self.check(folder=unit)
+
+    def test_the_audit_log_line_reads_as_the_template_offers_it(self):
+        compliance = '## Compliance\n\n'
+        cases = [
+            # (References.md, profile here, profile above, exit code, text in group 4 or 4b output)
+            (compliance + '- Audit log: not required, no regime here needs one\n', None, None, 0,
+             'OK: References.md § Compliance records no audit log in this unit: not required, no regime here needs one'),
+            (compliance + '- Audit log: not required, the backend service keeps it\n', None, 'yes', 0,
+             'OK: References.md § Compliance records no audit log in this unit: not required, the backend service keeps it'),
+            (compliance + '- Audit log: none\n', None, 'unknown', 0, 'OK: References.md § Compliance records no audit log in this unit: none'),
+            (compliance + '- Audit log: `kept by the backend`\n', None, 'yes', 0, 'OK: audit log kept by the backend'),
+            (compliance + '- Audit log: not required, GDPR asks for none here\n', 'yes', None, 0,
+             'WARN: References.md § Compliance records the audit log as "not required, GDPR asks for none here" while PROFILE.md records regulated data: yes'),
+            ('## Logging\n\n- Audit log: append-only table, see B4\n', None, None, 0, 'OK: no regulated data declared'),
+            (compliance + '- Audit log: /var/log/audit\n', 'yes', None, 1, 'records the audit log at /var/log/audit: record a path inside this unit'),
+            (compliance + '- Audit log: ../frontend/src\n', 'yes', None, 1, 'records the audit log at ../frontend/src: record a path inside this unit'),
+            (compliance + '- Audit log: src\n', 'yes', None, 1, 'records the audit log as the whole source folder (src)'),
+            (compliance + '- Audit log: `src/audit trail` (append-only)\n', 'yes', None, 1, 'records the audit log at src/audit trail, which does not exist'),
+            (compliance + '- Audit log: [where this unit keeps it]\n- Audit log: src/server/audit\n', 'yes', None, 1,
+             'records the audit log at src/server/audit, which does not exist'),
+        ]
+        for references, here, above, code, text in cases:
+            with self.subTest(references=references, here=here, above=above):
+                unit, run = self.run_unit(references, here, above)
+                (unit / 'src').mkdir(exist_ok=True)
+                result = run()
+                self.assertEqual(result.returncode, code, result.stdout)
+                self.assertIn(text, ANSI.sub('', result.stdout))
+
+    def test_a_regime_that_applies_counts_beside_one_that_does_not(self):
+        unit, run = self.run_unit('- Regimes: HIPAA applies to the patient notes; PCI DSS does not apply (hosted checkout)\n')
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('References.md declares regulated data but no audit log found', result.stdout)
+
+    def test_a_store_in_this_unit_is_checked_even_when_another_keeps_the_log(self):
+        unit, run = self.run_unit('## Compliance\n\n- Audit log: kept by the audit service\n', 'yes')
+        store = unit / 'src' / 'shared' / 'audit-log'
+        store.mkdir(parents=True)
+        (store / 'store.ts').write_text('export class InMemoryAuditStore { records: Array<string> = [] }\n')
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('in-memory store only', result.stdout)
+
     def test_a_regulated_unit_still_needs_its_audit_log_and_a_real_store(self):
         self.references('\n## Compliance\n\n- Regimes: HIPAA applies to intake notes\n')
         for profile in ('yes', 'unknown', None):

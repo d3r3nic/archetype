@@ -190,6 +190,16 @@ class Hooks(unittest.TestCase):
         self.settings(self.guard_only('"$CLAUDE_PROJECT_DIR"/archetype/' + GUARD, shell='powershell'))
         self.assertIn('run the guard under "powershell"', self.check().stdout)
 
+    def test_absolute_or_project_anchored_guard_paths_are_not_called_relative(self):
+        self.inject()
+        absolute = '"%s/archetype/%s"' % (self.project, GUARD)
+        for command in (absolute, 'cd "$CLAUDE_PROJECT_DIR" && archetype/' + GUARD):
+            with self.subTest(command=command):
+                self.settings(self.guard_only(command))
+                result = self.check()
+                self.assertEqual(result.returncode, 0, result.stdout)
+                self.assertNotIn('relative path', result.stdout)
+
     def test_the_retired_reminder_reads_its_input_and_says_nothing(self):
         result = subprocess.run(['bash', str(ENGINE / STUB)], input='{"hook_event_name": "Stop"}',
                                 capture_output=True, text=True)

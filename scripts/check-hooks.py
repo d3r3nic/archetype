@@ -21,6 +21,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -169,8 +170,14 @@ def main():
             fail('the guard runs only for tool calls matching "%s", so it cannot block other commands' % hook['if'])
             continue
         command = str(hook.get('command', ''))
-        script = next((word.strip('"\'') for word in text(hook).split() if GUARD in word), '')
-        if script and not script.startswith('/') and not PLACEHOLDER.search(script):
+        try:
+            words = shlex.split(text(hook))
+        except ValueError:
+            words = text(hook).split()
+        script = next((word for word in words if GUARD in word), '')
+        # A command that names the project folder anywhere (for example cd "$CLAUDE_PROJECT_DIR" && ...)
+        # does not depend on the session's current folder.
+        if script and not script.startswith('/') and not PLACEHOLDER.search(text(hook)):
             print('WARN: the guard\'s command uses a relative path; the host runs hooks from the session\'s '
                   'current folder, which is not always the project root. Name it through the project-folder '
                   'placeholder as the settings templates do.')
