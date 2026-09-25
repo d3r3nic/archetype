@@ -342,7 +342,10 @@ def current_state(folder):
 
 
 def alignment_state(folder):
-    text = read(folder / 'ALIGNMENT.md')
+    return alignment_of(read(folder / 'ALIGNMENT.md'))
+
+
+def alignment_of(text):
     status = re.search(r'^Status:\s*(.*)$', text, re.M)
     value = plain(status.group(1)) if status else ''
     word = re.match(r'(REQUESTED|BRIEFED|CONFIRMED)\b', value)
@@ -428,7 +431,8 @@ def link_targets(line):
         yield match.group(1)
     for match in re.finditer(r'<([A-Za-z][A-Za-z0-9+.-]*:[^>\s]+)>', line):
         yield match.group(1)
-    for match in re.finditer(r'\b(?:href|src)\s*=\s*["\']([^"\']*)["\']', line, re.I):
+    for match in re.finditer(r'<(?:a|img|source|link|video|audio)\b[^>]*?\b(?:href|src)\s*=\s*["\']([^"\']*)["\']',
+                             line, re.I):
         yield match.group(1)
     # A reference definition: a destination, an optional quoted title, nothing else (not a footnote).
     definition = re.match(r'^ {0,3}\[(?!\^)[^\]]+\]:\s*(<[^>]*>|\S+)\s*(?:"[^"]*"|\'[^\']*\'|\([^)]*\))?\s*$', line)
@@ -458,7 +462,7 @@ def link_problems(project, folder):
                                     'relative to the file' % (where, target))
                     continue
                 # A web or mail address is not checked; "notes.md:12" is a file name with a line number, not an address.
-                if re.match(r'^(https?://|mailto:)', target, re.I):
+                if re.match(r'^(https?://|mailto:|tel:|data:)', target, re.I):
                     continue
                 if re.match(r'^[A-Za-z][A-Za-z0-9+.-]*://', target):
                     problems.append('%s: link %s opens something on this machine that another clone cannot follow'
@@ -569,10 +573,7 @@ def opening_head(project, folder):
 
 def aligned_in(project, commit, relative):
     shown = git(project.top, 'show', '%s:%s' % (commit, relative), check=False)
-    if shown.returncode != 0:
-        return None
-    status = re.search(r'^Status:\s*(.*)$', shown.stdout, re.M)
-    return bool(status) and bool(re.match(r'^CONFIRMED\b', plain(status.group(1))))
+    return confirmed(alignment_of(shown.stdout)) if shown.returncode == 0 else None
 
 
 def unconfirmed_since(project, folder):
@@ -585,7 +586,8 @@ def unconfirmed_since(project, folder):
     for commit in history:  # newest first
         state = aligned_in(project, commit, relative)
         if state:
-            return left or out(project.top, 'rev-parse', 'HEAD')
+            # Measured from just before the commit that left CONFIRMED, so its own product changes count.
+            return (resolve_commit(project, left + '^') or left) if left else out(project.top, 'rev-parse', 'HEAD')
         if state is False:
             left = commit
     return opening_head(project, folder)
@@ -595,10 +597,14 @@ def own_product_changes(project, since):
     """Product files changed by this branch's own commits after `since`, leaving out a merge of the default branch."""
     if not is_ancestor(project, since, 'HEAD'):
         return []
-    args = ['log', '--no-merges', '--format=', '--name-only', '%s..HEAD' % since]
-    args += ['--not'] + project.default_refs() if project.default_refs() else []
-    args += ['--', '.', ':(exclude)%s' % RECORD]
-    return sorted({line for line in out(project.top, *args).splitlines() if line})
+    not_default = ['--not'] + project.default_refs() if project.default_refs() else []
+    files = set(out(project.top, 'log', '--no-merges', '--format=', '--name-only', '%s..HEAD' % since,
+                    *(not_default + ['--', '.', ':(exclude)%s' % RECORD])).splitlines())
+    # A merge commit's own changes (a conflict resolution, or an edit made in the merge) differ from every parent.
+    for merge in out(project.top, 'rev-list', '--merges', '%s..HEAD' % since, *not_default).split():
+        files.update(line for line in out(project.top, 'diff-tree', '-r', '--cc', '--name-only', '--no-commit-id',
+                                          merge).splitlines() if not line.startswith(RECORD + '/'))
+    return sorted(line for line in files if line)
 
 
 def confirmed(alignment):
@@ -1013,7 +1019,7 @@ def command_cue(project, args):
     else:
         recipient = current['turn'] if current['turn'] != 'none' else ''
         mine = [number for number, peer, _ in packets(folder) if peer == you]
-        label = 'R%d' % mine[-1] if mine else 'ALIGN CONFIRMED'
+        label = 'R%d' % mine[-1] if mine else ('no packet' if note else 'ALIGN CONFIRMED')
     if not current['waiting'] and recipient != other:
         raise Refusal('CURRENT.md gives the next move to %s. Before handing over, give it to %s; or write NEEDS USER '
                       'or SCOPE CLOSED as the Next action instead' % (recipient or 'no one', other))

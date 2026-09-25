@@ -948,9 +948,12 @@ class RoundThree(Close):
         os.symlink('real.txt', str(evidence / 'alias.txt'))
         with open(folder / 'FINDINGS.md', 'a') as notes:
             notes.write('\nSee <file:///etc/hosts>, <a href="../../../../o.md">here</a>, [ed](vscode://file/x), '
-                        '<https://example.com/fine>.\n\n[^1]: Seen twice in logs.\n[unverified]: this claim was not checked.\n')
+                        '<https://example.com/fine>, ![dot](data:image/png;base64,iVBORw0KGgo=), [call](tel:+15550100), '
+                        'and the old page used src="/static/logo.svg".\n\n[^1]: Verified.\n[^2]: Seen twice in logs.\n'
+                        '[unverified]: this claim was not checked.\n')
         check = self.pc(where, 'check')
         self.assertEqual(check.returncode, 1, check.stdout)
+        self.assertEqual(check.stdout.count('FAIL:'), 4, check.stdout)
         for expected in ("link file:///etc/hosts points into this machine's files", 'link ../../../../o.md leaves the repository',
                          'link vscode://file/x opens something on this machine', 'alias.txt is a symbolic link'):
             self.assertIn(expected, check.stdout)
@@ -983,6 +986,98 @@ class RoundThree(Close):
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn('FAIL:', result.stdout)
         self.assertNotIn('Traceback', result.stdout)
+
+
+class RoundFour(Close):
+    """The last small points of the independent script audit."""
+
+    def rebrief(self, where, folder):
+        self.edit(folder / 'ALIGNMENT.md', r'^Status: .*$', 'Status: BRIEFED')
+        self.edit(folder / 'CURRENT.md', r'^- \*\*Alignment:\*\*.*$', '- **Alignment:** BRIEFED. Next move: codex.')
+        self.edit(folder / 'CURRENT.md', r'^- \*\*Product writing turn:\*\*.*$', '- **Product writing turn:** none')
+
+    def test_a_clean_realignment_keeps_the_work_done_while_confirmed(self):
+        where, folder, product = self.reviewed()
+        self.rebrief(where, folder)
+        self.commit(where, 're-brief, no new code', 'peer-coding')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 0, check.stdout)
+
+    def test_a_product_change_in_the_rebrief_commit_counts(self):
+        where, folder, product = self.reviewed()
+        self.rebrief(where, folder)
+        (where / 'app.py').write_text('print("slipped into the re-brief")\n')
+        self.git(where, 'add', '--', 'app.py', 'peer-coding')
+        self.git(where, 'commit', '-q', '-m', 're-brief with code')
+        self.set_head(folder, 'feature/plots', self.git(where, 'rev-parse', 'HEAD'))
+        self.commit(where, 'record it', 'peer-coding')
+        self.assertIn('product files changed while ALIGNMENT.md is not CONFIRMED: app.py', self.pc(where, 'check').stdout)
+
+    def test_a_bare_confirmed_status_in_history_does_not_open_the_way(self):
+        where, folder = self.started()
+        self.edit(folder / 'ALIGNMENT.md', r'^Status: .*$', 'Status: CONFIRMED')
+        self.commit(where, 'bare confirmed', 'peer-coding')
+        (where / 'app.py').write_text('print("under a bare confirmation")\n')
+        early = self.commit(where, 'code', 'app.py')
+        self.set_head(folder, 'feature/plots', early)
+        self.edit(folder / 'ALIGNMENT.md', r'^Status: .*$', 'Status: BRIEFED')
+        self.commit(where, 'back to briefed', 'peer-coding')
+        self.assertIn('product files changed while ALIGNMENT.md is not CONFIRMED: app.py', self.pc(where, 'check').stdout)
+
+    def test_a_change_inside_a_merge_commit_counts_during_alignment(self):
+        where, folder = self.started()
+        self.commit(where, 'open', 'peer-coding')
+        (self.project / 'other.txt').write_text('from main\n')
+        self.commit(self.project, 'main moves on', 'other.txt')
+        self.git(where, 'merge', '-q', '--no-commit', '--no-ff', 'main')
+        (where / 'app.py').write_text('print("edited inside the merge")\n')
+        self.git(where, 'add', '--', 'app.py')
+        self.git(where, 'commit', '-q', '-m', 'merge main, with an edit')
+        self.set_head(folder, 'feature/plots', self.git(where, 'rev-parse', 'HEAD'))
+        self.commit(where, 'record the merge', 'peer-coding')
+        check = self.pc(where, 'check')
+        self.assertIn('product files changed while ALIGNMENT.md is not CONFIRMED: app.py', check.stdout)
+        self.assertNotIn('other.txt', check.stdout)
+
+    def test_start_warns_when_the_branch_tracks_another_branch(self):
+        where = self.worktree('feature/plots')
+        self.git(where, 'branch', '-q', '--set-upstream-to', 'origin/main')
+        result = self.pc(where, 'start', '--as', 'claude')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('WARN: the branch tracks origin/main; set its own upstream when you first push', result.stdout)
+
+    def test_a_product_hand_over_without_a_packet_is_labelled_so(self):
+        where, folder = self.started()
+        self.confirm(where, 'feature/plots', writer='codex')
+        (where / 'app.py').write_text('print("r1")\n')
+        self.set_head(folder, 'feature/plots', self.commit(where, 'r1', 'app.py'))
+        self.commit(where, 'hand over', 'peer-coding')
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        result = self.pc(where, 'cue', '--as', 'claude')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('READY FOR CODEX · peer-coding/feature-plots no packet · feature/plots@', result.stdout)
+
+    def test_signed_commits_with_signatures_shown_keep_commit_ids_readable(self):
+        keygen = subprocess.run(['sh', '-c', 'command -v ssh-keygen'], stdout=subprocess.PIPE).stdout.strip()
+        if not keygen:
+            self.skipTest('ssh-keygen is not available to sign commits')
+        key = Path(self.temp.name) / 'key'
+        subprocess.run(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(key)], check=True)
+        where, folder = self.started()
+        for name, value in (('gpg.format', 'ssh'), ('user.signingkey', str(key)), ('commit.gpgsign', 'true'),
+                            ('log.showSignature', 'true')):
+            self.git(where, 'config', name, value)
+        self.confirm(where, 'feature/plots', writer='codex')
+        (where / 'app.py').write_text('print("signed")\n')
+        self.set_head(folder, 'feature/plots', self.commit(where, 'signed r1', 'app.py'))
+        self.assertEqual(self.pc(where, 'packet', '--as', 'claude').returncode, 0)
+        self.edit(folder / 'rounds' / 'R1' / 'claude.md', r'^Status: WIP.*\n', '')
+        self.commit(where, 'R1', 'peer-coding')
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        result = self.pc(where, 'cue', '--as', 'claude')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('READY FOR CODEX · peer-coding/feature-plots R1', result.stdout)
+        self.assertNotIn('NOTE: no packet', result.stdout)
 
 
 class Bootstrap(unittest.TestCase):
