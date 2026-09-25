@@ -56,6 +56,8 @@ class Bootstrap(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         (self.root / 'feature-tree.md').write_text('# Feature tree\n')
+        # The log step reads the owner's peer-coding answer too; the context tests overwrite this file.
+        (self.root / 'References.md').write_text(PROJECT)
 
     def run_gate(self, mode, body):
         name = 'References.md' if mode == 'context' else 'VERSION-LOG.md'
@@ -111,6 +113,15 @@ class Bootstrap(unittest.TestCase):
         for replacement in ('- none', '- References.md'):
             body = LOG.replace('- References.md\n- PROFILE.md\n- feature-tree.md', replacement)
             self.assertEqual(self.run_gate('log', body).returncode, 1)
+
+    def test_the_log_step_needs_the_peer_coding_answer_on_both_paths(self):
+        # An existing project skips Step 4.2, so the log step, which both paths run, checks the answer.
+        (self.root / 'References.md').write_text('# References\n\n## Stack\n\n- Runtime: recorded\n')
+        result = self.run_gate('log', LOG)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('Peer coding: ask the owner whether another AI assistant', result.stdout)
+        (self.root / 'References.md').write_text('# References\n\n## Stack\n\n- Peer coding: none (asked, awaiting the owner)\n')
+        self.assertEqual(self.run_gate('log', LOG).returncode, 0)
 
     def test_markdown_link_is_a_value(self):
         self.assertEqual(self.run_gate('log', LOG.replace('Key decisions made: DECISIONS.md', 'Key decisions made: [decisions](DECISIONS.md)')).returncode, 0)

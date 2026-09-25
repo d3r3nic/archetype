@@ -164,7 +164,7 @@ class Setup(Base):
             SETTINGS.format(push='yes').replace('- Merge: nothing more under PROFILE.md\n', '- Merge: [what]\n'))
         result = self.pc(where, 'start', '--as', 'claude')
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn("fill in, with the owner's decisions: Merge", result.stdout)
+        self.assertIn('fill in: Merge', result.stdout)
         (where / 'peer-coding' / 'SETTINGS.md').write_text(SETTINGS.format(push='yes'))
         self.assertEqual(self.pc(where, 'setup').returncode, 0)
         self.assertIn('not one of the peers', self.pc(where, 'start', '--as', 'gemini').stdout)
@@ -780,6 +780,72 @@ class AuditFindings(Close):
         self.assertTrue(side)
 
 
+class Waiting(Base):
+    def test_needs_user_and_scope_closed_lines_carry_the_commit(self):
+        where, folder = self.started()
+        self.edit(folder / 'CURRENT.md', r'^1\. claude: .*$', '1. NEEDS USER: does a swap keep the watering rota?')
+        self.commit(where, 'ask the owner', 'peer-coding')
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        result = self.pc(where, 'cue', '--as', 'claude')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        sha = self.git(where, 'rev-parse', '--short=12', 'HEAD')
+        self.assertIn('NEEDS USER · peer-coding/feature-plots · feature/plots@%s' % sha, result.stdout)
+        self.assertIn('read AGENTS.md there', result.stdout)
+        self.edit(folder / 'CURRENT.md', r'^1\. NEEDS USER: .*$', '1. SCOPE CLOSED: awaiting the owner')
+        self.commit(where, 'scope closed', 'peer-coding')
+        self.git(where, 'push', '-q')
+        result = self.pc(where, 'cue', '--as', 'claude')
+        self.assertIn('SCOPE CLOSED · peer-coding/feature-plots · feature/plots@', result.stdout)
+
+    def test_check_names_leftovers_without_settings_and_a_line_that_disagrees(self):
+        where = self.worktree('feature/plots')
+        (where / 'peer-coding' / 'README.md').write_text('# Peer coding\n')
+        (where / 'References.md').write_text(REFERENCES.format(peer='- Peer coding: none\n'))
+        result = self.pc(where, 'check')
+        self.assertIn('WARN: References.md says Peer coding: none while peer-coding/SETTINGS.md exists', result.stdout)
+        (where / 'peer-coding' / 'SETTINGS.md').unlink()
+        result = self.pc(where, 'check')
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('peer coding is not set up', result.stdout)
+        self.assertIn('README.md hold an earlier copy of peer-coding rules', result.stdout)
+
+
+class TwoUnits(unittest.TestCase):
+    """One repository with an engine per unit: the record sits at the top, the relay line names the unit's AGENTS.md."""
+
+    def test_the_relay_line_names_the_units_agents_file(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            env = dict(os.environ, HOME=str(root), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1',
+                       GIT_AUTHOR_NAME='T', GIT_AUTHOR_EMAIL='t@example.com', GIT_COMMITTER_NAME='T',
+                       GIT_COMMITTER_EMAIL='t@example.com')
+            repo = root / 'repo'
+            for unit in ('frontend', 'backend'):
+                (repo / unit).mkdir(parents=True)
+                subprocess.run(['bash', str(ENGINE / 'inject.sh'), str(repo / unit)], stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT, env=env, check=True)
+            (repo / 'peer-coding').mkdir()
+            (repo / 'peer-coding' / 'SETTINGS.md').write_text(SETTINGS.format(push='no'))
+            run = lambda *args: subprocess.run(list(args), cwd=str(repo), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                               universal_newlines=True, env=env)
+            for command in (['git', 'init', '-q', '-b', 'main'], ['git', 'add', '-A'], ['git', 'commit', '-q', '-m', 'init'],
+                            ['git', 'checkout', '-q', '-b', 'feature/both']):
+                self.assertEqual(run(*command).returncode, 0)
+            script = str(repo / 'frontend' / 'archetype' / 'scripts' / 'peer-coding.py')
+            self.assertEqual(run('python3', script, 'start', '--as', 'claude').returncode, 0)
+            folder = repo / 'peer-coding' / 'feature-both'
+            self.assertIn('../../frontend/archetype/development/PEER-CODING.md', (folder / 'CURRENT.md').read_text())
+            text = (folder / 'ALIGNMENT.md').read_text().replace('Status: <REQUESTED | BRIEFED | CONFIRMED>', 'Status: BRIEFED')
+            (folder / 'ALIGNMENT.md').write_text(text)
+            current = (folder / 'CURRENT.md').read_text()
+            (folder / 'CURRENT.md').write_text(re.sub(r'^- \*\*Alignment:\*\*.*$', '- **Alignment:** BRIEFED. Next move: codex.', current, flags=re.M))
+            self.assertEqual(run('git', 'add', '-A').returncode, 0)
+            self.assertEqual(run('git', 'commit', '-q', '-m', 'brief').returncode, 0)
+            result = run('python3', script, 'cue', '--as', 'claude')
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertIn('read frontend/AGENTS.md there, then peer-coding/feature-both/CURRENT.md', result.stdout)
+
+
 class Bootstrap(unittest.TestCase):
     def check(self, peer, settings=None):
         with tempfile.TemporaryDirectory() as temp:
@@ -799,7 +865,7 @@ class Bootstrap(unittest.TestCase):
                 ('- Peer coding: none\n', None, 0, 'OK'),
                 ('- Peer coding: claude and codex\n', None, 1, 'record none, or peer-coding/SETTINGS.md'),
                 (ON, None, 1, 'SETTINGS.md does not exist'),
-                (ON, complete.replace('- Push: yes\n', '- Push: [yes or no]\n'), 1, "fill in, with the owner's decisions: Push"),
+                (ON, complete.replace('- Push: yes\n', '- Push: [yes or no]\n'), 1, 'fill in: Push'),
                 (ON, complete, 0, 'OK')):
             result = self.check(peer, settings)
             self.assertEqual(result.returncode, code, peer + result.stdout)

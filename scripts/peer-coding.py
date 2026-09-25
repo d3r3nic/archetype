@@ -154,6 +154,34 @@ class Project:
         return ''
 
 
+def agents_file(project):
+    """The AGENTS.md a session in this worktree reads: the unit's, in a repository with one engine per unit."""
+    for folder in (project.engine.parent, project.engine, project.top):
+        candidate = folder / 'AGENTS.md'
+        try:
+            candidate.relative_to(project.top)
+        except ValueError:
+            continue
+        if candidate.is_file():
+            return display(project, candidate)
+    return 'AGENTS.md'
+
+
+def references_line(project):
+    """References.md's Peer coding value for this engine's project, or None when there is no such line."""
+    for path in (project.engine / 'References.md', project.engine.parent / 'References.md'):
+        if path.is_file():
+            inside = False
+            for line in live_lines(read(path)):
+                if line.startswith('## '):
+                    inside = line.strip() == '## Project'
+                match = re.match(r'^- Peer coding:\s*(.*)$', line) if inside else None
+                if match:
+                    return plain(match.group(1))
+            return None
+    return None
+
+
 def display(project, path):
     try:
         return str(Path(path).resolve().relative_to(project.top))
@@ -254,7 +282,7 @@ def settings_problems(path, complete=True):
     keys = SETTINGS_KEYS if complete else ('Who writes',)
     missing = [key for key in keys if key != 'Peers' and not filled(fields.get(key, ''))]
     if missing:
-        problems.append('fill in, with the owner\'s decisions: %s' % ', '.join(missing))
+        problems.append('fill in: %s' % ', '.join(missing))
     return problems
 
 
@@ -304,6 +332,12 @@ def current_state(folder):
         commit = re.match(r'^([0-9a-f]{7,40})\b', plain(row.group(1))) if row else None
         state['head'] = commit.group(1) if commit else ''
     state['closed_for_merge'] = bool(re.search(r'^- \*\*Status:\*\*\s*DONE, closed for merge\b', text, re.M))
+    state['waiting'] = ''
+    section = re.search(r'^## Next action\s*\n(.*?)(?=^## |\Z)', text, re.M | re.S)
+    first = next((line for line in (section.group(1).splitlines() if section else []) if line.strip()), '')
+    waiting = re.match(r'^\s*(?:[0-9]+\.|[-*])?\s*[`*_]*(NEEDS USER|SCOPE CLOSED)\b', first)
+    if waiting:
+        state['waiting'] = waiting.group(1)
     return state
 
 
@@ -680,7 +714,17 @@ def other_entries(project, report, own):
 
 def command_check(project, args):
     report = Report()
-    peers, _ = settings_of(project)
+    line = references_line(project)
+    has_settings = (project.record() / SETTINGS).is_file()
+    if line is not None and has_settings and re.match(r'^none\b', line, re.I):
+        report.warn('References.md says Peer coding: %s while %s/%s exists; the owner\'s decision settles which, so '
+                    'remove the file or record it on the line' % (line, RECORD, SETTINGS))
+    try:
+        peers, _ = settings_of(project)
+    except Refusal as refusal:
+        report.fail(str(refusal))
+        other_entries(project, report, None)
+        return report.show()
     report.note('%s/%s: peers %s' % (RECORD, SETTINGS, ' and '.join(peers)))
     you = (args.you or '').lower()
     own = None
@@ -899,21 +943,23 @@ def command_cue(project, args):
         raise Refusal('a packet is still WIP: %s' % ', '.join(wip))
     current, alignment = current_state(folder), alignment_state(folder)
     opened = opening_head(project, folder)
-    if confirmed(alignment) and opened and product_changes(project, opened):
+    if confirmed(alignment) and opened and product_changes(project, opened) and not current['waiting']:
         mine = [packet for _, peer, packet in packets(folder) if peer == you]
         written = out(project.top, 'log', '-1', '--format=%H', '--', display(project, mine[-1])) if mine else ''
         if not written or not is_ancestor(project, last_product_commit(project), written):
             raise Refusal('this hand-over has no packet of yours written after the last product commit; open one '
                           'with packet --as %s' % you)
-    if not confirmed(alignment):
+    if current['waiting']:
+        recipient = label = ''
+    elif not confirmed(alignment):
         recipient, label = current['next_move'], 'ALIGN'
     else:
         recipient = current['turn'] if current['turn'] != 'none' else ''
         mine = [number for number, peer, _ in packets(folder) if peer == you]
         label = 'R%d' % mine[-1] if mine else 'ALIGN'
-    if recipient != other:
-        raise Refusal('CURRENT.md gives the next move to %s. Before handing over, give it to %s; or end with '
-                      'NEEDS USER or SCOPE CLOSED instead' % (recipient or 'no one', other))
+    if not current['waiting'] and recipient != other:
+        raise Refusal('CURRENT.md gives the next move to %s. Before handing over, give it to %s; or write NEEDS USER '
+                      'or SCOPE CLOSED as the Next action instead' % (recipient or 'no one', other))
     remote, tracked = upstream_of(project)
     if not pushes(fields):
         print('NOTE: %s/%s says Push: no, so the other assistant must work in this same repository.' % (RECORD, SETTINGS))
@@ -928,9 +974,14 @@ def command_cue(project, args):
         raise Refusal('push the branch first: %s/%s does not have this commit yet (git push %s %s)'
                       % (remote, tracked, remote, project.branch))
     commit = out(project.top, 'rev-parse', '--short=12', 'HEAD')
-    print('READY FOR %s · %s %s · %s@%s' % (other.upper(), relative, label, project.branch, commit))
-    print('Continue peer coding on branch %s (worktree: %s): read AGENTS.md there, then %s/CURRENT.md.'
-          % (project.branch, project.top, relative))
+    if current['waiting'] == 'NEEDS USER':
+        print('NEEDS USER · %s · %s@%s' % (relative, project.branch, commit))
+    elif current['waiting'] == 'SCOPE CLOSED':
+        print('SCOPE CLOSED · %s · %s@%s · awaiting the owner' % (relative, project.branch, commit))
+    else:
+        print('READY FOR %s · %s %s · %s@%s' % (other.upper(), relative, label, project.branch, commit))
+    print('Continue peer coding on branch %s (worktree: %s): read %s there, then %s/CURRENT.md.'
+          % (project.branch, project.top, agents_file(project), relative))
     return 0
 
 
@@ -1016,8 +1067,8 @@ def command_close(project, args):
         raise Refusal('a packet is still WIP: %s' % ', '.join(wip))
     if open_findings(folder):
         raise Refusal('%s/FINDINGS.md still lists %d unresolved item(s). Carry each to the project\'s own records '
-                      '(development/TASKS.md or its technical-debt record), note where in your packet, and '
-                      'remove the row' % (name, open_findings(folder)))
+                      '(the canonical task source development/TASKS.md names, or TECHNICAL-DEBT.md), note where in '
+                      'your packet, and remove the row' % (name, open_findings(folder)))
     today = datetime.date.today().isoformat()
     if args.merged is not None and own:
         report = Report()

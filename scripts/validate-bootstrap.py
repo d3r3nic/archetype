@@ -85,6 +85,23 @@ def require(data, keys):
             raise ValueError(f'{key}: fill the required bootstrap fact, not a template placeholder')
 
 
+def check_peer_line(value):
+    """The owner's answer to the peer-coding question (bootstrap Step 2.6), on References.md's Peer coding line."""
+    peer = normalized(value)
+    if not filled(peer):
+        raise ValueError('Peer coding: ask the owner whether another AI assistant will take turns on this '
+                         'project (bootstrap/ONBOARD-2.6-CARE-AND-AUTHORITY.md), then record none, or set '
+                         'peer coding up and record peer-coding/SETTINGS.md (development/PEER-CODING.md). '
+                         'While the owner has not answered: none (asked, awaiting the owner)')
+    if not re.match(r'^none\b', peer, re.I):
+        if 'peer-coding/SETTINGS.md' not in peer:
+            raise ValueError('Peer coding: record none, or peer-coding/SETTINGS.md')
+        here = Path('peer-coding') / 'SETTINGS.md'
+        problems = peer_settings_problems(here if here.is_file() else repository_top() / 'peer-coding' / 'SETTINGS.md')
+        if problems:
+            raise ValueError('Peer coding: peer-coding/SETTINGS.md: ' + '; '.join(problems))
+
+
 def check_context():
     data = fields(section(Path('References.md'), 'Project'), bullet=True)
     if 'Purpose (one sentence)' in data and 'Purpose' not in data:
@@ -93,18 +110,7 @@ def check_context():
     for key in ('Name', 'Purpose', 'Stage', 'Decision location'):
         if re.match(r'^(unknown|none|n/a)\b', normalized(data[key]), re.I):
             raise ValueError(f'{key}: a resolved bootstrap fact is required')
-    peer = normalized(data.get('Peer coding', ''))
-    if not filled(peer):
-        raise ValueError('Peer coding: ask the owner whether another AI assistant will take turns on this '
-                         'project (bootstrap/ONBOARD-2.6-CARE-AND-AUTHORITY.md), then record none, or set '
-                         'peer coding up and record peer-coding/SETTINGS.md (development/PEER-CODING.md)')
-    if not re.match(r'^none\b', peer, re.I):
-        if 'peer-coding/SETTINGS.md' not in peer:
-            raise ValueError('Peer coding: record none, or peer-coding/SETTINGS.md')
-        here = Path('peer-coding') / 'SETTINGS.md'
-        problems = peer_settings_problems(here if here.is_file() else repository_top() / 'peer-coding' / 'SETTINGS.md')
-        if problems:
-            raise ValueError('Peer coding: peer-coding/SETTINGS.md: ' + '; '.join(problems))
+    check_peer_line(data.get('Peer coding', ''))
     tree = Path('feature-tree.md')
     if not tree.is_file() or not tree.read_text().strip():
         raise ValueError('feature-tree.md is missing or empty')
@@ -138,6 +144,9 @@ def check_log():
     for name in ('References.md', 'PROFILE.md', 'feature-tree.md'):
         if name not in named:
             raise ValueError(f'Files generated: missing required {name} entry')
+    answer = [line for line in live_lines(Path('References.md').read_text()) if line.startswith('- Peer coding:')] \
+        if Path('References.md').is_file() else []
+    check_peer_line(answer[0].split(':', 1)[1] if answer else '')
     print('OK: bootstrap handoff records discovery and open gates; reviewer must verify the claims')
 
 

@@ -18,10 +18,12 @@ Branch `{{BRANCH}}` · opened {{DATE}} by {{BY}} at `{{OPENED}}` · rules: {{PLA
 
 1. {{BY}}: decide who holds the context for this work, then fill ALIGNMENT.md.
 
+When only the owner can answer, the first item reads `NEEDS USER: <the questions>`; when a clean verdict closed the scope and none is next, `SCOPE CLOSED: awaiting the owner`.
+
 ## Authorizations
 
 Who writes new work: {{ROLES}} (peer-coding/SETTINGS.md), unless the owner's words below say otherwise for this branch.
 
-A merge needs the other assistant's acceptance of the final product head, passing checks, and what SETTINGS.md's Merge line and PROFILE.md's decision authority require. Deployments, live-environment actions and data changes need the owner's authorization.
+A merge needs the other assistant's acceptance of the final product head, passing checks, and what SETTINGS.md's Merge line and PROFILE.md's decision authority require. What the decision-authority convention reserves for the owner (new spending, external commitments, live systems including a push or merge that deploys, irreversible destruction of valuable data, a change to what the product is) needs the owner's authorization.
 
 Owner's words for this branch (date, scope): none recorded.
