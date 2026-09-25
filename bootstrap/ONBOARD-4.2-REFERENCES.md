@@ -45,6 +45,8 @@ The AI runs the generation process TWICE - once for the frontend folder using te
 
 The AI runs once in the project folder, using the matching template (frontend, backend, or mobile).
 
+A single unit that renders its interface and also owns server responsibilities (its own data store, scheduled work, outgoing messages, server sessions) is still one unit: one References.md and one feature-tree.md, from the frontend template plus the backend template's sections for the server systems it owns. Merge a concern both templates cover (authentication, errors, validation, testing, deployment) into one section, not two. A responsibility neither template names gets a section of its own that points to the guidance and verification that apply.
+
 ### Generation Process (for the AI assistant):
 
 Use the settled brief and research. Do not add systems or stack choices merely because the template offers a field for them.
@@ -53,6 +55,7 @@ Generate these files:
 - References.md using the appropriate template from templates/ (references-frontend.md, references-backend.md, or references-mobile.md).
   - If the project is a **TEMPLATE** (per Group 1), record Stage as `template` with its version, add `## Downstream Projects` for the consumption and upgrade contract, and keep every labelled line of `## Design Artifact`. Record `Brand decided: deferred to downstream projects`, a working-files location for structural design work, and `none` where a field does not apply. Record that downstream products choose their own artifact and identity, and that reusable packages ship neutral tokens. Do not choose a downstream product's design tool or brand here.
   - If the project is a **PRODUCT**, research the current artifact approaches that fit the owner collaboration, state coverage, cost, source-of-truth and synchronization needs. Record the chosen tool or file-based approach, direction of truth, sync and working-files folder, with the decision and its reason at the decision location (#29). The interview and Step 4.5 fill the remaining design fields.
+  - Fill § Compliance from discovery (Step 2.5's data answers, Step 2.6's promises already made to users) and Step 3's research; PROFILE.md keeps the regulated-data fact, and an unanswered fact stays unknown. Where a regime requires an audit log, the Audit log line says kept by <unit or service> when another one keeps it, and not required with the reason where no regime asks for one; for a unit that keeps its own, leave the placeholder until scaffold builds the log and records its path. For a web front end, fill § Project's Mobile mode from Step 2.2.
 - feature-tree.md using templates/feature-tree.md. For TEMPLATE projects, mark design-derived rows (Components, Design System, Styling values, per-feature visual states) as "structural at template level; downstream projects apply brand"; do NOT leave them undefined.
 - PROFILE.md is Step 4.3's product, not this step's.
 - In References.md § Project, the owner channel, the single decision location, and the reporting pace, per #29. Preserve an existing record; otherwise create DECISIONS.md from templates/decisions.md and record the settled build/scope choices from Step 3.

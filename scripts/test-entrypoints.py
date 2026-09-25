@@ -2,7 +2,9 @@
 """Exercise instruction installation and updates using an isolated local Git source."""
 
 from pathlib import Path
+import importlib.util
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -13,6 +15,42 @@ import unittest
 SOURCE = Path(__file__).resolve().parents[1]
 MARKER = '<!-- archetype-managed-entrypoint -->'
 LEGACY_SOURCE = os.environ.get('ARCHETYPE_LEGACY_SOURCE')
+
+# The version log. Setup completes the installed Bootstrap section with these lines.
+SETUP_LINES = ('Type: product\n'
+               'Tech stack: recorded in References.md\n'
+               'Profile: isolated, decision authority ai-decides (owner-stated), facts still unknown: none\n'
+               'Files generated:\n'
+               '- References.md (120 words)\n'
+               '- PROFILE.md (isolated, 0 unknown)\n'
+               '- feature-tree.md (3 systems, 0 features)\n'
+               'Conventions read during bootstrap: #16, #29, #30\n'
+               'Discovery: PROGRESS.md steps 2.1 to 2.7; nothing unknown or declined\n'
+               'Key decisions made: DECISIONS.md\n'
+               'Open pre-production gates: none\n')
+# Older setup instructions appended a second Bootstrap section after Updates instead.
+OLD_SETUP = '\n## Bootstrap\n\nDate: 2026-09-24\n' + SETUP_LINES
+ENTRY_SOURCE = 'https://github.com/d3r3nic/archetype.git'
+# An update entry as every updater appends it: a blank line, the dated heading, three lines.
+ENTRY = re.compile(r'\r?\n### \d{4}-\d{2}-\d{2}\r?\nCommit: [^\r\n]+\r?\nSource: [^\r\n]+\r?\nUpdated by: update\.sh\r?\n')
+
+
+def update_entry(date, commit):
+    return '\n### %s\nCommit: %s\nSource: %s\nUpdated by: update.sh\n' % (date, commit, ENTRY_SOURCE)
+
+
+def new_entry(head):
+    """The entry this update appends, dated whenever the test runs."""
+    return re.compile(r'\n### \d{4}-\d{2}-\d{2}\nCommit: ' + head + r'\nSource: ' + re.escape(ENTRY_SOURCE) +
+                      r'\nUpdated by: update\.sh\n\Z')
+
+
+def live_headings(text):
+    """The section headings the bootstrap check reads, by its own rules."""
+    spec = importlib.util.spec_from_file_location('validate_bootstrap', SOURCE / 'scripts/validate-bootstrap.py')
+    check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(check)
+    return [line.strip() for line in check.live_lines(text) if line.startswith('## ')]
 
 
 class Entrypoints(unittest.TestCase):
@@ -82,11 +120,31 @@ class Entrypoints(unittest.TestCase):
         self.assertFalse((self.root / 'escaped').exists())
         self.assertEqual((self.project / 'AGENTS.md').read_bytes(), self.local['AGENTS.md'])
 
+    def test_install_says_guidance_was_preserved_only_when_it_kept_a_copy(self):
+        result = self.run_command(['bash', str(SOURCE / 'inject.sh'), str(self.project)])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('  copied: AGENTS.md → project root (original guidance preserved)\n', result.stdout)
+        self.assertEqual((self.project / 'AGENTS.md.pre-archetype').read_bytes(), self.local['AGENTS.md'])
+        fresh = self.root / 'fresh'
+        fresh.mkdir()
+        result = self.run_command(['bash', str(SOURCE / 'inject.sh'), str(fresh)])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('  copied: AGENTS.md → project root\n', result.stdout)
+        self.assertNotIn('preserved', result.stdout)
+        self.assertFalse((fresh / 'AGENTS.md.pre-archetype').exists())
+
     def update_source(self):
-        remote = self.root / 'framework-source'
-        shutil.copytree(SOURCE, remote, ignore=shutil.ignore_patterns('.git'))
-        (remote / 'AGENTS.md').write_text(MARKER + '\nUpdated managed entry point\n')
-        (remote / 'CLAUDE.md').write_text((remote / 'CLAUDE.md').read_text() + '\nUpdated shared rule\n')
+        def prepare(remote):
+            (remote / 'AGENTS.md').write_text(MARKER + '\nUpdated managed entry point\n')
+            (remote / 'CLAUDE.md').write_text((remote / 'CLAUDE.md').read_text() + '\nUpdated shared rule\n')
+        return self.source_repository(SOURCE, 'framework-source', prepare)
+
+    def source_repository(self, source, name, prepare=None):
+        """A local Git repository of `source` that the updaters fetch in place of the public one."""
+        remote = self.root / name
+        shutil.copytree(source, remote, ignore=shutil.ignore_patterns('.git'))
+        if prepare:
+            prepare(remote)
         for command in (['git', 'init', '-b', 'main'], ['git', 'add', '.'],
                         ['git', '-c', 'user.name=Archetype Tests', '-c', 'user.email=tests@example.invalid',
                          'commit', '-m', 'test: prepare local update source']):
@@ -721,6 +779,269 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual(outside.read_text(), 'A file outside the project\n')
         self.assertFalse((self.project / 'VERSION-LOG.md').exists())
 
+    def check_log(self, project=None):
+        return self.run_command(['python3', str(SOURCE / 'scripts/validate-bootstrap.py'), 'log'],
+                                cwd=project or self.project)
+
+    def head(self, remote):
+        return self.run_command(['git', '-C', str(remote), 'rev-parse', 'HEAD']).stdout.strip()
+
+    def test_setup_completes_the_installed_bootstrap_section_and_updates_stay_under_updates(self):
+        self.inject()
+        log = self.project / 'VERSION-LOG.md'
+        installed = log.read_text()
+        self.assertIn('The Bootstrap section records the installation and what setup decided.', installed)
+        self.assertNotIn('Do not edit', installed)
+        self.assertEqual(live_headings(installed), ['## Bootstrap', '## Updates'])
+        # Setup completes the installed section: its install lines stay, the setup lines follow them.
+        self.assertEqual(installed.count('Method: inject.sh\n'), 1)
+        completed = installed.replace('Method: inject.sh\n', 'Method: inject.sh\n' + SETUP_LINES)
+        log.write_text(completed)
+        check = self.check_log()
+        self.assertEqual(check.returncode, 0, check.stdout)
+        remote, env = self.update_source()
+        heads = []
+        for later in (False, True):
+            if later:
+                source = remote / 'CLAUDE.md'
+                source.write_text(source.read_text() + 'A later framework line.\n')
+                self.commit(remote, 'later')
+            heads.append(self.head(remote))
+            result = self.run_update(env)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn('update entr', result.stdout)
+        text = log.read_text()
+        self.assertTrue(text.startswith(completed))
+        self.assertEqual(live_headings(text), ['## Bootstrap', '## Updates'])
+        entries = ENTRY.findall(text[len(completed):])
+        self.assertEqual(''.join(entries), text[len(completed):])
+        self.assertEqual([entry.split('Commit: ')[1].split('\n')[0] for entry in entries], heads)
+        check = self.check_log()
+        self.assertEqual(check.returncode, 0, check.stdout)
+
+    def installed_project(self, name):
+        project = self.root / re.sub(r'[^a-z0-9]+', '-', name.lower())
+        project.mkdir()
+        result = self.run_command(['bash', str(SOURCE / 'inject.sh'), str(project)])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return project
+
+    def update_in(self, project, env, answer='y\n'):
+        return self.run_command(['bash', str(project / 'archetype/update.sh')], input=answer, env=env, cwd=project)
+
+    def test_update_puts_an_updates_heading_before_entries_that_end_another_section(self):
+        remote, env = self.update_source()
+        head = self.head(remote)
+        first, second, third = (update_entry('2026-09-2%d' % day, commit)
+                                for day, commit in ((5, '1234567'), (6, 'a' * 40), (7, 'unknown')))
+        # Entries a later section already follows with a newer one, as older scaffold steps left them.
+        older, newer = update_entry('2026-02-01', '2' * 40), update_entry('2026-03-01', '3' * 40)
+        installed = (self.installed_project('installed') / 'VERSION-LOG.md').read_text()
+        base = installed + OLD_SETUP
+        completed = installed.replace('Method: inject.sh\n', 'Method: inject.sh\n' + SETUP_LINES)
+        scaffold = '\n## Scaffold\n\nDate: 2026-02-15\nShape: frontend\n'
+        fenced = '\n```\n## Updates\n```\n'
+        last_fenced = '\n~~~ markdown\n## Updates\n~~~\n'
+        heading = '\n## Updates\n'
+
+        def crlf(text):
+            return text.replace('\n', '\r\n')
+
+        # Each log before the update, what must precede the new entry after it, and the headings added.
+        cases = (
+            ('no entry', base, base + heading, 0),
+            ('one entry', base + first, base + heading + first, 1),
+            ('several entries', base + first + second + third, base + heading + first + second + third, 1),
+            ('carriage returns', crlf(base + first + second),
+             crlf(base) + '\r\n## Updates\n\n' + crlf(first)[2:] + crlf(second), 1),
+            ('carriage returns before plain entries', crlf(base) + first + second, crlf(base) + heading + first + second, 1),
+            ('no final newline after an entry', base + first + second[:-1], base + heading + first + second, 1),
+            ('no final newline and no entry', base[:-1], base + heading, 0),
+            ('an Updates heading in a fenced example', base + fenced + first + second,
+             base + fenced + heading + first + second, 1),
+            ('a fenced Updates heading last', base + last_fenced, base + last_fenced + heading, 0),
+            ('a Scaffold section last', completed + first + scaffold, completed + first + scaffold + heading, 0),
+            ('entries that end a Scaffold section', completed + first + scaffold + second,
+             completed + first + scaffold + heading + second, 1),
+            ('a later Scaffold section ending in a newer entry', base + older + scaffold + newer,
+             base + heading + older + scaffold + heading + newer, 2),
+            ('a later Updates section with a newer entry', base + older + heading + newer,
+             base + heading + older + heading + newer, 1),
+        )
+        for name, before, expected, added in cases:
+            with self.subTest(log=name):
+                project = self.installed_project('log ' + name)
+                log = project / 'VERSION-LOG.md'
+                log.write_bytes(before.encode())
+                result = self.update_in(project, env)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(result.stdout.count('  ADD: an Updates heading to VERSION-LOG.md at line '), added)
+                self.assertNotIn('NOTE:', result.stdout)
+                after = log.read_bytes().decode()
+                self.assertEqual(after[:len(expected)], expected)
+                self.assertRegex(after[len(expected):], new_entry(head))
+                self.assertEqual(live_headings(after)[-1], '## Updates')
+                # Nothing moves: every Commit line keeps its place, so the newest comes last.
+                commits = [line for line in after.splitlines() if line.startswith('Commit: ')]
+                self.assertEqual(commits, [line for line in before.splitlines() if line.startswith('Commit: ')] +
+                                 ['Commit: ' + head])
+                check = self.check_log(project)
+                self.assertEqual(check.returncode, 0, check.stdout)
+
+    def test_update_leaves_entries_with_other_lines_after_them_where_they_are_and_names_them(self):
+        remote, env = self.update_source()
+        head = self.head(remote)
+        first, second, third = (update_entry('2026-09-2%d' % day, commit)
+                                for day, commit in ((5, '1234567'), (6, 'a' * 40), (7, 'b' * 40)))
+        note = '\nNotes: written after the updates\n'
+        installed = (self.installed_project('installed') / 'VERSION-LOG.md').read_text()
+        one = 'has an update entry at line %d in its Bootstrap section, with other lines after it; it is left where it is and belongs under ## Updates'
+        two = 'has 2 update entries at lines %d, %d in its Bootstrap section, with other lines after them; they are left where they are and belong under ## Updates'
+        # The part after the installed log, the note the preview gives, what must precede the new entry
+        # after the update, and whether the bootstrap check passes then.
+        cases = (
+            ('an entry', OLD_SETUP + first + note, one, OLD_SETUP + first + note + '\n## Updates\n', True),
+            ('two entries', OLD_SETUP + first + second + note, two, OLD_SETUP + first + second + note + '\n## Updates\n', False),
+            ('an entry, then entries that end the section', OLD_SETUP + first + note + second + third, one,
+             OLD_SETUP + first + note + '\n## Updates\n' + second + third, True),
+        )
+        for name, part, message, expected, passes in cases:
+            with self.subTest(log=name):
+                project = self.installed_project('noted ' + name)
+                log = project / 'VERSION-LOG.md'
+                before = installed + part
+                log.write_text(before)
+                entries = [number + 1 for number, line in enumerate(before.split('\n')) if line.startswith('### 20')]
+                result = self.update_in(project, env)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn('  NOTE: VERSION-LOG.md ' + message % tuple(entries[:message.count('%d')]), result.stdout)
+                self.assertEqual(result.stdout.count('  ADD: '), 1 if second + third in part else 0)
+                after = log.read_text()
+                self.assertEqual(after[:len(installed + expected)], installed + expected)
+                self.assertRegex(after[len(installed + expected):], new_entry(head))
+                check = self.check_log(project)
+                self.assertEqual(check.returncode, 0 if passes else 1, check.stdout)
+                if not passes:
+                    self.assertIn('duplicate field: Commit', check.stdout)
+
+    def test_update_leaves_the_kept_engine_log_as_text_and_heads_the_project_entries(self):
+        self.inject()
+        engine = self.project / 'archetype'
+        log = self.project / 'VERSION-LOG.md'
+        # An engine copy of the log with the same damage is kept indented, as text, and never changed.
+        older = ('# Version Log\n\n## Bootstrap\n\nDate: 2026-01-01\n\n## Updates\n\n## Bootstrap\n\nDate: 2026-01-02\n'
+                 'Type: product\n' + update_entry('2026-01-03', '2222222') + update_entry('2026-01-04', '3333333'))
+        (engine / 'VERSION-LOG.md').write_text(older)
+        entry = update_entry('2026-09-25', '1234567')
+        project_log = log.read_text() + OLD_SETUP
+        log.write_text(project_log + entry)
+        remote, env = self.update_source()
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("KEPT: archetype/VERSION-LOG.md differs from the project's VERSION-LOG.md", result.stdout)
+        self.assertEqual(result.stdout.count('  ADD: an Updates heading to VERSION-LOG.md at line '), 1)
+        self.assertFalse((engine / 'VERSION-LOG.md').exists())
+        text = log.read_text()
+        start = text.index('\n## Kept from archetype/VERSION-LOG.md by the framework update of')
+        self.assertEqual(text[:start], project_log + '\n## Updates\n' + entry)
+        kept = ''.join('    ' + line + '\n' for line in older.splitlines())
+        end = text.index(kept) + len(kept)
+        self.assertTrue(text[start:end].endswith('\n\n' + kept))
+        self.assertEqual(text[end:end + len('\n## Updates\n')], '\n## Updates\n')
+        self.assertRegex(text[end + len('\n## Updates\n'):], new_entry(self.head(remote)))
+        check = self.check_log()
+        self.assertEqual(check.returncode, 0, check.stdout)
+
+    def test_update_stops_before_the_prompt_on_a_fenced_block_that_never_closes(self):
+        self.inject()
+        log = self.project / 'VERSION-LOG.md'
+        log.write_text(log.read_text() + OLD_SETUP + '\n```\nAn example left open\n' + update_entry('2026-09-25', '1234567'))
+        _, env = self.update_source()
+        before = self.snapshot(self.project)
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('VERSION-LOG.md opens a fenced block', result.stdout)
+        self.assertIn('Nothing was changed.', result.stdout)
+        self.assertNotIn('Comparing files', result.stdout)
+        self.assertEqual(self.snapshot(self.project), before)
+
+    def test_update_stops_before_the_prompt_on_a_nul_byte_in_a_version_log(self):
+        self.inject()
+        _, env = self.update_source()
+        log = self.project / 'VERSION-LOG.md'
+        clean = log.read_bytes()
+        damaged = clean + OLD_SETUP.replace('Type: product', 'Type: prod\0uct').encode()
+        for name, path in (('VERSION-LOG.md', log), ('archetype/VERSION-LOG.md', self.project / 'archetype/VERSION-LOG.md')):
+            with self.subTest(log=name):
+                path.write_bytes(damaged)
+                before = self.snapshot(self.project)
+                result = self.run_update(env)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn('Error: ' + name + ' holds a NUL byte', result.stdout)
+                self.assertIn('Nothing was changed.', result.stdout)
+                self.assertNotIn('Comparing files', result.stdout)
+                self.assertEqual(self.snapshot(self.project), before)
+                if path == log:
+                    log.write_bytes(clean)
+                else:
+                    path.unlink()
+
+    def test_update_writes_the_log_only_after_yes_and_after_the_rest_of_the_update(self):
+        self.inject()
+        log = self.project / 'VERSION-LOG.md'
+        entry = update_entry('2026-09-25', '1234567')
+        damaged = log.read_text() + OLD_SETUP + entry
+        log.write_text(damaged)
+        remote, env = self.update_source()
+        before = self.snapshot(self.project)
+        declined = self.run_command(['bash', str(self.project / 'archetype/update.sh')],
+                                    input='n\n', env=env, cwd=self.project)
+        self.assertEqual(declined.returncode, 0, declined.stdout + declined.stderr)
+        self.assertIn('ADD: an Updates heading to VERSION-LOG.md at line', declined.stdout)
+        self.assertIn('Update cancelled.', declined.stdout)
+        self.assertEqual(self.snapshot(self.project), before)
+        if os.geteuid() != 0:  # permissions do not stop the superuser
+            # A log that cannot be written stops the update before the prompt.
+            log.chmod(0o444)
+            self.addCleanup(log.chmod, 0o644)
+            result = self.run_update(env)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn('VERSION-LOG.md at the project root cannot be written', result.stdout)
+            self.assertIn('Nothing was changed.', result.stdout)
+            self.assertNotIn('Comparing files', result.stdout)
+            self.assertEqual(self.snapshot(self.project), before)
+            log.chmod(0o644)
+            # A later step that fails leaves the log as it was: it is written after the rest of the update.
+            # Read-only file and folder: some cp implementations replace a read-only file they may unlink.
+            agents = self.project / 'archetype/AGENTS.md'
+            engine = self.project / 'archetype'
+            agents.chmod(0o444)
+            engine.chmod(0o555)
+            self.addCleanup(agents.chmod, 0o644)
+            self.addCleanup(engine.chmod, 0o755)
+            result = self.run_update(env)
+            self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn('ADD: an Updates heading to VERSION-LOG.md at line', result.stdout)
+            self.assertIn('Applying updates...', result.stdout)
+            self.assertEqual(log.read_text(), damaged)
+            self.assertEqual(sorted(p.name for p in self.project.iterdir() if p.name.startswith('.VERSION-LOG')), [])
+            engine.chmod(0o755)
+            agents.chmod(0o644)
+        result = self.run_update(env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('updated: VERSION-LOG.md (project root), with the Updates heading the preview named', result.stdout)
+        text = log.read_text()
+        expected = damaged[:-len(entry)] + '\n## Updates\n' + entry
+        self.assertEqual(text[:len(expected)], expected)
+        self.assertRegex(text[len(expected):], new_entry(self.head(remote)))
+        # The next update has no heading to add.
+        again = self.run_update(env)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertNotIn('ADD:', again.stdout)
+        self.assertTrue(log.read_text().startswith(text))
+        check = self.check_log()
+        self.assertEqual(check.returncode, 0, check.stdout)
+
     def test_rules_live_in_agents_and_claude_points_to_it(self):
         self.inject()
         agents = (self.project / 'AGENTS.md').read_text()
@@ -1006,10 +1327,13 @@ class Entrypoints(unittest.TestCase):
         first = self.run_command(command, input='y\n', env=env, cwd=self.project)
         self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
         self.assertEqual((engine / 'update.sh').read_bytes(), (remote / 'update.sh').read_bytes())
-        self.assertTrue((folder / '02-git.md').is_file(), 'the old updater copies the conventions back')
+        # Updaters from before Step 76 copy the framework's conventions back to the project root;
+        # later ones do not. Either way the next run must leave only overrides/ there.
+        copied_back = (folder / '02-git.md').is_file()
         second = self.run_command(command, input='y\n', env=env, cwd=self.project)
         self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
-        self.assertIn('REMOVE:', second.stdout)
+        if copied_back:
+            self.assertIn('REMOVE:', second.stdout)
         self.assertEqual(sorted(p.name for p in folder.iterdir()), ['overrides'])
         self.assertEqual(sorted(p.name for p in (folder / 'overrides').iterdir()), ['02-git.md'])
         for path, content in kept.items():
@@ -1017,6 +1341,58 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual(additions.read_text(), prepared)
         for name in rules:
             self.assertEqual((self.project / name).read_bytes(), (remote / name).read_bytes())
+
+    @unittest.skipUnless(LEGACY_SOURCE, 'set ARCHETYPE_LEGACY_SOURCE for release-to-release verification')
+    def test_previous_release_log_completed_by_its_setup_step_is_repaired_on_upgrade(self):
+        result = self.run_command(['bash', str(Path(LEGACY_SOURCE) / 'inject.sh'), str(self.project)])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        log = self.project / 'VERSION-LOG.md'
+        # Setup as that release taught it: a second Bootstrap section appended after Updates.
+        log.write_text(log.read_text() + OLD_SETUP)
+        check = self.check_log()
+        self.assertEqual(check.returncode, 0, check.stdout)
+        command = ['bash', str(self.project / 'archetype/update.sh')]
+        # One update the old way: the release's own updater pulls that release.
+        _, legacy_env = self.source_repository(Path(LEGACY_SOURCE), 'legacy-framework-source')
+        result = self.run_command(command, input='y\n', env=legacy_env, cwd=self.project)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        # The upgrade: the old updater pulls this release, adds its entry, and replaces itself last.
+        remote, env = self.update_source()
+        result = self.run_command(command, input='y\n', env=env, cwd=self.project)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((self.project / 'archetype/update.sh').read_bytes(), (remote / 'update.sh').read_bytes())
+        damaged = log.read_text()
+        entries = ENTRY.findall(damaged)
+        self.assertEqual(len(entries), 2)
+        # Both entries sit in the trailing Bootstrap section, where the check reads them as its own.
+        self.assertTrue(damaged.endswith(OLD_SETUP + ''.join(entries)))
+        check = self.check_log()
+        self.assertEqual(check.returncode, 1, check.stdout)
+        self.assertIn('duplicate field: Commit', check.stdout)
+        # The new updater puts an Updates heading before them, moves nothing, and adds its own entry last.
+        result = self.run_command(command, input='y\n', env=env, cwd=self.project)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        kept = damaged[:-len(''.join(entries))]
+        self.assertIn('ADD: an Updates heading to VERSION-LOG.md at line %d, before the 2 update entries that end '
+                      'its Bootstrap section (nothing moves)' % (kept.count('\n') + 2), result.stdout)
+        repaired = log.read_text()
+        self.assertEqual(repaired[:len(kept)], kept)
+        headed = '\n## Updates\n' + ''.join(entries)
+        self.assertEqual(repaired[len(kept):len(kept) + len(headed)], headed)
+        self.assertRegex(repaired[len(kept) + len(headed):], new_entry(self.head(remote)))
+        self.assertEqual(live_headings(repaired), ['## Bootstrap', '## Updates', '## Bootstrap', '## Updates'])
+        commits = [line for line in repaired.splitlines() if line.startswith('Commit: ')]
+        self.assertEqual(commits, [line for line in damaged.splitlines() if line.startswith('Commit: ')] +
+                         ['Commit: ' + self.head(remote)])
+        check = self.check_log()
+        self.assertEqual(check.returncode, 0, check.stdout)
+        # A later update has no heading to add and adds its entry under Updates.
+        again = self.run_command(command, input='y\n', env=env, cwd=self.project)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertNotIn('ADD:', again.stdout)
+        self.assertTrue(log.read_text().startswith(repaired))
+        check = self.check_log()
+        self.assertEqual(check.returncode, 0, check.stdout)
 
 
 if __name__ == '__main__':

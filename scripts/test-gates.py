@@ -6,6 +6,7 @@ from pathlib import Path
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -412,6 +413,327 @@ class ScaffoldGate(unittest.TestCase):
         result = self.check(systems_tree(['| 01 | Git & Hooks | #2 | hooks/ | implemented | docs/systems/git.md |'],
                                          prose='Pulse reads: `# | Name | Convention | Location | Status`.\n'))
         self.assertEqual(group(result.stdout, '1'), ['OK: every foundational system has a docs/systems/ entry'])
+
+
+class RegulatedDataGate(unittest.TestCase):
+    """validate-scaffold.sh groups 4 and 4b: PROFILE.md's regulated-data fact, and a References.md
+    Compliance section that names regulated data to say it does not apply."""
+
+    COMPLIANCE = ('\n## Compliance\n\n- Regulated data: PROFILE.md holds the fact\n'
+                  '- Regimes: none, the project keeps no regulated data\n- Obligations: none\n'
+                  '- Promises to users: only coordinators see contact details\n')
+    TREE = systems_tree(['| 01 | Git & Hooks | #2 | hooks/ | implemented | docs/systems/git.md |'])
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='archetype-regulated-')
+        self.addCleanup(self.temp.cleanup)
+        self.project = Path(self.temp.name)
+        self.unit(self.project)
+
+    def unit(self, folder):
+        """A scaffolded unit that passes every group but 4 and 4b on its own."""
+        (folder / 'VERSION-LOG.md').write_text('# Version Log\n\n## Scaffold\n\nComplete.\n')
+        hook = folder / 'hooks' / 'pre-commit.sh'
+        hook.parent.mkdir(parents=True, exist_ok=True)
+        hook.write_text('#!/bin/sh\nexit 0\n')
+        hook.chmod(0o755)
+        page = folder / 'docs' / 'systems' / 'git.md'
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text('# page\n')
+        (folder / 'feature-tree.md').write_text(self.TREE)
+
+    def check(self, tree=None, folder=None):
+        return subprocess.run([BASH, str(SCAFFOLD)], cwd=folder or self.project, text=True, capture_output=True)
+
+    def references(self, extra):
+        (self.project / 'References.md').write_text('# References\n\n## Tech Stack\n\n- Language: recorded\n' + extra)
+
+    def profile(self, value, where=None):
+        (where or self.project).joinpath('PROFILE.md').write_text('# Profile\n\n- Regulated data: %s\n\n## Notes\n' % value)
+
+    def audit_store(self, backing=False):
+        store = self.project / 'src' / 'shared' / 'audit-log'
+        store.mkdir(parents=True, exist_ok=True)
+        (store / 'store.ts').write_text('export class InMemoryAuditStore { records: Array<string> = [] }\n'
+                                        + ('export class DatabaseAuditStore {}\n' if backing else ''))
+
+    def test_a_compliance_section_that_says_no_does_not_trigger_the_audit_store_check(self):
+        self.references(self.COMPLIANCE)
+        self.audit_store()
+        self.profile('no')
+        result = self.check(self.TREE)
+        self.assertEqual(group(result.stdout, '4'), ['OK: PROFILE.md records no regulated data — audit log check skipped'])
+        self.assertNotIn('in-memory store only', result.stdout)
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_without_a_profile_any_mention_still_applies_the_audit_store_check(self):
+        # An older project without PROFILE.md keeps the earlier reading: a mention is enough.
+        self.references(self.COMPLIANCE)
+        self.audit_store()
+        result = self.check(self.TREE)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('in-memory store only (References.md mentions regulated data)', result.stdout)
+
+    def test_a_profile_that_says_no_flags_a_references_md_that_names_a_regime(self):
+        self.references('\n## Compliance\n\n- Regimes: HIPAA applies to intake notes\n')
+        self.profile('no')
+        result = self.check(self.TREE)
+        self.assertEqual(group(result.stdout, '4'), [
+            'WARN: PROFILE.md records no regulated data, but References.md names it: '
+            '"- Regimes: HIPAA applies to intake notes". Correct whichever record is wrong'])
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_a_single_unit_whose_profile_says_yes_or_unknown_keeps_the_audit_log(self):
+        for regimes in ('- Regimes: GDPR, because most members live in Germany',
+                        '- Regimes: PCI, card numbers pass through the checkout',
+                        '- Regimes: HIPAA (patient records); PCI DSS none, payments go through a hosted checkout'):
+            for value in ('yes', 'unknown'):
+                with self.subTest(regimes=regimes, value=value):
+                    self.references('\n## Compliance\n\n' + regimes + '\n')
+                    self.profile(value)
+                    store = self.project / 'src'
+                    if store.exists():
+                        shutil.rmtree(store)
+                    missing = self.check(self.TREE)
+                    self.assertEqual(missing.returncode, 1, missing.stdout)
+                    self.assertIn('PROFILE.md records regulated data: %s but no audit log found: record where this unit keeps it on the Audit log line' % value, missing.stdout)
+                    self.audit_store()
+                    memory_only = self.check(self.TREE)
+                    self.assertEqual(memory_only.returncode, 1, memory_only.stdout)
+                    self.assertIn('in-memory store only (PROFILE.md records regulated data: %s)' % value, memory_only.stdout)
+                    self.audit_store(backing=True)
+                    self.assertEqual(self.check(self.TREE).returncode, 0)
+
+    def endpoint(self, references):
+        subprocess.run(['git', 'init', '-q'], cwd=self.project, check=True)
+        unit = self.project / 'frontend'
+        unit.mkdir()
+        self.unit(unit)
+        (unit / 'References.md').write_text('# References\n\n' + references)
+        return unit
+
+    def test_an_endpoint_reads_the_profile_above_it(self):
+        unit = self.endpoint('- Regimes: HIPAA applies to intake notes\n')
+        self.profile('no')
+        result = self.check(folder=unit)
+        self.assertIn('WARN: PROFILE.md records no regulated data, but References.md names it', group(result.stdout, '4')[0])
+
+    def test_an_endpoint_of_a_regulated_project_warns_when_its_references_are_silent(self):
+        unit = self.endpoint('## Tech Stack\n\n- Language: recorded\n')
+        self.profile('yes')
+        result = self.check(folder=unit)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        [line] = group(result.stdout, '4')
+        self.assertTrue(line.startswith('WARN: PROFILE.md above this folder records regulated data: yes'), line)
+        store = unit / 'src' / 'shared' / 'audit-log'
+        store.mkdir(parents=True)
+        (store / 'store.ts').write_text('export class InMemoryAuditStore {}\n')
+        result = self.check(folder=unit)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('in-memory store only (PROFILE.md records regulated data: yes)', result.stdout)
+
+    def test_the_label_form_regulated_data_yes_counts_as_declared(self):
+        self.references('\n## Compliance\n\n- Regulated data: yes (patient records)\n')
+        result = self.check(self.TREE)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('References.md declares regulated data but no audit log found', result.stdout)
+
+    def test_a_recorded_audit_log_path_is_checked_where_it_says(self):
+        self.profile('yes')
+        self.references('\n## Compliance\n\n- Regimes: GDPR, members in Germany\n'
+                        '- Audit log: `src/server/audit-log` (append-only table)\n')
+        missing = self.check(self.TREE)
+        self.assertEqual(missing.returncode, 1, missing.stdout)
+        self.assertIn('records the audit log at src/server/audit-log, which does not exist', missing.stdout)
+        store = self.project / 'src' / 'server' / 'audit-log'
+        store.mkdir(parents=True)
+        (store / 'store.ts').write_text('export class InMemoryAuditStore { records: Array<string> = [] }\n')
+        memory_only = self.check(self.TREE)
+        self.assertEqual(memory_only.returncode, 1, memory_only.stdout)
+        self.assertIn('in-memory store only', memory_only.stdout)
+        (store / 'store.ts').write_text('export class PostgresAuditStore {}\n')
+        result = self.check(self.TREE)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(group(result.stdout, '4'), [
+            'OK: audit log path exists: src/server/audit-log (PROFILE.md records regulated data: yes)'])
+
+    def test_a_recorded_path_outside_src_counts(self):
+        self.profile('yes')
+        self.references('\n## Compliance\n\n- Audit log: gardenapp/audit\n')
+        (self.project / 'gardenapp' / 'audit').mkdir(parents=True)
+        result = self.check(self.TREE)
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_an_endpoint_whose_log_another_unit_keeps_passes_and_one_that_keeps_it_is_held_to_it(self):
+        unit = self.endpoint('## Compliance\n\n- Regulated data: see PROFILE.md\n- Audit log: kept by backend\n')
+        self.profile('yes')
+        result = self.check(folder=unit)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(group(result.stdout, '4'), ['OK: audit log kept by backend (References.md § Compliance)'])
+        backend = self.project / 'backend'
+        backend.mkdir()
+        self.unit(backend)
+        (backend / 'References.md').write_text('# References\n\n## Compliance\n\n- Regimes: GDPR, members in Germany\n'
+                                               '- Audit log: src/audit\n')
+        result = self.check(folder=backend)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('records the audit log at src/audit, which does not exist', result.stdout)
+
+    def test_a_regime_that_does_not_apply_is_not_a_contradiction(self):
+        self.profile('no')
+        self.references('\n## Compliance\n\n- Regimes: HIPAA does not apply: no health data\n')
+        result = self.check(self.TREE)
+        self.assertEqual(group(result.stdout, '4'), ['OK: PROFILE.md records no regulated data — audit log check skipped'])
+
+    def run_unit(self, references, profile=None, above=None):
+        """Run the gate on a fresh unit: its References.md, optional PROFILE.md here or above it."""
+        root = Path(tempfile.mkdtemp(prefix='archetype-regulated-case-'))
+        self.addCleanup(shutil.rmtree, root, True)
+        unit = root / 'unit' if above else root
+        unit.mkdir(exist_ok=True)
+        if above:
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            (root / 'PROFILE.md').write_text('# Profile\n\n- Regulated data: %s\n' % above)
+        if profile:
+            (unit / 'PROFILE.md').write_text('# Profile\n\n- Regulated data: %s\n' % profile)
+        self.unit(unit)
+        (unit / 'References.md').write_text('# References\n\n' + references)
+        return unit, lambda: self.check(folder=unit)
+
+    def test_the_audit_log_line_reads_as_the_template_offers_it(self):
+        compliance = '## Compliance\n\n'
+        cases = [
+            # (References.md, profile here, profile above, exit code, text in group 4 or 4b output)
+            (compliance + '- Audit log: not required, no regime here needs one\n', None, None, 0,
+             'OK: References.md § Compliance records no audit log in this unit: not required, no regime here needs one'),
+            (compliance + '- Audit log: not required, the backend service keeps it\n', None, 'yes', 0,
+             'OK: References.md § Compliance records no audit log in this unit: not required, the backend service keeps it'),
+            (compliance + '- Audit log: none\n', None, 'unknown', 0, 'OK: References.md § Compliance records no audit log in this unit: none'),
+            (compliance + '- Audit log: `kept by the backend`\n', None, 'yes', 0, 'OK: audit log kept by the backend'),
+            (compliance + '- Audit log: not required, GDPR asks for none here\n', 'yes', None, 0,
+             'WARN: References.md § Compliance records the audit log as "not required, GDPR asks for none here" while PROFILE.md records regulated data: yes'),
+            ('## Logging\n\n- Audit log: append-only table, see B4\n', None, None, 0, 'OK: no regulated data declared'),
+            (compliance + '- Audit log: /var/log/audit\n', 'yes', None, 1, 'records the audit log at /var/log/audit: record a path inside this unit'),
+            (compliance + '- Audit log: ../frontend/src\n', 'yes', None, 1, 'records the audit log at ../frontend/src: record a path inside this unit'),
+            (compliance + '- Audit log: src\n', 'yes', None, 1, 'records the audit log as the whole source folder (src)'),
+            (compliance + '- Audit log: `src/audit trail` (append-only)\n', 'yes', None, 1, 'records the audit log at src/audit trail, which does not exist'),
+            (compliance + '- Audit log: [where this unit keeps it]\n- Audit log: src/server/audit\n', 'yes', None, 1,
+             'records the audit log at src/server/audit, which does not exist'),
+        ]
+        for references, here, above, code, text in cases:
+            with self.subTest(references=references, here=here, above=above):
+                unit, run = self.run_unit(references, here, above)
+                (unit / 'src').mkdir(exist_ok=True)
+                result = run()
+                self.assertEqual(result.returncode, code, result.stdout)
+                self.assertIn(text, ANSI.sub('', result.stdout))
+
+    def test_kept_by_this_unit_is_not_another_keeper_and_trailing_punctuation_is_trimmed(self):
+        unit, run = self.run_unit('## Compliance\n\n- Audit log: kept by this unit; the path is recorded when scaffold builds it\n', 'yes')
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('no audit log found: record where this unit keeps it on the Audit log line', result.stdout)
+        unit, run = self.run_unit('## Compliance\n\n- Audit log: src/server/audit-log/, an append-only table\n', 'yes')
+        (unit / 'src' / 'server' / 'audit-log').mkdir(parents=True)
+        result = run()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('audit log path exists: src/server/audit-log', result.stdout)
+
+    def test_not_required_beside_a_regime_that_requires_an_audit_trail_fails(self):
+        for here in ('yes', 'unknown'):
+            with self.subTest(here=here):
+                unit, run = self.run_unit('## Compliance\n\n- Regimes: HIPAA (patient records, Step 2.5)\n'
+                                          '- Audit log: not required, we only store appointment times\n', here)
+                (unit / 'src').mkdir()
+                result = run()
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn('but names a regime that requires one', result.stdout)
+
+    def test_none_with_punctuation_dot_src_and_kept_by_this_unit_on_an_endpoint(self):
+        for value in ('None.', 'none; the backend keeps it', 'None: this unit stores nothing'):
+            with self.subTest(value=value):
+                unit, run = self.run_unit('## Compliance\n\n- Audit log: %s\n' % value, None, 'yes')
+                (unit / 'src').mkdir()
+                result = run()
+                self.assertEqual(result.returncode, 0, result.stdout)
+                self.assertIn('records no audit log in this unit', result.stdout)
+        unit, run = self.run_unit('## Compliance\n\n- Audit log: ./src\n', 'yes')
+        (unit / 'src').mkdir()
+        self.assertIn('records the audit log as the whole source folder (src)', run().stdout)
+        unit, run = self.run_unit('## Compliance\n\n- Audit log: .//src/shared/audit-log\n', 'yes')
+        (unit / 'src' / 'shared' / 'audit-log').mkdir(parents=True)
+        self.assertIn('audit log path exists: src/shared/audit-log', run().stdout)
+        unit, run = self.run_unit('## Compliance\n\n- Audit log: kept by this unit\n', None, 'yes')
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("References.md § Compliance says this unit keeps its audit log but no audit log found", result.stdout)
+
+    def test_none_with_a_reason_that_names_the_excluded_regime_declares_nothing(self):
+        line = '- Regimes: none, the app keeps no card data, so PCI DSS is out of scope\n'
+        unit, run = self.run_unit('## Compliance\n\n' + line)
+        (unit / 'src').mkdir()
+        self.assertEqual(run().returncode, 0)
+        unit, run = self.run_unit('## Compliance\n\n' + line, 'no')
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(group(result.stdout, '4'), ['OK: PROFILE.md records no regulated data — audit log check skipped'])
+        unit, run = self.run_unit('## Compliance\n\n- Regimes: none for this unit: it holds no patient records, so HIPAA is out of scope here\n', None, 'yes')
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_a_regime_after_a_semicolon_counts_even_when_the_line_opens_with_none(self):
+        line = '- Regimes: None of the card data is stored here; HIPAA applies to the patient notes\n'
+        unit, run = self.run_unit('## Compliance\n\n' + line)
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('References.md declares regulated data but no audit log found', result.stdout)
+        unit, run = self.run_unit('## Compliance\n\n' + line + '- Audit log: not required, we only keep appointment times\n', 'yes')
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('but names a regime that requires one', result.stdout)
+        for quiet in ('- Regimes: N/A, PCI DSS handled by the payment provider\n',
+                      '* Regimes: none, the app keeps no card data, so PCI DSS is out of scope\n'):
+            with self.subTest(quiet=quiet):
+                unit, run = self.run_unit('## Compliance\n\n' + quiet)
+                (unit / 'src').mkdir()
+                self.assertEqual(run().returncode, 0)
+
+    def test_a_regime_that_applies_counts_beside_one_that_does_not(self):
+        unit, run = self.run_unit('- Regimes: HIPAA applies to the patient notes; PCI DSS does not apply (hosted checkout)\n')
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('References.md declares regulated data but no audit log found', result.stdout)
+
+    def test_a_store_in_this_unit_is_checked_even_when_another_keeps_the_log(self):
+        unit, run = self.run_unit('## Compliance\n\n- Audit log: kept by the audit service\n', 'yes')
+        store = unit / 'src' / 'shared' / 'audit-log'
+        store.mkdir(parents=True)
+        (store / 'store.ts').write_text('export class InMemoryAuditStore { records: Array<string> = [] }\n')
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('in-memory store only', result.stdout)
+
+    def test_a_regulated_unit_still_needs_its_audit_log_and_a_real_store(self):
+        self.references('\n## Compliance\n\n- Regimes: HIPAA applies to intake notes\n')
+        for profile in ('yes', 'unknown', None):
+            (self.project / 'PROFILE.md').unlink() if (self.project / 'PROFILE.md').exists() else None
+            if profile:
+                self.profile(profile)
+            missing = self.check(self.TREE)
+            self.assertEqual(missing.returncode, 1, profile)
+            self.assertIn('no audit log found', missing.stdout)
+        self.audit_store()
+        memory_only = self.check(self.TREE)
+        self.assertEqual(memory_only.returncode, 1)
+        self.assertIn('in-memory store only', memory_only.stdout)
+        self.audit_store(backing=True)
+        self.assertEqual(self.check(self.TREE).returncode, 0)
 
 
 class PulseInspect(unittest.TestCase):

@@ -27,7 +27,7 @@ Regulated projects need TWO separate logging systems. An agent uses the app logg
 - SCAFFOLD-BACKEND Step 5 is an explicit separate step from Step 4.
 - Convention `B4` has a "Two distinct logging systems" callout at the top.
 - Convention `#23` cross-references B4 for the distinction.
-- validate-scaffold.sh checks for a dedicated audit-log path, separate from the app logger and not an in-memory-only store, whenever References.md declares regulated data.
+- validate-scaffold.sh checks for a dedicated audit log, separate from the app logger and not an in-memory-only store, wherever the unit handles regulated data (PROFILE.md, or the unit's References.md), at the location References.md § Compliance records on its Audit log line.
 
 ## 4. Middleware pipeline in wrong order
 

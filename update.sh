@@ -363,6 +363,18 @@ if [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ] && [ -d "$PROJECT_ROOT/conventions" ]
   done
 fi
 
+# A version log with a NUL byte stops the update here, before anything is written: some text
+# tools cut a line at one, so comparing, keeping or rewriting the log could lose its text.
+nul_free() {
+  if [ ! -f "$1" ] || [ -L "$1" ]; then return 0; fi
+  [ -r "$1" ] || not_verified "could not read $2."
+  if [ "$(LC_ALL=C tr -d '\000' < "$1" | wc -c | tr -d ' ')" != "$(wc -c < "$1" | tr -d ' ')" ]; then
+    not_verified "$2 holds a NUL byte, which the update cannot read without losing text. Remove it, then run the update again."
+  fi
+}
+nul_free "$PROJECT_ROOT/VERSION-LOG.md" "VERSION-LOG.md"
+if [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then nul_free "$ARCHETYPE_DIR/VERSION-LOG.md" "${ENGINE_REL}VERSION-LOG.md"; fi
+
 # In the engine-folder layout, records older installs kept inside the engine move to the
 # project root. An engine copy is removed only when the project root already holds the same
 # text (carriage returns ignored); otherwise its text is kept at the project root first: a
@@ -414,6 +426,120 @@ if [ "$PROJECT_ROOT" != "$ARCHETYPE_DIR" ]; then
       not_verified "could not read ${ENGINE_REL}FRAMEWORK-SOURCE.md."
     fi
   fi
+fi
+
+# The version log keeps one Bootstrap section, for the installation and what setup decided, and
+# each update entry under Updates. Older setup and scaffold instructions appended sections after
+# Updates (a second Bootstrap section, a Scaffold section), so later update entries landed in
+# them, where the bootstrap check read their lines as its own. No entry is ever moved, so the log
+# keeps the order it was written in and its last Commit line stays the newest update. An update
+# entry is one exactly as an updater writes it: a dated heading followed by exactly its Commit,
+# Source and "Updated by: update.sh" lines. Where such entries end a section other than Updates
+# (or the part before the first section heading), with only blank lines between and after them,
+# an Updates heading goes in before the first of them. Entries a section holds with other lines
+# after them are left where they are and named in the preview. When the log's last section is
+# still not Updates, the new entry goes under a new Updates heading. Only live headings count, as
+# the bootstrap check reads them: a heading inside a fenced block, or on an indented line like
+# the kept engine log above, is text, and a fenced block that never closes stops the update here.
+# The plan reads the log as the legacy steps above leave it and is shown in the preview; step 8
+# writes it, with the new entry, once the rest of the update is done.
+LOG_PLAN='
+function fence_len(t,    k) {
+  sub(/^ ? ? ?/, "", t)
+  FC = substr(t, 1, 1)
+  if (FC != "`" && FC != "~") return 0
+  k = 0
+  while (substr(t, k + 1, 1) == FC) k++
+  if (k < 3) return 0
+  FT = substr(t, k + 1)
+  return k
+}
+function entry(i) {
+  return live[i] && i + 3 <= n && txt[i] ~ /^### [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/ &&
+    txt[i + 1] ~ /^Commit: ./ && txt[i + 2] ~ /^Source: ./ && txt[i + 3] == "Updated by: update.sh"
+}
+function named(s) {
+  return title[s] == "" ? "the part before its first section heading" : "its " substr(title[s], 4) " section"
+}
+{ raw[NR] = $0; t = $0; sub(/\r$/, "", t); txt[NR] = t }
+END {
+  n = NR; open = 0; sections = 1; start[1] = 1; title[1] = ""
+  status = ENVIRON["LOG_STATUS"]; preview = ENVIRON["LOG_PREVIEW"]
+  for (i = 1; i <= n; i++) {
+    k = fence_len(txt[i])
+    if (open) {
+      if (k >= ol && FC == oc && FT ~ /^[ \t]*$/) open = 0
+    } else if (k) {
+      open = 1; oc = FC; ol = k
+    } else {
+      live[i] = 1
+      if (substr(txt[i], 1, 3) == "## ") {
+        stop[sections] = i - 1
+        sections++
+        start[sections] = i + 1
+        title[sections] = txt[i]
+        sub(/[ \t]+$/, "", title[sections])
+      }
+    }
+  }
+  stop[sections] = n
+  if (open) { print "unclosed no" > status; exit }
+  inserts = 0; heading = "yes"
+  for (s = 1; s <= sections; s++) {
+    if (title[s] == "## Updates") { if (s == sections) heading = "no"; continue }
+    run = 0; m = 0
+    for (i = start[s]; i <= stop[s]; i++) {
+      if (entry(i)) { m++; at[m] = i; if (!run) run = i; i += 3 }
+      else if (!live[i] || txt[i] !~ /^[ \t]*$/) run = 0
+    }
+    kept = 0; lines = ""
+    for (j = 1; j <= m; j++) {
+      if (!run || at[j] < run) { kept++; lines = lines (kept > 1 ? ", " : "") at[j] }
+    }
+    if (run) {
+      inserts++; mark[run] = 1
+      if (s == sections) heading = "no"
+      printf "  ADD: an Updates heading to VERSION-LOG.md at line %d, before the %s %s (nothing moves)\n",
+        run, (m - kept == 1 ? "update entry that ends" : m - kept " update entries that end"), named(s) > preview
+    }
+    if (kept == 1)
+      printf "  NOTE: VERSION-LOG.md has an update entry at line %s in %s, with other lines after it; it is left where it is and belongs under ## Updates\n",
+        lines, named(s) > preview
+    if (kept > 1)
+      printf "  NOTE: VERSION-LOG.md has %d update entries at lines %s in %s, with other lines after them; they are left where they are and belong under ## Updates\n",
+        kept, lines, named(s) > preview
+  }
+  for (i = 1; i <= n; i++) {
+    if (i in mark) printf "%s## Updates\n\n", (i > 1 && txt[i - 1] !~ /^[ \t]*$/ ? "\n" : "")
+    printf "%s\n", raw[i]
+  }
+  printf "%d %s\n", inserts, heading > status
+}'
+LOG_INSERTS=0
+LOG_HEADING=no
+LOG_PLANNED=""
+: > "$CARRY_DIR/log.preview"
+if [ "$LEGACY_LOG" = move ]; then
+  LOG_PLANNED="$ARCHETYPE_DIR/VERSION-LOG.md"
+elif [ -f "$PROJECT_ROOT/VERSION-LOG.md" ]; then
+  LOG_PLANNED="$PROJECT_ROOT/VERSION-LOG.md"
+fi
+if [ -n "$LOG_PLANNED" ]; then
+  if ! cp "$LOG_PLANNED" "$CARRY_DIR/log.before" || \
+     { [ "$LEGACY_LOG" = append ] && ! cat "$CARRY_DIR/version-log.block" >> "$CARRY_DIR/log.before"; } || \
+     ! LOG_STATUS="$CARRY_DIR/log.status" LOG_PREVIEW="$CARRY_DIR/log.preview" LC_ALL=C \
+       awk "$LOG_PLAN" "$CARRY_DIR/log.before" > "$CARRY_DIR/log.after" || \
+     ! read -r LOG_INSERTS LOG_HEADING < "$CARRY_DIR/log.status"; then
+    not_verified "could not read VERSION-LOG.md."
+  fi
+  if [ "$LOG_INSERTS" = unclosed ]; then
+    not_verified "VERSION-LOG.md opens a fenced block (a line of three or more backticks or tildes) that never closes, so everything after it, this update's entry included, would read as the block's text. Close the block, then run the update again."
+  fi
+fi
+# Every update records itself in the log, and step 8 replaces the log whole: a log or a project
+# folder that cannot be written stops the update now, not after the framework files are replaced.
+if [ ! -w "$PROJECT_ROOT" ] || { [ -e "$PROJECT_ROOT/VERSION-LOG.md" ] && [ ! -w "$PROJECT_ROOT/VERSION-LOG.md" ]; }; then
+  not_verified "VERSION-LOG.md at the project root cannot be written (the file or the project folder is read-only), and the update records itself there. Make both writable, then run the update again."
 fi
 
 # Step 2: Show what would change
@@ -563,6 +689,10 @@ case "$LEGACY_SOURCE" in
   duplicate) CARRY_SHOWN=1; echo "  REMOVE: ${ENGINE_REL}FRAMEWORK-SOURCE.md (a copy at the project root holds the same text)" ;;
   keep) CARRY_SHOWN=1; echo "  KEPT: ${ENGINE_REL}FRAMEWORK-SOURCE.md is kept as a dated FRAMEWORK-SOURCE.md.pre-update copy at the project root, then it leaves the engine" ;;
 esac
+if [ -s "$CARRY_DIR/log.preview" ]; then
+  CARRY_SHOWN=1
+  cat "$CARRY_DIR/log.preview"
+fi
 [ "$CARRY_SHOWN" -eq 1 ] && echo ""
 
 # Files that are NEVER touched (project-specific)
@@ -697,7 +827,6 @@ case "$LEGACY_SOURCE" in
     rm -f "$ARCHETYPE_DIR/FRAMEWORK-SOURCE.md"
     echo "  kept: ${ENGINE_REL}FRAMEWORK-SOURCE.md as $(basename "$kept") at the project root" ;;
 esac
-
 # Step 4: Apply updates
 echo ""
 echo "Applying updates..."
@@ -771,14 +900,36 @@ if [ "$ARCHETYPE_DIR" != "$PROJECT_ROOT" ]; then
   fi
 fi
 
-# Step 8: Append to VERSION-LOG.md (project root).
+# Step 8: Record the update in VERSION-LOG.md (project root), now that the rest of it is done.
+# The Updates headings the preview named and the new entry are written together: the log is
+# replaced whole, or left as it was with the entry shown for adding by hand.
 VERSION_LOG="$PROJECT_ROOT/VERSION-LOG.md"
-if [ ! -f "$VERSION_LOG" ]; then
-  cat > "$VERSION_LOG" << VEOF
+
+# Get the latest commit hash from the cloned repo
+LATEST_HASH=$(git -C "$TEMP_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
+{
+  echo ""
+  echo "### $(date +%Y-%m-%d)"
+  echo "Commit: $LATEST_HASH"
+  echo "Source: $FRAMEWORK_REPO"
+  echo "Updated by: update.sh"
+} > "$CARRY_DIR/log.entry"
+log_not_written() {
+  echo "Error: $1 The framework files are updated, but VERSION-LOG.md does not record this update. Add this entry at its end, under ## Updates:"
+  cat "$CARRY_DIR/log.entry"
+  exit 1
+}
+if [ -n "$LOG_PLANNED" ]; then
+  cmp -s "$VERSION_LOG" "$CARRY_DIR/log.before" || \
+    log_not_written "VERSION-LOG.md changed while the update ran, so the update left it as it was."
+  { cat "$CARRY_DIR/log.after" && if [ "$LOG_HEADING" = yes ]; then printf '\n## Updates\n'; fi && \
+    cat "$CARRY_DIR/log.entry"; } > "$CARRY_DIR/log.new" || log_not_written "Could not prepare VERSION-LOG.md."
+else
+  [ ! -e "$VERSION_LOG" ] || log_not_written "VERSION-LOG.md appeared while the update ran, so the update left it as it was."
+  { cat << VEOF
 # Version Log
 
-Records which framework version was used and when updates were applied.
-This file is managed by update.sh. Do not edit manually.
+The Bootstrap section records the installation and what setup decided. update.sh appends each framework update under Updates.
 
 ## Bootstrap
 
@@ -787,18 +938,21 @@ Source: $FRAMEWORK_REPO
 
 ## Updates
 VEOF
+    cat "$CARRY_DIR/log.entry"; } > "$CARRY_DIR/log.new" || log_not_written "Could not prepare VERSION-LOG.md."
 fi
-
-# Get the latest commit hash from the cloned repo
-LATEST_HASH=$(git -C "$TEMP_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
-
-# Append update entry
-echo "" >> "$VERSION_LOG"
-echo "### $(date +%Y-%m-%d)" >> "$VERSION_LOG"
-echo "Commit: $LATEST_HASH" >> "$VERSION_LOG"
-echo "Source: $FRAMEWORK_REPO" >> "$VERSION_LOG"
-echo "Updated by: update.sh" >> "$VERSION_LOG"
-echo "  updated: VERSION-LOG.md (project root)"
+# A new log gets the mode the project's file-creation mask gives; an existing one keeps its own.
+NEXT_LOG=""
+if ! NEXT_LOG=$(mktemp "$PROJECT_ROOT/.VERSION-LOG.md.XXXXXX") || \
+   ! { if [ -f "$VERSION_LOG" ]; then cp -p "$VERSION_LOG" "$NEXT_LOG"; else chmod "$(printf '%o' $(( 0666 & ~0$(umask) )))" "$NEXT_LOG"; fi; } || \
+   ! cat "$CARRY_DIR/log.new" > "$NEXT_LOG" || ! mv -f "$NEXT_LOG" "$VERSION_LOG"; then
+  if [ -n "$NEXT_LOG" ]; then rm -f "$NEXT_LOG"; fi
+  log_not_written "Could not write VERSION-LOG.md."
+fi
+case "$LOG_INSERTS" in
+  0) echo "  updated: VERSION-LOG.md (project root)" ;;
+  1) echo "  updated: VERSION-LOG.md (project root), with the Updates heading the preview named" ;;
+  *) echo "  updated: VERSION-LOG.md (project root), with the $LOG_INSERTS Updates headings the preview named" ;;
+esac
 
 # Step 9: Atomic self-replace of update.sh (LAST, after all other work)
 # cp + mv keeps the running bash safe: mv is a rename, so the old inode stays

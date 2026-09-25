@@ -7,7 +7,7 @@ Routed from `scaffolding/SCAFFOLD.md` when the project is a backend service (API
 ## Step 0 — Handoff check (read before building anything)
 
 Read `References.md` in full. Specifically:
-- **Compliance section** — is there a regulated-data regime? If yes, the audit-log system (Step 9) is REQUIRED, not optional.
+- **Compliance section** (PROFILE.md holds the regulated-data fact) — is there a regulated-data regime? If yes, the audit-log system (Step 5) is REQUIRED, not optional.
 - **Foundational Systems list** — inventory EVERY system listed. Missed systems = silently skipped systems. Compare against the steps below; any system in References.md that doesn't map to a step is a project-specific extension to be built alongside its nearest sibling.
 - **Open pre-production gates** in `VERSION-LOG.md` — halt scaffolding until gates resolved (per `bootstrap/RED-FLAGS.md` deploy-gate).
 
@@ -69,7 +69,7 @@ Build:
 
 Conventions: B4 (logging — audit subsection), #23 (app security).
 
-**This is a separate system from Step 4.** Different storage, retention, mutability, access controls. See B4's "Two distinct logging systems" callout. If References.md compliance section is empty AND regulated-data-gate is "no," this step may be skipped — but if EITHER is yes or default-assumed-yes, this is mandatory. Do not collapse into Step 4.
+**This is a separate system from Step 4.** Different storage, retention, mutability, access controls. See B4's "Two distinct logging systems" callout. If References.md compliance section is empty AND regulated-data-gate is "no," this step may be skipped — but if EITHER is yes or default-assumed-yes, this is mandatory, unless the regimes that apply require no audit trail: then record that on the Audit log line as not required, with the reason, and the exit gate reports the claim for review. Do not collapse into Step 4.
 
 Build:
 - Audit logger interface: `record(actorId, action, resource, details)`.
@@ -77,6 +77,8 @@ Build:
 - Separate retention policy (typically multi-year per regime).
 - Separate access control: engineers should NOT have read access by default; only compliance/audit roles.
 - Adapter API documented so production implementation can swap stores without changing callers.
+
+Record where the audit log lives on the Audit log line of References.md § Compliance: its path in this unit, or kept by <the service that keeps it>. The scaffold exit gate checks that path.
 
 **Verify:** audit records written during a test flow are retrievable. Tampering (editing a record) breaks the hash chain and verification fails.
 
@@ -297,7 +299,7 @@ Run `scripts/validate-scaffold.sh`. Do not commit until it passes. The validator
 - Every foundational system in feature-tree.md has a `docs/systems/{name}.md`
 - Env validation exists as a dedicated module or a named validation function in source
 - No console-level output in source outside dev-guarded blocks
-- When References.md declares regulated data: an audit-log path separate from the app log, and not an in-memory-only store. When it declares mobile/public GraphQL clients: persisted queries. When it names a telemetry standard: a configured exporter
+- When the unit handles regulated data (PROFILE.md, or its References.md): an audit log separate from the app log, where References.md § Compliance records it (its Audit log line), and not an in-memory-only store. When it declares mobile/public GraphQL clients: persisted queries. When it names a telemetry standard: a configured exporter
 - A smoke-test feature, a pre-commit hook, and a VERSION-LOG Scaffold entry; migrations not in an auto-apply CI step
 
 If validator fails, FIX before committing. Do not paper over.

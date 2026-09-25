@@ -80,11 +80,13 @@ echo ""
 
 # Step 1: CLAUDE.md goes to PROJECT ROOT (Claude Code auto-reads it from here)
 if [ -f "$FRAMEWORK_DIR/AGENTS.md" ]; then
+  AGENTS_NOTE=""
   if [ -f "$TARGET_DIR/AGENTS.md" ]; then
     cp "$TARGET_DIR/AGENTS.md" "$TARGET_DIR/AGENTS.md.pre-archetype"
+    AGENTS_NOTE=" (original guidance preserved)"
   fi
   cp "$FRAMEWORK_DIR/AGENTS.md" "$TARGET_DIR/AGENTS.md"
-  echo "  copied: AGENTS.md → project root (original guidance preserved)"
+  echo "  copied: AGENTS.md → project root$AGENTS_NOTE"
 fi
 if [ -f "$TARGET_DIR/CLAUDE.md" ] || [ -f "$TARGET_DIR/Claude.md" ]; then
   echo "  CLAUDE.md already exists at project root."
@@ -117,8 +119,7 @@ if [ ! -f "$TARGET_DIR/VERSION-LOG.md" ]; then
   cat > "$TARGET_DIR/VERSION-LOG.md" << VEOF
 # Version Log
 
-Records which framework version was used and when updates were applied.
-This file is managed by update.sh. Do not edit manually.
+The Bootstrap section records the installation and what setup decided. update.sh appends each framework update under Updates.
 
 ## Bootstrap
 

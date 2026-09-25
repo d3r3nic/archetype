@@ -14,9 +14,9 @@ Check: evidence: the systems inventoried, and each open gate in VERSION-LOG.md w
 Depends on: bootstrap.6
 
 Read `References.md` in full:
-- **Compliance section** — regulated data changes auth, logging, and storage choices.
+- **Compliance section** — regulated data changes auth, logging, and storage choices; PROFILE.md holds the regulated-data fact.
 - **Foundational Systems list** — inventory every system; missed systems = silently skipped.
-- **Mobile mode** — if discovery picked PWA (not pure responsive), Step 8 below adds service worker + manifest.
+- **Mobile mode** (§ Project) — what the product commits to on a phone; when it commits to an installable web app, Step 8 below adds what that needs (service worker, manifest).
 - **Open pre-production gates** in `VERSION-LOG.md` — halt until resolved.
 
 ## The steps
@@ -63,3 +63,7 @@ Template-shape projects (a codebase distributed as packages for other projects t
 - **SemVer discipline via a version-management tool** (research current best): one change-file per change, a command rolls versions + generates per-package CHANGELOG, a command publishes to the registry (or packs for local testing).
 - Progressive extraction: build a feature in the reference app first, extract to a package when the pattern stabilizes. The template keeps its own project-owned consumer walkthrough and maintainer playbook docs.
 - If the bundler needs help consuming packages that ship raw source: use the bundler's transpile-dependency option (research current).
+
+## Next Step
+
+The scaffold is complete when Step 13's exit gate passes. Proceed to development/DEVELOP.md for the first feature; its work is carried in the implementer plan (development/TASKS.md). Server systems this unit owns that the ledger has no steps for are complete only when the implementer plan closes them (scaffolding/SCAFFOLD.md).

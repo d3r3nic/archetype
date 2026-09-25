@@ -2,18 +2,15 @@
 
 ## Step 6: Log the Bootstrap
 Read: none
-Produces: the bootstrap entry in VERSION-LOG.md at the project root, with any open pre-production gate (an unanswered regulated-data question) named in it
+Produces: the Bootstrap section of VERSION-LOG.md at the project root, completed, with any open pre-production gate (an unanswered regulated-data question) named in it
 Check: run scripts/validate-bootstrap.py log; evidence: the bootstrap record names unresolved facts and open pre-production gates, or explicitly records none
 Depends on: bootstrap.4.5; bootstrap.4.3; bootstrap.5
 
-After bootstrap completes, update VERSION-LOG.md (at the **project root**, not inside archetype/ — the version log is project-owned, and framework updates overwrite the engine) to record what was done. If VERSION-LOG.md doesn't exist, create it.
+After bootstrap completes, record what was done in VERSION-LOG.md (at the **project root**, not inside archetype/ — the version log is project-owned, and framework updates overwrite the engine).
 
-Append a bootstrap entry:
+The installer wrote the log's `## Bootstrap` section with its install lines (Date, Source, Commit, Method). Complete that section: keep those lines and add the lines below under them, completing a line that is already there instead of repeating it. If the section has no Date, or its Date says unknown, write today's date there, in year-month-day form. Update entries stay under `## Updates`, and setup adds no second Bootstrap section; where a log already has two, complete the later one. A project without the file creates it in that shape: a `# Version Log` heading and a line saying what each section records, the `## Bootstrap` section with the date and the lines below, then an empty `## Updates` section.
 
 ```
-## Bootstrap
-
-Date: [today's date]
 Type: [template / product / existing-project-migration]
 Tech stack: [the tech stack chosen]
 Profile: [operating stage], decision authority [owner-decides / ai-decides] ([owner-stated / defaulted]), facts still unknown: [list or none]

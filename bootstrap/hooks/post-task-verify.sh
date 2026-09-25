@@ -1,25 +1,11 @@
 #!/bin/bash
-# Archetype hook: Stop (or PostToolUse)
-# Advisory verification checklist after Claude finishes a task turn.
-# Non-blocking. Stderr is visible to Claude, which can respond to the reminder.
+# Retired: this was a turn-end reminder (a checklist written to stderr, exit 0). The host does not
+# give the agent the stderr of a hook that exits 0, so the reminder reached no one, and the
+# completion rule in AGENTS.md already carries it. The settings templates no longer register it.
 #
-# Claude Code contract (2026): stdin receives event JSON, exit 0 = proceed silently,
-# stderr is forwarded to Claude. This hook always exits 0 (advisory only).
+# It stays so that settings which still name it do not fail on every turn: it reads the event
+# and exits 0 without output. scripts/check-hooks.py reports a registration that names it;
+# remove that registration.
 
-INPUT=$(cat)
-_=${INPUT:-}
-
-{
-  echo "archetype verification checklist:"
-  echo "  [ ] Build / typecheck passes"
-  echo "  [ ] Tests pass (or new tests added and passing)"
-  echo "  [ ] feature-tree.md updated if features were added, renamed, or removed"
-  echo "  [ ] docs/features/*.md updated if feature behavior changed"
-  echo "  [ ] docs/systems/*.md updated if foundational systems changed"
-  echo "  [ ] References.md updated if paths, stack, or commands changed"
-  echo "  [ ] Commit created per convention #2 (each verified change is a rollback point)"
-  echo ""
-  echo "Per convention #18 (verification), run the checks explicitly. Do not assume green."
-} >&2
-
+cat > /dev/null
 exit 0

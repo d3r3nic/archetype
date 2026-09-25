@@ -30,6 +30,8 @@ Each line must start with `- ` (dash space); content is `- Key: Value`. Inspecto
 
 ## Commands
 
+Record each command one of three ways: the command in backticks, run exactly as written from this folder (text after the closing backtick is a note and is never run); a note in brackets while none is recorded yet; or `none` when the project has no such command. A step check that needs a command fails on a bracketed note and on a value in any other form.
+
 ```
 dev:       [command to start dev server]
 build:     [command to build]
@@ -41,6 +43,16 @@ db:migrate:[command to run migrations]
 db:studio: [command to open DB GUI]
 logs:      [command to view logs]
 ```
+
+## Compliance
+
+PROFILE.md records whether the project handles regulated data (#30). This section records what follows from that for this unit. Keep an unanswered fact unknown.
+
+- Regulated data: see PROFILE.md
+- Regimes: [each law, contract or standard that applies, with the discovery answer or research behind it; none, with why; or unknown, with the open question]
+- Obligations: [what each regime requires of this unit, such as an audit log, encryption, retention and deletion, or access review; none]
+- Audit log: [where this unit keeps its audit log when a regime requires one: its path in this unit, recorded when scaffold builds it; kept by <another unit or service>; or not required, with why]
+- Promises to users: [what the project has already told its users about their data, in the owner's words; none]
 
 ## Foundational Systems
 

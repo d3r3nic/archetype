@@ -11,6 +11,7 @@ Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses t
 - Owner channel: [where escalations go and how quickly the owner usually answers]
 - Decision location: [existing decision record path or section; otherwise DECISIONS.md from templates/decisions.md, one location only]
 - Reporting pace: [every session / every release / on request]
+- Mobile mode: [how people use it on a phone: in the phone's browser; added to the home screen, with each capability it commits to, such as offline use or notifications; or not on phones]
 - URL: [deployed URL if any]
 
 ## Tech Stack
@@ -29,6 +30,8 @@ Each line must start with `- ` (dash space); content is `- Key: Value`. Inspecto
 
 ## Commands
 
+Record each command one of three ways: the command in backticks, run exactly as written from this folder (text after the closing backtick is a note and is never run); a note in brackets while none is recorded yet; or `none` when the project has no such command. A step check that needs a command fails on a bracketed note and on a value in any other form.
+
 ```
 dev:       [command to start dev server]
 build:     [command to build]
@@ -38,6 +41,16 @@ lint:      [command to lint]
 deploy:    [command to deploy]
 capture:   [command that saves the capture set: each screen in each applicable state, per scheme and committed context (#27)]
 ```
+
+## Compliance
+
+PROFILE.md records whether the project handles regulated data (#30). This section records what follows from that for this unit. Keep an unanswered fact unknown.
+
+- Regulated data: see PROFILE.md
+- Regimes: [each law, contract or standard that applies, with the discovery answer or research behind it; none, with why; or unknown, with the open question]
+- Obligations: [what each regime requires of this unit, such as an audit log, encryption, retention and deletion, or access review; none]
+- Audit log: [where this unit keeps its audit log when a regime requires one: its path in this unit, recorded when scaffold builds it; kept by <another unit or service>; or not required, with why]
+- Promises to users: [what the project has already told its users about their data, in the owner's words; none]
 
 ## Design Artifact
 
