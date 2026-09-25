@@ -170,10 +170,13 @@ def main():
             fail('the guard runs only for tool calls matching "%s", so it cannot block other commands' % hook['if'])
             continue
         command = str(hook.get('command', ''))
-        try:
-            words = shlex.split(text(hook))
-        except ValueError:
-            words = text(hook).split()
+        if isinstance(hook.get('args'), list):   # argument form: the words are given, no shell splits them
+            words = [str(hook.get('command', ''))] + [str(a) for a in hook['args']]
+        else:
+            try:
+                words = shlex.split(text(hook))
+            except ValueError:
+                words = text(hook).split()
         script = next((word for word in words if GUARD in word), '')
         # A command that names the project folder anywhere (for example cd "$CLAUDE_PROJECT_DIR" && ...)
         # does not depend on the session's current folder.

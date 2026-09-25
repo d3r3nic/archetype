@@ -200,6 +200,13 @@ class Hooks(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stdout)
                 self.assertNotIn('relative path', result.stdout)
 
+    def test_the_argument_form_is_not_split_again(self):
+        self.inject()
+        self.settings(self.guard_only('/bin/bash', args=['%s/archetype/%s' % (self.project, GUARD)]))
+        result = self.check()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertNotIn('relative path', result.stdout)
+
     def test_the_retired_reminder_reads_its_input_and_says_nothing(self):
         result = subprocess.run(['bash', str(ENGINE / STUB)], input='{"hook_event_name": "Stop"}',
                                 capture_output=True, text=True)

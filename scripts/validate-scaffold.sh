@@ -324,20 +324,22 @@ AUDIT_RECORD="$(tr -d '\r' < "$REFS" | awk '
   inside && /^- Audit log:/ { v = $0; sub(/^- Audit log:[ \t]*/, "", v); sub(/[ \t]+$/, "", v)
     if (v != "" && v !~ /^\[/) { print v; exit } }')"
 AUDIT_ELSEWHERE=""
+AUDIT_SELF=""
 AUDIT_PATH=""
 AUDIT_NONE=""
 AUDIT_BAD=""
 AUDIT_PLAIN="$(printf '%s' "$AUDIT_RECORD" | tr -d '`')"
 case "$(printf '%s' "$AUDIT_PLAIN" | tr '[:upper:]' '[:lower:]')" in
   '') ;;
-  'kept by this unit'*|'kept by itself'*|'kept by this service'*|'kept by here'*) ;;   # names no other keeper: the path decides
+  'kept by this unit'*|'kept by itself'*|'kept by this service'*|'kept by here'*) AUDIT_SELF=1 ;;   # this unit keeps it: its path decides
   'kept by '*) AUDIT_ELSEWHERE="${AUDIT_PLAIN#????????}" ;;
-  'not required'*|'none'|'none '*|'none,'*|'n/a'*|'not applicable'*) AUDIT_NONE="$AUDIT_RECORD" ;;
+  'not required'*|'not applicable'*|'none'|'none'[!a-z0-9_/-]*|'n/a'|'n/a'[!a-z0-9_/-]*) AUDIT_NONE="$AUDIT_RECORD" ;;
   *)
     case "$AUDIT_RECORD" in
       '`'*'`'*) AUDIT_PATH="${AUDIT_RECORD#?}"; AUDIT_PATH="${AUDIT_PATH%%\`*}" ;;
       *) AUDIT_PATH="$(printf '%s' "$AUDIT_RECORD" | awk '{ print $1 }' | sed 's/[,;:.]*$//')" ;;
     esac
+    while case "$AUDIT_PATH" in ./*) true ;; *) false ;; esac; do AUDIT_PATH="${AUDIT_PATH#./}"; done
     AUDIT_PATH="${AUDIT_PATH%/}"
     case "$AUDIT_PATH" in
       /*|..|../*|*/..|*/../*) AUDIT_BAD="records the audit log at $AUDIT_PATH: record a path inside this unit" ;;
@@ -365,12 +367,15 @@ case "$PROFILE_REGULATED" in
   *) [ "$REFS_REGULATED" = 1 ] && { REGULATED=1; REG_SOURCE="References.md declares regulated data"; } ;;
 esac
 
-# A unit that records its audit log's path keeps it, whatever else it declares.
-if [ "$REGULATED" -eq 0 ] && [ -n "$AUDIT_PATH" ] && [ "$PROFILE_REGULATED" != "no" ]; then
-  REGULATED=1; REG_SOURCE="References.md § Compliance records this unit's audit log"
+# A unit that records its audit log's path, or says it keeps the log itself, keeps it, whatever else it declares.
+if [ "$REGULATED" -eq 0 ] && { [ -n "$AUDIT_PATH" ] || [ -n "$AUDIT_SELF" ]; } && [ "$PROFILE_REGULATED" != "no" ]; then
+  REGULATED=1; REG_SOURCE="References.md § Compliance says this unit keeps its audit log"
 fi
 if [ -n "$AUDIT_BAD" ] && [ "$PROFILE_REGULATED" != "no" ]; then
   fail "References.md § Compliance $AUDIT_BAD"
+elif [ "$REGULATED" -eq 1 ] && [ -n "$AUDIT_NONE" ] && [ "$REFS_REGULATED" = 1 ]; then
+  # The unit's own record names a regime that requires an audit trail; "not required" contradicts it.
+  fail "References.md § Compliance records the audit log as \"$AUDIT_NONE\" but names a regime that requires one: \"$REFS_LINE\". Record where the audit log is kept"
 elif [ "$REGULATED" -eq 1 ] && [ -n "$AUDIT_NONE" ]; then
   warn "References.md § Compliance records the audit log as \"$AUDIT_NONE\" while $REG_SOURCE: that holds only if no regime that applies requires one; the owner's regime decides"
 elif [ "$REGULATED" -eq 1 ] && [ -n "$AUDIT_ELSEWHERE" ]; then

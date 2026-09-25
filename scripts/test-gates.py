@@ -640,6 +640,33 @@ class RegulatedDataGate(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn('audit log path exists: src/server/audit-log', result.stdout)
 
+    def test_not_required_beside_a_regime_that_requires_an_audit_trail_fails(self):
+        for here in ('yes', 'unknown'):
+            with self.subTest(here=here):
+                unit, run = self.run_unit('## Compliance\n\n- Regimes: HIPAA (patient records, Step 2.5)\n'
+                                          '- Audit log: not required, we only store appointment times\n', here)
+                (unit / 'src').mkdir()
+                result = run()
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn('but names a regime that requires one', result.stdout)
+
+    def test_none_with_punctuation_dot_src_and_kept_by_this_unit_on_an_endpoint(self):
+        for value in ('None.', 'none; the backend keeps it', 'None: this unit stores nothing'):
+            with self.subTest(value=value):
+                unit, run = self.run_unit('## Compliance\n\n- Audit log: %s\n' % value, None, 'yes')
+                (unit / 'src').mkdir()
+                result = run()
+                self.assertEqual(result.returncode, 0, result.stdout)
+                self.assertIn('records no audit log in this unit', result.stdout)
+        unit, run = self.run_unit('## Compliance\n\n- Audit log: ./src\n', 'yes')
+        (unit / 'src').mkdir()
+        self.assertIn('records the audit log as the whole source folder (src)', run().stdout)
+        unit, run = self.run_unit('## Compliance\n\n- Audit log: kept by this unit\n', None, 'yes')
+        (unit / 'src').mkdir()
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("References.md § Compliance says this unit keeps its audit log but no audit log found", result.stdout)
+
     def test_a_regime_that_applies_counts_beside_one_that_does_not(self):
         unit, run = self.run_unit('- Regimes: HIPAA applies to the patient notes; PCI DSS does not apply (hosted checkout)\n')
         (unit / 'src').mkdir()
