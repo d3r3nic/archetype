@@ -58,7 +58,7 @@ Generate these files:
   - Fill § Compliance from discovery (Step 2.5's data answers, Step 2.6's promises already made to users) and Step 3's research; PROFILE.md keeps the regulated-data fact, and an unanswered fact stays unknown. Where a regime requires an audit log, the Audit log line says kept by <unit or service> when another one keeps it, and not required with the reason where no regime asks for one; for a unit that keeps its own, leave the placeholder until scaffold builds the log and records its path. For a web front end, fill § Project's Mobile mode from Step 2.2.
 - feature-tree.md using templates/feature-tree.md. For TEMPLATE projects, mark design-derived rows (Components, Design System, Styling values, per-feature visual states) as "structural at template level; downstream projects apply brand"; do NOT leave them undefined.
 - PROFILE.md is Step 4.3's product, not this step's.
-- In References.md § Project, the owner channel, the single decision location, and the reporting pace, per #29. Preserve an existing record; otherwise create DECISIONS.md from templates/decisions.md and record the settled build/scope choices from Step 3.
+- In References.md § Project, the owner channel, the single decision location, and the reporting pace, per #29, and Step 2.6's peer-coding answers: `Peer coding` (none, or both assistants as short name and tool) and `Peer roles` in the owner's words (development/PEER-CODING.md). Preserve an existing record; otherwise create DECISIONS.md from templates/decisions.md and record the settled build/scope choices from Step 3.
 - docs/systems/ directory (empty)
 - docs/features/ directory (empty)
 - .gitignore appropriate for the tech stack

@@ -13,6 +13,7 @@ PROJECT = '''## Project
 - Owner channel: project owner
 - Decision location: DECISIONS.md
 - Reporting pace: every session
+- Peer coding: none
 
 ## Foundational Systems
 Location: [filled during scaffold]

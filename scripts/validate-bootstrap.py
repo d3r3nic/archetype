@@ -3,8 +3,17 @@
 from pathlib import Path
 import argparse
 import datetime
+import importlib.util
 import re
 import sys
+
+
+def peer_names(value):
+    # One reading of the Peer coding line, shared with the peer-coding script.
+    spec = importlib.util.spec_from_file_location('peer_coding', Path(__file__).with_name('peer-coding.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.parse_peers(value)
 
 
 def live_lines(text):
@@ -77,6 +86,17 @@ def check_context():
     for key in ('Name', 'Purpose', 'Stage', 'Decision location'):
         if re.match(r'^(unknown|none|n/a)\b', normalized(data[key]), re.I):
             raise ValueError(f'{key}: a resolved bootstrap fact is required')
+    if 'Peer coding' not in data:
+        raise ValueError('Peer coding: ask the owner whether another AI assistant will take turns on this '
+                         'project and who writes new work (bootstrap/ONBOARD-2.6-CARE-AND-AUTHORITY.md), then '
+                         'record none or both assistants on this line and the preference on Peer roles')
+    try:
+        peers = peer_names(data['Peer coding'])
+    except ValueError as error:
+        raise ValueError(f'Peer coding: {error}') from None
+    if peers and (not filled(data.get('Peer roles', ''))
+                  or re.match(r'^(unknown|none|n/a)\b', normalized(data.get('Peer roles', '')), re.I)):
+        raise ValueError('Peer roles: record who writes new work and who reviews it, in the owner\'s words')
     tree = Path('feature-tree.md')
     if not tree.is_file() or not tree.read_text().strip():
         raise ValueError('feature-tree.md is missing or empty')

@@ -33,6 +33,7 @@ This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFO
 | Tracked tasks / project management | development/TASKS.md, development/FRESHNESS.md | project-root protocols/task-context.md; #16, #18, #19 as relevant |
 | Repository creation / framework adoption | bootstrap/REPOSITORIES.md | bootstrap/ONBOARD.md; #1 and #2 for the applicable setup and version-control decisions |
 | Updating the installed framework | development/UPDATE.md | #2 (one reviewable commit) |
+| Two AI assistants taking turns (peer coding) | development/PEER-CODING.md | #29 (independent review, authorizations); References.md Peer coding and Peer roles |
 | Starting a new AI session | #17, #19, #29 | re-read References.md and PROFILE.md |
 | Anything that might need the owner (spend, commitments, live systems, product scope) | #29 | PROFILE.md for the decision-authority setting |
 | Deferring work, taking a shortcut, changing the project's stage | #30 | #18 (verification); TECHNICAL-DEBT.md entry with a trigger |

@@ -476,9 +476,8 @@ def stale_folders(project, report):
         if not (entry / 'CURRENT.md').is_file():
             continue
         branch = current_state(entry)['branch']
-        if not branch:
-            report.warn('%s records no branch' % display(project, entry))
-            continue
+        if not branch or branch.startswith('<'):
+            continue  # not a branch folder: another tool's shared templates, or unrelated files
         tip = ''
         for ref in ('refs/heads/' + branch, 'refs/remotes/origin/' + branch):
             if succeeds(project.top, 'show-ref', '-q', '--verify', ref):
@@ -605,9 +604,8 @@ def command_start(project, args):
 
 # ---------------------------------------------------------------- packet
 
-def relative_link(source, target):
-    relative = Path(os.path.relpath(str(target), str(source.parent))).as_posix()
-    return '[%s](%s)' % (relative, relative)
+def relative_link(source, target, label):
+    return '[%s](%s)' % (label, Path(os.path.relpath(str(target), str(source.parent))).as_posix())
 
 
 def command_packet(project, args):
@@ -633,7 +631,7 @@ def command_packet(project, args):
     incoming = None
     for round_number, directory in reversed(rounds(folder)):
         if round_number <= number and (directory / (other + '.md')).is_file():
-            incoming = directory / (other + '.md')
+            incoming = (directory / (other + '.md'), 'R%d/%s.md' % (round_number, other))
             break
     values = {
         'FOLDER': '%s/%s' % (RECORD, folder.name),
@@ -641,8 +639,8 @@ def command_packet(project, args):
         'BY': you,
         'OTHER': other,
         'BRANCH': project.branch,
-        'INCOMING': relative_link(path, incoming) if incoming else 'none: the first packet of this branch',
-        'CURRENT': relative_link(path, folder / 'CURRENT.md'),
+        'INCOMING': relative_link(path, *incoming) if incoming else 'none: the first packet of this branch',
+        'CURRENT': relative_link(path, folder / 'CURRENT.md', 'CURRENT.md'),
     }
     render('PACKET.md', path, values)
     print('Opened %s (WIP). Save command output under %s/.' % (display(project, path),

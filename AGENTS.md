@@ -19,6 +19,7 @@ Respect the active instruction hierarchy, permissions and the decision authority
 - Select scaffolding/SCAFFOLD.md, development/DEVELOP.md or development/MAINTAIN.md for the work at hand. Outside declared automated routes, carry the sequence, dependencies, checks and next action in the existing implementer plan under development/TASKS.md. Use Conventions.md to find relevant concerns, including cross-cutting risks; read newly relevant guidance when scope changes.
 - Read the relevant sections of References.md, feature-tree.md, local overrides, protocols and catalogs. Check the code for existing behavior before extending or replacing it. For backend work, backend/Conventions.md supplies additional routes.
 - Pulling a newer framework into the project follows development/UPDATE.md.
+- When References.md § Project names a second AI assistant on its Peer coding line, work on a branch follows development/PEER-CODING.md: read that branch's folder under the repository's peer-coding/ first, and change product files only on your own writing turn; the other assistant's review is the independent review. A relayed line beginning READY FOR, NEEDS USER or SCOPE CLOSED is a peer-coding cue.
 - Tracked work also follows development/TASKS.md, development/FRESHNESS.md and the project-root protocols/task-context.md binding when present. These govern ownership and freshness, including non-code work.
 
 ## Before claiming completion
