@@ -121,7 +121,7 @@ class Bootstrap(unittest.TestCase):
 
     def test_update_entries_inside_a_bootstrap_section_are_read_as_its_fields(self):
         # A second Bootstrap section after Updates takes in every entry appended after it; the
-        # updater moves those entries under Updates.
+        # updater puts an Updates heading before those entries, where they are.
         entries = update(20, 'a' * 40) + update(21, 'b' * 40)
         result = self.run_gate('log', INSTALLED + '\n## Updates\n\n' + LOG + entries)
         self.assertEqual(result.returncode, 1, result.stdout)
