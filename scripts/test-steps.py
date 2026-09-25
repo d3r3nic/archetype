@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import importlib.util
+import os
 import shutil
 import subprocess
 import tempfile
@@ -97,9 +98,9 @@ class Steps(unittest.TestCase):
     def ledger(self, playbooks='boot, dev'):
         (self.project / 'PROGRESS.md').write_text('# Progress\n\n- Playbooks: %s\n\n## Closed steps\n\n' % playbooks)
 
-    def run_tool(self, *args, cwd=None):
+    def run_tool(self, *args, cwd=None, env=None):
         return subprocess.run(['bash', str(self.engine / 'scripts' / 'next-step.sh'), *args],
-                              cwd=cwd or self.project, text=True, capture_output=True)
+                              cwd=cwd or self.project, text=True, capture_output=True, env=env)
 
     def closed(self):
         return [l for l in (self.project / 'PROGRESS.md').read_text().splitlines() if l.startswith('- [')]
@@ -731,6 +732,33 @@ class Steps(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stdout)
                 self.assertFalse((self.project / 'ran.txt').exists())
                 self.assertRegex(self.closed()[-1], r'check passed: project: typecheck, test$')
+
+    def test_none_or_na_in_backticks_means_the_project_has_no_such_command(self):
+        # The templates write `none` in code formatting. Stand-ins leave ran.txt and fail if either word
+        # is run as a command: none on the PATH, n/a in the folder the commands run in. The last two
+        # values are commands, not none or n/a, and show the stand-ins would be seen.
+        for value, passes in (('`none`', True), ('`None`', True), ('` NONE `', True), ('`none` the language is untyped', True),
+                              ('`n/a`', True), ('`N/A` (no type checker)', True), ('`\tn/a\t`', True),
+                              ('`none yet`', False), ('`n/a --strict`', False)):
+            with self.subTest(value=value):
+                self.setUp(); self.project_playbook(); self.commands(typecheck=value)
+                (self.project / 'flag.txt').write_text('x')
+                stand_in = '#!/bin/bash\ntouch ran.txt\nexit 1\n'
+                bin_dir = Path(self.temp.name) / 'bin'; bin_dir.mkdir()
+                (bin_dir / 'none').write_text(stand_in); (bin_dir / 'none').chmod(0o755)
+                (self.project / 'n').mkdir()
+                (self.project / 'n' / 'a').write_text(stand_in); (self.project / 'n' / 'a').chmod(0o755)
+                env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ.get('PATH', ''))
+                result = self.run_tool('--close', 'boot.1', env=env)
+                if passes:
+                    self.assertEqual(result.returncode, 0, result.stdout)
+                    self.assertFalse((self.project / 'ran.txt').exists())
+                    self.assertRegex(self.closed()[-1], r'check passed: project: typecheck, test$')
+                else:
+                    self.assertEqual(result.returncode, 1, result.stdout)
+                    self.assertIn("FAIL: the project's typecheck command failed: %s" % value.strip('`'), result.stdout)
+                    self.assertTrue((self.project / 'ran.txt').exists())
+                    self.assertEqual(self.closed(), [])
 
     def test_closed_project_checks_rerun_as_before_and_meet_the_contract(self):
         # A closed step whose recorded command is now a sentence: a bare run and a listing still
