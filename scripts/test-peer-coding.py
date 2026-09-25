@@ -68,7 +68,7 @@ class Base(unittest.TestCase):
         (self.project / 'app.py').write_text('print("garden")\n')
         self.git(self.project, 'init', '-q', '-b', 'main')
         self.git(self.project, 'add', '-A')
-        self.git(self.project, 'commit', '-q', '-m', 'init')
+        self.git(self.project, 'commit', '-q', '-m', 'init', '-m', 'Peer: claude')
         self.git(self.project, 'remote', 'add', 'origin', str(self.root / 'remote.git'))
         self.git(self.project, 'push', '-q', '-u', 'origin', 'main')
         self.git(self.project, 'remote', 'set-head', 'origin', 'main')
@@ -90,9 +90,11 @@ class Base(unittest.TestCase):
         self.git(self.project, 'worktree', 'add', '-q', str(path), '-b', branch, base)
         return path
 
-    def commit(self, where, message, *paths):
+    def commit(self, where, message, *paths, peer='claude'):
+        # Every commit on a peer branch names its assistant (a Peer line); peer=None leaves it out.
         self.git(where, 'add', '--', *(paths or ('.',)))
-        self.git(where, 'commit', '-q', '-m', message, '--', *(paths or ('.',)))
+        lines = ['-m', message] + (['-m', 'Peer: %s' % peer] if peer else [])
+        self.git(where, 'commit', '-q', *lines, '--', *(paths or ('.',)))
         return self.git(where, 'rev-parse', 'HEAD')
 
     def folder(self, where, branch):
@@ -498,17 +500,17 @@ class Close(Reviewed):
         where, folder, product = self.reviewed()
         self.accept(where, folder, product)
         self.assertEqual(self.pc(where, 'close', '--as', 'codex', '--merged', 'PR 9').returncode, 0)
-        self.git(where, 'commit', '-q', '-m', 'close', '--', 'peer-coding')
+        self.git(where, 'commit', '-q', '-m', 'close', '-m', 'Peer: claude', '--', 'peer-coding')
         reopened = self.pc(where, 'close', '--as', 'codex', '--reopen', 'a check failed after the close')
         self.assertEqual(reopened.returncode, 0, reopened.stdout)
         text = (folder / 'CURRENT.md').read_text()
         self.assertRegex(text, r'- \*\*Status:\*\* ACTIVE \(reopened \d{4}-\d\d-\d\d by codex: a check failed after the close\)')
         self.assertIn('- **Product writing turn:** none until the assistants agree who continues', text)
-        self.git(where, 'commit', '-q', '-m', 'reopen', '--', 'peer-coding')
+        self.git(where, 'commit', '-q', '-m', 'reopen', '-m', 'Peer: claude', '--', 'peer-coding')
         check = self.pc(where, 'check')
         self.assertEqual(check.returncode, 0, check.stdout)
         self.assertEqual(self.pc(where, 'close', '--as', 'codex', '--merged', 'PR 9').returncode, 0)
-        self.git(where, 'commit', '-q', '-m', 'close again', '--', 'peer-coding')
+        self.git(where, 'commit', '-q', '-m', 'close again', '-m', 'Peer: claude', '--', 'peer-coding')
         self.git(self.project, 'merge', '-q', '--no-ff', '-m', 'merge', 'feature/plots')
         refused = self.pc(where, 'close', '--as', 'codex', '--reopen', 'more work')
         self.assertEqual(refused.returncode, 1, refused.stdout)
@@ -525,7 +527,7 @@ class Close(Reviewed):
             self.assertFalse(folder.exists())
             self.assertIn('- **Product writing turn:** none (closed)', (done / 'CURRENT.md').read_text())
             self.git(where, 'add', '--', 'peer-coding')
-            self.git(where, 'commit', '-q', '-m', 'close', '--', 'peer-coding')
+            self.git(where, 'commit', '-q', '-m', 'close', '-m', 'Peer: claude', '--', 'peer-coding')
             self.assertEqual(self.git(where, 'status', '--porcelain'), '')
             after = self.pc(where, 'check')
             self.assertEqual(after.returncode, 0, after.stdout)
@@ -552,7 +554,7 @@ class Close(Reviewed):
         self.assertEqual(closed.returncode, 0, closed.stdout)
         text = (nxt / 'peer-coding' / 'feature-plots--done' / 'CURRENT.md').read_text()
         self.assertIn('DONE, closed after merge via the merge on main, from branch feature/next', text)
-        self.git(nxt, 'commit', '-q', '-m', 'close stale folder', '--', 'peer-coding')
+        self.git(nxt, 'commit', '-q', '-m', 'close stale folder', '-m', 'Peer: claude', '--', 'peer-coding')
         self.git(self.project, 'worktree', 'remove', '--force', str(where))
         self.git(self.project, 'branch', '-q', '-D', 'feature/plots')
         gone = self.worktree('feature/later', base='main')
@@ -638,7 +640,7 @@ class AuditFindings(Reviewed):
         where, folder, product = self.reviewed()
         self.accept(where, folder, product)
         self.assertEqual(self.pc(where, 'close', '--as', 'claude', '--merged', 'PR 3').returncode, 0)
-        self.git(where, 'commit', '-q', '-m', 'close', '--', 'peer-coding')
+        self.git(where, 'commit', '-q', '-m', 'close', '-m', 'Peer: claude', '--', 'peer-coding')
         self.assertEqual(self.pc(where, 'check').returncode, 0)
         (where / 'app.py').write_text('print("after the close")\n')
         self.commit(where, 'after the close', 'app.py')
@@ -650,13 +652,13 @@ class AuditFindings(Reviewed):
         where, folder, product = self.reviewed()
         self.accept(where, folder, product)
         self.assertEqual(self.pc(where, 'close', '--as', 'claude', '--merged', 'PR 3').returncode, 0)
-        self.git(where, 'commit', '-q', '-m', 'close', '--', 'peer-coding')
+        self.git(where, 'commit', '-q', '-m', 'close', '-m', 'Peer: claude', '--', 'peer-coding')
         (where / 'peer-coding' / 'feature-plots').mkdir()
         taken = self.pc(where, 'close', '--as', 'claude', '--reopen', 'retry')
         self.assertIn('peer-coding/feature-plots already exists', taken.stdout)
         (where / 'peer-coding' / 'feature-plots').rmdir()
         self.git(self.project, 'merge', '-q', '--squash', 'feature/plots')
-        self.git(self.project, 'commit', '-q', '-m', 'squash-merge feature/plots')
+        self.git(self.project, 'commit', '-q', '-m', 'squash-merge feature/plots', '-m', 'Peer: claude')
         refused = self.pc(where, 'close', '--as', 'claude', '--reopen', 'more work')
         self.assertEqual(refused.returncode, 1, refused.stdout)
         self.assertIn('is already merged into main', refused.stdout)
@@ -838,7 +840,7 @@ class TwoUnits(unittest.TestCase):
             (repo / 'peer-coding' / 'SETTINGS.md').write_text(SETTINGS.format(push='no'))
             run = lambda *args: subprocess.run(list(args), cwd=str(repo), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                                universal_newlines=True, env=env)
-            for command in (['git', 'init', '-q', '-b', 'main'], ['git', 'add', '-A'], ['git', 'commit', '-q', '-m', 'init'],
+            for command in (['git', 'init', '-q', '-b', 'main'], ['git', 'add', '-A'], ['git', 'commit', '-q', '-m', 'init', '-m', 'Peer: claude'],
                             ['git', 'checkout', '-q', '-b', 'feature/both']):
                 self.assertEqual(run(*command).returncode, 0)
             script = str(repo / 'frontend' / 'archetype' / 'scripts' / 'peer-coding.py')
@@ -850,7 +852,7 @@ class TwoUnits(unittest.TestCase):
             current = (folder / 'CURRENT.md').read_text()
             (folder / 'CURRENT.md').write_text(re.sub(r'^- \*\*Alignment:\*\*.*$', '- **Alignment:** BRIEFED. Next move: codex.', current, flags=re.M))
             self.assertEqual(run('git', 'add', '-A').returncode, 0)
-            self.assertEqual(run('git', 'commit', '-q', '-m', 'brief').returncode, 0)
+            self.assertEqual(run('git', 'commit', '-q', '-m', 'brief', '-m', 'Peer: claude').returncode, 0)
             result = run('python3', script, 'cue', '--as', 'claude')
             self.assertEqual(result.returncode, 0, result.stdout)
             self.assertIn('read frontend/AGENTS.md there, then peer-coding/feature-both/CURRENT.md', result.stdout)
@@ -1013,7 +1015,7 @@ class RoundFour(Reviewed):
         self.rebrief(where, folder)
         (where / 'app.py').write_text('print("slipped into the re-brief")\n')
         self.git(where, 'add', '--', 'app.py', 'peer-coding')
-        self.git(where, 'commit', '-q', '-m', 're-brief with code')
+        self.git(where, 'commit', '-q', '-m', 're-brief with code', '-m', 'Peer: claude')
         self.set_head(folder, 'feature/plots', self.git(where, 'rev-parse', 'HEAD'))
         self.commit(where, 'record it', 'peer-coding')
         self.assertIn('product files changed while ALIGNMENT.md is not CONFIRMED: app.py', self.pc(where, 'check').stdout)
@@ -1037,7 +1039,7 @@ class RoundFour(Reviewed):
         self.git(where, 'merge', '-q', '--no-commit', '--no-ff', 'main')
         (where / 'app.py').write_text('print("edited inside the merge")\n')
         self.git(where, 'add', '--', 'app.py')
-        self.git(where, 'commit', '-q', '-m', 'merge main, with an edit')
+        self.git(where, 'commit', '-q', '-m', 'merge main, with an edit', '-m', 'Peer: claude')
         self.set_head(folder, 'feature/plots', self.git(where, 'rev-parse', 'HEAD'))
         self.commit(where, 'record the merge', 'peer-coding')
         check = self.pc(where, 'check')
@@ -1139,6 +1141,64 @@ class RoundFour(Reviewed):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn('READY FOR CODEX · peer-coding/feature-plots R1', result.stdout)
         self.assertNotIn('NOTE: no packet', result.stdout)
+
+
+class History(Reviewed):
+    """Every commit on a peer branch names the assistant that made it, so the history shows each turn."""
+
+    def test_an_unpushed_commit_without_a_peer_line_fails_until_it_names_one(self):
+        where, folder, product = self.reviewed()
+        (where / 'app.py').write_text('print("unnamed")\n')
+        unnamed = self.commit(where, 'unnamed work', 'app.py', peer=None)
+        self.set_head(folder, 'feature/plots', unnamed)
+        self.commit(where, 'record', 'peer-coding')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 1, check.stdout)
+        self.assertIn('commit %s does not name who made it (it has no Peer: line)' % unnamed[:12], check.stdout)
+        self.assertIn('git commit --amend for the last commit, otherwise reword it', check.stdout)
+        self.git(where, 'push', '-q', '-u', 'origin', 'feature/plots')
+        pushed = self.pc(where, 'check')
+        self.assertEqual(pushed.returncode, 0, pushed.stdout)
+        self.assertIn('WARN: peer-coding/feature-plots: commit %s does not name who made it' % unnamed[:12], pushed.stdout)
+        self.assertIn('your packet names who made it', pushed.stdout)
+
+    def test_the_owner_may_commit_and_an_unknown_name_is_refused(self):
+        where, folder, product = self.reviewed()
+        (where / 'app.py').write_text('print("owner")\n')
+        self.set_head(folder, 'feature/plots', self.commit(where, 'owner fix', 'app.py', peer='owner'))
+        self.commit(where, 'record', 'peer-coding')
+        self.assertEqual(self.pc(where, 'check').returncode, 0)
+        (where / 'app.py').write_text('print("stranger")\n')
+        stranger = self.commit(where, 'someone else', 'app.py', peer='gemini')
+        self.set_head(folder, 'feature/plots', stranger)
+        self.commit(where, 'record', 'peer-coding')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 1, check.stdout)
+        self.assertIn('it says Peer: gemini, which is not claude or codex or owner', check.stdout)
+
+    def test_a_plain_merge_of_main_needs_no_line_and_a_merge_with_its_own_change_does(self):
+        where, folder, product = self.reviewed()
+        (self.project / 'other.txt').write_text('from main\n')
+        self.commit(self.project, 'main moves on', 'other.txt', peer=None)
+        self.git(where, 'merge', '-q', '--no-edit', 'main')
+        self.set_head(folder, 'feature/plots', self.git(where, 'rev-parse', 'HEAD'))
+        self.commit(where, 'record the merge', 'peer-coding')
+        self.assertEqual(self.pc(where, 'check').returncode, 0, self.pc(where, 'check').stdout)
+        (self.project / 'more.txt').write_text('more from main\n')
+        self.commit(self.project, 'main moves again', 'more.txt', peer=None)
+        self.git(where, 'merge', '-q', '--no-commit', '--no-ff', 'main')
+        (where / 'app.py').write_text('print("edited in the merge")\n')
+        self.git(where, 'add', '--', 'app.py')
+        self.git(where, 'commit', '-q', '-m', 'merge main with an edit')
+        merge = self.git(where, 'rev-parse', 'HEAD')
+        self.set_head(folder, 'feature/plots', merge)
+        self.commit(where, 'record', 'peer-coding')
+        self.assertIn('commit %s does not name who made it' % merge[:12], self.pc(where, 'check').stdout)
+
+    def test_start_prints_the_commit_command_with_the_peer_line(self):
+        where = self.worktree('feature/plots')
+        result = self.pc(where, 'start', '--as', 'codex')
+        self.assertIn('git commit -m "<message>" -m "Peer: codex" -- peer-coding', result.stdout)
 
 
 class Bootstrap(unittest.TestCase):
