@@ -442,11 +442,9 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(), debt_entry(33, control="FLOOR: secrets"))
         self.assert_fail(out, code, "a floor item (secrets) is never a deferral")
 
-    def test_unknown_floor_item_is_unverified(self):
+    def test_unknown_floor_item_fails(self):
         code, out = self.run_validator(profile_text(), debt_entry(34, control="floor: vibes"))
-        self.assertIn('UNVERIFIED: TD-034: Control names an unknown floor item "vibes"', out)
-        code, out = self.run_validator(profile_text(), debt_entry(34, control="floor: vibes"), strict=True)
-        self.assert_fail(out, code, "strict mode")
+        self.assert_fail(out, code, 'TD-034: Control names an unknown floor item "vibes"')
 
     def test_control_should_name_a_convention_rule_or_floor_item(self):
         code, out = self.run_validator(profile_text(), debt_entry(35, control="something later"))
@@ -656,7 +654,7 @@ class ValidateProfileTests(unittest.TestCase):
 
     def test_floor_controls_on_shortcuts(self):
         code, out = self.run_validator(profile_text(), debt_entry(128, kind="shortcut", control="floor"))
-        self.assertIn("UNVERIFIED: TD-128: Control says floor but names no floor item", out)
+        self.assert_fail(out, code, "TD-128: Control says floor but names no floor item")
         code, out = self.run_validator(profile_text(), debt_entry(128, kind="shortcut", control="Floor : secrets"))
         self.assert_fail(out, code, "TD-128: a floor item (secrets) is never postponed")
         code, out = self.run_validator(profile_text(), debt_entry(128, kind="shortcut", control="something vague"))
@@ -670,11 +668,11 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_fail(out, code, "TD-131: a floor item (secrets) is never a deferral")
         self.assertNotIn("DEFERRED: TD-131", out)
 
-    def test_empty_floor_item_is_unverified_with_the_clear_message(self):
-        code, out = self.run_validator(profile_text(), debt_entry(132, kind="shortcut", control="floor:"))
-        self.assertIn("UNVERIFIED: TD-132: Control says floor but names no floor item", out)
-        code, out = self.run_validator(profile_text(), debt_entry(132, kind="shortcut", control="floor:"), strict=True)
-        self.assert_fail(out, code, "strict mode")
+    def test_empty_floor_item_fails_with_the_clear_message(self):
+        for control in ("floor:", "floor item:", "floor ()"):
+            with self.subTest(control=control):
+                code, out = self.run_validator(profile_text(), debt_entry(132, kind="shortcut", control=control))
+                self.assert_fail(out, code, "TD-132: Control says floor but names no floor item")
 
     def test_invalid_review_by_warns_and_the_deferral_stays_deferred(self):
         code, out = self.run_validator(profile_text(), debt_entry(137, due="2027-01-01", review="not-a-date"))
@@ -760,13 +758,14 @@ class ValidateProfileTests(unittest.TestCase):
         for control, named in (("floor item: secrets", "secrets"), ("floor: trust boundary", "trust-boundary"),
                                ("floor: secrets, personal-data", "secrets personal-data"), ("floor (secrets)", "secrets"),
                                ("floor items: secrets and honest completion", "secrets honest-completion"),
-                               ("floor: vibes; secrets", "secrets")):
+                               ("floor: vibes; secrets", "secrets"), ("floor: secrets / personal data", "secrets personal-data"),
+                               ("floor: secrets (the signing key)", "secrets")):
             with self.subTest(control=control):
                 code, out = self.run_validator(profile_text(), debt_entry(208, control=control))
                 self.assert_fail(out, code, f"TD-208: a floor item ({named}) is never a deferral")
 
     def test_a_convention_number_that_names_a_floor_item_is_unverified(self):
-        for control in ("#30 floor: secrets", "#23 floor item trust boundary"):
+        for control in ("#30 floor: secrets", "#23 floor item trust boundary", "floor item secrets"):
             with self.subTest(control=control):
                 code, out = self.run_validator(profile_text(), debt_entry(209, control=control))
                 self.assertEqual(code, 0, out)

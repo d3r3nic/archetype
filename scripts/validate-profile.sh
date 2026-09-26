@@ -340,21 +340,20 @@ else
         IFS="$OLDIFS"
         [ -n "$cv" ] || { IFS="$RSEP"; continue; }
         lc_control="$(printf '%s' "$cv" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-        # "floor: x", "floor item: x", "floor items: x, y" and "floor (x)" all name floor items. The
-        # items are split at commas, semicolons, slashes and "and", with spaces read as hyphens.
-        floor_items=""
-        case "$lc_control" in
-          floor|floor:|'floor item'|'floor item:'|'floor items:') floor_items="-" ;;
-          floor:*|'floor '*|'floor('*) floor_items="$(printf '%s' "$lc_control" | sed -E 's/^floor([[:space:]]+items?)?[[:space:]]*[:(][[:space:]]*//; s/[)].*$//')" ;;
-        esac
-        if [ -n "$floor_items" ]; then
+        # "floor", "floor: x", "floor item: x", "floor items: x, y" and "floor (x)" say the entry
+        # postpones floor items. The items are split at commas, semicolons, slashes and "and", with
+        # spaces read as hyphens; a note in brackets after them is not an item.
+        if printf '%s\n' "$lc_control" | grep -qE '^floor([[:space:]]+items?)?([[:space:]]*[:(]|$)'; then
+          items_text="$(printf '%s' "$lc_control" | sed -E 's/^floor([[:space:]]+items?)?[[:space:]]*//')"
+          case "$items_text" in
+            \(*) items_text="${items_text#\(}"; items_text="${items_text%%\)*}" ;;
+            *) items_text="${items_text#:}"; items_text="${items_text%%\(*}" ;;
+          esac
           named=""; unknown_item=""
-          if [ "$floor_items" != "-" ]; then
-            for part in $(printf '%s' "$floor_items" | sed -E 's/[[:space:]]+and[[:space:]]+/,/g; s/[;/]/,/g' | tr ',' '\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]+/-/g'); do
-              [ -n "$part" ] || continue
-              if in_list "$part" "$FLOOR"; then named="$named $part"; else unknown_item="$part"; fi
-            done
-          fi
+          for part in $(printf '%s' "$items_text" | sed -E 's/[[:space:]]+and[[:space:]]+/,/g' | tr ';/' ',,' | tr ',' '\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]+/-/g'); do
+            [ -n "$part" ] || continue
+            if in_list "$part" "$FLOOR"; then named="$named $part"; else unknown_item="$part"; fi
+          done
           if [ -n "$named" ]; then
             if [ "$kind_w" = "deferral" ]; then
               fail "$id: a floor item (${named# }) is never a deferral (#30)"
@@ -362,21 +361,28 @@ else
               fail "$id: a floor item (${named# }) is never postponed, as a deferral or as a shortcut (#30)"
             fi
           elif [ -n "$unknown_item" ]; then
-            unver "$id: Control names an unknown floor item \"$unknown_item\"; floor items: ${FLOOR// /, }"
+            # The entry says it postpones a floor item, which is never postponed, whichever it is.
+            fail "$id: Control names an unknown floor item \"$unknown_item\"; floor items: ${FLOOR// /, }. A floor item is never postponed (#30); if this is not one, name the convention (#N and the obligation)"
           else
-            unver "$id: Control says floor but names no floor item; floor items: ${FLOOR// /, }"
+            fail "$id: Control says floor but names no floor item; floor items: ${FLOOR// /, }. A floor item is never postponed (#30); if this is not one, name the convention (#N and the obligation)"
           fi
         else
           case "$lc_control" in
             \[*) warn "$id: Control still holds a template placeholder" ;;
-            '#'[0-9]*|b[0-9]*)
-              # A convention number followed by a floor item ("#30 floor: secrets") is read as the
-              # floor item it names, and reported for review.
+            *)
+              # A Control that names a floor item in other words ("#30 floor: secrets", "floor item
+              # secrets") is read as that floor item and reported for review.
+              flagged=0
               for item in $FLOOR; do
                 spaced="$(printf '%s' "$item" | tr '-' ' ')"
-                case "$lc_control" in *floor*"$item"*|*floor*"$spaced"*) unver "$id: Control \"$cv\" names the floor item $item; a floor item is never postponed (#30)"; break ;; esac
-              done ;;
-            *) warn "$id: Control is \"$cv\"; name the convention (#N and the obligation), the backend rule (BN), or the floor item (floor: name), so a review can see what is postponed" ;;
+                case "$lc_control" in *floor*"$item"*|*floor*"$spaced"*) unver "$id: Control \"$cv\" names the floor item $item; a floor item is never postponed (#30)"; flagged=1; break ;; esac
+              done
+              if [ "$flagged" -eq 0 ]; then
+                case "$lc_control" in
+                  '#'[0-9]*|b[0-9]*) ;;
+                  *) warn "$id: Control is \"$cv\"; name the convention (#N and the obligation), the backend rule (BN), or the floor item (floor: name), so a review can see what is postponed" ;;
+                esac
+              fi ;;
           esac
         fi
         IFS="$RSEP"
