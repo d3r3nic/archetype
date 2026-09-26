@@ -394,6 +394,15 @@ class Steps(unittest.TestCase):
         self.assertEqual(bare.returncode, 0, bare.stdout)
         self.assertNotIn('REOPENED', bare.stdout)
 
+    def test_a_set_aside_in_a_repeating_playbook_belongs_to_its_unit(self):
+        self.close_all_of_boot()
+        recorded = self.run_tool('--set-aside', 'dev.1', '--unit', 'board', '--reason', 'the board has no systems to inventory')
+        self.assertEqual(recorded.returncode, 0, recorded.stdout)
+        self.assertRegex(self.closed()[-1], r'^- \[-\] dev\.1 @board \| .* \| set aside by the session; its check did not run: '
+                                            r'the board has no systems to inventory$')
+        self.assertIn('Next step: dev.2 @board', self.run_tool('--unit', 'board').stdout)
+        self.assertIn('Next step: dev.1 @profile', self.run_tool('--unit', 'profile').stdout)
+
     def test_a_step_that_depends_on_a_set_aside_step_says_so(self):
         path = self.engine / 'bootstrap' / 'BOOT.md'
         path.write_text(path.read_text().replace('Produces: flag.txt\nCheck:', 'Produces: flag.txt\nDepends on: boot.2.2\nCheck:'))
