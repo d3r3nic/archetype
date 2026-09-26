@@ -127,7 +127,7 @@ Structure: five baseline sections apply to every platform. Sector-specific secti
 - [ ] Record retention policy documented (state-specific — e.g., California CMIA requires 7 years for adults, 7 years past age of majority for minors)
 - [ ] Workflow for migrating paper records (if applicable)
 - [ ] Device-hygiene checklist for staff (encrypted laptops, no PHI on personal devices, remote wipe enabled)
-- [ ] Incident response plan (breach notification timelines: HIPAA 60 days, state laws may be shorter)
+- [ ] Incident response plan (breach notification deadlines: research the ones the applicable laws set, and record them with the date checked)
 
 ### [WORKFLOW] — use for internal-tool platforms
 - [ ] Database / base / workspace structure designed

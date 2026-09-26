@@ -22,7 +22,7 @@ Respect the active instruction hierarchy, permissions and the decision authority
 - Read the relevant sections of References.md, feature-tree.md, local overrides, protocols and catalogs. Check the code for existing behavior before extending or replacing it. For backend work, backend/Conventions.md supplies additional routes.
 - Pulling a newer framework into the project follows development/UPDATE.md.
 - When the repository has peer-coding/SETTINGS.md (References.md § Project, Peer coding), two AI assistants take turns on its branches under development/PEER-CODING.md: read your branch's folder under peer-coding/ first, and change product files only on your own writing turn; the other assistant's review is the independent review. A relayed line beginning READY FOR, NEEDS USER or SCOPE CLOSED is a peer-coding cue.
-- Tracked work also follows development/TASKS.md, development/FRESHNESS.md and the project-root protocols/task-context.md binding when present. These govern ownership and freshness, including non-code work.
+- When the project runs a task service (a project-root protocols/task-context.md names it), tracked work also follows the second part of development/TASKS.md and development/FRESHNESS.md, which govern ownership and freshness, including non-code work. Every project keeps TASKS.md's first part.
 
 ## Before claiming completion
 

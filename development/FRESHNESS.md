@@ -2,7 +2,7 @@
 
 Framework-managed in downstream installations. Local AI must not edit this file; the next framework update overwrites it. Project-specific policies and live observations belong in the local task binding and knowledge records.
 
-Follow [TASKS.md](TASKS.md). Never present a known outdated, invalidated, or unverifiable fact as current. Verification proves what a source reported at a recorded revision and time; it does not prove that an independent source can never change afterward.
+Applies when the project runs a task service (development/TASKS.md, second part, and protocols/task-context.md). The rule every project keeps is in TASKS.md's first part: never present a known outdated, invalidated, or unverifiable fact as current. Verification proves what a source reported at a recorded revision and time; it does not prove that an independent source can never change afterward.
 
 ## Identify what must be current
 

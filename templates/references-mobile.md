@@ -12,7 +12,7 @@ Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses t
 - Decision location: [existing decision record path or section; otherwise DECISIONS.md from templates/decisions.md, one location only]
 - Reporting pace: [every session / every release / on request]
 - Peer coding: [none; or peer-coding/SETTINGS.md, when the owner chose two AI assistants taking turns (development/PEER-CODING.md)]
-- Platforms: [iOS / Android / both]
+- Platforms: [the phone and tablet platforms it ships to]
 
 ## Tech Stack
 
@@ -21,10 +21,10 @@ Each line must start with `- ` (dash space); content is `- Key: Value`. Inspecto
 - Framework: [mobile framework chosen at bootstrap]
 - Language: [language]
 - UI Library: [selected native, library, adapter, wrapper, or project-owned approach with the #22 decision recorded]
-- State: [client-state approach]
-- Data Fetching: [server-state library or HTTP client]
-- Validation: [schema library]
-- Navigation: [navigation library]
+- State: [the shared-state approach, or none when screens keep their own state (#5)]
+- Data Fetching: [the approach to reading remote data and caching it, or none (#9)]
+- Validation: [how outside data is validated, with one definition per shape (#7)]
+- Navigation: [the navigation approach]
 - Testing: [test runner]
 - Package Manager: [package manager and native dependency manager]
 
@@ -34,8 +34,7 @@ Record each command one of three ways: the command in backticks, run exactly as 
 
 ```
 dev:       [command to run on simulator/emulator]
-build:ios: [command to build iOS]
-build:android: [command to build Android]
+build:<platform>: [command to build for each platform the app ships to, one line per platform]
 test:      [command to run tests]
 typecheck: [command to run type checker]
 lint:      [command to lint]
@@ -43,6 +42,13 @@ deploy:    [command to deploy to each store]
 clean:     [command to clean build artifacts]
 capture:   [command that saves the capture set: each screen in each applicable state, per scheme and committed context (#27)]
 ```
+
+## Boundaries
+
+What only each shared system may use, one line per concern (#0, #25): `` - <concern>: `<pattern>` only in `<path>`, `<path>` ``. The pattern is an extended regular expression for this project's own tool, such as the call that reaches the network, reads the environment or opens a native capability. Each path is a folder ending in `/`, a file, or a glob such as `*.test.*`, from this folder. `scripts/validate-develop.sh` fails when a file outside those paths contains the pattern (Markdown files are not read), and the scaffold's exit gate checks the lines that exist. Add a line as each shared system is built. With no shared concern to guard, record `- none: <reason>`.
+
+- [Configuration: `<the pattern that reads the environment>` only in `<the configuration owner's path>`]
+- [Network: `<the network call pattern>` only in `<the API client's path>`]
 
 ## Compliance
 
@@ -56,9 +62,9 @@ PROFILE.md records whether the project handles regulated data (#30). This sectio
 
 ## Design Artifact
 
-Convention #27 anchor: **AI consults the artifact first. When silent, the session designs within the picked direction and records it; the owner is asked only for identity and what a screen is for.** Any design skill, plugin, canvas, or workspace that runs in this project reads this section first: it is the brief. One `- Label: value` line per field, labels exact. The framework's self-test keeps this list and convention #27 in step; `scripts/validate-design.sh` fails a line that is missing, repeated, or still a placeholder, and the independent review reads whether a recorded value is true. Where the recorded direction makes two lines the same place (under `workspace-first` the artifact and the published view; under `repository-first` the artifact and the recorded styling source or discovery surface), write `same as <label>`.
+Convention #27 anchor: **AI consults the artifact first. When silent, the session designs within the picked direction and records it; the owner is asked only for identity and what a screen is for.** Any design skill, plugin, canvas, or workspace that runs in this project reads this section first: it is the brief. One `- Label: value` line per field. `scripts/validate-design.sh` checks that no line still holds its template placeholder and that `Brand decided: yes` waits until `First task` and `Return tasks` are known; the independent review reads whether a recorded value is true. Where the recorded direction makes two lines the same place (under `workspace-first` the artifact and the published view; under `repository-first` the artifact and the recorded styling source or discovery surface), write `same as <label>`.
 
-- Primary tool: [category: a visual design tool / a design-system-as-code repository / an AI design canvas in the working session / an AI design workspace; the product's name and version, a dated fact, on this line]
+- Primary tool: [category: a visual design tool / a design system kept as code / a design canvas in the working session / a design workspace; the product's name and version, a dated fact, on this line]
 - Direction of truth: [repository-first (the recorded styling source, specifications, and any interface previews in the repository are the artifact; a workspace or canvas is a published view or a proposal) / workspace-first (the workspace or canvas is the artifact; the repository styling source and any discovery surface follow it)]
 - Artifact location: [path or URL; `[to be created]` until first published]
 - Published view: [URL of the published view, or none]
@@ -68,7 +74,7 @@ Convention #27 anchor: **AI consults the artifact first. When silent, the sessio
 - Design working files: [folder for artboards, layout manifests, images, and sync configuration, a folder a tool fixes for itself recorded as it is; committed; generated bundles ignored; or none]
 - Sync: [the step that keeps the two places in step in the recorded direction: the publish under repository-first, the read-back into the repository under workspace-first; who runs it; when (after each design change, before each UI feature); or none when there is only one place]
 - Brand decided: [yes only when the brand book records all six, each as a decision or an explicit none: marks, palette values, type families, voice and tone, imagery style, motion signature / deferred to downstream projects / not yet, directions pending the owner's pick]
-- Platform parity: [how iOS and Android states are kept aligned in the artifact]
+- Platform parity: [how the platforms' states are kept aligned in the artifact]
 - Every UI state designed: [yes / the gaps per screen, against the state list in #27, platform-specific permission prompts included]
 - Update responsibility: [who owns artifact edits; how code follow-ups trigger]
 - Complementary tools: [exploration only, never source of truth; list or none]
@@ -83,21 +89,19 @@ Convention #27 anchor: **AI consults the artifact first. When silent, the sessio
 
 ## Foundational Systems
 
-Complete the sections relevant to this project. Record the selected approach, its consumers, and the reason when a shared boundary is justified. Features follow those recorded decisions; they do not create competing systems silently.
+Complete only the sections for systems this app builds; each convention's Applies when decides. For each, record the choice, where it lives, how features use it, and the reason where it is not obvious. Features use these systems; they never build competing ones (#0), and § Boundaries keeps them from going around them.
 
 ### Git & Project Init (#2)
-Commit convention: [e.g., conventional commits]
-Branch strategy: [e.g., trunk-based]
-Pre-commit hooks: [what runs]
-Pre-commit budget: [max hook runtime before a check moves to CI (#25)]
+Commit convention: [the convention the team follows]
+Branch strategy: [the branch model and why]
+Checks run: [where the project's checks run before work reaches the main line: a hook at `<path>`, a pipeline at `<path>`, both, or none, with why (#2, #15)]
+Hook budget: [how long a check before each commit may take before it moves to the pipeline (#25), or none]
 
 ### Project Structure & Types (#1, #7)
 Folder structure: [see Folder Structure section below]
-Type checking: [strictest mode the language supports]
-File-size limit: [lines per file the tools in use can read whole; split past it (#1, #17)]
-Compaction cadence: [optional; when the AI compacts context in long sessions (#17)]
-Validation library: [which one]
-Shared types: [path to shared type definitions]
+Configuration: [the configuration owner's path, and how it validates required values at startup]
+Type checking: [the level the project holds to, and where it is configured]
+Validation: [how outside data is validated, and where the shared data shapes live]
 
 ### Theme System (#6)
 Location: [path to theme definition]
@@ -106,47 +110,45 @@ Color schemes: [committed set and reason; no additional scheme is implied (#6)]
 Type scale: [selected type approach and the content or interaction evidence behind it (#31)]
 Motion: [the jobs motion serves, applicable user preferences, and the recorded implementation approach (#31)]
 Layout: [selected composition and adaptation rules for the committed contexts (#31)]
-Platform adaptation: [how theme adapts between iOS and Android if applicable]
+Platform adaptation: [how the theme adapts to each platform, if it does]
 Usage: [how features use theme values]
 
 ### Error System (#8)
-Location: [path to error service]
-Error types: [custom error classes]
-Build-target check: [how custom error subclasses are verified on the real build target; the constructor fix if one is required (#8)]
+Location: [where the error system lives]
+Kinds: [the kinds of error the app distinguishes]
+Build-target check: [how custom error types are verified on the real build target; the fix if one is required (#8)]
 Error display: [how errors are shown to users - toasts, alerts, error screens]
-Loading states: [unified loading and empty state components]
+Shared states: [where the waiting, error, empty and offline components live]
 Crash reporting: [which service]
 Usage: [how features use the error system]
 
 ### API Layer & Contract (#9, #10)
-Location: [path to API client]
-Client: [configured HTTP client]
-Cache strategy: [how API data is cached]
+Location: [where each service's client lives]
+Contract: [how the exchanged shapes are shared with the service (#10)]
+Caching: [the rule for how fresh each kind of remote data must be (#5, #9)]
 Offline handling: [how the app behaves when offline]
-Response format: [consistent envelope structure]
-Usage: [how features define API calls]
+Usage: [how features ask a client for data]
 
 ### Auth System (#11)
-Location: [path to auth service]
-Auth utility: [how to get authenticated user]
-Token management: [secure storage - keychain, encrypted preferences]
+Location: [the auth owner's path, or none when the app has no accounts]
+Identity: [how screens learn who is signed in]
+Credentials: [how credentials are kept in the platform's secure store and renewed]
 Session handling: [how login/logout/refresh work]
 Deep linking: [auth-related deep links if applicable]
 Usage: [how features check auth]
 
 ### Navigation (#21)
-Router: [which navigation library]
-Route definitions: [path to route config]
-Navigation guards: [auth protection on routes]
+Navigation: [the navigation approach]
+Screen definitions: [where each screen is defined once]
+Guard: [how protected screens are guarded]
 Deep linking: [deep link configuration]
 Usage: [how features navigate]
 
 ### State Management (#5)
-Store: [path to store configuration]
-Pattern: [e.g., "one slice per feature"]
-Server state: [how API data integrates with state]
+State owners: [each fact several screens use, and its one owner; or none when screens keep their own state]
+Remote data: [how remote data is cached and refreshed, or none]
 Offline state: [how offline data is persisted]
-Usage: [how features manage state]
+Usage: [how features read and change shared state]
 
 ### Component Foundation (#4, #22)
 Location: [path to shared components]
@@ -154,7 +156,7 @@ Base components: [where selected native elements, library use, adapters, wrapper
 Foundation decision: [selected interface approach and its reason, per #22]
 Component-size limit: [project-specific comprehension or responsibility signal, or none with the review approach (#4)]
 Import rule: [the recorded import boundary, including direct platform or library imports when chosen]
-Platform-specific: [components that differ between iOS/Android]
+Platform-specific: [components that differ between platforms]
 Accessibility target: [the level the project commits to, chosen at bootstrap per #14; sets the contrast floor design content keeps (#27)]
 Icon set: [selected icon sources, styles, and locations, or none; record how meaning and consistency are checked (#22)]
 Target size: [the platform minimum the project holds to, and the space between adjacent targets (#14)]
@@ -167,16 +169,14 @@ Usage: [how features build forms]
 
 ### Testing Setup (#12, #18)
 Test runner: [which one]
-Test utilities: [path to shared test helpers]
+Shared setup: [where the one test setup, the data builders and the fakes live]
 Device testing: [simulator/emulator/physical device testing setup]
 Verification commands: [exact commands]
 
 ### CI/CD & Build (#15)
-CI platform: [which one]
-Pipeline: [sequence]
-iOS deployment: [beta distribution and store submission process]
-Android deployment: [beta distribution and store submission process]
-Code signing: [how certificates/keys are managed]
+Pipeline: [where the checks run and what a merge requires]
+Distribution: [for each platform: the beta channel and the store submission process]
+Code signing: [how certificates and keys are managed]
 
 ## Folder Structure
 
@@ -187,13 +187,13 @@ Code signing: [how certificates/keys are managed]
 ## Backend
 
 Mobile apps almost always talk to a backend. Document which stack serves this mobile app:
-- Backend approach: [Custom backend (separate folder with its own References.md) / Platform backend (BaaS — uses references-platform.md) / None (offline-only, no backend)]
-- Backend location: [path to backend folder if custom, or platform name + admin URL if BaaS]
-- API contract: [REST base URL / GraphQL endpoint / SDK name]
+- Backend approach: [its own service (a separate folder with its own References.md) / a hosted backend service (uses references-platform.md) / none (offline-only)]
+- Backend location: [path to the backend folder, or the service's name and admin address]
+- API contract: [the API's address and style, or the provider library the app uses]
 - Offline sync: [strategy for reconnecting after offline use]
 - Auth flow: [how mobile obtains and refreshes tokens — deep-link OAuth, embedded SDK, etc.]
 
-If backend is a separate custom folder, it has its own `References.md` using `references-backend.md`. If it's a BaaS platform, it has its own folder (e.g., `backend-<platform>/`) using `references-platform.md`. Cross-reference here.
+A separate backend folder has its own `References.md` from `references-backend.md`. A hosted backend service has its own folder (for example `backend-<service>/`) using `references-platform.md`. Cross-reference it here.
 
 ## Native-Module Wrapping
 
@@ -204,17 +204,13 @@ List the capability boundaries in use:
 
 ## Platform-Specific Notes
 
-### iOS
-- Minimum iOS version: [minimum supported version]
-- Required Info.plist permission strings: [NSCameraUsageDescription, NSHealthShareUsageDescription, etc. Missing entries cause App Store rejection.]
-- Code signing / provisioning: [how certificates and profiles are managed]
-- Store submission: [process, developer-program fee, and typical review time — verify current values at bootstrap and record the date checked]
+One block per platform the app ships to:
 
-### Android
-- Minimum API level: [minimum supported level]
-- Required manifest permissions: [CAMERA, ACCESS_FINE_LOCATION, etc.]
-- Signing config: [how release keystore is managed]
-- Store submission: [process, developer-program fee, and typical review time — verify current values at bootstrap and record the date checked]
+### [platform]
+- Minimum supported version: [the oldest operating-system version supported]
+- Permission declarations: [each permission the platform requires the app to declare, with the rationale text people see; a missing declaration can get the app rejected]
+- Signing: [how certificates, profiles or keys are managed]
+- Store submission: [process, developer-program fee, and typical review time; verify current values at bootstrap and record the date checked]
 
 ### Managed vs bare native toolchain (cross-platform frameworks)
 - **Managed workflow:** the framework's tooling handles native config, build, and over-the-air updates. Faster to start. Limited to the native modules the managed layer supports unless you eject.

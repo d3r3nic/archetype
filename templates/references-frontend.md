@@ -17,14 +17,14 @@ Each line must start with `- ` (dash space). `scripts/pulse-inspect.sh` parses t
 
 ## Tech Stack
 
-Each line must start with `- ` (dash space); content is `- Key: Value`. Inspector parses every bullet.
+Each line must start with `- ` (dash space); content is `- Key: Value`. The inspector parses every bullet. Record what bootstrap chose and add a line for anything else the project depends on.
 
-- Framework: [UI framework chosen at bootstrap]
+- Framework: [the interface framework chosen at bootstrap, or none]
 - Language: [language]
-- UI Library: [selected native, direct library, adapter, wrapper, or project-owned approach with the #22 decision recorded below]
-- State: [client-state approach]
-- Data Fetching: [server-state library]
-- Validation: [schema library — one schema = types + validation]
+- UI Library: [the selected native, direct library, adapter, wrapper, or project-owned approach, with the #22 decision recorded below]
+- State: [the shared-state approach, or none when screens keep their own state (#5)]
+- Data Fetching: [the approach to reading remote data and caching it, or none (#9)]
+- Validation: [how outside data is validated, with one definition per shape (#7)]
 - Bundler: [build tool]
 - Testing: [test runner, end-to-end tool]
 - Package Manager: [package manager]
@@ -43,6 +43,13 @@ deploy:    [command to deploy]
 capture:   [command that saves the capture set: each screen in each applicable state, per scheme and committed context (#27)]
 ```
 
+## Boundaries
+
+What only each shared system may use, one line per concern (#0, #25): `` - <concern>: `<pattern>` only in `<path>`, `<path>` ``. The pattern is an extended regular expression for this project's own tool, such as the call that reaches the network or reads the environment. Each path is a folder ending in `/`, a file, or a glob such as `*.test.*`, from this folder. `scripts/validate-develop.sh` fails when a file outside those paths contains the pattern (Markdown files are not read), and the scaffold's exit gate checks the lines that exist. Add a line as each shared system is built. With no shared concern to guard, record `- none: <reason>`.
+
+- [Configuration: `<the pattern that reads the environment>` only in `<the configuration owner's path>`]
+- [Network: `<the network call pattern>` only in `<the API client's path>`]
+
 ## Compliance
 
 PROFILE.md records whether the project handles regulated data (#30). This section records what follows from that for this unit. Keep an unanswered fact unknown.
@@ -55,9 +62,9 @@ PROFILE.md records whether the project handles regulated data (#30). This sectio
 
 ## Design Artifact
 
-Convention #27 anchor: **AI consults the artifact first. When silent, the session designs within the picked direction and records it; the owner is asked only for identity and what a screen is for.** Any design skill, plugin, canvas, or workspace that runs in this project reads this section first: it is the brief. One `- Label: value` line per field, labels exact. The framework's self-test keeps this list and convention #27 in step; `scripts/validate-design.sh` fails a line that is missing, repeated, or still a placeholder, and the independent review reads whether a recorded value is true. Where the recorded direction makes two lines the same place (under `workspace-first` the artifact and the published view; under `repository-first` the artifact and the recorded styling source or discovery surface), write `same as <label>`.
+Convention #27 anchor: **AI consults the artifact first. When silent, the session designs within the picked direction and records it; the owner is asked only for identity and what a screen is for.** Any design skill, plugin, canvas, or workspace that runs in this project reads this section first: it is the brief. One `- Label: value` line per field. `scripts/validate-design.sh` checks that no line still holds its template placeholder and that `Brand decided: yes` waits until `First task` and `Return tasks` are known; the independent review reads whether a recorded value is true. Where the recorded direction makes two lines the same place (under `workspace-first` the artifact and the published view; under `repository-first` the artifact and the recorded styling source or discovery surface), write `same as <label>`.
 
-- Primary tool: [category: a visual design tool / a design-system-as-code repository / an AI design canvas in the working session / an AI design workspace; the product's name and version, a dated fact, on this line]
+- Primary tool: [category: a visual design tool / a design system kept as code / a design canvas in the working session / a design workspace; the product's name and version, a dated fact, on this line]
 - Direction of truth: [repository-first (the recorded styling source, specifications, and any interface previews in the repository are the artifact; a workspace or canvas is a published view or a proposal) / workspace-first (the workspace or canvas is the artifact; the repository styling source and any discovery surface follow it)]
 - Artifact location: [path or URL; `[to be created]` until first published]
 - Published view: [URL of the published view, or none]
@@ -81,24 +88,20 @@ Convention #27 anchor: **AI consults the artifact first. When silent, the sessio
 
 ## Foundational Systems
 
-Complete the sections relevant to this project. Record the selected approach, its consumers, and the reason when a shared boundary is justified. Features follow those recorded decisions; they do not create competing systems silently. Sections are ordered by scaffold build sequence.
+Complete only the sections for systems this project builds; each convention's Applies when decides. For each, record the choice, where it lives, how features use it, and the reason where it is not obvious. Features use these systems; they never build competing ones (#0), and § Boundaries keeps them from going around them. Sections follow the scaffold's build order.
 
 ### Git & Project Init (#2)
-Commit convention: [e.g., conventional commits - feat:, fix:, chore:]
-Branch strategy: [e.g., trunk-based, feature branches]
-Pre-commit hooks: [what runs - lint, format, typecheck]
-Pre-commit budget: [max hook runtime before a check moves to CI (#25)]
-Branch protection: [rules for main branch]
+Commit convention: [the convention the team follows]
+Branch strategy: [the branch model and why]
+Checks run: [where the project's checks run before work reaches the main line: a hook at `<path>`, a pipeline at `<path>`, both, or none, with why (#2, #15)]
+Hook budget: [how long a check before each commit may take before it moves to the pipeline (#25), or none]
+Branch protection: [what the main branch requires]
 
 ### Project Structure & Types (#1, #7)
-Folder structure: [see Folder Structure section below]
-Path alias: [e.g., @/ maps to src/]
-Type checking: [strictest mode the language supports; config location]
-File-size limit: [lines per file the tools in use can read whole; split past it (#1, #17)]
-Compaction cadence: [optional; when the AI compacts context in long sessions (#17)]
-Validation library: [name - one schema = types + validation]
-Shared types: [path to shared type definitions]
-Barrel exports: [pattern used for module public APIs]
+Folder structure: [see Folder Structure below]
+Configuration: [the configuration owner's path, and how it validates required values at startup]
+Type checking: [the level the project holds to, and where it is configured]
+Validation: [how outside data is validated, and where the shared data shapes live]
 
 ### Theme System (#6)
 Location: [e.g., src/shared/ui/theme/]
@@ -111,40 +114,38 @@ Wrappers: [selected interface boundary and path, or none when direct native or l
 Usage: [how features use theme values]
 
 ### Error System (#8)
-Location: [e.g., src/shared/errors/]
-Error service: [path to centralized error handler]
-Error boundaries: [path to boundary components]
-Build-target check: [how custom error subclasses are verified on the real build target; the constructor fix if one is required (#8)]
-Loading states: [path to unified loading/empty/error components]
+Location: [where the error system lives]
+Kinds: [the kinds of error the product distinguishes, and how each reaches the person]
+Reporting: [where errors are reported, chosen for the stage and cost]
+Shared states: [where the waiting, error, empty and offline components live]
+Build-target check: [how custom error types are verified on the real build target; the fix if one is required (#8)]
 Usage: [how features use the error system]
 
 ### API Layer & Contract (#9, #10)
-Location: [e.g., src/shared/api/]
-Client: [path to configured API client]
-Cache strategy: [Network-First / Stale-While-Revalidate / etc.]
-Response format: [consistent envelope structure]
-Contract: [how types are shared with backend - generated client, shared schemas, etc.]
-Usage: [how features define endpoints or queries]
+Location: [where each service's client lives, or none when the product calls no remote service]
+Contract: [how the exchanged shapes are shared with the service: generated, shared or checked (#10)]
+Response format: [the service's recorded response format]
+Caching: [the rule for how fresh each kind of remote data must be (#5, #9)]
+Usage: [how features ask a client for data]
 
 ### Auth System (#11)
-Location: [e.g., src/shared/auth/]
-Auth utility: [path to auth helper]
-Token management: [how tokens are stored and refreshed]
-Route protection: [path to route guard component]
-Usage: [how features check auth]
+Location: [the auth owner's path, or none when the product has no accounts]
+Provider: [the provider and why]
+Credentials: [how credentials are stored and renewed]
+Guard: [how protected places are guarded (#21)]
+Usage: [how screens learn who is signed in]
 
 ### Routing & Layouts (#21)
-Router: [which routing library]
-Route definitions: [path to route constants/config]
-Layout components: [path to persistent layout shells]
-Route guard: [path to auth route wrapper]
-URL state: [how filters/pagination are encoded in URL]
+Router: [the routing approach, or none for a single view]
+Route definitions: [where each place is defined once]
+Layouts: [the persistent frames, where they live]
+Guard: [the one guard for protected places]
+View state: [which view state survives a refresh, a back step or a shared link, and how (#5)]
 
 ### State Management (#5)
-Store: [path to store configuration]
-Pattern: [e.g., "one slice per feature, flat registration"]
-Server state library: [which one and how it integrates with API layer]
-Usage: [how features create and register slices]
+State owners: [each fact several screens use, and its one owner; or none when screens keep their own state]
+Remote data: [how remote data is cached and refreshed, or none]
+Usage: [how features read and change shared state]
 
 ### Component Foundation & Accessibility (#4, #14, #22)
 Location: [e.g., src/shared/ui/]
@@ -152,57 +153,36 @@ Base components: [where selected native elements, library use, adapters, wrapper
 Foundation decision: [selected interface approach and its reason, per #22]
 Component-size limit: [project-specific comprehension or responsibility signal, or none with the review approach (#4)]
 Import rule: [the recorded import boundary, including direct platform or library imports when chosen]
-Accessible components: [path to modal, dialog, dropdown with proper keyboard/ARIA support]
+Accessible components: [where the dialog, menu and other components with focus and keyboard behavior live]
 Component catalog: [catalog URL or equivalent, if applicable]
 Icon set: [selected icon sources, styles, and locations, or none; record how meaning and consistency are checked (#22)]
-A11y testing: [which tools are configured]
-Accessibility target: [the level the project commits to, chosen at bootstrap per #14; sets the contrast floor design content keeps (#27)]
+A11y testing: [the automated accessibility check and where it runs]
+Accessibility target: [the standard and level the project commits to, chosen at bootstrap per #14; sets the contrast floor design content keeps (#27)]
 Target size: [the platform minimum the project holds to, and the space between adjacent targets (#14)]
 
 ### Form System (#20)
-Location: [e.g., src/shared/forms/]
-Library: [form handling library]
-Validation: [how schemas connect - one schema = types + validation]
-Usage: [how features build forms]
+Location: [where the form system lives, or none when the product has no form]
+Validation: [how forms use the one shape definition (#7)]
+Drafts: [how input is kept, or the leave warning]
+Usage: [how features build a form]
 
 ### Testing Setup (#12, #18)
 Test runner: [which one and command]
-Test utilities: [path to shared render wrapper, factories, mocks]
-API mocking: [which tool for network-level mocking]
-Verification commands: [exact commands to run - test, typecheck, build]
-Coverage: [thresholds and what's enforced]
+Shared setup: [where the one test setup, the data builders and the network fakes live]
+Isolation: [how tests stay independent of each other's data]
+Verification commands: [the commands to run: test, typecheck, build]
+Coverage: [where testing effort goes and any thresholds]
 
 ### CI/CD & Performance (#15, #13)
-CI platform: [which one]
-Pipeline: [sequence - lint → typecheck → test → build → deploy]
-Code splitting: [how routes are split]
-Bundle budget: [size limits and enforcement]
-Lint rules: [AI-targeted rules configured - no untyped escape hatch, no console-level output, no direct imports]
-Preview deployments: [per-PR deployments, if applicable]
+Pipeline: [where the checks run and what a merge requires, or none yet, with why]
+Budgets: [each size or performance budget the product set, how it is measured, and where it is enforced; or none, with why]
+Measurement: [how real use is measured once people depend on it, or none yet]
+Rollback: [the way back from a release people depend on]
 
 ## Folder Structure
 
 ```
 [paste actual folder structure here]
-
-Example:
-src/
-├── features/           # Feature code (self-contained)
-│   └── [feature]/
-│       ├── components/ # Feature UI
-│       ├── hooks/      # Feature logic
-│       ├── api/        # Feature API endpoints
-│       ├── types       # Feature types
-│       └── index       # Public API (barrel export)
-│
-├── shared/             # Foundational systems
-│   ├── ui/             # Component foundation + theme
-│   ├── api/            # API layer
-│   ├── auth/           # Auth system
-│   ├── errors/         # Error system
-│   └── forms/          # Form system
-│
-└── app/                # App shell, routing, providers
 ```
 
 ## Existing Patterns to Study
@@ -210,37 +190,23 @@ src/
 Before building anything new, study these reference implementations:
 
 - [feature name]: [path] - [what it demonstrates]
-- [feature name]: [path] - [what it demonstrates]
-- [feature name]: [path] - [what it demonstrates]
 
 ## Critical Lessons
 
 Production bugs and hard-won rules specific to this project:
 
 - [lesson]: [what happened and the rule that prevents it]
-- [lesson]: [what happened and the rule that prevents it]
 
 ## Convention Overrides
 
-Any project-specific deviations from standard conventions:
+Any project-specific departures from the conventions:
 
 - [convention #]: [what's different and why]
 
 ## Project-Specific Documentation
 
-For existing projects migrated to the framework, additional documentation locations:
+Where this project's own rules and documents live, when it has them:
 
-### Convention Overrides (per-convention project rules)
-- conventions/overrides/{N}-{name}.md - project-specific rules extending the base conventions
-- (List each override file that exists with a one-line description)
-
-### Workflow Protocols
-- protocols/{name}.md - workflow protocols beyond the base framework
-- (List each protocol with a one-line description, e.g., "feature-audit-protocol.md - mandatory audit before feature work")
-
-### Reference Catalogs
-- catalogs/{name}.md - reference materials for quick lookup
-- (List each catalog, e.g., "feature-directory.md - every feature with its purpose and location")
-
-### Project-Specific Docs
-- (List any links to existing project /docs/ that contain critical information)
+- conventions/overrides/{N}-{name}.md: [each override file with a one-line description]
+- protocols/{name}.md: [each workflow protocol with a one-line description]
+- [other documents]: [each location with what it holds]
