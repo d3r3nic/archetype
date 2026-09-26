@@ -49,7 +49,7 @@ Choose the maintenance mode from its trigger. Carry the selected work in the exi
 1. Open `templates/session-review.md` and fill it out. Save to `docs/reviews/YYYY-MM-DD-topic.md`.
 2. Identify whether the root cause is project-local (fix in project + log in tech-debt) or framework-wide (fix in framework + promote to a framework issue).
 3. If project-local: log as a tech-debt entry with appropriate severity; plan fix for current or next cycle.
-4. If framework-wide: open an issue in the framework repo referencing the session review. The next framework step incorporates it. Loop closes when `update.sh` pulls the fix and a follow-up session review confirms.
+4. If framework-wide: report it upstream (development/FEEDBACK.md), written out rather than linked to a project file. The loop closes when `update.sh` pulls the fix and a follow-up session review confirms.
 
 **Never:** silently fix a framework drift in-project without also reporting it to the framework. That's the "convention evolution never promoted" silent-failure pattern (see `development/MAINTAIN-RED-FLAGS.md` #3).
 
@@ -59,13 +59,8 @@ Choose the maintenance mode from its trigger. Carry the selected work in the exi
 
 **What to do:**
 1. Review the accumulated session reviews — look for repeated "Suggested Convention Improvements."
-2. If a pattern is clear, draft the framework change:
-   - Is it a new convention? Expand Conventions.md index + write a convention doc.
-   - Is it a change to an existing convention? Edit the convention doc.
-   - Is it a RED-FLAGS.md entry? Add to the appropriate phase's RED-FLAGS doc.
-   - Is it a validator check? Update the relevant `scripts/validate-*.sh`.
-3. Factory first, per the framework's meta-rule: PLAN.md + CHANGELOG.md entry → dist/ changes → deploy via update.sh.
-4. Close the loop: run a follow-up session review after the framework change lands to confirm the pattern is addressed.
+2. If a pattern is clear, report it upstream (development/FEEDBACK.md) with the change you propose: a convention to add, soften, merge or remove, a red flag, or a check. Guidance that got in the way counts as much as a gap.
+3. Close the loop: after `update.sh` brings the change, run a follow-up session review to confirm the pattern is addressed.
 
 ## Tech-debt pruning policy
 
@@ -113,6 +108,6 @@ Before closing an audit cycle, verify:
 - `feature-tree.md` § Audit Log has a new row for this cycle.
 - Any new tech-debt entries are logged with severity + proposed fix.
 - Any escalated or closed tech-debt entries have updated Status.
-- If the cycle found framework drift: framework issue opened (not just logged in-project).
+- If the cycle found framework drift or noise: reported upstream (development/FEEDBACK.md), not just logged in-project.
 
 The audit is NOT complete until these all pass. Don't leave a cycle half-done — that's the "audit done once then forgotten" silent-failure pattern.

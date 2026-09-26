@@ -4,6 +4,7 @@
 Read: bootstrap/ONBOARD-DISCOVERY.md; bootstrap/RED-FLAGS.md § Discovery Turn Budget; bootstrap/RED-FLAGS.md § Vague-Answer Rules; bootstrap/RED-FLAGS.md § Deploy Gate
 Produces: the regulated-data answer (or the default with the open gate it creates), the infrastructure experience, and the ownership preference
 Check: evidence: the owner's answers to this group in their own words, quoted; a question an earlier answer settled is recorded as inferred, with the inference; a question the owner declined is recorded as declined, with what was assumed
+Skip by: owner
 
 - Does this app handle sensitive data that has legal requirements? (health records, financial data, personal information with privacy laws)
 - Do you or your team have experience managing servers and cloud infrastructure? Or would you prefer something that handles that for you?

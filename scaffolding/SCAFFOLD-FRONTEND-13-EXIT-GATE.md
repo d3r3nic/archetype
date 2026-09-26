@@ -8,6 +8,7 @@ Produces: every system marked in feature-tree.md with its real location or its d
 Check: run scripts/validate-scaffold.sh --required known-screen
 Depends on: scaffold-frontend.12; scaffold-frontend.11
 Basis: decisions and inputs required
+Skip by: owner
 
 Run `scripts/validate-scaffold.sh --required known-screen`. Fix any failures before committing. The required mode refuses a missing, duplicated, suffixed, or fenced-only Design Artifact section because this route is known to produce screens.
 

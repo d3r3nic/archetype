@@ -5,6 +5,7 @@ Read: #0 § Principle; #29; bootstrap/LEARNING-PROJECTS.md (when learning a tech
 Produces: the researched options with what each costs, one recommendation, and the settled build approach: a platform, or a custom build with its stack
 Check: evidence: the recommendation as given, and the owner's authorization of the build approach in their own words, or where an authorization already recorded says so (it is not asked again)
 Depends on: bootstrap.2.7
+Skip by: owner
 
 Research the current ways to achieve the owner's goal before selecting a build approach or stack. Existing platforms, extensions to an existing system, hybrid approaches and custom work are candidates when they can satisfy the important requirements. The framework scaffolds custom projects, but that is not evidence that custom is right.
 

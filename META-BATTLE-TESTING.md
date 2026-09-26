@@ -10,7 +10,7 @@ Factory (archetype-lab) → Framework (archetype) → Template → Product (cust
 
 | Layer | Role | Repo / location |
 |---|---|---|
-| Factory | Where framework changes are authored; all history is narrative numbered steps in `planning/CHANGELOG.md` | `d3r3nic/archetype-lab` |
+| Factory | Where framework changes are authored; all history is narrative numbered steps in `planning/CHANGELOG.md` | the maintainers' private repository |
 | Framework | What consumers use: the convention catalogue, the phase playbooks (bootstrap/scaffold/develop/maintain), scripts, file templates | `d3r3nic/archetype` (published dist) |
 | Template | A reusable project shape — monorepo with `@scope/*` packages, a reference app, governed by the framework | per-template repo |
 | Product | A customer site spawned from a template | per-site repo |
@@ -34,6 +34,8 @@ Upstream — **every discovery by a downstream layer lands in the factory as a n
 | Template wasn't a product | Framework conflated template-shape with product-shape at bootstrap | `bootstrap/ONBOARD.md` Group 1 gained the distinction |
 
 The shape repeats: a downstream layer hits a gap, the gap is classified, the fix lands at the layer that owns it (convention, playbook, script, or template), and the factory step records the tuple so the next consumer inherits the fix instead of rediscovering it. Everything in the framework's current state was either originally authored here OR promoted up from a real use.
+
+Findings flow both ways. A finding can add guidance, and it can equally remove, soften, merge or scope guidance that got in the way: a step that did not fit how an application works, a check that failed on how something was written, a rule that gave one answer for every project. Those reports matter as much as gaps, because guidance that is noise costs every project that reads it.
 
 ## What belongs upstream vs what stays local
 
@@ -74,4 +76,4 @@ Promotion debt is the worst kind of framework debt — by the time it's discover
 
 ## For AI agents reading this
 
-If you are developing a template or product project on top of Archetype and you discover something that would benefit future projects — **stop, promote it to the factory first**, then return to your local work. The factory-first rule (see outer CLAUDE.md in archetype-lab) is not a preference; it is how the framework stays coherent across many consumers.
+If you are developing a template or product project on top of Archetype and you find something that would benefit future projects, or guidance that got in the way, report it upstream (development/FEEDBACK.md) with the owner's approval, then return to your local work. Findings that reach the framework are how it stays coherent across many projects.

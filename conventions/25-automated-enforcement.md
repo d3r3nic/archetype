@@ -65,4 +65,4 @@ Document in References.md:
 
 ## Project Overrides
 
-If a file exists at conventions/overrides/25-automated-enforcement.md, read it. It contains project-specific rules that extend or refine this base convention. The base convention always applies. The override file adds project-specific detail.
+If a file exists at conventions/overrides/25-automated-enforcement.md, read it. It holds this project's own rules for this concern: the detail it adds, and where it departs from this convention and why. Where the two differ, the recorded project choice governs.

@@ -2,7 +2,7 @@
 
 Run after every 3-5 AI coding sessions, or after any session where something went notably wrong or right. Store completed reviews in `docs/reviews/YYYY-MM-DD-topic.md`.
 
-The goal is not perfection. The goal is to catch drift between what the framework prescribes and what the AI actually does, so the framework can evolve.
+The goal is not perfection. The goal is to catch drift both ways: the AI missing what the framework reminds it of, and the framework getting in the way of what fit this project. Both make the framework better.
 
 ## Session Info
 
@@ -44,6 +44,12 @@ For each task the AI picked up, did Conventions.md's task-type table point at th
 
 Answer:
 
+### 6. Where did the framework get in the way?
+
+Guidance that gave an answer this application did not need, a step or check that did not fit, repetition, paperwork that decided nothing. What was set aside, and why?
+
+Answer:
+
 ## Drift
 
 Count and describe every drift incident (AI doing something the framework would prohibit or recommend against):
@@ -63,7 +69,7 @@ Concrete changes to make to the framework:
 
 - [ ] Update convention #X wording: [what and why]
 - [ ] Add lookup table row for task type: [which]
-- [ ] Propose a shared rule upstream, or add a project rule to CLAUDE.md.additions: [what]
+- [ ] Report upstream (development/FEEDBACK.md), or add a project rule to CLAUDE.md.additions: [what]
 - [ ] Add hook: [trigger + action]
 - [ ] Other:
 

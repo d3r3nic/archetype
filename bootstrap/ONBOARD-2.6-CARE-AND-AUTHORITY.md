@@ -4,6 +4,7 @@
 Read: bootstrap/ONBOARD-DISCOVERY.md; bootstrap/RED-FLAGS.md § Discovery Turn Budget; #30; #29
 Produces: the facts PROFILE.md holds, the operating stage derived from them with its reason, the owner channel, who decides technical questions, and whether a second AI assistant takes turns on the project and who writes new work
 Check: evidence: the owner's answers to this group in their own words, quoted; a question an earlier answer settled is recorded as inferred, with the inference; a question the owner declined is recorded as declined, with what was assumed
+Skip by: owner
 
 This group fills PROFILE.md per #30 and the decision-authority setting per #29; ask only what Groups 1-5 did not already answer.
 

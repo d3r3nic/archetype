@@ -8,6 +8,7 @@ Produces: one minimal feature that goes through every shared system that was bui
 Check: run project: typecheck, lint, test, build; evidence: the feature's path, and each shared system it goes through
 Depends on: scaffold-frontend.4; scaffold-frontend.8; scaffold-frontend.9; scaffold-frontend.10
 Basis: decisions and inputs required
+Skip by: owner
 
 Build a minimal feature that exercises EVERY shared system. Typical choice: a `/profile` or `/settings` page that:
 - Auth-protected (Step 7)

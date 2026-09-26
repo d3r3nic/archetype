@@ -7,6 +7,7 @@ Check: evidence: the owner's pick or delegation in their own words with the deci
 Depends on: bootstrap.4.2; bootstrap.4.3; bootstrap.2.3
 Basis: decisions and inputs required
 Skip when: the build approach is a platform, the project is a template, or the product has no screen
+Skip by: owner
 
 The interview runs here, after the build approach and the operating stage are settled, so nobody answers questions about the look of a product that turns out to need no custom screen. It is a form with gates that the session opens for the owner, with two ways through it: the owner's pick from shown directions, or the owner's delegation in words (#29); an `isolated` project is offered the short way first (#30). Everything about how it is asked lives in `bootstrap/DESIGN-INTERVIEW.md`.
 
