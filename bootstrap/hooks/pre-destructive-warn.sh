@@ -50,18 +50,19 @@ MATCHED="${COMMAND//\\$NL/ }"
 # A git push, with git's own options before the word push: a short flag (-P), a long one
 # (--no-pager, --git-dir=x), or one that takes a separate value (-C, -c, --git-dir, --work-tree,
 # --namespace, --config-env, --exec-path, --super-prefix, --attr-source). A value is a run of
-# parts, each bare with backslash escapes (work\ dir), in double or single quotes (either quote
-# inside the other), or a command substitution without nested parentheses: ~/"My Project",
-# $(...)/app. The push's own arguments before the flag may hold the same quoted text and
-# substitutions, a separator inside them included. A flag ends where no letter, digit or hyphen follows: a space, a
+# parts, each bare with backslash escapes (work\ dir), in double quotes (backslash escapes
+# inside) or single quotes (either quote inside the other), or a command substitution without
+# nested parentheses: ~/"My Project", $(...)/app. The push's own arguments before the flag may
+# hold the same parts, a separator inside them included. Not read: $'...' quoting, and quotes
+# nested for another shell (bash -c '... "it'"'"'s" ...'). A flag ends where no letter, digit or hyphen follows: a space, a
 # quote, a closing parenthesis, a backtick, a redirection or the end of the line.
 QUOTE='['"'"'"]'
-QUOTED='("[^"]*"|'"'[^']*'"')'
+QUOTED='("([^"\\]|\\.)*"|'"'[^']*'"')'
 SUBST='\$\([^)]*\)|`[^`]*`'
 NOT_SEPARATOR_OR_QUOTE='[^;&|'"'"'"]'
 VALUE="($QUOTED|$SUBST|"'[^[:space:]\\]|\\.)+'
 GIT_OPTION="[[:space:]]+((-C|-c|--git-dir|--work-tree|--namespace|--config-env|--exec-path|--super-prefix|--attr-source)[[:space:]]+$VALUE|--[a-z][a-z-]*(=$VALUE)?|-[A-Za-z]+)"
-GIT_PUSH="(^|[^[:alnum:]_-])git($GIT_OPTION)*[[:space:]]+push[[:space:]](($NOT_SEPARATOR_OR_QUOTE|$QUOTED|$SUBST)*[[:space:]])?$QUOTE?"
+GIT_PUSH="(^|[^[:alnum:]_-])git($GIT_OPTION)*[[:space:]]+push[[:space:]](($NOT_SEPARATOR_OR_QUOTE|$QUOTED|$SUBST|\\\\.)*[[:space:]])?$QUOTE?"
 FLAG_END='([^-[:alnum:]]|$)'
 
 # Destructive patterns. Order matters — most specific first.

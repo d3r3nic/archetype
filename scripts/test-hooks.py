@@ -79,6 +79,8 @@ PUSHES = [
     ('git push $(git remote | head -1) --force', 2),
     ('git push -o "title=Fix +1" --force-with-lease origin feature', 0),
     ('git push -o "it\'s done" origin main', 0),
+    ("git push -o title=Bob\\'s --force origin main", 2),
+    ('git push -o "a \\"b" --force origin main', 2),
 ]
 
 
