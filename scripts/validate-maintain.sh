@@ -128,7 +128,7 @@ if [ -f "$TD" ]; then
       if (toupper(substr(t, 1, 3)) == "TD-") { if (id != "" && !st) print id; id = t; sub(/[^A-Za-z0-9-].*$/, "", id); st = 0; next }
       if ($0 ~ /^#[ \t]/) { if (id != "" && !st) print id; id = "" }
       next }
-    id != "" && tolower($0) ~ /^[ \t]*([-*+][ \t]+)?[*_`]*status[*_`]*[ \t]*:/ { st = 1 }
+    id != "" && tolower($0) ~ /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+)?[*_`]*status[*_`]*[ \t]*:/ { st = 1 }
     END { if (id != "" && !st) print id }')"
   if [ -n "$NO_STATUS" ]; then
     warn "TECHNICAL-DEBT.md entries without a Status: $(printf '%s' "$NO_STATUS" | tr '\n' ' ')(record open, in-progress, fixed or won't-fix so each can be revisited)"

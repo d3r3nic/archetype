@@ -54,11 +54,11 @@ The common failure mode: a list/aggregate endpoint's test asserts row count or e
 
 **Defense:** pick one of these isolation strategies at scaffold time and document it in References.md:
 - **Set-membership with a unique test-scoped prefix** — each test's fixtures use a namespace (e.g., player name prefixed with test ID). Assertions match by prefix, not total counts.
-- **Transaction rollback per test** — each test runs inside a transaction that rolls back in `afterEach`. Requires the test runner and ORM to support nested transactions or rollback.
+- **Transaction rollback per test** — each test runs inside a transaction that rolls back after the test. Requires the test runner and ORM to support nested transactions or rollback.
 - **Separate database URL per test file** — each test file gets its own ephemeral DB (a per-feature database file for a file-backed engine, a separate schema for a server engine). Highest isolation, slowest.
 - **Test containers with reset between suites** — for real-DB-like fidelity with cleaner isolation than a shared file DB.
 
-If none of these is in place, assertions must be isolation-resilient (scoped lookups, not total-count assertions). A list-endpoint test that says "returned rows contain my test's fixtures" rather than "returned rows.length === N" will survive sibling contamination.
+If none of these is in place, assertions must be isolation-resilient (scoped lookups, not total-count assertions). A list-endpoint test that says "returned rows contain my test's fixtures" rather than "exactly N rows came back" will survive sibling contamination.
 
 ## 9. Escape-hatch on type errors (casts, suppressions, a second client)
 
@@ -78,4 +78,4 @@ Agent codes a screen or a state (an error, an empty list, a confirm dialog) the 
 
 Read before starting a feature. If you notice yourself heading toward one of these patterns (e.g., about to import a shared client class directly because it's "just one call"), STOP — that IS red flag #2. Resolve by using the shared getter before proceeding.
 
-If `validate-develop.sh` flags a violation, as an error or as a warning, fix it; when the finding misreads a justified approach, reproduce the mismatch and record it as DEVELOP.md Step 6 says. Never paper it over with a lint-suppression comment. Most of these patterns have no check at all, so a clean validator run is not evidence that none of them fired. Silent failure is worse than loud failure.
+If `validate-develop.sh` fails, fix the violation; when the finding misreads a justified approach, correct the record or reproduce the mismatch and record it as DEVELOP.md Step 6 says. A warning names something to review, such as a feature recorded with no tests and the reason. Never paper it over with a lint-suppression comment. Most of these patterns have no check at all, so a clean validator run is not evidence that none of them fired. Silent failure is worse than loud failure.

@@ -32,7 +32,7 @@ A project with regulated data needs two logging systems. A session writes audit 
 
 When pipeline steps are added one at a time in different places, their order is an accident. A wrong order fails silently:
 - identity checked before the browser's cross-origin preflight is answered: the preflight fails;
-- rate limiting after identity: failed sign-in attempts spend the limit meant to stop them;
+- rate limiting after identity: requests that fail identity never reach the limiter, so repeated sign-in attempts are never limited;
 - error handling not outermost: unhandled failures leak internal details.
 
 **Defense:** SCAFFOLD-BACKEND builds the pipeline in one step, in the order the project records with its reasons (B3).
@@ -53,7 +53,7 @@ The schema has tenant columns, so tenant isolation is marked done. But nothing e
 
 Configuration read ad hoc across the code means a missing value fails in the middle of a request, after a deploy has succeeded, when the first person hits it.
 
-**Defense:** Step 1 of each shape builds configuration's one owner, which validates every required value at startup, and records its § Boundaries line so nothing else reads the environment (`scripts/validate-develop.sh` enforces it). The step's verify line proves it: remove a required value and the start fails.
+**Defense:** the setup step of each shape builds configuration's one owner, which validates every required value at startup, and records its § Boundaries line so nothing else reads the environment (`scripts/validate-develop.sh` enforces it). The step's verify line proves it: remove a required value and the start fails.
 
 ## 8. Frontend step titles applied to backend (or vice versa)
 

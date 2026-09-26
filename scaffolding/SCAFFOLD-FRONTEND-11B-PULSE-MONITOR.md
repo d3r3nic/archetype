@@ -6,7 +6,7 @@ Use scaffolding/SCAFFOLD-FRONTEND.md for this route and scaffolding/_preamble.md
 Read: #26; templates/pulse-monitor-spec.md; scaffolding/_preamble.md § Convention-mapping rule
 Produces: the dev-only pulse route and docs/systems/pulse-monitor.md; nothing of it in a production build
 Check: run project: typecheck, lint, test, build; evidence: what was seen when this was tried: every section of the pulse route with real data, the production build output's files listed, hidden files included, with no snapshot and no pulse UI file, its contents searched for `Archetype pulse UI` with no match, and the production server not answering the pulse route
-Skip when: the project does not build a pulse monitor (feature-tree.md records #26 as not applicable, with the reason)
+Skip when: the project does not build a pulse monitor (feature-tree.md records #26 as not applicable with the reason, or has no pulse monitor row)
 
 Serve the framework's base UI and the snapshot through a dev-only route, from paths outside every folder the production build copies; a dev server's public static folder is one of those on common stacks. Production builds contain neither (#26, and the location note in templates/pulse-monitor-spec.md).
 

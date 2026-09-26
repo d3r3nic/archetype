@@ -500,6 +500,8 @@ case "$CHECKS_VALUE" in
     MISSING_CHECK=0
     while IFS= read -r cp; do
       [ -n "$cp" ] || continue
+      # A token with a space is a command the hook or pipeline runs, not a location.
+      case "$cp" in *[[:space:]]*) continue ;; esac
       cp="${cp#./}"
       if [ ! -e "$PROJECT_DIR/$cp" ]; then
         fail "References.md's Checks run line names \`$cp\`, which does not exist"

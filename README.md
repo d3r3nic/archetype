@@ -102,8 +102,6 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 │   ├── MAINTAIN.md            # Phase 4: audit, tech debt, convention evolution
 │   └── PEER-CODING.md         # Two AI assistants taking turns on a branch
 │
-├── libraries/                 # Optional library-specific references
-│
 └── templates/
     ├── references-frontend.md  # Project context template (frontend)
     ├── references-backend.md   # Project context template (backend)
@@ -119,7 +117,7 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 
 ## What Your Project Gets
 
-For a custom application using the included feature-oriented scaffold, the resulting project can look like this. Choose a different structure when its runtime and responsibilities warrant it:
+For a custom application, the resulting project can look like this; the source layout is the project's own choice:
 
 ```
 your-project/
@@ -132,13 +130,11 @@ your-project/
 ├── References.md              # YOUR project's tech stack, systems, commands
 ├── feature-tree.md            # Living map of YOUR systems and features
 ├── peer-coding/               # When two AI assistants take turns: SETTINGS.md, and one hand-over folder per branch
-├── .env.example               # Required environment variables documented
+├── an example configuration   # Required configuration values documented, with no real values
 ├── docs/
 │   ├── systems/               # One doc per foundational system (how to use it)
 │   └── features/              # One doc per feature (what, why, how)
-└── src/
-    ├── shared/                # Foundational systems (error, API, auth, theme, etc.)
-    └── features/              # Feature code (self-contained, plugs into shared)
+└── [source]                   # Laid out as the project chose and recorded (References.md, feature-tree.md)
 ```
 
 inject.sh installs the framework files into the engine folder (`archetype/` by default), LICENSE and NOTICE with them. The managed AGENTS.md and CLAUDE.md entry points are also written to the project root and carry the same license.

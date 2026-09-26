@@ -1,7 +1,8 @@
 # The Design Artifact brief the UI References templates carry (convention #27). Read by
 # scripts/validate-framework.sh (group 7), which keeps the frontend and mobile templates in
-# step with this list. A project's own section is not held to it: scripts/validate-design.sh
-# reads only the lines it needs.
+# step with this list. A project's own section need not carry every line: scripts/validate-design.sh
+# requires only Brand decided (and First task and Return tasks once the brand is decided), and fails a
+# line of this list that still holds its template placeholder or no value.
 #
 # One label per line, matched literally. A label never holds a colon or a backslash.
 # The mobile template adds "Platform parity".

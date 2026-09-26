@@ -213,7 +213,7 @@ One block per platform the app ships to:
 - Store submission: [process, developer-program fee, and typical review time; verify current values at bootstrap and record the date checked]
 
 ### Managed vs bare native toolchain (cross-platform frameworks)
-- **Managed workflow:** the framework's tooling handles native config, build, and over-the-air updates. Faster to start. Limited to the native modules the managed layer supports unless you eject.
+- **Managed workflow:** the framework's tooling handles native config, build, and over-the-air updates. Faster to start. Limited to the native modules the managed layer supports unless the project leaves the managed workflow.
 - **Bare workflow:** full native project; can use any native module. Requires the native platform toolchains.
 - Choice depends on which native capabilities you need and whether the user owns the toolchain. Decide at bootstrap time.
 
@@ -228,3 +228,11 @@ One block per platform the app ships to:
 ## Convention Overrides
 
 - [convention #]: [what's different and why]
+
+## Project-Specific Documentation
+
+Where this project's own rules and documents live, when it has them:
+
+- conventions/overrides/{N}-{name}.md: [each override file with a one-line description]
+- protocols/{name}.md: [each workflow protocol with a one-line description]
+- [other documents]: [each location with what it holds]

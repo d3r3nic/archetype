@@ -183,7 +183,7 @@ done
 # design tool finds the same fields whichever template a project started from. The list in
 # scripts/design-artifact-labels.txt keeps the two templates in step; the mobile template adds
 # Platform parity. It is the framework's own consistency check: a project's section is read by
-# validate-design.sh only for the lines it needs (Brand decided, First task, Return tasks).
+# validate-design.sh for Brand decided, First task and Return tasks, and for lines of this list left unfilled.
 # Labels are matched literally; a label never holds a backslash or a colon.
 DA_LABELS_FILE="$SCRIPT_DIR/design-artifact-labels.txt"
 if [ ! -f "$DA_LABELS_FILE" ]; then
@@ -266,7 +266,7 @@ if ! grep -qF '<!-- archetype-managed-entrypoint -->' AGENTS.md 2>/dev/null; the
 fi
 
 # ----------------------------------------------------------------------
-group 10 "Timeless conventions (no expirable content outside Research Notes)"
+group 10 "Timeless content (no named technology, no expirable content)"
 # ----------------------------------------------------------------------
 # The framework encodes character; specifics live in project artifacts.
 # scripts/validate-timeless.sh fails on tool or vendor names outside a

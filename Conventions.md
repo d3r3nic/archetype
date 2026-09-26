@@ -10,7 +10,7 @@ This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFO
 |-----------|-------------|-----------|
 | Any new feature | #0, #3, #19 | #1 if new folders needed; #28 if UI text/values are involved |
 | UI component work | #4, #6, #22, #28 | #14 (accessibility), #27 (check design artifact first), #31 (composition, words) |
-| Customer-facing copy / brand values | #28 | #6 (theme tokens), #16 (CONFIG.md) |
+| Customer-facing copy / brand values | #28 | #6 (theme tokens), #16 (where decisions and records live) |
 | Any UI design decision (states, interactions, hierarchy) | #27, #31, #6 | #22; the session decides within the picked direction and records it (#27); the owner is asked only for identity and what a screen is for (#29) |
 | Design session (mockups, a canvas, a design tool or plugin run, a design-system sync) | #27, #29 | #6, #22 (what the code derives from the design), #14 (the floor design content keeps) |
 | Interface copy, labels, errors | #31 | #28 (where copy lives), #20 (field errors), #8 (error classes) |
@@ -18,11 +18,11 @@ This framework operates in 4 phases: Bootstrap (ONBOARD.md) → Scaffold (SCAFFO
 | Forms | #20, #4, #6 | #7 (one definition per shape) |
 | API consumption (client-side — fetching from an external API) | #9, #10, #8 | #7 (response types) |
 | New API endpoint (server-side — building an API) | backend/B2, #7, #8 | #11 (auth), #23 (input validation); also read backend/Conventions.md for full backend routing |
-| Database / migrations | #3, #1 | #7 (model types), #2 (migration commits) |
+| Database / migrations | backend/B1, #3 | #7 (data shapes), #2 (one reviewable change per migration) |
 | Auth (identity) | #11 | #21 (route guards) |
 | Permissions / access control | #24, #11 | #3 (architecture) |
 | Input validation / security | #23, #7 | #10 (contracts) |
-| Security review | #23, #24, #11 | #15 (deps scanning) |
+| Security review | #23, #24, #11 | #30 (the floor) |
 | State management | #5 | #9 (server state) |
 | Styling / theming | #6, #22 | #14 (color contrast) |
 | Testing | #12, #18 | |
