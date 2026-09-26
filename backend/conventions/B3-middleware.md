@@ -1,48 +1,38 @@
 # Convention B3: Middleware & Request Pipeline
 
+## Applies when
+
+The service handles requests through a pipeline of shared steps before its handlers: an API server, a web server, a message consumer. What varies: which cross-cutting concerns the service has (identity, rate limits, browser protections, tracing) and what the runtime offers for ordering them.
+
 ## Principle
 
-A backend request flows through a pipeline of middleware in a specific order. Each step has one job. Authentication happens before authorization. Validation happens before the handler. Error handling wraps everything. When steps are mixed into handlers, some endpoints skip auth, some skip validation, and bugs are inconsistent across the API.
+Every cross-cutting concern is handled once, in the pipeline, in a recorded order that fails safe, so no endpoint can forget it. Error handling wraps everything; identity is established before anything that depends on it; input is validated before the handler; every request can be traced. Authorization of an action on a specific record runs where that record is known, in the service layer (#24); the pipeline may carry coarse checks such as "signed in" or "holds a role for this whole area".
 
 ## Reusable System
 
-Create a middleware pipeline that establishes:
-- A defined order that every request passes through
-- Request ID generation at the entry point (correlation ID for all logs and downstream calls)
-- Authentication middleware (extracts and verifies identity)
-- Authorization middleware (checks permissions for the specific resource/action)
-- Validation middleware (parses and validates request data against schemas)
-- Error handling middleware (outermost wrapper, catches everything, returns consistent error responses)
+The pipeline: its steps and their order, recorded in References.md with the reason for the order. It generates a request identifier at the entry and carries it through every log line, downstream call and error response; it establishes identity; it applies the service-wide protections; it validates input against each endpoint's definition; and its outermost step turns any failure into the one error format (B2).
 
 ## Rules
 
-- The correct middleware order is: error handler (outermost) → request ID → logging → security headers → rate limiting → authentication → authorization → validation → handler → response serialization.
-- Never put authentication or authorization checks inside route handlers. They belong in middleware so every endpoint is protected consistently.
-- Never put input validation inside route handlers. Use validation middleware with the schema for that endpoint. The handler receives already-validated, typed data.
-- Generate a unique request ID (correlation ID) at the entry point. Propagate it through every log entry, every downstream service call, every error response. Include it in the response headers so consumers can reference it for support.
-- Log the method, path, status code, and duration of every request. Never log request bodies in production (they may contain secrets or PII).
+- Put each cross-cutting concern in the pipeline once. Handlers contain business logic only.
+- Record the order and why. Error handling is outermost; identity comes before anything that uses it; validation comes before the handler; rate limiting comes early enough to protect the expensive steps.
+- Validate input in the pipeline or at the handler's boundary with the endpoint's one definition (#7). The handler receives validated data.
+- Check permission to act on a specific record in the service layer, where the record is known (#24). Never leave it to each handler to remember.
+- Generate a request identifier at the entry, propagate it through every log line and downstream call, and return it with errors so people can quote it.
+- Log each request's method, route, status and duration. Never log bodies in production; they can carry secrets and personal data.
 
 ## Violations
 
-- Auth check, validation, and business logic all inside the handler. Some handlers remember all three, some forget auth, some skip validation.
-- No request ID. Debugging production issues requires manually correlating timestamps across logs.
-- Error handler registered after routes. Unhandled exceptions crash the process instead of returning an error response.
-- Authorization runs before authentication. Every request fails because identity isn't established yet.
+- Identity, validation and business logic mixed in each handler, and one handler forgetting identity.
+- An error handler registered where it cannot catch everything, so a failure crashes the process.
+- Record-level permission decided in the pipeline without the record, or not at all.
+- No request identifier, so a reported error cannot be found in the logs.
 
 ## Wrong vs Right
 
-- WRONG: each handler starts with "check if user is authenticated, check if user has permission, validate the body, then do the work." 50 handlers, each implementing its own auth/validation. One forgets auth. Security hole.
-- RIGHT: middleware pipeline handles auth, authorization, and validation BEFORE the handler runs. The handler receives an authenticated user and validated data. It only contains business logic.
-- WRONG: no correlation ID. A user reports an error. Support has to search logs by timestamp and guess which request it was among thousands.
-- RIGHT: every request gets a unique ID. The error response includes it. The user says "error ID: abc-123." Support queries logs for abc-123 and gets the complete request story.
+- WRONG: fifty handlers each check identity, check permission and validate the body before working; one forgets identity. RIGHT: the pipeline establishes identity and validates input; the service checks permission on the record; the handler holds only business logic.
+- WRONG: a person reports an error and support searches the logs by time. RIGHT: the error carries a request identifier, and one search returns the whole request.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention:
-- Research the framework's middleware system and how to define execution order.
-- Research correlation ID libraries or patterns for the framework.
-- Research the framework's built-in security middleware (CORS, HSTS, security headers).
-- Research rate limiting middleware for the framework.
-- Document the middleware order, correlation ID header name, and logging format in References.md.
+Research the chosen stack's pipeline mechanism and how it orders steps, request-scoped context for the identifier, and its built-in protections and rate limiting. Record the order, the identifier's header or field, and the logging format in References.md.

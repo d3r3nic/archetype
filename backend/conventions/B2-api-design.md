@@ -1,73 +1,47 @@
 # Convention B2: API Design (Building APIs)
 
-**Scope:** server-side API design. For client-side API consumption see universal convention #9. This convention covers REST; for GraphQL see the "GraphQL" subsection below — the core principles (consistent contract, validation at boundary, versioning discipline) still apply, but the mechanics differ significantly.
+For calling other services, see universal convention #9; for the shapes both sides share, #10.
+
+## Applies when
+
+The service exposes an API that others call: its own client, other services, outside developers. What varies: who the consumers are and whether they are under the project's control, the API style chosen for them (resource-oriented, remote procedures, a query language clients compose, an event stream), and whether consumers can be updated together with the server.
 
 ## Principle
 
-APIs are the contract between your backend and its consumers. Every endpoint follows the same conventions, returns consistent shapes, validates input at the boundary, versions deliberately. Inconsistency forces every consumer to handle each endpoint differently. See also universal convention #10 for the contract between frontend and backend.
+The API is a contract, and one style is applied consistently across it. Every endpoint validates input at the boundary, returns the one recorded response format, maps errors the same way, and bounds what it returns. The API evolves without breaking consumers the project does not control. Inconsistency forces every consumer to handle each endpoint differently; that is duplicated work pushed onto every caller.
 
 ## Reusable System
 
-Create an API design foundation that establishes:
-- URL naming convention applied consistently across all endpoints
-- Response envelope used by every endpoint (success, list, error shapes)
-- Pagination utility for list endpoints with metadata
-- Validation middleware that runs before every handler (see universal #7 for schema validation)
-- Status code mapping from error types to HTTP codes (centralized, not per-handler)
+The API foundation: the style and its naming rules, the one response format for success, lists and errors, the paging method, the validation at the boundary (#7, #23), the single mapping from errors to the transport's status or error codes, and the evolution approach. References.md records each; features use them and never define their own.
 
 ## Rules
 
-- Use nouns for resources, not verbs. /users, /orders, /products. Not /getUsers, /createOrder.
-- Use plural names consistently. /users/123, not /user/123.
-- HTTP methods: GET reads (never mutates), POST creates, PUT replaces entirely, PATCH updates partially, DELETE removes. Never use GET for mutations.
-- Use the same status codes for the same situations across ALL endpoints. 201 for creation everywhere, not 201 on one endpoint and 200 on another.
-- Common status codes: 200 success, 201 created, 204 no content (delete), 400 bad request, 401 not authenticated, 403 not authorized, 404 not found, 409 conflict, 422 validation error, 429 rate limited, 500 server error.
-- Every list endpoint must be paginated. Default page size 20, maximum 100. Never return unlimited results. Return metadata: total, page, limit, hasMore.
-- Every endpoint returns the same envelope: { data, meta } for success, { errors: [{ code, message, field? }], meta } for errors. Never return raw arrays at the top level.
-- Validate all incoming data at the API boundary before it reaches the service layer. Use allowlisting (permit known fields only), not blocklisting. Strip unknown fields.
-- Version the API from day one. URL path versioning (/v1/users) is simplest. Never break existing endpoints — add new fields as optional, remove in new versions only.
+- Choose the style for the consumers and apply it consistently: names, methods or operations, and the same error for the same situation everywhere.
+- Reads never change anything.
+- Validate every input at the boundary before it reaches the domain: allow known fields, drop the rest (#23).
+- Return the one recorded response format from every endpoint. Map errors in one place, never per handler.
+- Bound every list: page it, with limits chosen from real usage, and say how to get the next page.
+- Decide how the API evolves before the first consumer outside the project's control: add without breaking, deprecate before removing, and version or evolve by the chosen method.
+- Where clients may retry a change (flaky networks, device apps), accept an idempotency key or make the operation naturally idempotent, so a retry cannot apply twice.
+- If clients compose their own queries: limit depth and cost, authorize at the field level where fields differ in sensitivity, batch lookups per request so resolving a query does not issue a query per item, and accept only allow-listed queries from public or device clients. Evolve by deprecation.
 
 ## Violations
 
-- Verb-based URLs: /getUser, /deleteOrder, /updateProfile instead of resource-based.
-- POST used for everything. GET used for mutations.
-- 200 returned for creation on one endpoint, 201 on another. 400 returned for validation errors on one endpoint, 422 on another.
-- List endpoint returns all 50,000 records with no pagination.
-- One endpoint returns { users, total }, another returns { data, count }, another returns a raw array.
-- Endpoint accepts and passes through raw user input to the service without validation.
+- Endpoints that name, shape or report errors each their own way.
+- A read that changes data.
+- Unvalidated input passed to the domain.
+- A list that returns everything.
+- A breaking change released to consumers the project does not control.
+- A retried payment or message applied twice.
+- A client-composed query with no depth or cost limit, or arbitrary queries accepted from public clients.
 
 ## Wrong vs Right
 
-- WRONG: /getUsers, /createUser, /deleteUser/123 — verb-based, inconsistent.
-- RIGHT: GET /users, POST /users, DELETE /users/123 — resource-based, HTTP method carries the verb.
-- WRONG: list endpoint returns all records. Client crashes rendering 50K items. Database does a full table scan.
-- RIGHT: GET /users?page=1&limit=20 returns 20 records with { data: [...], meta: { total: 50000, page: 1, limit: 20, hasMore: true } }.
-- WRONG: endpoint accepts any JSON body and passes it directly to the database. SQL injection, data corruption.
-- RIGHT: endpoint validates against a schema, strips unknown fields, then passes typed, clean data to the service.
-
-## GraphQL
-
-If the server uses GraphQL instead of REST, the REST rules above do NOT translate directly. Research current GraphQL server patterns for the chosen language. Key concerns the framework expects you to handle:
-- **Schema design** — types, queries, mutations, subscriptions. Schema IS the contract; evolve via deprecation, not breaking changes.
-- **Input validation at the boundary** — input types + schema-level constraints + runtime validation library. Same principle as REST, different mechanism.
-- **Response shape** — GraphQL's own response format is the envelope. The REST `{ data, meta, errors }` rule maps to GraphQL's built-in `data` and `errors` fields. Do not layer an additional envelope inside.
-- **Pagination** — cursor pagination with page-info metadata is the established pattern; research the current library for the language.
-- **Query complexity limits** — depth limiting, cost analysis, max-timeout. Without these, a malicious or naive query can take down the server.
-- **Persisted queries** — for production mobile/public APIs, persisted queries prevent arbitrary query execution.
-- **Field-level authorization** — auth at the resolver/field level, not just the HTTP layer. Research scope-auth / directive-based auth patterns for the chosen GraphQL library.
-- **Batched data loading** — per-request batching and caching of resolver lookups prevents N+1 during resolution. Almost always needed; research the language's batched-loader library.
-- **Versioning** — GraphQL evolves via deprecation + schema directives, not URL versioning. Contract testing via schema-diff tooling in CI.
-
-Mutation-level idempotency (client retry on flaky networks) applies to both REST and GraphQL mutations. Research idempotency-key patterns for the transport layer.
+- WRONG: one endpoint returns a list and a total, another a result and a count, another a bare list. RIGHT: every endpoint returns the one recorded format.
+- WRONG: a list endpoint returns fifty thousand records and the client crashes rendering them. RIGHT: the endpoint returns a page with what is needed to fetch the next.
+- WRONG: a field is renamed and every released app version breaks. RIGHT: the new field is added, the old one deprecated and removed only after the consumers moved.
+- WRONG: a device app retries a timed-out order and two orders are placed. RIGHT: the retry carries the same idempotency key and returns the first result.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention:
-- Research the framework's route definition patterns and how to enforce consistent URL naming.
-- Research pagination libraries or patterns for the framework (offset and cursor).
-- Research validation middleware for the framework that integrates with the schema library.
-- Research API versioning approaches for the framework.
-- **If GraphQL:** research the chosen GraphQL server library, schema-design tooling, query-complexity analysis, persisted-query patterns, field-level authorization, batched-loader equivalent, and schema-diff CI tooling for the language.
-- Document the URL conventions (or GraphQL schema conventions), response shape, pagination format, status code mapping (or error envelope), and idempotency-key mechanism in References.md.
+Research the API styles that fit the consumers, the chosen stack's routing, validation, paging and error-mapping options, the evolution practices for the chosen style, and, for client-composed queries, depth and cost limiting, allow-listing, field-level authorization and per-request batching. Record the style, the response format, the paging method, the error mapping and the evolution approach in References.md.

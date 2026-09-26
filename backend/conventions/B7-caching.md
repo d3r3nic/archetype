@@ -1,14 +1,18 @@
 # Convention B7: Server-Side Caching
 
+## Applies when
+
+A measured need exists: a read that is slow, costly or overloads a dependency, and whose data can tolerate being slightly old. A service without such a read adds no cache (#0, #13).
+
 ## Principle
 
-Caching reduces database load and response times for read-heavy, infrequently-changing data. But caching the wrong data creates stale reads worse than no caching. Caching without user isolation leaks data between users. Cache invalidation is hard — start with the simplest approach (TTL) and only add complexity when needed. Prevent cache stampedes (thundering herd) when hot keys expire.
+Cache only what measurement shows needs it, through one cache service, with a rule for when each entry is stale and a guard against many requests rebuilding it at once. Caching reduces database load and response times for read-heavy, infrequently-changing data. But caching the wrong data creates stale reads worse than no caching. Caching without user isolation leaks data between users. Cache invalidation is hard — start with the simplest approach (TTL) and only add complexity when needed. Prevent cache stampedes (thundering herd) when hot keys expire.
 
 ## Reusable System
 
 Create a caching foundation that establishes:
 - A cache service interface that wraps the cache provider (distributed or in-memory)
-- Consistent key naming convention: service:entity:id (e.g., api:user:123)
+- One key scheme that includes everything that makes an entry distinct, including the user or tenant for private data
 - TTL-based expiration as the default strategy
 - Stampede prevention for hot keys (per-key locking or stale-while-revalidate)
 
@@ -37,8 +41,6 @@ Create a caching foundation that establishes:
 - RIGHT: first request acquires a lock and regenerates the cache. Other 499 requests wait for the lock (or receive stale data if using stale-while-revalidate). Database handles 1 query, not 500.
 
 ## Research Notes
-
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
 - Research caching libraries for the framework and the chosen cache provider.
