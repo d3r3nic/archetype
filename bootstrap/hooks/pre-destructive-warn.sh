@@ -17,20 +17,24 @@ INPUT=$(cat)
 
 NL='
 '
-# Parse the tool name and command with a JSON reader: jq, else python3. The last resort, sed,
-# stops at the first escaped quote or newline inside the command and reads less of it.
-if command -v jq >/dev/null 2>&1; then
-  TOOL=$(printf '%s' "$INPUT" | jq -r '.tool_name // ""')
-  COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // ""')
-elif command -v python3 >/dev/null 2>&1; then
-  PARSED=$(printf '%s' "$INPUT" | python3 -c 'import json, sys
+# Parse the tool name and command with a JSON reader: jq, else python3. When neither reads it
+# (neither is installed, or one fails), sed does, and it stops at the first escaped quote or
+# newline inside the command.
+READER=""
+if command -v jq >/dev/null 2>&1 && TOOL=$(printf '%s' "$INPUT" | jq -r '.tool_name // ""' 2>/dev/null) \
+   && COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null); then
+  READER="jq"
+fi
+if [ -z "$READER" ] && command -v python3 >/dev/null 2>&1 && PARSED=$(printf '%s' "$INPUT" | python3 -c 'import json, sys
 d = json.load(sys.stdin)
 i = d.get("tool_input") if isinstance(d, dict) else None
 c = i.get("command") if isinstance(i, dict) else None
-sys.stdout.write(str(d.get("tool_name") or "") + "\n" + (c if isinstance(c, str) else ""))' 2>/dev/null)
+sys.stdout.write(str(d.get("tool_name") or "") + "\n" + (c if isinstance(c, str) else ""))' 2>/dev/null); then
+  READER="python3"
   TOOL="${PARSED%%"$NL"*}"
   COMMAND=""; case "$PARSED" in *"$NL"*) COMMAND="${PARSED#*"$NL"}" ;; esac
-else
+fi
+if [ -z "$READER" ]; then
   TOOL=$(printf '%s' "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
   COMMAND=$(printf '%s' "$INPUT" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 fi
@@ -43,10 +47,16 @@ fi
 # each is matched on its own, as the shell runs it.
 MATCHED="${COMMAND//\\$NL/ }"
 
-# A git push, with any of git's own options before the word push (git -C dir push, git -c k=v push).
-GIT_PUSH='(^|[^[:alnum:]_-])git([[:space:]]+(-C|-c)[[:space:]]+[^[:space:]]+|[[:space:]]+--(git-dir|work-tree|namespace)[[:space:]]+[^[:space:]]+|[[:space:]]+--[a-z-]+(=[^[:space:]]+)?)*[[:space:]]+push[[:space:]]'
-# A quote a refspec may open with.
+# A git push, with git's own options before the word push: a short flag (-P), a long one
+# (--no-pager, --git-dir=x), or one that takes a value (-C dir, -c k=v, --git-dir x), the value
+# bare or in quotes. A flag ends where no letter, digit or hyphen follows: a space, a quote,
+# a closing parenthesis, a backtick, a redirection or the end of the line.
 QUOTE='['"'"'"]'
+NOT_QUOTE='[^'"'"'"]'
+VALUE="($QUOTE$NOT_QUOTE*$QUOTE|[^[:space:]]+)"
+GIT_OPTION="[[:space:]]+((-C|-c|--git-dir|--work-tree|--namespace|--config-env|--exec-path|--super-prefix)[[:space:]]+$VALUE|--[a-z][a-z-]*(=$VALUE)?|-[A-Za-z]+)"
+GIT_PUSH="(^|[^[:alnum:]_-])git($GIT_OPTION)*[[:space:]]+push[[:space:]]([^;&|]*[[:space:]])?$QUOTE?"
+FLAG_END='([^-[:alnum:]]|$)'
 
 # Destructive patterns. Order matters — most specific first.
 PATTERNS=(
@@ -55,12 +65,13 @@ PATTERNS=(
   'rm[[:space:]]+-[rRfd]*[rR][rRfd]*f[rRfd]*[[:space:]]+\*'
   'rm[[:space:]]+-[rRfd]*[rR][rRfd]*f[rRfd]*[[:space:]]+\.\*'
   'git[[:space:]]+reset[[:space:]]+--hard'
-  # A push that overwrites remote history: --force or --mirror, -f alone or with other short
-  # options (-uf), or a refspec that opens with + (quoted or not). --force-with-lease, which
-  # refuses when the remote moved since the last fetch, is the safer form and is not matched.
-  "$GIT_PUSH"'([^;&|]*[[:space:]])?--(force|mirror)($|[[:space:];&|])'
-  "$GIT_PUSH"'([^;&|]*[[:space:]])?-[A-Za-z]*f[A-Za-z]*($|[[:space:];&|])'
-  "$GIT_PUSH"'([^;&|]*[[:space:]])?'"$QUOTE"'?[+][^[:space:]]'
+  # A push that overwrites remote history: --force, --mirror or any abbreviation git takes for it
+  # (--m to --mirro), -f alone or with other short options (-uf), or a refspec that opens with +.
+  # --force-with-lease, which refuses when the remote moved since the last fetch, is the safer
+  # form and is not matched.
+  "$GIT_PUSH--(force|m(i(r(r(o(r)?)?)?)?)?)$FLAG_END"
+  "$GIT_PUSH-[A-Za-z]*f[A-Za-z]*$FLAG_END"
+  "$GIT_PUSH[+][^[:space:]]"
   'git[[:space:]]+clean[[:space:]]+-[fdx]+'
   'git[[:space:]]+branch[[:space:]]+-D'
   'git[[:space:]]+checkout[[:space:]]+--[[:space:]]+\.'

@@ -371,14 +371,49 @@ class Steps(unittest.TestCase):
     def test_lint_takes_one_skip_by_line_whose_value_is_owner(self):
         self.mark_owner_step()
         self.assertEqual(self.run_tool('--lint', cwd=self.engine).returncode, 0)
+        for wrong in ('Skip by: the session', 'Skip By: owner', 'skip by:owner'):
+            self.lint_with('Skip by: owner\n', wrong + '\n')
+            result = self.run_tool('--lint', cwd=self.engine)
+            self.assertEqual(result.returncode, 1, wrong)
+            self.assertIn("write the owner mark exactly 'Skip by: owner' (found '%s')" % wrong, result.stdout)
+            self.lint_with(wrong + '\n', 'Skip by: owner\n')
         self.lint_with('Skip by: owner\n', 'Skip by: the session\n')
-        result = self.run_tool('--lint', cwd=self.engine)
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("'Skip by:' takes one value, owner (found 'the session')", result.stdout)
         self.lint_with('Skip by: the session\n', 'Skip by: owner\nSkip by: owner\n')
         result = self.run_tool('--lint', cwd=self.engine)
         self.assertEqual(result.returncode, 1)
         self.assertIn("more than one 'Skip by:' line", result.stdout)
+
+    def test_a_misspelt_owner_mark_still_holds_the_step_and_a_stray_one_fails_the_lint(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace(
+            "Check: evidence: the owner's answers to this group, quoted\n",
+            "Check: evidence: the owner's answers to this group, quoted\nSkip By: owner\n"))
+        self.ledger()
+        self.run_tool('--close', 'boot.1', '--evidence', 'done')
+        refused = self.run_tool('--set-aside', 'boot.2.1', '--reason', 'answered in the brief')
+        self.assertEqual(refused.returncode, 1)
+        self.assertIn("only on the owner's words", refused.stdout)
+        path.write_text(BOOT.replace('Body of step one.\n', 'Body of step one.\n\n### Notes\n\nSkip by: owner\n'))
+        result = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("a 'Skip by:' line sits outside a step's own lines", result.stdout)
+
+    def test_when_every_step_is_set_aside_the_runner_never_says_closed(self):
+        self.ledger('boot')
+        for step in ('boot.1', 'boot.2.1', 'boot.2.2', 'boot.3'):
+            self.assertEqual(self.run_tool('--set-aside', step, '--reason', 'x').returncode, 0, step)
+        bare = self.run_tool()
+        self.assertEqual(bare.returncode, 0, bare.stdout)
+        self.assertIn('No step is open. Set aside, not done: boot.1, boot.2.1, boot.2.2, boot.3.', bare.stdout)
+        self.assertNotIn('closed', bare.stdout)
+        again = self.run_tool('--close', 'boot.3')
+        self.assertEqual(again.returncode, 1)
+        self.assertIn('No step is open. Set aside, not done:', again.stdout)
+        self.assertNotIn('already closed', again.stdout)
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(BOOT + '\n## Next Step\n\nGo on.\n')
+        self.assertIn('No step is open. Set aside, not done: boot.1, boot.2.1, boot.2.2, boot.3. What follows: the Next Step section',
+                      self.run_tool().stdout)
 
     def test_a_closed_step_whose_check_does_not_fit_is_reopened_then_set_aside(self):
         self.close_all_of_boot()

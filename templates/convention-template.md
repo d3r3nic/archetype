@@ -42,4 +42,4 @@ Tool, library, and vendor names are allowed only in this section. Everywhere els
 
 ## Project Overrides
 
-If a file exists at conventions/overrides/{N}-{name}.md, read it. It holds this project's own rules for this concern: the detail it adds, and where it departs from this convention and why. Where the two differ, the recorded project choice governs.
+If a file exists at conventions/overrides/{N}-{name}.md, read it. It holds this project's own rules for this concern: the detail it adds, and where it departs from this convention and why. Where the two differ, the recorded project choice governs, within the owner's decisions, the floor and the obligations the project's facts add (#30).

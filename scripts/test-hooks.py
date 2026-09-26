@@ -23,6 +23,8 @@ OLD_SETTINGS = {'hooks': {
 PUSHES = [
     ('git push --force-with-lease origin feature', 0),
     ('git push --force-with-lease=main:abc123 origin main', 0),
+    ('git push --force-w origin feature', 0),
+    ('git push --no-force-with-lease origin main', 0),
     ('git push origin feature', 0),
     ('git push -u origin feature', 0),
     ('git push origin fix-f', 0),
@@ -30,6 +32,7 @@ PUSHES = [
     ('git push origin HEAD:refs/for/main', 0),
     ('git commit -m "later: push -f is blocked" && git push origin main', 0),
     ('git push origin main && rm -f build.log', 0),
+    ('git -C "/Users/me/My Project" push origin main', 0),
     ('git push --force origin main', 2),
     ('git push origin main --force', 2),
     ('git push -f', 2),
@@ -38,11 +41,23 @@ PUSHES = [
     ("git push origin '+feature'", 2),
     ('git push origin "+HEAD:main"', 2),
     ('git push --mirror', 2),
+    ('git push --mirro', 2),
+    ('git push --m', 2),
     ('git -C /repo push --force origin main', 2),
     ('git -c user.name=x push -f', 2),
     ('git --git-dir .git push origin +main', 2),
     ('cd repo && git push --force', 2),
     ('git push \\\n  --force origin main', 2),
+    ('(cd repo && git push origin main --force)', 2),
+    ("bash -c 'git push origin main --force'", 2),
+    ('out=$(git push --force)', 2),
+    ('git push "--force" origin main', 2),
+    ('(git push -f)', 2),
+    ('git -C "/Users/me/My Project" push --force origin main', 2),
+    ('git -P push --force origin main', 2),
+    ('git --no-pager push -f', 2),
+    ('`git push --force`', 2),
+    ('git push --force > push.log', 2),
 ]
 
 
@@ -236,19 +251,30 @@ class Hooks(unittest.TestCase):
         self.assertNotIn('relative path', result.stdout)
 
     def test_the_guard_stops_pushes_that_overwrite_history_and_lets_the_safer_form_through(self):
+        def tools(name, python=None):
+            folder = Path(self.temp.name) / name
+            folder.mkdir()
+            for tool in ('cat', 'sed', 'head', 'grep'):
+                os.symlink(shutil.which(tool), str(folder / tool))
+            if python:
+                os.symlink(python, str(folder / 'python3'))
+            return str(folder)
+        broken = Path(self.temp.name) / 'broken-python3'
+        broken.write_text('#!/bin/sh\necho "no developer tools" >&2\nexit 1\n')
+        broken.chmod(0o755)
         readers = []
         if shutil.which('jq'):
             readers.append(('jq', os.environ.get('PATH', '')))
-        # Without jq the guard reads the event with python3: a PATH with only the tools it needs.
-        tools = Path(self.temp.name) / 'tools-without-jq'
-        tools.mkdir()
-        for tool in ('cat', 'sed', 'head', 'grep'):
-            os.symlink(shutil.which(tool), str(tools / tool))
-        os.symlink(sys.executable, str(tools / 'python3'))
-        readers.append(('python3', str(tools)))
+        # Without jq the guard reads the event with python3; without either, or when python3
+        # fails, with sed, which stops at an escaped quote or a newline in the command.
+        readers.append(('python3', tools('without-jq', sys.executable)))
+        readers.append(('sed', tools('without-jq-or-python3')))
+        readers.append(('sed after a failing python3', tools('failing-python3', str(broken))))
         bash = shutil.which('bash')
         for reader, path in readers:
-            for command, want in PUSHES:
+            for command, want in PUSHES + [('rm -rf /', 2), ('git reset --hard', 2)]:
+                if reader.startswith('sed') and any(c in command for c in '"\\\n'):
+                    continue
                 with self.subTest(reader=reader, command=command):
                     event = json.dumps({'tool_name': 'Bash', 'tool_input': {'command': command}})
                     result = subprocess.run([bash, str(ENGINE / GUARD)], input=event, capture_output=True, text=True,

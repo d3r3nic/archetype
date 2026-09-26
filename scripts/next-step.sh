@@ -165,8 +165,10 @@ $pid$SEP$mode$SEP$SEP$SEP$part$SEP""0$SEP$SEP$SEP$SEP$SEP""0$SEP""0$SEP""0$SEP""
   done
 }
 
-# A step's "Skip by:" lines, from its heading to the next heading: "<count><SEP><first value>".
-# "Skip by: owner" marks a step that is set aside only on the owner's words.
+# A step's owner marks, from its heading to the next heading: "<count><SEP><first mark line>".
+# "Skip by: owner" marks a step that is set aside only on the owner's words. A mark in another
+# spelling ("Skip By: owner", "skip by:owner") still counts, so a misspelt mark never frees the
+# step; the lint names it.
 skip_by_of() { # file (from the engine root), the step heading's line number
   awk -v start="$2" -v S="$SEP" '
     NR <= start { next }
@@ -174,8 +176,14 @@ skip_by_of() { # file (from the engine root), the step heading's line number
     /^(```|~~~)/ { fence = !fence; next }
     fence { next }
     /^#+ / { exit }
-    /^Skip by: / { n++; if (n == 1) { v = substr($0, 10); sub(/[ \t]+$/, "", v) } }
+    tolower($0) ~ /^skip[ \t]*by[ \t]*:/ { n++; if (n == 1) { v = $0; sub(/[ \t]+$/, "", v) } }
     END { print n + 0 S v }' "$ENGINE_DIR/$1"
+}
+owner_held() { case "$(skip_by_of "$1" "$2")" in 0"$SEP"*) return 1 ;; esac; return 0; }
+# Owner marks anywhere in a file, outside code fences, in any spelling.
+marks_in() {
+  awk '{ sub(/\r$/, "") } /^(```|~~~)/ { fence = !fence; next } fence { next }
+    tolower($0) ~ /^skip[ \t]*by[ \t]*:/ { n++ } END { print n + 0 }' "$ENGINE_DIR/$1"
 }
 
 # A playbook's entry file, from the engine root: the file whose "Step ledger:" line declares the id.
@@ -350,7 +358,7 @@ if [ "$MODE" = "lint" ]; then
     echo "OK: no stepped playbook yet (none carries a 'Step ledger:' line)"
     exit 0
   fi
-  SEEN=""; COUNT=0
+  SEEN=""; COUNT=0; MARKED=""
   # One playbook per ledger id, and a step file belongs to one playbook, once.
   HEADS=""
   for f in "$ENGINE_DIR"/bootstrap/*.md "$ENGINE_DIR"/scaffolding/*.md "$ENGINE_DIR"/development/*.md; do
@@ -399,10 +407,12 @@ $pid.$sid"
     [ "$pc" = "1" ] && [ -z "$(trim "$pr")" ] && bad "$where: 'Produces:' is empty"
     skip_by="$(skip_by_of "$file" "$line")"
     case "$skip_by" in
-      0"$SEP"*|1"$SEP"owner) ;;
-      1"$SEP"*) bad "$where: 'Skip by:' takes one value, owner (found '${skip_by#*$SEP}')" ;;
+      0"$SEP"*|1"$SEP""Skip by: owner") ;;
+      1"$SEP"*) bad "$where: write the owner mark exactly 'Skip by: owner' (found '${skip_by#*$SEP}')" ;;
       *) bad "$where: more than one 'Skip by:' line" ;;
     esac
+    MARKED="$MARKED
+$file$SEP${skip_by%%$SEP*}"
     if [ "$rc" = "1" ]; then
       [ -z "$(trim "$rd")" ] && bad "$where: 'Read:' is empty; write none when nothing is read"
       OLDIFS="$IFS"; IFS=";"
@@ -439,6 +449,13 @@ $pid.$sid"
   done <<EOF
 $TABLE
 EOF
+  # Every owner mark belongs to a step's own lines; one under a sub-heading or before the first
+  # step would be read by no step.
+  for f in $(printf '%s\n' "$MARKED" | awk -F"$SEP" 'NF == 2 { print $1 }' | sort -u) \
+           $(printf '%s\n' "$TABLE" | awk -F"$SEP" '$5 != "" && ($14 == "leaf" || $14 == "container") { print $5 }' | sort -u); do
+    attributed="$(printf '%s\n' "$MARKED" | F="$f" awk -F"$SEP" '$1 == ENVIRON["F"] { n += $2 } END { print n + 0 }')"
+    [ "$(marks_in "$f")" -gt "$attributed" ] && bad "$f: a 'Skip by:' line sits outside a step's own lines (under a sub-heading, or before the first step), where no step reads it"
+  done
   GRAPH_RESULT="$(python3 "$SCRIPT_DIR/step-recovery.py" validate-graph --engine "$ENGINE_DIR")" || { echo "$GRAPH_RESULT"; ERRORS=$((ERRORS + 1)); }
   if [ "$ERRORS" -gt 0 ]; then echo "$ERRORS fault(s) in stepped playbooks"; exit 1; fi
   echo "OK: $COUNT steps in stepped playbooks each carry Read, Produces, and Check; every engine path and script named exists"
@@ -517,7 +534,7 @@ EOF
 fi
 
 # Walk the project's playbooks in order. Sets NEXT_* to the first open leaf step.
-NEXT_ID=""; NEED_UNIT=""; LISTING=""; WALKED=""
+NEXT_ID=""; NEED_UNIT=""; LISTING=""; WALKED=""; SET_ASIDE=""
 OLDIFS="$IFS"; IFS=","
 for pb in $PLAYBOOKS; do
   IFS="$OLDIFS"
@@ -535,7 +552,7 @@ for pb in $PLAYBOOKS; do
     key="$(key_of "$pid.$sid" "$mode")"
     st="$(state_of "$key")"
     shown="$st"
-    if [ "$st" = "skipped" ]; then case "$(event_line_of "$key")" in *'| set aside '*) shown="set aside" ;; esac; fi
+    if [ "$st" = "skipped" ]; then case "$(event_line_of "$key")" in *'| set aside '*) shown="set aside"; SET_ASIDE="$SET_ASIDE${SET_ASIDE:+, }$key" ;; esac; fi
     LISTING="$LISTING
 $shown  $key  $title"
     if { [ "$st" = "open" ] || [ "$st" = "reopened" ]; } && [ -z "$NEXT_ID" ]; then
@@ -643,20 +660,24 @@ if [ "$MODE" = "list" ]; then
 fi
 if [ "$REVERIFY_OK" != "1" ]; then
   echo "Fix what failed, then run this again. Nothing is named, closed, or skipped while a closed step's check fails."
-  echo "If a check itself does not fit how this application works: $SELF --reopen <step> --reason \"<why>\", then $SELF --set-aside <step> --reason \"<why>\" (report the check upstream: ${SELF%scripts/next-step.sh}development/FEEDBACK.md)."
+  echo "If a check itself does not fit how this application works: $SELF --reopen <step> [--unit NAME] --reason \"<why>\", then $SELF --set-aside <step> [--unit NAME] --reason \"<why>\" (report the check upstream: ${SELF%scripts/next-step.sh}development/FEEDBACK.md)."
   exit 1
 fi
 
 if [ "$MODE" = "next" ]; then
   if [ -z "$NEXT_ID" ]; then
-    if [ -n "$NEED_UNIT" ]; then echo "Every one-time step is closed. The playbook '$NEED_UNIT' repeats: run with --unit NAME (the feature's name)."
+    # A set-aside step is not done: while one is, the runner never says every step is closed.
+    if [ -n "$SET_ASIDE" ]; then DONE="No step is open. Set aside, not done: $SET_ASIDE."; ONCE="No one-time step is open. Set aside, not done: $SET_ASIDE."
+    else DONE="Every step is closed."; ONCE="Every one-time step is closed."; fi
+    if [ -n "$NEED_UNIT" ]; then echo "$ONCE The playbook '$NEED_UNIT' repeats: run with --unit NAME (the feature's name)."
     else
       # What follows is written in the Next Step section of the last declared playbook's entry file,
       # shown under the engine's folder the way the "Close it:" line shows this script.
       LAST_ENTRY=""
       [ -n "$WALKED" ] && LAST_ENTRY="$(entry_file_of "${WALKED##*,}")"
-      if [ -z "$LAST_ENTRY" ]; then echo "Every step is closed."
-      elif has_section "$LAST_ENTRY § Next Step"; then echo "Every step is closed. What follows: the Next Step section of ${SELF%scripts/next-step.sh}$LAST_ENTRY."
+      if [ -z "$LAST_ENTRY" ]; then echo "$DONE"
+      elif has_section "$LAST_ENTRY § Next Step"; then echo "$DONE What follows: the Next Step section of ${SELF%scripts/next-step.sh}$LAST_ENTRY."
+      elif [ -n "$SET_ASIDE" ]; then echo "$DONE ${SELF%scripts/next-step.sh}$LAST_ENTRY names no next step."
       else echo "Every step is closed; ${SELF%scripts/next-step.sh}$LAST_ENTRY names no next step."; fi
       [ "$PROJECT_CHECKS_WAITING" = "1" ] && echo "Note:      closed steps that ran the project's own commands are re-run when a step closes, or now with --verify."
     fi
@@ -684,7 +705,7 @@ if [ "$MODE" = "next" ]; then
   BASIS_ARGS=""
   case "$NEXT_BASIS" in *decisions*) BASIS_ARGS="$BASIS_ARGS --basis DEC-NNN" ;; esac
   case "$NEXT_BASIS" in *inputs*) BASIS_ARGS="$BASIS_ARGS --input <project-relative-path>" ;; esac
-  if [ "$(skip_by_of "$NEXT_FILE" "$NEXT_LINE")" = "1$SEP""owner" ]; then
+  if owner_held "$NEXT_FILE" "$NEXT_LINE"; then
     echo "Set aside: only on the owner's words: $SELF --set-aside $NEXT_ID$UNIT_ARG$BASIS_ARGS --reason \"<why it does not fit>\" --owner \"<their words>\""
   else
     echo "Set aside: when it does not fit how this application works: $SELF --set-aside $NEXT_ID$UNIT_ARG$BASIS_ARGS --reason \"<why>\""
@@ -710,7 +731,9 @@ fi
 # --close and --skip
 if [ -z "$ID" ]; then echo "Name the step: --close ID, --skip ID or --set-aside ID."; exit 1; fi
 if [ -z "$NEXT_ID" ]; then
-  if [ -n "$NEED_UNIT" ]; then echo "The playbook '$NEED_UNIT' repeats: add --unit NAME."; else echo "Every step is already closed."; fi
+  if [ -n "$NEED_UNIT" ]; then echo "The playbook '$NEED_UNIT' repeats: add --unit NAME."
+  elif [ -n "$SET_ASIDE" ]; then echo "No step is open. Set aside, not done: $SET_ASIDE."
+  else echo "Every step is already closed."; fi
   exit 1
 fi
 if [ "$ID" != "$NEXT_ID" ]; then
@@ -766,7 +789,7 @@ if [ "$MODE" = "setaside" ]; then
   REASON="$(clean "$REASON")"
   if [ -z "$REASON" ]; then echo "Refused: say with --reason why $NEXT_KEY does not fit how this application works, or why its check is wrong here."; exit 1; fi
   OWNER_WORDS="$(clean "$OWNER_WORDS")"
-  if [ "$(skip_by_of "$NEXT_FILE" "$NEXT_LINE")" = "1$SEP""owner" ] && [ -z "$OWNER_WORDS" ]; then
+  if owner_held "$NEXT_FILE" "$NEXT_LINE" && [ -z "$OWNER_WORDS" ]; then
     echo "Refused: $NEXT_KEY is set aside only on the owner's words. Ask the owner, then add --owner \"<their words>\"."
     exit 1
   fi
