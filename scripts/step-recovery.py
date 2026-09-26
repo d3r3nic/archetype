@@ -185,7 +185,8 @@ def decision_records(project: Path, cwd: Path) -> dict[str, bytes]:
 
 def decision_closure(records: dict[str, bytes], decision_id: str) -> set[str]:
     """The cited decision, the decisions it depends on, and every accepted decision that supersedes
-    one of them, transitively. Raises on a problem, an unknown reference or a cycle inside it."""
+    one of them, transitively (not the decisions a superseding one depends on, as earlier releases
+    read it). Raises on a problem, an unknown reference or a cycle inside it."""
     relationships = decision_records.relationships  # type: ignore[attr-defined]
     problems = decision_records.problems  # type: ignore[attr-defined]
     if decision_id not in records:
@@ -218,7 +219,9 @@ def decision_closure(records: dict[str, bytes], decision_id: str) -> set[str]:
             if value in problems:
                 raise ContractError(problems[value][0])
             if relation["status"] == "accepted":
-                dependencies(value, ()); changed = True
+                # The superseding decision joins, not the decisions it depends on: earlier releases
+                # fingerprinted it so, and a step closed then must keep its fingerprint.
+                included.add(value); changed = True
     for value in list(included):
         for target in relationships[value]["supersedes"]:
             if target not in records:
@@ -563,7 +566,7 @@ def main() -> int:
                 for decision_id in sorted(problems):
                     for problem in dict.fromkeys(problems[decision_id]):
                         print(f"FAIL: {problem}")
-                print("Only a decision a step cites, and the ones it depends on or is superseded by, block that step; a Supersedes line that names no decision blocks every step.")
+                print("Only a decision a step cites, and the ones it depends on or is superseded by, block that step; an active decision whose Supersedes line names neither decision IDs nor none blocks every step.")
                 return 1
             print(f"OK: {len(records)} decision record(s) follow the recovery contract")
         elif args.command == "validate-graph":

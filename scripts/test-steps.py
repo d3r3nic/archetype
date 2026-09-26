@@ -2,8 +2,10 @@
 """Exercise scripts/next-step.sh against a small engine and project built in a temporary folder."""
 
 from pathlib import Path
+import hashlib
 import importlib.util
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -1292,6 +1294,29 @@ class Steps(unittest.TestCase):
                 refused = self.basis_of('DEC-001')
                 self.assertEqual(refused.returncode, 1, refused.stdout)
                 self.assertIn('superseded', refused.stdout)
+
+    def test_the_fingerprint_is_the_one_earlier_releases_recorded(self):
+        # DEC-004 depends on DEC-001, which DEC-003 supersedes; DEC-003 depends on DEC-002. Earlier
+        # releases fingerprinted DEC-004 over DEC-001, DEC-003 and DEC-004: the decisions a
+        # superseding one depends on were not part of it, and a step closed then stays closed.
+        self.ledger('boot')
+        (self.project / 'References.md').write_text('# References\n\n- Decision location: DECISIONS.md\n')
+        def block(number, depends='none', supersedes='none'):
+            return ('### DEC-%03d: Choice %d\nDate: 2026-09-19\nStatus: accepted\nDecision: option %d\nReason: fits\n'
+                    'Authority: owner\nDepends on: %s\nSupersedes: %s\n' % (number, number, number, depends, supersedes))
+        text = ('# Decisions\n\n' + block(1) + '\n' + block(2) + '\n' + block(3, depends='DEC-002', supersedes='DEC-001')
+                + '\n' + block(4, depends='DEC-001'))
+        (self.project / 'DECISIONS.md').write_text(text)
+        closed = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-004')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+        headings = list(re.finditer(r'(?m)^###[ \t]+(DEC-[0-9]{3,})(?:[ \t]*[: -].*)?$', text))
+        blocks = {}
+        for index, heading in enumerate(headings):
+            end = headings[index + 1].start() if index + 1 < len(headings) else len(text)
+            blocks[heading.group(1)] = (text[heading.start():end].strip() + '\n').encode()
+        earlier = hashlib.sha256(b''.join(key.encode() + b'\0' + blocks[key] for key in ('DEC-001', 'DEC-003', 'DEC-004'))).hexdigest()
+        self.assertIn('DEC-004@sha256:' + earlier, (self.project / 'PROGRESS.md').read_text())
+        self.assertEqual(self.run_tool().returncode, 0, self.run_tool().stdout)
 
     def test_a_status_naming_two_states_is_not_read_as_accepted(self):
         for status in ('~~accepted~~ retired', 'accepted, superseded by DEC-002'):

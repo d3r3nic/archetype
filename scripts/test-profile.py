@@ -773,6 +773,20 @@ class ValidateProfileTests(unittest.TestCase):
                 code, out = self.run_validator(profile_text(), debt_entry(209, control=control), strict=True)
                 self.assert_fail(out, code, "strict mode")
 
+    def test_a_control_that_mentions_floor_in_any_other_form_is_unverified(self):
+        for control, message in (("secrets (floor item)", "names the floor item secrets"),
+                                 ("the secrets floor item", "names the floor item secrets"),
+                                 ("trust boundary, a floor item", "names the floor item trust-boundary"),
+                                 ("personal data handling (floor)", "names the floor item personal-data"),
+                                 ("#30 floor", "mentions floor, and this check cannot read which floor item"),
+                                 ("the floor, later", "mentions floor, and this check cannot read which floor item")):
+            with self.subTest(control=control):
+                code, out = self.run_validator(profile_text(), debt_entry(211, control=control))
+                self.assertEqual(code, 0, out)
+                self.assertIn(f'UNVERIFIED: TD-211: Control "{control}" {message}', out)
+                code, out = self.run_validator(profile_text(), debt_entry(211, control=control), strict=True)
+                self.assert_fail(out, code, "strict mode")
+
     def test_a_wrapped_line_that_starts_with_a_convention_number_stays_in_its_entry(self):
         entry = ("## TD-210 — rate limits later\n\n- **What:** the sign-in route has no attempt limit;\n"
                  "#23 requires one before anyone outside the owner can reach it\n- **Status:** open\n- **Kind:** deferral\n"

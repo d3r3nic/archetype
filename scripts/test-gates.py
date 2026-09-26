@@ -631,6 +631,14 @@ class ScaffoldRecords(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn('§ Boundaries holds no line in the recorded form yet', out)
 
+    def test_a_prose_boundaries_section_does_not_make_the_migration_check_fail(self):
+        prose = '\n## Boundaries\n\nThe API layer owns every network call.\n'
+        for commands in ('## Commands\n\n- migrate: `tool migrate apply`\n', '## Commands\n\n- db:migrate: tool run db-migrate\n'):
+            with self.subTest(commands=commands.splitlines()[-1]):
+                code, out = self.check(commands + prose)
+                self.assertEqual(code, 0, out)
+                self.assertNotIn('FAIL', out)
+
     def test_a_migration_command_this_check_cannot_read_is_not_none(self):
         unreadable = '## Commands\n\n- migrate: tool run migrate\n'
         code, out = self.check(unreadable)
@@ -817,7 +825,9 @@ class RegulatedDataGate(unittest.TestCase):
         store = self.project / 'src' / 'audit'
         store.mkdir(parents=True)
         for extra in ('class SpyAuditStore {}', 'func NewInMemoryAuditStore() *InMemoryAuditStore { return &InMemoryAuditStore{} }',
-                      'const inMemoryAuditStore = new InMemoryAuditStore()', 'export const store = createInMemoryAuditStore()'):
+                      'const inMemoryAuditStore = new InMemoryAuditStore()', 'export const store = createInMemoryAuditStore()',
+                      'class MockedAuditStore {}', 'class NoOpAuditStore {}', 'func NewNoOpAuditStore() {}',
+                      'class TestDatabaseAuditStore {}'):
             with self.subTest(extra=extra):
                 (store / 'store.ext').write_text('class InMemoryAuditStore { private records: AuditRecord[] = [] }\n' + extra + '\n')
                 result = self.check()
@@ -826,6 +836,19 @@ class RegulatedDataGate(unittest.TestCase):
         (store / 'durable.ext').write_text('export class DurableTableAuditStore {}\n')
         result = self.check()
         self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_a_production_store_is_read_by_the_words_of_its_name(self):
+        self.references(self.COMPLIANCE.replace('- Regimes: none, the project keeps no regulated data\n', '- Regimes: a health-data law applies\n') + '- Audit log: `src/audit`\n')
+        self.profile('yes')
+        store = self.project / 'src' / 'audit'
+        store.mkdir(parents=True)
+        for production in ('export class AttestationDatabaseAuditStore {}', 'export class LatestCloudAuditStore {}',
+                           'export const store = createLedgerTableAuditStore(pool)', 'const sink = makeObjectStorageAuditStore(bucket)'):
+            with self.subTest(production=production):
+                (store / 'store.ext').write_text('const records: Array<AuditRecord> = []\nbatch.push(record)\n' + production + '\n')
+                result = self.check()
+                self.assertEqual(result.returncode, 0, result.stdout)
+                self.assertIn('audit log has an in-memory store for tests and a production store beside it', ANSI.sub('', result.stdout))
 
     def audit_store(self, backing=False):
         store = self.project / 'src' / 'shared' / 'audit-log'

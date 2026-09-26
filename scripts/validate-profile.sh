@@ -370,14 +370,21 @@ else
           case "$lc_control" in
             \[*) warn "$id: Control still holds a template placeholder" ;;
             *)
-              # A Control that names a floor item in other words ("#30 floor: secrets", "floor item
-              # secrets") is read as that floor item and reported for review.
-              flagged=0
-              for item in $FLOOR; do
-                spaced="$(printf '%s' "$item" | tr '-' ' ')"
-                case "$lc_control" in *floor*"$item"*|*floor*"$spaced"*) unver "$id: Control \"$cv\" names the floor item $item; a floor item is never postponed (#30)"; flagged=1; break ;; esac
-              done
-              if [ "$flagged" -eq 0 ]; then
+              # A Control that mentions the word floor in any other form ("#30 floor: secrets",
+              # "secrets (floor item)", "the floor") is never passed silently: it is reported for
+              # review, with the floor item it names, in whatever order.
+              if printf '%s\n' "$lc_control" | grep -qE '(^|[^a-z])floor([^a-z]|$)'; then
+                named_item=""
+                for item in $FLOOR; do
+                  spaced="$(printf '%s' "$item" | tr '-' ' ')"
+                  case "$lc_control" in *"$item"*|*"$spaced"*) named_item="$item"; break ;; esac
+                done
+                if [ -n "$named_item" ]; then
+                  unver "$id: Control \"$cv\" names the floor item $named_item; a floor item is never postponed (#30)"
+                else
+                  unver "$id: Control \"$cv\" mentions floor, and this check cannot read which floor item; a floor item is never postponed (#30)"
+                fi
+              else
                 case "$lc_control" in
                   '#'[0-9]*|b[0-9]*) ;;
                   *) warn "$id: Control is \"$cv\"; name the convention (#N and the obligation), the backend rule (BN), or the floor item (floor: name), so a review can see what is postponed" ;;

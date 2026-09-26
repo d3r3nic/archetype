@@ -401,9 +401,11 @@ if [ "$RUN_4B" -eq 1 ]; then
     # Signs of a store that lives only in memory: its name, or a list the entries are pushed into.
     if grep -rqE '(InMemoryAuditStore|MemoryAuditStore|inMemoryStore|this\.records[[:space:]]*=[[:space:]]*\[\]|records:[[:space:]]*Array|push\(record\))' "$AUDIT_DIR" 2>/dev/null; then
       # A production store beside it: the pattern References.md § Compliance records on its Audit store
-      # line, or another class the code names ...AuditStore (capitalized, not an interface such as
-      # IAuditStore, and with none of memory, fake, test, mock, stub, dummy, noop or spy anywhere in
-      # its name), or an append-only or write-once store.
+      # line, or another store the code names ...AuditStore, or an append-only or write-once store.
+      # The name is read after any lowercase prefix (createXAuditStore, makeXAuditStore); an interface
+      # (IAuditStore) is not a store; and a name with a word that starts memory, fake, test, mock, stub,
+      # dummy, noop or spy, or the words "no op", is a test double. Words, not letters: Attestation
+      # and Latest are not "test".
       AUDIT_STORE_PATTERN="$(tr -d '\r' < "$REFS" | awk '
         /^## / { inside = ($0 ~ /^## Compliance[ \t]*$/); next }
         inside && /^- Audit store:/ { v = $0; sub(/^- Audit store:[ \t]*/, "", v)
@@ -411,7 +413,9 @@ if [ "$RUN_4B" -eq 1 ]; then
       DURABLE=0
       if [ -n "$AUDIT_STORE_PATTERN" ] && grep -rqE -e "$AUDIT_STORE_PATTERN" "$AUDIT_DIR" 2>/dev/null; then
         DURABLE=1
-      elif grep -rhoE '[A-Za-z0-9_]*AuditStore' "$AUDIT_DIR" 2>/dev/null | grep -E '^[A-Z]' | grep -vE '^I[A-Z]' | grep -viE '(memory|fake|test|mock|stub|dummy|noop|spy)' | grep -vE '^AuditStore$' | grep -q .; then
+      elif grep -rhoE '[A-Za-z0-9_]*AuditStore' "$AUDIT_DIR" 2>/dev/null | sed -E 's/^[a-z0-9_]*//' | grep -vE '^I[A-Z]' | grep -vE '^AuditStore$' \
+          | sed -E 's/([a-z0-9])([A-Z])/\1 \2/g' | tr '_' ' ' | tr '[:upper:]' '[:lower:]' \
+          | grep -vE '(^| )(inmemory|memory|fake|test|mock|stub|dummy|noop|spy)|(^| )no op( |$)' | grep -q .; then
         DURABLE=1
       elif grep -rqE '(AppendOnlyStore|WormStore|WORMStore)' "$AUDIT_DIR" 2>/dev/null; then
         DURABLE=1
@@ -475,6 +479,9 @@ case "$(printf '%s' "$MIGRATE_CMD" | tr '[:upper:]' '[:lower:]')" in none|n/a) M
 MIGRATE_PLAIN="$(printf '%s' "$MIGRATE_VALUE" | tr -d '`' | tr '[:upper:]' '[:lower:]' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 HAS_BOUNDARIES=0
 tr -d '\r' < "$REFS" | grep -qE '^## Boundaries[[:space:]]*$' && HAS_BOUNDARIES=1
+# A section with no line in the recorded form (an older project's own section of that name) is not
+# recorded yet, as group 2 read it above.
+printf '%s\n' "$BOUNDARY_OUT" | grep -q 'holds no line in the recorded form yet' && HAS_BOUNDARIES=0
 if [ -z "$MIGRATE_CMD" ]; then
   case "$MIGRATE_PLAIN" in
     ''|'['*|none|'none '*|'none,'*|'none.'*|'none:'*|'none;'*|'none-'*|n/a|'n/a '*|'n/a,'*|'n/a.'*|'n/a;'*) pass "no migration command recorded in References.md § Commands" ;;
