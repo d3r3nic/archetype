@@ -67,6 +67,18 @@ PUSHES = [
     ('git push -o "title=A;B" --force origin main', 2),
     ('git push -4 origin main', 0),
     ('git push -o "a;b" origin main', 0),
+    ('git push -o "it\'s done" --force origin main', 2),
+    ('git push -o merge_request.title="Don\'t merge yet" --force origin feature', 2),
+    ('git push -o "fix Bob\'s bug" origin +main', 2),
+    ('git -C "/Users/me/Bob\'s Project" push --force origin main', 2),
+    ('git --git-dir="/Users/me/Bob\'s Project/.git" push -f', 2),
+    ("git -C '/Users/me/say \"hi\" dir' push --force origin main", 2),
+    ('git -c core.sshCommand="ssh -i ~/.ssh/deploy_key" push -f', 2),
+    ('git -C ~/"My Project" push --force', 2),
+    ('git -C $(pwd)/app push --force', 2),
+    ('git push $(git remote | head -1) --force', 2),
+    ('git push -o "title=Fix +1" --force-with-lease origin feature', 0),
+    ('git push -o "it\'s done" origin main', 0),
 ]
 
 
