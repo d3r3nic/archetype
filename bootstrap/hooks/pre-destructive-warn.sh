@@ -48,14 +48,19 @@ fi
 MATCHED="${COMMAND//\\$NL/ }"
 
 # A git push, with git's own options before the word push: a short flag (-P), a long one
-# (--no-pager, --git-dir=x), or one that takes a value (-C dir, -c k=v, --git-dir x), the value
-# bare or in quotes. A flag ends where no letter, digit or hyphen follows: a space, a quote,
-# a closing parenthesis, a backtick, a redirection or the end of the line.
+# (--no-pager, --git-dir=x), or one that takes a separate value (-C, -c, --git-dir, --work-tree,
+# --namespace, --config-env, --exec-path, --super-prefix, --attr-source). A value is bare, with
+# backslash escapes (work\ dir), in quotes, or a command substitution without nested
+# parentheses. The push's own arguments before the flag may hold quoted text, a separator
+# inside quotes included. A flag ends where no letter, digit or hyphen follows: a space, a
+# quote, a closing parenthesis, a backtick, a redirection or the end of the line.
 QUOTE='['"'"'"]'
 NOT_QUOTE='[^'"'"'"]'
-VALUE="($QUOTE$NOT_QUOTE*$QUOTE|[^[:space:]]+)"
-GIT_OPTION="[[:space:]]+((-C|-c|--git-dir|--work-tree|--namespace|--config-env|--exec-path|--super-prefix)[[:space:]]+$VALUE|--[a-z][a-z-]*(=$VALUE)?|-[A-Za-z]+)"
-GIT_PUSH="(^|[^[:alnum:]_-])git($GIT_OPTION)*[[:space:]]+push[[:space:]]([^;&|]*[[:space:]])?$QUOTE?"
+QUOTED="$QUOTE$NOT_QUOTE*$QUOTE"
+NOT_SEPARATOR_OR_QUOTE='[^;&|'"'"'"]'
+VALUE="($QUOTED|"'\$\([^)]*\)|`[^`]*`|([^[:space:]\\]|\\.)+)'
+GIT_OPTION="[[:space:]]+((-C|-c|--git-dir|--work-tree|--namespace|--config-env|--exec-path|--super-prefix|--attr-source)[[:space:]]+$VALUE|--[a-z][a-z-]*(=$VALUE)?|-[A-Za-z]+)"
+GIT_PUSH="(^|[^[:alnum:]_-])git($GIT_OPTION)*[[:space:]]+push[[:space:]](($NOT_SEPARATOR_OR_QUOTE|$QUOTED)*[[:space:]])?$QUOTE?"
 FLAG_END='([^-[:alnum:]]|$)'
 
 # Destructive patterns. Order matters — most specific first.
@@ -66,11 +71,11 @@ PATTERNS=(
   'rm[[:space:]]+-[rRfd]*[rR][rRfd]*f[rRfd]*[[:space:]]+\.\*'
   'git[[:space:]]+reset[[:space:]]+--hard'
   # A push that overwrites remote history: --force, --mirror or any abbreviation git takes for it
-  # (--m to --mirro), -f alone or with other short options (-uf), or a refspec that opens with +.
+  # (--m to --mirro), -f alone or with other short options (-uf, -f4), or a refspec that opens with +.
   # --force-with-lease, which refuses when the remote moved since the last fetch, is the safer
   # form and is not matched.
   "$GIT_PUSH--(force|m(i(r(r(o(r)?)?)?)?)?)$FLAG_END"
-  "$GIT_PUSH-[A-Za-z]*f[A-Za-z]*$FLAG_END"
+  "$GIT_PUSH-[[:alnum:]]*f[[:alnum:]]*$FLAG_END"
   "$GIT_PUSH[+][^[:space:]]"
   'git[[:space:]]+clean[[:space:]]+-[fdx]+'
   'git[[:space:]]+branch[[:space:]]+-D'

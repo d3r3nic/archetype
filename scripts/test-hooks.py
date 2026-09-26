@@ -58,6 +58,15 @@ PUSHES = [
     ('git --no-pager push -f', 2),
     ('`git push --force`', 2),
     ('git push --force > push.log', 2),
+    ('git push -f4 origin main', 2),
+    ('git push -4f origin main', 2),
+    ('git push -f6 origin main', 2),
+    ('git -C /path/work\\ dir push --force origin main', 2),
+    ('git --attr-source HEAD push --force origin main', 2),
+    ('git -C $(git rev-parse --show-toplevel) push --force origin main', 2),
+    ('git push -o "title=A;B" --force origin main', 2),
+    ('git push -4 origin main', 0),
+    ('git push -o "a;b" origin main', 0),
 ]
 
 
