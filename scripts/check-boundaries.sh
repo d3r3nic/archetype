@@ -158,11 +158,14 @@ if [ -s "$RULES" ]; then
     ENGINE_REL=""
     ENGINE_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
     case "$ENGINE_DIR/" in "$ROOT/"?*) ENGINE_REL="${ENGINE_DIR#"$ROOT"/}/" ;; esac
-    ( cd "$ROOT" && git ls-files -z --cached --others --exclude-standard ) | tr '\000' '\n' | awk -v engine="$ENGINE_REL" '
-      $0 == "" { next }
-      engine != "" && index($0, engine) == 1 { next }
-      $0 ~ /\.[Mm][Dd]$/ { next }
-      { print }' | sort -u > "$LIST"
+    # NUL-separated throughout, so no file name can split into two.
+    : > "$LIST"
+    while IFS= read -r -d '' f; do
+      [ -n "$f" ] || continue
+      if [ -n "$ENGINE_REL" ]; then case "$f" in "$ENGINE_REL"*) continue ;; esac; fi
+      case "$f" in *.md|*.MD|*.Md|*.mD) continue ;; esac
+      printf '%s\0' "$f" >> "$LIST"
+    done < <(cd "$ROOT" && git ls-files -z --cached --others --exclude-standard)
     GREP_I=""
     printf 'a\n' | grep -I a >/dev/null 2>&1 && GREP_I="-I"
     while IFS="$(printf '\t')" read -r label pattern paths; do
@@ -175,7 +178,7 @@ if [ -s "$RULES" ]; then
       # The files outside the rule's paths, then one search across them.
       : > "$HITS"
       : > "$LIST.out"
-      while IFS= read -r f; do
+      while IFS= read -r -d '' f; do
         allowed=0
         rest="$paths"
         while [ -n "$rest" ]; do
@@ -189,10 +192,10 @@ if [ -s "$RULES" ]; then
           esac
           [ "$allowed" -eq 1 ] && break
         done
-        [ "$allowed" -eq 1 ] || printf '%s\n' "$f" >> "$LIST.out"
+        [ "$allowed" -eq 1 ] || printf '%s\0' "$f" >> "$LIST.out"
       done < "$LIST"
       if [ -s "$LIST.out" ]; then
-        ( cd "$ROOT" && tr '\n' '\000' < "$LIST.out" | xargs -0 grep $GREP_I -l -s -E -e "$pattern" ) > "$HITS" 2>/dev/null
+        ( cd "$ROOT" && xargs -0 grep $GREP_I -l -s -E -e "$pattern" < "$LIST.out" ) > "$HITS" 2>/dev/null
       fi
       if [ -s "$HITS" ]; then
         count="$(wc -l < "$HITS" | tr -d ' ')"
