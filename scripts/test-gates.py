@@ -414,6 +414,24 @@ class ScaffoldGate(unittest.TestCase):
                                          prose='Pulse reads: `# | Name | Convention | Location | Status`.\n'))
         self.assertEqual(group(result.stdout, '1'), ['OK: every foundational system has a docs/systems/ entry'])
 
+    def test_console_output_under_a_development_guard_passes_with_either_quote(self):
+        # A guard written with single quotes, the usual JavaScript spelling, once went unseen: grep
+        # read the "\x27" meant for the quote as four literal characters.
+        guarded = 'export function log(message) {\n  if (process.env.NODE_ENV === %sdevelopment%s) {\n    console.log(message)\n  }\n}\n'
+        source = self.project / 'src'
+        source.mkdir()
+        (source / 'single.js').write_text(guarded % ("'", "'"))
+        (source / 'double.js').write_text(guarded % ('"', '"'))
+        (source / 'loud.js').write_text('export function shout(message) {\n  console.log(message)\n}\n')
+        self.page('docs/systems/git.md')
+        result = self.check(systems_tree(['| 01 | Git & Hooks | #2 | hooks/ | implemented | docs/systems/git.md |']))
+        lines = group(result.stdout, '3')
+        self.assertEqual([line for line in lines if 'single.js' in line or 'double.js' in line], [], result.stdout)
+        warnings = [line for line in lines if line.startswith('WARN: ')]
+        self.assertEqual(len(warnings), 1, result.stdout)
+        self.assertTrue(warnings[0].startswith('WARN: console-level output in '), result.stdout)
+        self.assertTrue(warnings[0].endswith('/src/loud.js (use structured logger)'), result.stdout)
+
 
 class RegulatedDataGate(unittest.TestCase):
     """validate-scaffold.sh groups 4 and 4b: PROFILE.md's regulated-data fact, and a References.md
@@ -770,6 +788,26 @@ class PulseInspect(unittest.TestCase):
         state = json.loads((self.project / 'dev' / 'pulse' / 'state' / '.pulse-state.json').read_text())
         self.assertEqual(state['dataContractVersion'], 'v2')
 
+    def test_windows_line_endings_backslashes_and_control_characters_give_valid_json(self):
+        # A carriage return or another control character made the whole snapshot invalid JSON, and
+        # busybox awk did not double a backslash in the folder block.
+        (self.project / 'References.md').write_bytes(
+            b'# References\r\n\r\n## Project\r\n\r\n- Name: Tri"al\\App\r\n- Purpose: a\ttab and a \x01 control\r\n\r\n'
+            b'## Tech Stack\r\n\r\n- Language: C:\\tools\r\n\r\n'
+            b'## Folder Structure\r\n\r\n```\r\nsrc\\data\r\nscripts\\build.ps1\r\n```\r\n')
+        result = self.inspect()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        state = json.loads(result.stdout)
+        self.assertEqual(state['project']['name'], 'Tri"al\\App')
+        self.assertEqual(state['project']['purpose'], 'a\ttab and a \x01 control')
+        self.assertEqual(state['techStack'], [{'key': 'Language', 'value': 'C:\\tools'}])
+        self.assertEqual(state['architecture'], 'src\\data\nscripts\\build.ps1\n')
+
+    def test_out_or_root_without_a_value_fails_plainly(self):
+        for option in ('--out', '--root'):
+            with self.subTest(option=option):
+                self.assert_plain_failure(self.inspect(option), option + ' needs')
+
     def test_out_under_a_regular_file_fails_plainly(self):
         (self.project / 'blocker').write_text('a file, not a folder\n')
         result = self.inspect('--out', 'blocker/state.json')
@@ -873,6 +911,111 @@ class OneRowRule(unittest.TestCase):
         # The nameless row has nothing to show; the gate names it by its number instead.
         self.assertIn('feature row 06 has no name', gate.stdout)
 
+
+class PortableCharacterLists(unittest.TestCase):
+    """The shipped shell scripts read text the same under busybox, mawk, gawk and the BSD tools.
+
+    busybox awk keeps the backslash of an escape it does not know inside a character list, so "[\\.]"
+    also matches a backslash there and "[*_`\\[\\]]" ends early; and grep reads every backslash in a
+    list as itself, so "\\x27" there is four characters. The escapes left to a list are \\t, \\n, an
+    octal code such as \\047 and a doubled backslash, which every awk reads the same (a grep or sed
+    pattern should hold none). Lists that are not regular expressions, where the shell reads the
+    escapes first, are named in NOT_REGEX with the reason; regular expressions built from strings at
+    run time are not read here, since a test run on one system cannot see another system's reading."""
+
+    NOT_REGEX = {
+        ('scripts/next-step.sh', '[\\ ,.\\;:]'): 'a bash case pattern',
+        ('scripts/pulse-inspect.sh', '[\\"Foundational Systems\\"]'): 'a Mermaid label in a double-quoted string',
+        ('scripts/pulse-inspect.sh', '[\\"Features\\"]'): 'a Mermaid label in a double-quoted string',
+        ('scripts/pulse-inspect.sh', '[\\"${name}\\"]'): 'a Mermaid label in a double-quoted string',
+        ('scripts/pulse-inspect.sh', '[\\"${c3}\\"]'): 'a Mermaid label in a double-quoted string',
+        ('scripts/validate-claims.sh', '[^A-Za-z0-9\\"\'#&]'): 'a grep pattern in a double-quoted string',
+    }
+    TEXT_TOOL = re.compile(r'(^|[\s|;&(`])(awk|grep|sed|tr|sort|cut|comm|uniq)(\s|$)')
+
+    @staticmethod
+    def scripts():
+        """The shipped shell scripts: the tracked ones in a checkout, every one in a copy without Git."""
+        listed = subprocess.run(['git', 'ls-files', '*.sh'], cwd=SOURCE, text=True, capture_output=True)
+        if listed.returncode == 0 and listed.stdout.strip():
+            return [SOURCE / name for name in listed.stdout.split()]
+        return [path for path in sorted(SOURCE.rglob('*.sh')) if '.git' not in path.relative_to(SOURCE).parts]
+
+    @staticmethod
+    def lists(line):
+        """The bracket expressions on one line, read the POSIX way: a leading "^" and then a leading
+        "]" belong to the list, "[:class:]" is one member, and outside a list a backslash escapes the
+        next character."""
+        found, i = [], 0
+        while i < len(line):
+            if line[i] == '\\':
+                i += 2
+                continue
+            if line[i] == '[':
+                j = i + 1
+                if line[j:j + 1] == '^':
+                    j += 1
+                if line[j:j + 1] == ']':
+                    j += 1
+                while j < len(line) and line[j] != ']':
+                    if line[j] == '[' and line[j + 1:j + 2] in (':', '.', '='):
+                        end = line.find(line[j + 1] + ']', j + 2)
+                        if end == -1:
+                            break
+                        j = end + 2
+                        continue
+                    j += 1
+                if j < len(line) and line[j] == ']':
+                    found.append(line[i:j + 1])
+                    i = j + 1
+                    continue
+            i += 1
+        return found
+
+    @staticmethod
+    def refused(chars):
+        return re.search(r'\\(?![tn0-7])', chars.replace('\\\\', '')) is not None
+
+    def test_the_reader_refuses_the_old_spellings_and_passes_the_portable_ones(self):
+        for line in ('gsub(/[*_`\\[\\]]/, "", t)', 'gsub(/[\\[\\]()]/, " ", x)', "if (label !~ /[*_`<\\[]/)",
+                     "grep -qE '===[[:space:]]*[\\x27\"]development'", 'gsub(/[\\.,]/, "")', 'gsub(/[a\\-c]/, "")',
+                     'gsub(/[\\/]/, "")', 'gsub(/[\\"]/, "")'):
+            with self.subTest(line=line):
+                self.assertTrue(any(self.refused(chars) for chars in self.lists(line)), self.lists(line))
+        for line in ('gsub(/[]*_`[]/, "", t)', 'gsub(/[][()]/, " ", x)', "if (label !~ /[*_`<[]/)",
+                     "grep -qE '===[[:space:]]*['\"'\"'\"]development'", 'case "$v" in \\[*) ;; esac',
+                     'sub(/^- \\[.\\] /, "", l)', 'canopen = (nxt !~ /[ \\t[:punct:]]/)', 'gsub(/[^>"\\047]/, "")',
+                     'gsub(/[\\\\]/, "")', 'gsub(/[^\\\\]/, "")'):
+            with self.subTest(line=line):
+                self.assertFalse(any(self.refused(chars) for chars in self.lists(line)), self.lists(line))
+
+    def test_no_shipped_script_holds_an_escape_a_character_list_reads_differently(self):
+        offenders, named = [], set()
+        for script in self.scripts():
+            relative = script.relative_to(SOURCE).as_posix()
+            for number, line in enumerate(script.read_text(encoding='utf-8', errors='replace').splitlines(), 1):
+                for chars in self.lists(line):
+                    if not self.refused(chars):
+                        continue
+                    if (relative, chars) in self.NOT_REGEX:
+                        named.add((relative, chars))
+                    else:
+                        offenders.append('%s:%d %s' % (relative, number, chars))
+        self.assertEqual(offenders, [], 'write "]" first and "[" bare ("[]*_`[]"), and splice a quote into a '
+                         'grep pattern instead of "\\x27"')
+        self.assertEqual(sorted(set(self.NOT_REGEX) - named), [], 'NOT_REGEX names a list the scripts no longer hold')
+
+    def test_every_script_that_reads_text_reads_it_as_bytes(self):
+        # In a UTF-8 locale the macOS awk exits on a character that substr cut in two, and the macOS
+        # grep, sed and tr fail on bytes that are not UTF-8; the C locale reads bytes everywhere.
+        missing = []
+        for script in self.scripts():
+            code = [line.strip() for line in script.read_text(encoding='utf-8', errors='replace').splitlines()[1:]
+                    if line.strip() and not line.lstrip().startswith('#')]
+            first = next((i for i, line in enumerate(code) if self.TEXT_TOOL.search(line)), None)
+            if first is not None and 'export LC_ALL=C' not in code[:first]:
+                missing.append(script.relative_to(SOURCE).as_posix())
+        self.assertEqual(missing, [], 'each of these must run "export LC_ALL=C" before its first text tool')
 
 if __name__ == '__main__':
     unittest.main()

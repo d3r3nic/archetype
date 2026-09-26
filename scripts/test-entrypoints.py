@@ -207,7 +207,7 @@ class Entrypoints(unittest.TestCase):
         remote, env = self.update_source()
         source = remote / 'CLAUDE.md'
         source.write_text(source.read_text() + 'A later framework line.\n')
-        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'later'])
+        self.commit(remote, 'later')
         result = self.run_update(env)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('CARRIED: 1 line(s)', result.stdout)
@@ -268,7 +268,7 @@ class Entrypoints(unittest.TestCase):
         (clone / 'CLAUDE.md').write_text((clone / 'CLAUDE.md').read_text() + rule + '\n')
         source = remote / 'CLAUDE.md'
         source.write_text(source.read_text() + 'A later framework line.\n')
-        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'later'])
+        self.commit(remote, 'later')
         result = self.run_command(['bash', str(clone / 'update.sh')], input='y\n', env=env, cwd=clone)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         kept = sorted(clone.glob('CLAUDE.md.pre-update-*'))
@@ -542,7 +542,7 @@ class Entrypoints(unittest.TestCase):
         (self.project / 'archetype/CLAUDE.md').unlink()
         source = remote / 'CLAUDE.md'
         source.write_text(source.read_text() + 'A later framework line.\n')
-        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'later'])
+        self.commit(remote, 'later')
         result = self.run_update(env)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('CARRIED: 1 line(s)', result.stdout)
@@ -555,7 +555,7 @@ class Entrypoints(unittest.TestCase):
         remote, env = self.update_source()
         for name in ('AGENTS.md', 'CLAUDE.md'):
             (remote / name).write_bytes((SOURCE / name).read_bytes())
-        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'real entry files'])
+        self.commit(remote, 'real entry files')
         result = self.run_update(env)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('## Find the relevant work', (self.project / 'AGENTS.md').read_text())
@@ -568,7 +568,7 @@ class Entrypoints(unittest.TestCase):
         remote, env = self.update_source()
         source = remote / 'CLAUDE.md'
         source.write_text(source.read_text() + 'A later framework line.\n')
-        self.run_command(['git', '-C', str(remote), 'commit', '-qam', 'later'])
+        self.commit(remote, 'later')
         result = self.run_update(env)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertNotIn('CARRIED', result.stdout)

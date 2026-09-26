@@ -36,6 +36,12 @@
 # Exit 0: a next step was named, a step was closed or skipped, or everything is closed.
 # Exit 1: refused, or a closed step's check now fails, or the lint found a fault.
 
+# The caller's locale is kept for the project's own commands, whose tests may depend on it.
+CALLER_LC_ALL="${LC_ALL-}"; CALLER_LC_ALL_SET="${LC_ALL+1}"
+# Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
+# character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
+export LC_ALL=C
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENGINE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 START_DIR="$(pwd)"
@@ -271,6 +277,7 @@ read_recorded() { # label, value
 }
 
 CHECK_OUT=""
+caller_locale() { if [ -n "$CALLER_LC_ALL_SET" ]; then export LC_ALL="$CALLER_LC_ALL"; else unset LC_ALL; fi; }
 run_check() {
   local cmd="$1" check_dir="${2:-$START_DIR}" check_unit="${3:-$UNIT}" check_owner="${4:-}" script args runner label value labels OLDIFS
   CHECK_START_DIR="$check_dir"
@@ -290,7 +297,7 @@ run_check() {
       read_recorded "$label" "$value"
       case $? in 1) return 1 ;; 2) IFS=","; continue ;; esac
       project_references > /dev/null   # sets COMMANDS_DIR in this shell; project_command ran in a subshell
-      if ! CHECK_OUT="$(cd "${COMMANDS_DIR:-$PROJECT_ROOT}" && ARCHETYPE_STEP_UNIT="$check_unit" bash -c "$RECORDED" 2>&1)"; then
+      if ! CHECK_OUT="$(cd "${COMMANDS_DIR:-$PROJECT_ROOT}" && caller_locale && ARCHETYPE_STEP_UNIT="$check_unit" bash -c "$RECORDED" 2>&1)"; then
         CHECK_OUT="FAIL: the project's $label command failed: $RECORDED
 $CHECK_OUT"
         return 1

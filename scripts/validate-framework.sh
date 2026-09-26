@@ -22,6 +22,10 @@
 #      formed (delegates to scripts/next-step.sh --lint; development/STEPS.md)
 # Exit 0 on pass, 1 on any error. Warnings do not fail the check.
 
+# Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
+# character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
+export LC_ALL=C
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 FRAMEWORK_DIR=""

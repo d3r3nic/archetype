@@ -24,6 +24,10 @@
 #
 # Exit 0 on pass, 1 on any error. Warnings do not fail.
 
+# Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
+# character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
+export LC_ALL=C
+
 DESIGN_REQUIRED=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -246,11 +250,13 @@ if [ -n "$SRC_DIR" ]; then
     case "$file" in *.test.* | *_test.* | */tests/* ) continue ;; esac
     case "$(basename "$file")" in index.ts|index.js|main.ts|main.py|main.go|cli.* ) continue ;; esac
     # Skip files that are entirely dev-only reporter fallbacks (common pattern: shared/errors/reporter, dev-only shims)
-    if grep -qE 'if[[:space:]]*\([[:space:]]*__DEV__[[:space:]]*\)|if[[:space:]]*\([[:space:]]*process\.env\.NODE_ENV[[:space:]]*===[[:space:]]*[\x27"]development[\x27"][[:space:]]*\)' "$file" 2>/dev/null; then
+    # grep has no escape for a quote inside a character list ("\x27" there is four literal characters),
+    # so the single quote is spliced into the pattern from outside the single-quoted string.
+    if grep -qE 'if[[:space:]]*\([[:space:]]*__DEV__[[:space:]]*\)|if[[:space:]]*\([[:space:]]*process\.env\.NODE_ENV[[:space:]]*===[[:space:]]*['"'"'"]development['"'"'"][[:space:]]*\)' "$file" 2>/dev/null; then
       # File has a dev guard; check if all console.* calls are inside such a block
       # Simple heuristic: if console line is preceded by an if(__DEV__) { within 3 lines, treat as guarded
       UNGUARDED=$(awk '
-        /if[[:space:]]*\([[:space:]]*(__DEV__|process\.env\.NODE_ENV[[:space:]]*===[[:space:]]*["\x27]development["\x27])[[:space:]]*\)/ { guard=NR }
+        /if[[:space:]]*\([[:space:]]*(__DEV__|process\.env\.NODE_ENV[[:space:]]*===[[:space:]]*["\047]development["\047])[[:space:]]*\)/ { guard=NR }
         /console\.(log|error|warn|info|debug)/ {
           if (guard != "" && NR - guard <= 5) next
           print FILENAME":"NR": "$0

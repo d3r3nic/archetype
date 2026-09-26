@@ -9,6 +9,10 @@
 #   4. No TECHNICAL-DEBT.md entries in `open` status older than threshold without escalation
 #   5. Every docs/features/*.md still references existing source types (coarse drift check)
 
+# Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
+# character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
+export LC_ALL=C
+
 PROJECT_ROOT="$(pwd)"
 
 # Tolerant of layouts

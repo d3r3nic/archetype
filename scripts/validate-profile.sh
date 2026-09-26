@@ -43,6 +43,10 @@
 # This script reads declared facts. It observes nothing about users, data, or money, cannot tell
 # whether a stated fact is true, and has no memory of earlier profiles.
 
+# Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
+# character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
+export LC_ALL=C
+
 STRICT="${VALIDATE_PROFILE_STRICT:-0}"
 DECLARED=0
 for arg in "$@"; do
@@ -296,8 +300,12 @@ else
   SEEN=0
   SUPPRESS_PASS=0
   SEEN_IDS=" "
+  PARSER_EXIT=""
   while IFS="$US" read -r id status kind control due review closure dups strays kindpresent metapresent mentions; do
     [ -z "$id" ] && continue
+    # The parser's exit status arrives as the last record; a parser that stopped early has read only
+    # part of the file, and what it did not read must not pass as "no deferrals".
+    if [ "$id" = "PARSER-EXIT" ]; then PARSER_EXIT="$status"; continue; fi
     ENTRY_ERRORS=$ERRORS
     PENDING_DEFER=""
     if [ "$id" = "UNCLOSED-FENCE" ]; then
@@ -406,6 +414,9 @@ else
     # The DEFERRED line is printed only for an entry that passed every check above.
     if [ -n "$PENDING_DEFER" ] && [ "$ERRORS" -eq "$ENTRY_ERRORS" ]; then defer "$PENDING_DEFER"; fi
   done < <(awk -v US="$US" '
+    # A character list never escapes a bracket: busybox awk keeps the backslash of "\[" or "\]"
+    # inside a list, so the list would hold a backslash and end early. "]" goes first and "[" stands
+    # bare ("[]*_`[]"), which every awk reads the same.
     function flush(   mp) {
       mp = (("Control" in seen) || ("Due-before" in seen) || ("Review-by" in seen) || ("Closure-evidence" in seen)) ? 1 : 0
       if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%d%s%d%s%s\n", id, US, status, US, kind, US, control, US, due, US, review, US, closure, US, dups, US, strays, US, kindpresent, US, mp, US, mentions
@@ -493,7 +504,7 @@ else
     # Remove tags, code marks, and emphasis marks from a span; with spaces = 1 the marks become spaces.
     function decode(x, spaces) {
       if (spaces) gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, " ", x); else gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", x)
-      gsub(/\]\(([^()"]|"[^"]*"|\([^()]*\))*\)/, "]", x); gsub(/[\[\]()]/, " ", x)
+      gsub(/\]\(([^()"]|"[^"]*"|\([^()]*\))*\)/, "]", x); gsub(/[][()]/, " ", x)
       if (spaces) gsub(/[`*_]/, " ", x); else gsub(/[`*_]/, "", x)
       return x
     }
@@ -503,8 +514,8 @@ else
       # markup-free leading words) is decoded, parentheses and punctuation included, and a governed
       # name found in it as a whole word is a stray even without a colon. A prose sentence with an
       # italic everyday word has no list marker and no leading markup, so it is not a label.
-      if (match(s, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<\[]*[ \t])?)?([*_`\[]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)+/)) {
-        op = substr(s, RSTART, RLENGTH); sub(/^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<\[]*[ \t])?)?/, "", op)
+      if (match(s, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<[]*[ \t])?)?([*_`[]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)+/)) {
+        op = substr(s, RSTART, RLENGTH); sub(/^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<[]*[ \t])?)?/, "", op)
         rest = substr(s, RSTART + RLENGTH)
         # The label is the span from the opening markup to the point where every bracket, tag, and
         # emphasis opened inside it has closed again (brackets pair with brackets, tags with their closing
@@ -532,7 +543,7 @@ else
         }
       }
       # A governed name followed by a colon anywhere, with any markup between the name and the colon.
-      t = s0; gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", t); gsub(/\]\(([^()]|\([^()]*\))*\)/, "", t); gsub(/[*_`\[\]]/, "", t)
+      t = s0; gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", t); gsub(/\]\(([^()]|\([^()]*\))*\)/, "", t); gsub(/[]*_`[]/, "", t)
       while (match(t, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)[ \t]*:/)) {
         m = substr(t, RSTART, RLENGTH); sub(/^[^a-z]/, "", m); sub(/[ \t]*:$/, "", m)
         if (index(found, " " canon(m)) == 0) found = found " " canon(m)
@@ -566,10 +577,10 @@ else
     function countchar(str, ch,   i, n) { n = 0; for (i = 1; i <= length(str); i++) if (substr(str, i, 1) == ch) n++; return n }
     function idtext(t) {
       gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", t)
-      while (t ~ /^([ \t]|[*_`\[]|<[^ \t>]*[ \t])/) sub(/^([ \t]+|[*_`\[]+|<[^ \t>]*[ \t]+)/, "", t)
+      while (t ~ /^([ \t]|[*_`[]|<[^ \t>]*[ \t])/) sub(/^([ \t]+|[*_`[]+|<[^ \t>]*[ \t]+)/, "", t)
       # Inline markup inside the identifier itself ("**TD**-903", "T*D*-903", "[TD](#x)-903") is
       # removed too: link destinations first, then markers and brackets.
-      gsub(/\]\(([^()"]|"[^"]*"|\([^()]*\))*\)/, "]", t); gsub(/[*_`\[\]]/, "", t); sub(/^[ \t]+/, "", t)
+      gsub(/\]\(([^()"]|"[^"]*"|\([^()]*\))*\)/, "]", t); gsub(/[]*_`[]/, "", t); sub(/^[ \t]+/, "", t)
       # The identifier prefix is read in any letter case and reported as TD-.
       if (tolower(substr(t, 1, 3)) == "td-") t = "TD-" substr(t, 4)
       return t
@@ -600,7 +611,7 @@ else
       sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/, "", s)
       pos = delimpos(s); if (pos == 0) return ""
       label = substr(s, 1, pos - 1)
-      if (label !~ /[*_`<\[]/) return ""
+      if (label !~ /[*_`<[]/) return ""
       # Two decodings: marks and tags removed ("K<span>ind</span>" reads Kind), and marks and tags
       # turned into spaces ("**note**Control" reads "note Control").
       lab0 = decode(label, 0); gsub(/#/, "", lab0); sub(/^[ \t]+/, "", lab0); sub(/[ \t]+$/, "", lab0)
@@ -705,7 +716,7 @@ else
             # A word split by markup ("K[ind](#f)", "K<span>ind</span>") shows as a letter touching a
             # marker, bracket, or tag; then the letters alone are searched for a field name.
             lw2 = tolower($0)
-            if (lw2 ~ /[a-z]([*_`\[<]|\]\()|([*_`\]>])[a-z]/) { lw2 = decode(lw2, 0); gsub(/[^a-z]/, "", lw2); if (lw2 ~ /(status|kind|control|due-before|review-by|closure-evidence|duebefore|reviewby|closureevidence)/) mentions = mentions " " FNR }
+            if (lw2 ~ /[a-z]([*_`[<]|\]\()|([]*_`>])[a-z]/) { lw2 = decode(lw2, 0); gsub(/[^a-z]/, "", lw2); if (lw2 ~ /(status|kind|control|due-before|review-by|closure-evidence|duebefore|reviewby|closureevidence)/) mentions = mentions " " FNR }
           }
         }
         next
@@ -723,7 +734,11 @@ else
       else if (name == "Closure-evidence") closure = v
     }
     END { flush(); if (infence) printf "UNCLOSED-FENCE%s%d\n", US, fence_line }
-  ' "$TD")
+  ' "$TD"; printf 'PARSER-EXIT%s%s\n' "$US" "$?")
+  if [ "$PARSER_EXIT" != "0" ]; then
+    fail "TECHNICAL-DEBT.md was not read to the end (the parser exited with status ${PARSER_EXIT:-unknown}); nothing after the point where it stopped was checked"
+    SUPPRESS_PASS=1
+  fi
   if [ "$SUPPRESS_PASS" -eq 1 ]; then
     :
   elif [ "$SEEN" -eq 0 ]; then

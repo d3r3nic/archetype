@@ -5,6 +5,11 @@
 # A path that is absolute or climbs out of the project is refused. It checks that a file is
 # there, never what is in it: whether the content is right is the step's other evidence and
 # the review's reading.
+
+# Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
+# character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
+export LC_ALL=C
+
 ERRORS=0
 [ $# -gt 0 ] || { echo "FAIL: name at least one path"; exit 1; }
 for path in "$@"; do

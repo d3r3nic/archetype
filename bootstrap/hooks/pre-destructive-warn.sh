@@ -9,6 +9,10 @@
 #   - Exit 2: block the tool call; stderr is passed back to Claude as context
 #   - Other non-zero: advisory warning, does not block
 
+# Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
+# character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
+export LC_ALL=C
+
 INPUT=$(cat)
 
 # Parse the tool name and command. Use jq if available; fall back to grep.
