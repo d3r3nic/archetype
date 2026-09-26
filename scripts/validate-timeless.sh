@@ -1,16 +1,17 @@
 #!/bin/bash
 # Archetype Timeless-Conventions Check
 #
-# The framework encodes character; project artifacts hold specifics. This
-# check fails when the shipped conventions, enforcers, index files, README,
-# or file templates carry content that expires:
+# The framework teaches how to decide; the project's own files hold the
+# technologies it chose. This check fails when the shipped documents, checks,
+# index files, README, or templates carry content that expires:
 #
-#   A. Product, library, service, or vendor proper names outside a section
-#      titled "Research Notes" or a line beginning "Dated example:" (term
-#      list: scripts/timeless-terms.txt; per-file exceptions with a written
-#      reason: scripts/timeless-allowlist.txt). A "Dated example:" line keeps
-#      a concrete example next to its rule and marks it expirable; the other
-#      classes still apply to it.
+#   A. A named technology anywhere: a framework, library, language, API style,
+#      service, or vendor (term list: scripts/timeless-terms.txt). No section
+#      or line is exempt. The framework's own plumbing (the AI host its entry
+#      file and hook settings are written for, the monitor's diagram library)
+#      is allowed per file, with a written reason, in
+#      scripts/timeless-allowlist.txt. Markdown documents, the shipped scripts
+#      and the page templates are all read for names.
 #   B. Factory step references ("Step 48 added this"). A step the same file
 #      defines as a heading ("## Step 12 — ...") or a step named with its
 #      playbook ("SCAFFOLD-BACKEND Step 13") is a playbook step and legal; so is a step
@@ -25,8 +26,7 @@
 #   E. Changelog language: version-scoped headers (v1, v2), "(shipped)",
 #      "not yet implemented", "added in Step N", "promoted from". Bare
 #      version tokens inside code fences and JSON are not flagged.
-#   F. Every "Research Notes" section must contain a line starting
-#      "Dated notes:" so readers know anything named there expires.
+#   Classes B to E read the Markdown documents only.
 #
 # Also validates the allowlist itself: every entry needs a justification,
 # and (when scanning the default set) every entry must match something.
@@ -38,15 +38,16 @@
 # Exit 0 on pass, 1 on any finding. Portable bash + awk + grep only; awk
 # must support POSIX ERE interval expressions ({2,3}), which is checked.
 #
-# Known limits, by design: detection is by list and pattern, so a name the
-# list lacks passes until review adds it; a Research Notes section that is
-# the last section runs to end of file; a heading must be exactly
-# "## Research Notes" or "### Research Notes" to open the allowed zone.
+# Known limit, by design: detection is by list and pattern, so a name the list
+# lacks passes until review adds it.
 #
-# Scope: every shipped markdown file except libraries/: conventions/,
-# backend/, the root and backend CLAUDE.md and Conventions.md, AGENTS.md, README.md,
-# META-BATTLE-TESTING.md, templates/*.md, bootstrap/ (with hooks/README.md),
-# scaffolding/, and development/. Pass file arguments to scan a subset.
+# Scope: every shipped Markdown file except libraries/ (conventions/, backend/,
+# the root and backend CLAUDE.md and Conventions.md, AGENTS.md, README.md,
+# META-BATTLE-TESTING.md, templates/, bootstrap/ with hooks/README.md,
+# scaffolding/, development/), and for names also the shipped scripts
+# (scripts/ except the test suites and this check's own term lists, inject.sh,
+# update.sh, bootstrap/hooks/) and the page templates under templates/. Pass
+# file arguments to scan a subset.
 
 # Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
 # character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
@@ -91,9 +92,15 @@ if [ "$#" -gt 0 ]; then
   for f in "$@"; do FILES+=("$f"); done
 else
   for f in CLAUDE.md AGENTS.md Conventions.md README.md META-BATTLE-TESTING.md backend/CLAUDE.md backend/Conventions.md \
-           conventions/*.md backend/conventions/*.md templates/*.md \
-           bootstrap/*.md bootstrap/hooks/README.md scaffolding/*.md development/*.md; do
-    [ -f "$f" ] && FILES+=("$f")
+           conventions/*.md backend/conventions/*.md templates/*.md templates/*/*.md \
+           bootstrap/*.md bootstrap/hooks/README.md scaffolding/*.md development/*.md \
+           inject.sh update.sh scripts/*.sh scripts/*.py scripts/*.txt bootstrap/hooks/*.sh \
+           templates/*.json templates/*/*.html templates/*/*.js templates/*/*.css; do
+    [ -f "$f" ] || continue
+    case "$f" in
+      scripts/test-*|scripts/timeless-terms.txt|scripts/timeless-allowlist.txt) continue ;;
+    esac
+    FILES+=("$f")
   done
 fi
 
@@ -143,7 +150,7 @@ done <<< "$ALLOW_ENTRIES"
 [ "$BAD_ALLOW" -eq 0 ] && pass "allowlist entries carry justifications"
 
 # ----------------------------------------------------------------------
-# Scan. One awk pass per file: track the Research Notes zone and code
+# Scan. One awk pass per file: track code
 # fences, apply checks. Output lines: <class>\t<file>:<line>\t<detail>
 # ----------------------------------------------------------------------
 FINDINGS="$(
@@ -157,7 +164,8 @@ for file in "${FILES[@]}"; do
     SIBLING_STEPS="$( { printf '%s\n' "$ENTRY"; sed -n 's/^Step files: //p' "$ENTRY" | tr ';' '\n'; } | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | while IFS= read -r sib; do
       [ -f "$sib" ] && sed -n -E 's/^#{1,6} Step ([0-9]+[a-z]?).*/\1/p' "$sib"; done | tr '\n' ' ')"
   fi
-  awk -v FILE="$file" -v TERMS_PATH="$TMP_TERMS" -v ALLOW_PATH="$TMP_ALLOW" -v SIBLING_STEPS="$SIBLING_STEPS" '
+  case "$file" in *.md) NAMES_ONLY=0 ;; *) NAMES_ONLY=1 ;; esac
+  awk -v FILE="$file" -v TERMS_PATH="$TMP_TERMS" -v ALLOW_PATH="$TMP_ALLOW" -v SIBLING_STEPS="$SIBLING_STEPS" -v NAMES_ONLY="$NAMES_ONLY" '
   function bounded(term) { return "(^|[^[:alnum:]_])" term "([^[:alnum:]_]|$)" }
   BEGIN {
     nterms = 0
@@ -175,7 +183,7 @@ for file in "${FILES[@]}"; do
       if (parts[1] == "*" || parts[1] == FILE) allowed[parts[2]] = 1
     }
     close(ALLOW_PATH)
-    research = 0; notice = 0; research_line = 0; fence = 0
+    fence = 0
     stat_trigger = "(^|[^[:alnum:]])(AI|[Aa]gents?|[Mm]odels?|LLMs?|[Cc]ompliance|[Gg]enerated)([^[:alnum:]]|$)"
     stat_number = "[0-9]+(\\.[0-9]+)?x([^[:alnum:]]|$)|[0-9]+(-[0-9]+)?%"
     limit_words = "([Uu]nder|[Bb]elow|[Bb]eyond|[Oo]ver|[Ee]xceeds?|[Ee]xceeding|[Mm]ore than|[Ll]ess than|[Ff]ewer than|[Uu]p to|[Aa]t most|[Mm]ax|[Mm]aximum|[Mm]aximum of|[Ll]imit of|[Ll]imited to|[Pp]ast|[Ww]ithin|[Nn]o more than|[Ll]onger than|[Ss]horter than|[Ee]very|[Ee]ach|[Pp]er|[Aa]t|[Tt]o|[Aa]round|[Rr]oughly|[Aa]bout|[Aa]pproximately)"
@@ -184,6 +192,22 @@ for file in "${FILES[@]}"; do
     version_ref = "(^|[[:space:](])v[0-9]+([^[:alnum:]]|$)"
   }
   function report(class, detail) { printf "%s\t%s:%d\t%s\n", class, FILE, FNR, detail }
+  function names(line,    scan, i, re, hit, pad, k) {
+    scan = line
+    for (i = 1; i <= nterms; i++) {
+      re = bounded(term[i])
+      while (match(scan, re)) {
+        hit = substr(scan, RSTART, RLENGTH)
+        # Strip the boundary characters captured on either side.
+        gsub(/^[^[:alnum:]_]/, "", hit); gsub(/[^[:alnum:]_]$/, "", hit)
+        if (allowed[term[i]]) { used[term[i]] = 1 }
+        else report("A", "named technology [" cat[i] "]: " hit)
+        # Blank the match so shorter terms cannot re-match inside it.
+        pad = ""; for (k = 0; k < RLENGTH; k++) pad = pad " "
+        scan = substr(scan, 1, RSTART - 1) pad substr(scan, RSTART + RLENGTH)
+      }
+    }
+  }
   # First pass over the file: collect the steps this playbook defines as headings.
   FNR == NR {
     if (match($0, /^#{1,6} Step [0-9]+[a-z]?/)) {
@@ -193,17 +217,10 @@ for file in "${FILES[@]}"; do
   }
   {
     line = $0
-    dated_line = (line ~ /^[[:space:]]*([-*] )?Dated example:/)
+    if (NAMES_ONLY == 1) { names(line); next }
     # Code fences: bare version tokens inside them are code, not scope language.
+    # Names are read inside fences too.
     if (line ~ /^[[:space:]]*```/) { fence = !fence; next }
-
-    # Zone tracking.
-    if (line ~ /^#{2,3} Research Notes[[:space:]]*$/) { research = 1; notice = 0; research_line = FNR }
-    else if (line ~ /^#{1,3} /) {
-      if (research && !notice) report("F", "Research Notes section at line " research_line " lacks a line starting \"Dated notes:\"")
-      research = 0
-    }
-    if (research && line ~ /^Dated notes:/) notice = 1
 
     # B. Factory step references. A step this file defines as a heading, or a
     #    step named together with its playbook, is a playbook step and legal.
@@ -238,26 +255,10 @@ for file in "${FILES[@]}"; do
     else if (!fence && line ~ version_ref && line !~ /^[[:space:]]*"/)
       report("E", "version-scoped scope language: " line)
 
-    # A. Named tools outside Research Notes and outside dated-example lines.
-    if (!research && !dated_line) {
-      scan = line
-      for (i = 1; i <= nterms; i++) {
-        re = bounded(term[i])
-        while (match(scan, re)) {
-          hit = substr(scan, RSTART, RLENGTH)
-          # Strip the boundary characters captured on either side.
-          gsub(/^[^[:alnum:]_]/, "", hit); gsub(/[^[:alnum:]_]$/, "", hit)
-          if (allowed[term[i]]) { used[term[i]] = 1 }
-          else report("A", "named tool outside Research Notes [" cat[i] "]: " hit)
-          # Blank the match so shorter terms cannot re-match inside it.
-          pad = ""; for (k = 0; k < RLENGTH; k++) pad = pad " "
-          scan = substr(scan, 1, RSTART - 1) pad substr(scan, RSTART + RLENGTH)
-        }
-      }
-    }
+    # A. Named technologies, anywhere.
+    names(line)
   }
   END {
-    if (research && !notice) report("F", "Research Notes section at line " research_line " lacks a line starting \"Dated notes:\"")
     for (t in used) printf "USED\t%s\t%s\n", FILE, t
   }' "$file" "$file"
 done
@@ -277,12 +278,11 @@ report_class() {
   fi
 }
 
-report_class A "no named tools outside Research Notes"
+report_class A "no named technology"
 report_class B "no factory step references"
 report_class C "no statistics attached to AI claims"
 report_class D "no tool-capability numeric limits"
 report_class E "no changelog language"
-report_class F "every Research Notes section carries the dated notice"
 
 # Allowlist entries that matched nothing are placeholders. Only meaningful
 # against the default set: a subset scan cannot see every file.

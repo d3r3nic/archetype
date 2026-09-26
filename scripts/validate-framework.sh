@@ -138,7 +138,7 @@ if [ -d backend ]; then
 fi
 
 # ----------------------------------------------------------------------
-group 7 "Templates ↔ pulse-inspect parse contract; Design Artifact label contract (#27)"
+group 7 "Templates ↔ pulse-inspect parse contract; the UI templates carry one Design Artifact brief (#27)"
 # ----------------------------------------------------------------------
 # Templates teach the AI what to produce; the inspector parses the output.
 # If the columns drift, pulse silently produces garbage. These checks keep
@@ -179,24 +179,18 @@ for REF in templates/references-frontend.md templates/references-backend.md temp
   fi
 done
 
-# UI-centric templates must carry the labelled Design Artifact section (convention #27):
-# every design tool, every session, and the maintain audit read the same fields. The
-# label list in scripts/design-artifact-labels.txt is the contract (validate-design.sh
-# reads the same file for a project's section); the mobile template adds Platform parity. The section
-# is closed: a bullet whose label is not in the contract fails, so a note belongs outside
-# the section. Presence only: a label with an empty value passes; the placeholders'
-# content is reviewed, not parsed. Labels are matched literally (no regex, no glob); a
-# label may carry any character except a backslash, which awk -v would expand, or a
-# colon, which the reverse extraction reads as the label's end. Convention #27 must
-# name every label, mobile included, inside its "Design tools" section, so the
-# vocabulary is checked in both directions.
+# The UI References templates carry the same Design Artifact brief (convention #27), so a
+# design tool finds the same fields whichever template a project started from. The list in
+# scripts/design-artifact-labels.txt keeps the two templates in step; the mobile template adds
+# Platform parity. It is the framework's own consistency check: a project's section is read by
+# validate-design.sh only for the lines it needs (Brand decided, First task, Return tasks).
+# Labels are matched literally; a label never holds a backslash or a colon.
 DA_LABELS_FILE="$SCRIPT_DIR/design-artifact-labels.txt"
 if [ ! -f "$DA_LABELS_FILE" ]; then
   fail "scripts/design-artifact-labels.txt missing; the Design Artifact contract has no label list"
 fi
 DA_LABELS="$(grep -v '^#' "$DA_LABELS_FILE" 2>/dev/null | grep -v '^[[:space:]]*$')"
 DA_MOBILE_EXTRA="Platform parity"
-DA_CONV="conventions/27-design-foundation.md"
 da_count() { printf '%s\n' "$1" | awk -v l="- $2:" 'index($0, l) == 1 { n++ } END { print n + 0 }'; }
 for REF in templates/references-frontend.md templates/references-mobile.md; do
   [ -f "$REF" ] || continue
@@ -236,30 +230,8 @@ EOF
   fi
   [ -n "$DA_MISSING" ] && fail "$(basename "$REF") Design Artifact section lacks label(s):${DA_MISSING%,} (conv #27 contract; a design tool reads these lines first)"
   [ -n "$DA_REPEATED" ] && fail "$(basename "$REF") Design Artifact section repeats label(s):${DA_REPEATED%,} (one line per field)"
-  [ -n "$DA_UNKNOWN" ] && fail "$(basename "$REF") Design Artifact section has label(s) the contract does not know:${DA_UNKNOWN%,} (add to scripts/design-artifact-labels.txt and to conv #27, or move the line out of the section)"
+  [ -n "$DA_UNKNOWN" ] && fail "$(basename "$REF") Design Artifact section has label(s) the contract does not know:${DA_UNKNOWN%,} (add it to scripts/design-artifact-labels.txt, or move the line out of the section)"
 done
-if [ -f "$DA_CONV" ]; then
-  DA_CONV_SECTION="$(awk '/^## Design tools/{flag=1;next} /^## /{flag=0} flag' "$DA_CONV")"
-  if [ -z "$DA_CONV_SECTION" ]; then
-    fail "$DA_CONV has no '## Design tools' section to name the Design Artifact labels in"
-  else
-    DA_CONV_MISSING=""
-    while IFS= read -r label; do
-      [ -n "$label" ] || continue
-      printf '%s\n' "$DA_CONV_SECTION" | grep -qF "\`${label}\`" || DA_CONV_MISSING="$DA_CONV_MISSING $label,"
-    done <<EOF
-$DA_LABELS
-$DA_MOBILE_EXTRA
-EOF
-    if [ -n "$DA_LABELS" ] && [ -z "$DA_CONV_MISSING" ]; then
-      pass "$DA_CONV names every Design Artifact label the templates carry, in its Design tools section"
-    else
-      fail "$DA_CONV does not name label(s):${DA_CONV_MISSING%,} in its Design tools section (the convention and the templates must agree)"
-    fi
-  fi
-else
-  fail "$DA_CONV missing; the Design Artifact contract has no convention to agree with"
-fi
 
 # ----------------------------------------------------------------------
 group 8 "No project artifacts inside the framework folder"

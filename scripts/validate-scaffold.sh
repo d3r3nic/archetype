@@ -4,23 +4,22 @@
 # Run from the project root after scaffolding.
 # Use --required known-screen when the scaffold route is known to produce screens.
 #
-# Checks (categorical, not prescriptive); ids match the groups the script prints:
+# Checks the project's records against the project; names no library. Ids match the groups
+# the script prints:
 #   1.  Every foundational system in feature-tree.md has its page: the path its row names
 #       in the Docs column, or docs/systems/{slug}.md; a system blocked on the owner is
 #       reported on every run with its owner action
-#   2.  An env-validation module or a named validation function exists in source
-#       (that the call sits at startup is the scaffold step's own verify line)
-#   3.  No console-level output in source outside dev-guarded blocks
+#   2.  References.md § Boundaries holds when the project records it (scripts/check-boundaries.sh);
+#       a project that has not recorded it yet gets a warning
 #   4.  Audit log path exists when the unit handles regulated data (PROFILE.md, or References.md)
-#   4b. In-memory audit store not shipped to regulated production
+#   4b. The audit log is not a memory-only store in a regulated unit
 #   5.  Smoke-test feature exists
-#   6.  CI workflow doesn't auto-run migrations on main/master pushes
-#   6b. Pre-commit hook present
-#   6c. Persisted queries for mobile/public GraphQL clients (if declared)
-#   6d. Telemetry exporter configured (if References.md names the standard)
+#   6.  A recorded migration command is bounded to its production path in § Boundaries
+#   6b. The recorded location of the project's checks exists
+#   6c. A recorded query allow-list exists
 #   7.  VERSION-LOG.md has a Scaffold entry
-#   8.  References.md § Design Artifact is filled in (delegates to validate-design.sh;
-#       a project with no such section passes)
+#   8.  References.md § Design Artifact passes validate-design.sh (a project with no such
+#       section passes unless --required known-screen)
 #
 # Exit 0 on pass, 1 on any error. Warnings do not fail.
 
@@ -210,71 +209,19 @@ EOF
 [ "$DOCS_READY" -eq 1 ] && [ "$MISSING" -eq 0 ] && pass "every foundational system has a docs/systems/ entry"
 
 # ----------------------------------------------------------------------
-group 2 "Env validation at startup (not ad-hoc)"
+group 2 "Each shared system's boundary holds (References.md § Boundaries)"
 # ----------------------------------------------------------------------
-if [ -n "$SRC_DIR" ]; then
-  # Look for a dedicated env validation file
-  ENV_VALIDATOR=""
-  for candidate in \
-    "$SRC_DIR/shared/config/env.ts" \
-    "$SRC_DIR/shared/config/env.js" \
-    "$SRC_DIR/config/env.ts" \
-    "$SRC_DIR/env.ts" \
-    "$SRC_DIR/config.py" \
-    "$SRC_DIR/shared/env.py"; do
-    [ -f "$candidate" ] && ENV_VALIDATOR="$candidate" && break
-  done
-
-  if [ -z "$ENV_VALIDATOR" ]; then
-    # Fallback: grep for a validation function
-    if grep -rqE 'loadEnv|validateEnv|EnvSchema|EnvSettings' "$SRC_DIR" 2>/dev/null; then
-      pass "env validation function detected in source"
-    else
-      warn "no dedicated env validator found (expected loadEnv / validateEnv / EnvSchema / EnvSettings pattern)"
-    fi
-  else
-    pass "env validator at $ENV_VALIDATOR"
-  fi
-fi
-
-# ----------------------------------------------------------------------
-group 3 "No console-level output in source (categorical, dev-guarded exempt)"
-# ----------------------------------------------------------------------
-if [ -n "$SRC_DIR" ]; then
-  # Heuristic: flag console.* lines UNLESS the file has a __DEV__ or NODE_ENV===development
-  # guard within 5 lines above, OR the file is a known reporter/fallback that uses guarded
-  # dev-only logging (detectable by an `if (__DEV__)` or `if (process.env.NODE_ENV === 'development')`
-  # block somewhere in the file around the console call).
-  HITS=0
-  while IFS= read -r file; do
-    case "$file" in *.test.* | *_test.* | */tests/* ) continue ;; esac
-    case "$(basename "$file")" in index.ts|index.js|main.ts|main.py|main.go|cli.* ) continue ;; esac
-    # Skip files that are entirely dev-only reporter fallbacks (common pattern: shared/errors/reporter, dev-only shims)
-    # grep has no escape for a quote inside a character list ("\x27" there is four literal characters),
-    # so the single quote is spliced into the pattern from outside the single-quoted string.
-    if grep -qE 'if[[:space:]]*\([[:space:]]*__DEV__[[:space:]]*\)|if[[:space:]]*\([[:space:]]*process\.env\.NODE_ENV[[:space:]]*===[[:space:]]*['"'"'"]development['"'"'"][[:space:]]*\)' "$file" 2>/dev/null; then
-      # File has a dev guard; check if all console.* calls are inside such a block
-      # Simple heuristic: if console line is preceded by an if(__DEV__) { within 3 lines, treat as guarded
-      UNGUARDED=$(awk '
-        /if[[:space:]]*\([[:space:]]*(__DEV__|process\.env\.NODE_ENV[[:space:]]*===[[:space:]]*["\047]development["\047])[[:space:]]*\)/ { guard=NR }
-        /console\.(log|error|warn|info|debug)/ {
-          if (guard != "" && NR - guard <= 5) next
-          print FILENAME":"NR": "$0
-        }' "$file")
-      if [ -n "$UNGUARDED" ]; then
-        warn "console-level output (unguarded) in $file"
-        HITS=$((HITS + 1))
-      fi
-    elif grep -qE 'console\.(log|error|warn|info|debug)' "$file" 2>/dev/null; then
-      warn "console-level output in $file (use structured logger)"
-      HITS=$((HITS + 1))
-    fi
-    if grep -qE '^[[:space:]]*print\(' "$file" 2>/dev/null && [[ "$file" == *.py ]]; then
-      warn "print() in $file (use structured logger)"
-      HITS=$((HITS + 1))
-    fi
-  done < <(find "$SRC_DIR" -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name '*.go' \) 2>/dev/null)
-  [ "$HITS" -eq 0 ] && pass "no ungarded console-level output found in source"
+# The lines the project recorded are enforced; a project that has not recorded the section yet
+# (installed before it existed) gets a warning here, and scripts/validate-develop.sh requires it.
+BOUNDARY_OUT="$(cd "$PROJECT_DIR" && bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/check-boundaries.sh" 2>&1)"
+BOUNDARY_STATUS=$?
+printf '%s\n' "$BOUNDARY_OUT" | sed 's/^/  /'
+if [ "$BOUNDARY_STATUS" -ne 0 ]; then
+  fail "References.md § Boundaries: see the lines above"
+elif printf '%s\n' "$BOUNDARY_OUT" | grep -q 'WARN'; then
+  warn "References.md § Boundaries is not recorded yet: record each shared system's line as it is built (scaffolding/_preamble.md, Boundaries rule)"
+else
+  pass "every recorded boundary holds"
 fi
 
 # ----------------------------------------------------------------------
@@ -447,13 +394,27 @@ if [ "$RUN_4B" -eq 1 ]; then
     AUDIT_DIR="$LOCAL_AUDIT"
   fi
   if [ -n "$AUDIT_DIR" ]; then
-    # In-memory store pattern: class name or variable names suggesting ephemeral storage
+    # Signs of a store that lives only in memory: its name, or a list the entries are pushed into.
     if grep -rqE '(InMemoryAuditStore|MemoryAuditStore|inMemoryStore|this\.records[[:space:]]*=[[:space:]]*\[\]|records:[[:space:]]*Array|push\(record\))' "$AUDIT_DIR" 2>/dev/null; then
-      # Check if there's ALSO a real backing store adapter
-      if grep -rqE '(PostgresAuditStore|PrismaAuditStore|DatabaseAuditStore|S3AuditStore|AppendOnlyStore|WORMStore|CloudAuditStore)' "$AUDIT_DIR" 2>/dev/null; then
-        pass "audit log has both in-memory (test) and backing store (production) implementations"
+      # A production store beside it: the pattern References.md § Compliance records on its Audit store
+      # line, or any other store the code names ...AuditStore (not an in-memory, fake, test, mock or stub
+      # one), or an append-only or write-once store.
+      AUDIT_STORE_PATTERN="$(tr -d '\r' < "$REFS" | awk '
+        /^## / { inside = ($0 ~ /^## Compliance[ \t]*$/); next }
+        inside && /^- Audit store:/ { v = $0; sub(/^- Audit store:[ \t]*/, "", v)
+          if (v ~ /^`/) { v = substr(v, 2); i = index(v, "`"); if (i > 1) { print substr(v, 1, i - 1); exit } } }')"
+      DURABLE=0
+      if [ -n "$AUDIT_STORE_PATTERN" ] && grep -rqE -e "$AUDIT_STORE_PATTERN" "$AUDIT_DIR" 2>/dev/null; then
+        DURABLE=1
+      elif grep -rhoE '[A-Za-z0-9_]*AuditStore' "$AUDIT_DIR" 2>/dev/null | grep -vE '^(InMemory|Memory|Fake|Test|Mock|Stub|Dummy|Noop)' | grep -vE '^AuditStore$' | grep -q .; then
+        DURABLE=1
+      elif grep -rqE '(AppendOnlyStore|WormStore|WORMStore)' "$AUDIT_DIR" 2>/dev/null; then
+        DURABLE=1
+      fi
+      if [ "$DURABLE" -eq 1 ]; then
+        pass "audit log has an in-memory store for tests and a production store beside it"
       else
-        fail "audit log uses in-memory store only ($REG_SOURCE). Ship to production = compliance failure. Add a real backing-store adapter (append-only table, WORM storage, or audit-log platform)."
+        fail "audit log uses an in-memory store only ($REG_SOURCE): shipped to production, that is a compliance failure. Add the production store (an append-only table, write-once storage, or an audit service), or record the pattern its code uses on the Audit store line of References.md § Compliance"
       fi
     else
       pass "audit log implementation does not rely on in-memory-only storage"
@@ -464,135 +425,109 @@ fi
 # ----------------------------------------------------------------------
 group 5 "Smoke-test feature exists"
 # ----------------------------------------------------------------------
-if [ -n "$SRC_DIR" ]; then
-  # Look for a smoke-test feature path
-  SMOKE_FOUND=0
-  for candidate in \
-    "$SRC_DIR/features/health" \
-    "$SRC_DIR/features/ping" \
-    "$SRC_DIR/features/smoke" \
-    "$SRC_DIR/features/_health" \
-    "$SRC_DIR/features/_smoke" \
-    "$SRC_DIR/routes/health.ts"; do
+# The feature-tree.md row whose Status says smoke-test, at its Location; else the conventional names.
+SMOKE_FOUND=0
+SMOKE_LOC="$(tr -d '\r' < "$TREE" | awk -F'|' '
+  function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+  { gsub(/\*\*/, "") }
+  /^## / { inf = ($0 ~ /^## Features/); next }
+  inf && /^\|[ \t]*[0-9]+[ \t]*\|/ && tolower($0) ~ /smoke-test/ { print trim($4); exit }')"
+SMOKE_LOC="$(printf '%s' "$SMOKE_LOC" | tr -d '`')"; SMOKE_LOC="${SMOKE_LOC#./}"
+if [ -n "$SMOKE_LOC" ] && [ -e "$PROJECT_DIR/$SMOKE_LOC" ]; then
+  SMOKE_FOUND=1
+elif [ -n "$SRC_DIR" ]; then
+  for candidate in "$SRC_DIR/features/health" "$SRC_DIR/features/ping" "$SRC_DIR/features/smoke" "$SRC_DIR/features/_health" "$SRC_DIR/features/_smoke"; do
     [ -e "$candidate" ] && SMOKE_FOUND=1 && break
   done
-  # Also accept any test file whose name hints at smoke-test
-  if [ "$SMOKE_FOUND" -eq 0 ]; then
-    if find "$SRC_DIR" -type f \( -name '*smoke*' -o -name '*.integration.test.*' \) 2>/dev/null | grep -q .; then
-      SMOKE_FOUND=1
-    fi
-  fi
-  if [ "$SMOKE_FOUND" -eq 1 ]; then
-    pass "smoke-test feature detected"
-  else
-    warn "no smoke-test feature detected — scaffold lacks end-to-end integration proof"
+  if [ "$SMOKE_FOUND" -eq 0 ] && find "$SRC_DIR" -type f \( -name '*smoke*' -o -name '*.integration.test.*' \) 2>/dev/null | grep -q .; then
+    SMOKE_FOUND=1
   fi
 fi
-
-# ----------------------------------------------------------------------
-group 6 "CI does not auto-run migrations on prod deploy"
-# ----------------------------------------------------------------------
-CI_FILES=$(find "$PROJECT_DIR/.github/workflows" "$PROJECT_DIR/.gitlab-ci.yml" "$PROJECT_DIR/.circleci" "$PROJECT_DIR/Jenkinsfile" 2>/dev/null -type f 2>/dev/null)
-if [ -n "$CI_FILES" ]; then
-  HITS_FAIL=0
-  HITS_OK=0
-  for f in $CI_FILES; do
-    # Only check files that actually run migrations
-    if grep -qE '(prisma migrate deploy|alembic upgrade head|knex migrate:latest|rake db:migrate|flyway migrate|sea-orm-cli migrate|atlas migrate apply)' "$f"; then
-      # SAFE patterns: workflow_dispatch (manual) as actual trigger, staging/dev environment gate.
-      # Anchor workflow_dispatch to YAML trigger position: either "workflow_dispatch:" at logical line start,
-      # or within an "on:" block. A bare "workflow_dispatch" in a comment should NOT match.
-      if grep -qE '^[[:space:]]*workflow_dispatch:' "$f" || awk '/^on:/,/^[a-zA-Z]/' "$f" | grep -qE 'workflow_dispatch'; then
-        pass "CI migration in $(basename "$f") is manual (workflow_dispatch trigger) — safe"
-        HITS_OK=$((HITS_OK + 1))
-      elif grep -qE '(if:[^)]*(staging|dev|development)|only:[^)]*(staging|dev|development)|environment:[^)]*(staging|dev|development))' "$f"; then
-        pass "CI migration in $(basename "$f") gated to non-prod — safe"
-        HITS_OK=$((HITS_OK + 1))
-      # UNSAFE pattern: on push to main/master WITHOUT a gate
-      elif grep -qE 'on:[[:space:]]*$|branches:.*(main|master)' "$f"; then
-        fail "CI file $(basename "$f") auto-runs migrations on push to main/master without a manual gate — violates B1. Move to a separate workflow_dispatch workflow."
-        HITS_FAIL=$((HITS_FAIL + 1))
-      else
-        warn "CI file $(basename "$f") runs migrations — verify gating (workflow_dispatch OR environment:staging)"
-      fi
-    fi
-  done
-  [ "$HITS_FAIL" -eq 0 ] && [ "$HITS_OK" -gt 0 ] && pass "all CI migration patterns are safe"
-  [ "$HITS_FAIL" -eq 0 ] && [ "$HITS_OK" -eq 0 ] && pass "no migration execution detected in CI"
+if [ "$SMOKE_FOUND" -eq 1 ]; then
+  pass "smoke-test feature detected"
 else
-  warn "no CI workflow files detected — scaffold may be incomplete"
+  warn "no smoke-test feature detected: mark its feature-tree.md row with Status smoke-test and its location; the scaffold is not complete without the integration proof"
 fi
 
 # ----------------------------------------------------------------------
-group 6b "Pre-commit hook present"
+group 6 "A recorded migration command is bounded to its production path"
 # ----------------------------------------------------------------------
-PRECOMMIT_FOUND=0
-for candidate in \
-  "$PROJECT_DIR/.husky/pre-commit" \
-  "$PROJECT_DIR/.pre-commit-config.yaml" \
-  "$PROJECT_DIR/lefthook.yml" \
-  "$PROJECT_DIR/.lefthook.yml" \
-  "$PROJECT_DIR/hooks/pre-commit.sh"; do
-  if [ -f "$candidate" ]; then
-    PRECOMMIT_FOUND=1
-    # Husky hook should be executable
-    if [[ "$candidate" == *.husky/pre-commit ]] || [[ "$candidate" == */hooks/pre-commit.sh ]]; then
-      if [ ! -x "$candidate" ]; then
-        fail "pre-commit hook exists at $candidate but is not executable (run chmod +x)"
-      else
-        pass "pre-commit hook at $candidate (executable)"
-      fi
-    else
-      pass "pre-commit config at $candidate"
-    fi
-    break
-  fi
-done
-if [ "$PRECOMMIT_FOUND" -eq 0 ]; then
-  fail "no pre-commit hook found (.husky/pre-commit, .pre-commit-config.yaml, lefthook.yml, or hooks/pre-commit.sh). Missing pre-commit = silent-shipping-without-discipline."
-fi
-
-# ----------------------------------------------------------------------
-group 6c "Persisted queries for mobile/public GraphQL clients"
-# ----------------------------------------------------------------------
-# Only applies if References.md mentions mobile/public clients AND the project has GraphQL setup
-if grep -qiE '(mobile|public|external clients|third.?party)' "$REFS" && [ -n "$SRC_DIR" ]; then
-  GQL_DIRS=$(find "$SRC_DIR" -type d \( -iname 'graphql' -o -iname 'gql' \) 2>/dev/null)
-  if [ -n "$GQL_DIRS" ]; then
-    PERSISTED_FOUND=0
-    for dir in $GQL_DIRS; do
-      if grep -rqE '(persistedQuer|persistedDocument|usePersistedQueries|APQ)' "$dir" 2>/dev/null; then
-        PERSISTED_FOUND=1
-        break
-      fi
-    done
-    if [ "$PERSISTED_FOUND" -eq 1 ]; then
-      pass "persisted queries configured (mobile/public clients detected)"
-    else
-      fail "References.md mentions mobile/public GraphQL clients but no persisted-queries configuration found. Arbitrary query execution is a production attack surface."
-    fi
-  fi
-fi
-
-# ----------------------------------------------------------------------
-group 6d "OpenTelemetry exporter configured (if OTel in References)"
-# ----------------------------------------------------------------------
-if grep -qiE '(opentelemetry|otel|otlp)' "$REFS" && [ -n "$SRC_DIR" ]; then
-  OTEL_FOUND=0
-  # Look for OTel SDK startup OR OTLP exporter configuration
-  if grep -rqE '(@opentelemetry/sdk|NodeSDK|BatchSpanProcessor|OTLPTraceExporter|OTLPMetricExporter|TracerProvider|MeterProvider|openTelemetry\.trace\.getTracer)' "$SRC_DIR" 2>/dev/null; then
-    OTEL_FOUND=1
-  fi
-  # Python / Go variants
-  if grep -rqE '(opentelemetry\.sdk|OTLPSpanExporter|opentelemetry/contrib|otelhttp|otel\.GetTracerProvider)' "$SRC_DIR" 2>/dev/null; then
-    OTEL_FOUND=1
-  fi
-  if [ "$OTEL_FOUND" -eq 1 ]; then
-    pass "OpenTelemetry exporter configured"
+# B1: production migrations never run automatically. The project records its migration command
+# as migrate: (or db:migrate:) in References.md § Commands and bounds it in § Boundaries to the
+# path that may apply it to production; the boundary check then fails the command anywhere else.
+MIGRATE_CMD="$(tr -d '\r' < "$REFS" | awk '
+  /^## / { inside = ($0 ~ /^## Commands[ \t]*$/); next }
+  inside {
+    line = $0; sub(/^[ \t]*([-*][ \t]+)?/, "", line)
+    if (line ~ /^(db:)?migrate[ \t]*:/) {
+      sub(/^(db:)?migrate[ \t]*:[ \t]*/, "", line)
+      if (line ~ /^`/) { line = substr(line, 2); i = index(line, "`"); if (i > 1) { print substr(line, 1, i - 1); exit } }
+    }
+  }')"
+case "$(printf '%s' "$MIGRATE_CMD" | tr '[:upper:]' '[:lower:]')" in ''|none|n/a) MIGRATE_CMD="" ;; esac
+if [ -z "$MIGRATE_CMD" ]; then
+  pass "no migration command recorded in References.md § Commands"
+else
+  BOUNDED=""
+  BOUNDARY_RULES="$(cd "$PROJECT_DIR" && bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/check-boundaries.sh" --rules 2>/dev/null)"
+  while IFS="$(printf '\t')" read -r blabel bpattern; do
+    [ -n "$bpattern" ] || continue
+    if printf '%s\n' "$MIGRATE_CMD" | grep -qE -e "$bpattern" 2>/dev/null; then BOUNDED="$blabel"; break; fi
+  done <<EOF
+$BOUNDARY_RULES
+EOF
+  if [ -n "$BOUNDED" ]; then
+    pass "the migration command is bounded in § Boundaries ($BOUNDED)"
+  elif ! tr -d '\r' < "$REFS" | grep -qE '^## Boundaries[[:space:]]*$'; then
+    warn "References.md records the migration command \`$MIGRATE_CMD\` but no § Boundaries section: record the path that may apply it to production, so it cannot run anywhere else (B1)"
   else
-    fail "References.md names OpenTelemetry/OTLP but no SDK startup or exporter configuration found in source. OTel env vars defined-but-unused = silent failure."
+    fail "References.md records the migration command \`$MIGRATE_CMD\`, and no § Boundaries line bounds it to its production path: add one whose pattern matches the command (B1)"
   fi
 fi
+
+# ----------------------------------------------------------------------
+group 6b "Where the project's checks run"
+# ----------------------------------------------------------------------
+# The Checks run line (References.md, Git & Project Init): each path it names in backticks exists.
+CHECKS_LINE="$(tr -d '\r' < "$REFS" | grep -E '^[[:space:]]*([-*][[:space:]]+)?Checks run[[:space:]]*:' | head -1)"
+CHECKS_VALUE="$(printf '%s' "${CHECKS_LINE#*:}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+case "$CHECKS_VALUE" in
+  '') warn "References.md records no Checks run line: say where the project's checks run before work reaches the main line (a hook, a pipeline, both, or none with why) (#2, #15)" ;;
+  '['*) warn "References.md's Checks run line still holds the template's placeholder" ;;
+  *)
+    CHECK_PATHS="$(printf '%s\n' "$CHECKS_VALUE" | awk '{ s = $0; while ((i = index(s, "`")) > 0) { s = substr(s, i + 1); j = index(s, "`"); if (!j) break; print substr(s, 1, j - 1); s = substr(s, j + 1) } }')"
+    MISSING_CHECK=0
+    while IFS= read -r cp; do
+      [ -n "$cp" ] || continue
+      cp="${cp#./}"
+      if [ ! -e "$PROJECT_DIR/$cp" ]; then
+        fail "References.md's Checks run line names \`$cp\`, which does not exist"
+        MISSING_CHECK=1
+      fi
+    done <<EOF
+$CHECK_PATHS
+EOF
+    [ "$MISSING_CHECK" -eq 0 ] && pass "Checks run: $CHECKS_VALUE" ;;
+esac
+
+# ----------------------------------------------------------------------
+group 6c "A recorded query allow-list exists"
+# ----------------------------------------------------------------------
+# B2: an API whose clients compose their own queries accepts only allow-listed queries from public
+# or device clients. The Query allow-list line records where the list lives.
+ALLOW_LINE="$(tr -d '\r' < "$REFS" | grep -E '^[[:space:]]*([-*][[:space:]]+)?Query allow-list[[:space:]]*:' | head -1)"
+ALLOW_VALUE="$(printf '%s' "${ALLOW_LINE#*:}" | sed -e 's/^[[:space:]]*//')"
+case "$ALLOW_VALUE" in
+  ''|'['*) pass "no query allow-list recorded" ;;
+  '`'*)
+    ALLOW_PATH="${ALLOW_VALUE#?}"; ALLOW_PATH="${ALLOW_PATH%%\`*}"; ALLOW_PATH="${ALLOW_PATH#./}"
+    if [ -n "$ALLOW_PATH" ] && [ -e "$PROJECT_DIR/$ALLOW_PATH" ]; then
+      pass "query allow-list at $ALLOW_PATH"
+    else
+      fail "References.md records the query allow-list at \`$ALLOW_PATH\`, which does not exist: public and device clients would run arbitrary queries (B2)"
+    fi ;;
+  *) pass "query allow-list: $ALLOW_VALUE" ;;
+esac
 
 # ----------------------------------------------------------------------
 group 7 "VERSION-LOG has scaffold entry"

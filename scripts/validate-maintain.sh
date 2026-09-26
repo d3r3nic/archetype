@@ -1,30 +1,24 @@
 #!/bin/bash
-# Validates Phase 4 (Maintain) artifacts + discipline. Machine-verifiable gates.
-# Run from project root during or after a maintenance cycle.
+# Validates Phase 4 (Maintain): the project's map against the project. Reads no fixed layout:
+# every location comes from feature-tree.md. Run from the project root during a look at the
+# project (development/MAINTAIN.md).
 #
 # Checks:
-#   1. TECHNICAL-DEBT.md exists OR documented justification in References.md
-#   2. feature-tree.md has an Audit Log section if N+ features exist
-#   3. Feature directory basename == feature-tree Feature column == docs/features filename
-#   4. No TECHNICAL-DEBT.md entries in `open` status older than threshold without escalation
-#   5. Every docs/features/*.md still references existing source types (coarse drift check)
+#   1. TECHNICAL-DEBT.md exists, or References.md says why there is none (warning)
+#   2. Every feature and system row points at a location that exists
+#   3. When the feature rows share one parent folder, every folder in it has a row (warning)
+#   4. Every TECHNICAL-DEBT.md entry has a Status (warning)
+#   5. Every feature record's backticked type names still appear in the feature's location
+#      (a coarse drift warning)
 
 # Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
 # character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
 export LC_ALL=C
 
 PROJECT_ROOT="$(pwd)"
-
-# Tolerant of layouts
-SRC_DIR=""
-for candidate in "$PROJECT_ROOT/src" "$PROJECT_ROOT/app" "$PROJECT_ROOT/lib"; do
-  [ -d "$candidate" ] && SRC_DIR="$candidate" && break
-done
-
 TREE="$PROJECT_ROOT/feature-tree.md"
 REFS="$PROJECT_ROOT/References.md"
 TD="$PROJECT_ROOT/TECHNICAL-DEBT.md"
-DOCS_FEATURES="$PROJECT_ROOT/docs/features"
 
 if [ ! -f "$TREE" ]; then
   echo "Error: feature-tree.md not found at project root. Run from a scaffolded project."
@@ -47,179 +41,137 @@ group() { printf "\n[%s] %s\n" "$1" "$2"; }
 echo "Maintain Self-Test"
 echo "Project: $PROJECT_ROOT"
 
+# A Location value names a place only as a plain local path; anything else is left unread.
+plain_path() {
+  case "$1" in
+    /*|'~'*|*://*|'') return 1 ;;
+    *[[:space:]]*|*'['*|*']'*|*'('*|*')'*|*'<'*|*'>'*|*'"'*|*"'"*|*'#'*|*\\*|*'*'*) return 1 ;;
+  esac
+  return 0
+}
+
+# Rows of both tables: table|num|name|location|status. A row is a line that starts with a pipe and
+# whose first cell, bold markers removed, is a number (the rule scripts/pulse-inspect.sh applies).
+ROWS="$(tr -d '\r' < "$TREE" | awk -F'|' '
+  function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+  { gsub(/\*\*/, "") }
+  /^## / { table = ""; if ($0 ~ /^## Features/) table = "feature"; else if (tolower($0) ~ /^## (foundational systems|systems)/) table = "system"; next }
+  table == "" || !/^\|/ { next }
+  /^\|[ \t]*[0-9]+[ \t]*\|/ {
+    # Features: #, Feature, Location, Routes, Systems Used, Status. Systems: #, Name, Convention, Location, Status.
+    if (table == "feature") printf "%s|%s|%s|%s|%s\n", table, trim($2), trim($3), trim($4), trim($7)
+    else printf "%s|%s|%s|%s|%s\n", table, trim($2), trim($3), trim($5), trim($6)
+  }')"
+
 # ----------------------------------------------------------------------
-group 1 "TECHNICAL-DEBT.md exists or absence is documented"
+group 1 "TECHNICAL-DEBT.md exists or its absence is explained"
 # ----------------------------------------------------------------------
 if [ -f "$TD" ]; then
-  lines=$(wc -l < "$TD" | tr -d ' ')
-  if [ "$lines" -lt 5 ]; then
-    warn "TECHNICAL-DEBT.md exists but is nearly empty — ensure entries are being logged"
-  else
-    pass "TECHNICAL-DEBT.md exists ($lines lines)"
-  fi
+  pass "TECHNICAL-DEBT.md exists"
+elif [ -f "$REFS" ] && grep -qiE '(technical.?debt|tech.?debt).*(n/a|none yet|deferred|not yet)' "$REFS"; then
+  pass "TECHNICAL-DEBT.md absent, and References.md says why"
 else
-  # Allow documented absence — e.g., very early-stage project, or documented in References.md
-  if [ -f "$REFS" ] && grep -qiE '(technical.?debt|tech.?debt).*(n/a|none yet|deferred)' "$REFS"; then
-    pass "TECHNICAL-DEBT.md absent but documented in References.md"
-  else
-    warn "TECHNICAL-DEBT.md not found and no documented justification in References.md"
-  fi
+  warn "TECHNICAL-DEBT.md not found, and References.md does not say why; create it from templates/technical-debt.md when the first shortcut or deferral is taken"
 fi
 
 # ----------------------------------------------------------------------
-group 2 "feature-tree.md has Audit Log if project has N+ features"
+group 2 "Every row points at a location that exists"
 # ----------------------------------------------------------------------
-FEATURES_DIR="$SRC_DIR/features"
-if [ -d "$FEATURES_DIR" ]; then
-  # Count feature directories (exclude smoke-test — status-driven, with name fallback)
-  FEATURE_COUNT=0
-  for dir in "$FEATURES_DIR"/*/; do
-    [ -d "$dir" ] || continue
-    base=$(basename "$dir")
-    # Status-driven exemption (preferred — matches validate-develop.sh logic)
-    if grep -qE "^\|[^|]*\|[[:space:]]*${base}[[:space:]]*\|.*smoke-test" "$TREE"; then continue; fi
-    # Name-allowlist fallback (for projects that haven't adopted status=smoke-test yet)
-    case "$base" in health|_health|ping|smoke) continue ;; esac
-    FEATURE_COUNT=$((FEATURE_COUNT + 1))
-  done
-
-  if [ "$FEATURE_COUNT" -ge 2 ]; then
-    if grep -qE '^## Audit Log' "$TREE"; then
-      pass "feature-tree.md has Audit Log section ($FEATURE_COUNT features)"
-    else
-      fail "feature-tree.md has $FEATURE_COUNT features but no ## Audit Log section. Phase 4 audits must leave a record."
-    fi
-  else
-    pass "feature-tree.md audit log not required yet ($FEATURE_COUNT features — threshold is 2)"
+MISSING=0
+FEATURE_PARENTS=""
+while IFS='|' read -r table num name location status; do
+  [ -n "$table" ] || continue
+  loc="$(printf '%s' "$location" | tr -d '`')"; loc="${loc#./}"; loc="${loc%/}"
+  case "$loc" in ''|'['*|none|n/a|-) continue ;; esac
+  status_lc="$(printf '%s' "$status" | tr '[:upper:]' '[:lower:]')"
+  case "$status_lc" in *'not started'*|*deferred*|*blocked*|*'not applicable'*) continue ;; esac
+  if ! plain_path "$loc"; then continue; fi
+  if [ ! -e "$PROJECT_ROOT/$loc" ]; then
+    fail "$table row $num ($name) names $loc, which does not exist; correct the row or restore what it names"
+    MISSING=$((MISSING + 1))
+  elif [ "$table" = feature ]; then
+    FEATURE_PARENTS="$FEATURE_PARENTS
+$(dirname "$loc")"
   fi
-fi
-
-# Feature-count loop above uses name-allowlist fallback. Mirror validate-develop.sh's
-# status-driven approach: a row with Status=smoke-test is exempt regardless of name.
-# This is what the feature-count loop SHOULD do — apply here as well for consistency
-# per MAINTAIN-RED-FLAGS #5 (two audits disagreeing on same concept).
+done <<EOF
+$ROWS
+EOF
+[ "$MISSING" -eq 0 ] && pass "every row with a location points at one that exists"
 
 # ----------------------------------------------------------------------
-group 3 "Feature directory == feature-tree Feature column == docs/features filename"
+group 3 "Folders beside the features have rows"
 # ----------------------------------------------------------------------
-# This catches the "src/features/sessions/ hosts record-session" drift.
-MISMATCH=0
-if [ -d "$FEATURES_DIR" ] && [ -d "$DOCS_FEATURES" ]; then
-  for dir in "$FEATURES_DIR"/*/; do
+PARENTS="$(printf '%s\n' "$FEATURE_PARENTS" | grep -v '^$' | sort -u)"
+if [ -n "$PARENTS" ] && [ "$(printf '%s\n' "$PARENTS" | wc -l | tr -d ' ')" -eq 1 ] && [ "$PARENTS" != "." ]; then
+  UNLISTED=0
+  for dir in "$PROJECT_ROOT/$PARENTS"/*/; do
     [ -d "$dir" ] || continue
-    base=$(basename "$dir")
-    case "$base" in health|_health|ping|smoke) continue ;; esac
-
-    # Check if feature-tree.md has a row where Feature column matches base
-    # Status-driven smoke-test exemption (mirror of validate-develop.sh)
-    if grep -qE "^\|[^|]*\|[[:space:]]*${base}[[:space:]]*\|.*smoke-test" "$TREE"; then continue; fi
-    # Name-allowlist fallback
-    case "$base" in health|_health|ping|smoke) continue ;; esac
-
-    if ! grep -qE "^\|[[:space:]]*[0-9-]+[[:space:]]*\|[[:space:]]*${base}[[:space:]]*\|" "$TREE"; then
-      fail "feature directory '$base' has no matching row in feature-tree.md Feature column"
-      MISMATCH=$((MISMATCH + 1))
-      continue
-    fi
-
-    # Check if docs/features/{base}.md exists
-    if [ ! -f "$DOCS_FEATURES/${base}.md" ]; then
-      fail "feature directory '$base' has no matching docs/features/${base}.md"
-      MISMATCH=$((MISMATCH + 1))
+    rel="$PARENTS/$(basename "$dir")"
+    if ! printf '%s\n' "$ROWS" | awk -F'|' -v r="$rel" '{ l = $4; gsub(/`/, "", l); sub(/^\.\//, "", l); sub(/\/$/, "", l); if (l == r) found = 1 } END { exit found ? 0 : 1 }'; then
+      warn "$rel sits beside the features in $PARENTS/ but has no row in feature-tree.md; add its row, or note why it is not a feature"
+      UNLISTED=$((UNLISTED + 1))
     fi
   done
-  [ "$MISMATCH" -eq 0 ] && pass "feature directory / feature-tree / docs/features all align"
+  [ "$UNLISTED" -eq 0 ] && pass "every folder in $PARENTS/ has a row"
+else
+  pass "the feature rows share no single parent folder; nothing to compare"
 fi
 
 # ----------------------------------------------------------------------
-group 4 "TECHNICAL-DEBT.md entries have Status field and open entries not over-aged"
+group 4 "TECHNICAL-DEBT.md entries have a Status"
 # ----------------------------------------------------------------------
 if [ -f "$TD" ]; then
-  # First: detect entries that lack a Status: field entirely. Legacy format often
-  # has "Fix policy:" or no status at all — those silently bypass the stale check.
-  # Per MAINTAIN-RED-FLAGS #2: log grows forever without pruning.
-  MISSING_STATUS=0
-  # Every ## TD-N heading should be followed within the entry block by a Status line
-  TD_ENTRIES=$(grep -cE '^## TD-' "$TD" 2>/dev/null || echo 0)
-  STATUS_COUNT=$(grep -cE '^- \*\*Status:' "$TD" 2>/dev/null || echo 0)
-  if [ "$TD_ENTRIES" -gt 0 ] && [ "$STATUS_COUNT" -lt "$TD_ENTRIES" ]; then
-    MISSING=$((TD_ENTRIES - STATUS_COUNT))
-    fail "$MISSING of $TD_ENTRIES TECHNICAL-DEBT entries lack a 'Status:' field. Without Status, the staleness check silently bypasses them — MAINTAIN-RED-FLAGS.md #2. Retrofit the legacy format."
-    MISSING_STATUS=$MISSING
-  fi
-
-  # Then: count open entries older than threshold
-  STALE=0
-  THRESHOLD_DAYS=180
-  NOW_EPOCH=$(date +%s)
-  while IFS= read -r logged_line; do
-    date_str=$(echo "$logged_line" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1)
-    [ -z "$date_str" ] && continue
-    if date -j -f "%Y-%m-%d" "$date_str" "+%s" >/dev/null 2>&1; then
-      logged_epoch=$(date -j -f "%Y-%m-%d" "$date_str" "+%s")
-    elif date -d "$date_str" "+%s" >/dev/null 2>&1; then
-      logged_epoch=$(date -d "$date_str" "+%s")
-    else
-      continue
-    fi
-    age_days=$(( (NOW_EPOCH - logged_epoch) / 86400 ))
-    if [ "$age_days" -gt "$THRESHOLD_DAYS" ]; then
-      STALE=$((STALE + 1))
-    fi
-  done < <(grep -B 5 -iE '^- \*\*Status:\*\* *open' "$TD" 2>/dev/null | grep -iE '^- \*\*Logged:' || true)
-
-  if [ "$STALE" -gt 0 ]; then
-    warn "$STALE TECHNICAL-DEBT entries in open status are older than $THRESHOLD_DAYS days — review for escalation or force-fix"
-  elif [ "$MISSING_STATUS" -eq 0 ]; then
-    pass "TECHNICAL-DEBT entries have Status field; no stale open entries"
+  NO_STATUS="$(tr -d '\r' < "$TD" | awk '
+    /^ ? ? ?(```|~~~)/ { fence = !fence; next }
+    fence { next }
+    /^#+[ \t]/ { t = $0; sub(/^#+[ \t]+/, "", t); gsub(/[*_`]/, "", t)
+      if (toupper(substr(t, 1, 3)) == "TD-") { if (id != "" && !st) print id; id = t; sub(/[^A-Za-z0-9-].*$/, "", id); st = 0; next }
+      if ($0 ~ /^#[ \t]/) { if (id != "" && !st) print id; id = "" }
+      next }
+    id != "" && tolower($0) ~ /^[ \t]*([-*+][ \t]+)?[*_`]*status[*_`]*[ \t]*:/ { st = 1 }
+    END { if (id != "" && !st) print id }')"
+  if [ -n "$NO_STATUS" ]; then
+    warn "TECHNICAL-DEBT.md entries without a Status: $(printf '%s' "$NO_STATUS" | tr '\n' ' ')(record open, in-progress, fixed or won't-fix so each can be revisited)"
+  else
+    pass "every TECHNICAL-DEBT.md entry has a Status"
   fi
 fi
 
 # ----------------------------------------------------------------------
-group 5 "docs/features/*.md coarse type-reference freshness"
+group 5 "Feature records still name types their features define"
 # ----------------------------------------------------------------------
-# For each feature doc, extract referenced type names (heuristic: CamelCase words
-# that look like type/schema names) and verify they still exist in the feature source.
-# Coarse — catches wholesale removals, misses subtle shape changes.
-if [ -d "$DOCS_FEATURES" ] && [ -d "$FEATURES_DIR" ]; then
-  DRIFTED=0
-  for doc in "$DOCS_FEATURES"/*.md; do
-    [ -f "$doc" ] || continue
-    name=$(basename "$doc" .md)
-    # Find matching feature dir — either exact match or with - substituted
-    feature_src=""
-    if [ -d "$FEATURES_DIR/$name" ]; then
-      feature_src="$FEATURES_DIR/$name"
-    else
-      # Try with first-word match
-      first_word=$(echo "$name" | cut -d- -f1)
-      [ -d "$FEATURES_DIR/$first_word" ] && feature_src="$FEATURES_DIR/$first_word"
-      # Try plural/singular
-      [ -d "$FEATURES_DIR/${first_word}s" ] && feature_src="$FEATURES_DIR/${first_word}s"
+# For each feature row with a record and a location: type-like names in backticks in the record
+# (ending Schema, Input, Output, Request, Response or Entry) should still appear in the location.
+# Coarse: it catches a wholesale removal, not a subtle change of shape.
+DRIFTED=0
+while IFS='|' read -r table num name location status; do
+  [ "$table" = feature ] || continue
+  loc="$(printf '%s' "$location" | tr -d '`')"; loc="${loc#./}"; loc="${loc%/}"
+  plain_path "$loc" && [ -e "$PROJECT_ROOT/$loc" ] || continue
+  cell="$(printf '%s' "$name" | tr -d ' ')"
+  doc="$PROJECT_ROOT/docs/features/$cell.md"
+  [ -f "$doc" ] || continue
+  TYPES="$(grep -oE '`[A-Z][a-zA-Z]*(Schema|Input|Output|Request|Response|Entry)`' "$doc" | tr -d '`' | sort -u)"
+  for t in $TYPES; do
+    if ! grep -rqE "(^|[^A-Za-z0-9_])$t([^A-Za-z0-9_]|\$)" "$PROJECT_ROOT/$loc" 2>/dev/null; then
+      warn "docs/features/$cell.md names type '$t', which no longer appears in $loc: the record may have drifted"
+      DRIFTED=$((DRIFTED + 1))
     fi
-    [ -z "$feature_src" ] && continue
-
-    # Extract type names in backticks from the doc (heuristic)
-    TYPES=$(grep -oE '`[A-Z][a-zA-Z]*(Schema|Input|Output|Request|Response|Entry)`' "$doc" | tr -d '`' | sort -u)
-    for t in $TYPES; do
-      if ! grep -rqE "(interface|type|const|class|function)[[:space:]]+$t\b|^export[[:space:]]+(const|type|interface|class|function)[[:space:]]+$t\b" "$feature_src" 2>/dev/null; then
-        warn "$doc references type '$t' but it's not found in $feature_src — possible doc drift"
-        DRIFTED=$((DRIFTED + 1))
-      fi
-    done
   done
-  [ "$DRIFTED" -eq 0 ] && pass "docs/features type references are present in source"
-fi
+done <<EOF
+$ROWS
+EOF
+[ "$DRIFTED" -eq 0 ] && pass "feature records' type names are present in their features"
 
 # ----------------------------------------------------------------------
 echo ""
 echo "==="
 if [ "$ERRORS" -gt 0 ]; then
   printf "${RED}%d errors${NC}, %d warnings\n" "$ERRORS" "$WARNINGS"
-  echo "Fix errors before the next release cycle. See development/MAINTAIN-RED-FLAGS.md for context."
+  echo "Fix the map before relying on it. See development/MAINTAIN-RED-FLAGS.md."
   exit 1
 else
   printf "${GREEN}Pass${NC}: 0 errors, %d warnings\n" "$WARNINGS"
-  [ "$WARNINGS" -gt 0 ] && echo "Warnings are advisory — review each for real risk."
+  [ "$WARNINGS" -gt 0 ] && echo "Warnings are advisory: review each for real drift."
   exit 0
 fi

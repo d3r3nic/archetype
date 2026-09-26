@@ -2,19 +2,20 @@
 #
 # One term per line: <extended-regex><TAB><category>. Terms are matched
 # case-sensitively as whole words (bounded by non-word characters) in every
-# scanned line that is NOT inside a "Research Notes" section. Escape dots.
+# scanned line: no section and no line is exempt. Escape dots.
 # Longer terms are tried first, so "React Native" consumes before "React".
 #
-# What belongs here: proper names of products, libraries, frameworks,
-# services, vendors, and vendor-specific identifiers (env-var prefixes,
-# config file names). What does NOT belong here: programming languages,
-# open standards (HTTP, JSON, OWASP, WCAG, ARIA, OpenAPI, GraphQL),
-# regulations (HIPAA, GDPR, PCI), and target platforms a product ships to
-# (iOS, Android, the web). Common English words that double as product
-# names (Black, Square, Monday, Provider, Bootstrap) are deliberately
-# absent; they are caught by review, not by this list. The same goes for
-# product names that are ordinary capitalized words at sentence start
-# (Express, Relay, Remix, Cursor, Notion).
+# What belongs here: proper names of frameworks, libraries, programming
+# languages, API styles, products, services, vendors, and identifiers bound
+# to one of them (env-var prefixes, config file names, hook and class names).
+# The framework names none of them; the session picks the stack from the use
+# case and records it in the project's own files. What does NOT belong here:
+# open standards and formats (HTTP, JSON, OWASP, WCAG, ARIA, OAuth),
+# regulations (HIPAA, GDPR, PCI), and the platforms a product ships to.
+# Common English words that double as product names (Black, Square, Monday,
+# Provider, Bootstrap, Go) are deliberately absent; they are caught by
+# review, not by this list. The same goes for product names that are ordinary
+# capitalized words at sentence start (Express, Relay, Remix, Cursor, Notion).
 #
 # Prefix and extension terms carry their own tail ("NEXT_PUBLIC[A-Z_]*",
 # "[A-Za-z0-9_-]*\.tsx") because the word boundary treats "_" and letters
@@ -23,6 +24,48 @@
 #
 # Add a term when a review finds a name the list missed. Remove nothing
 # because a name went out of fashion: the list only grows.
+
+# Programming languages
+TypeScript	language
+JavaScript	language
+Python	language
+Kotlin	language
+Swift	language
+Java	language
+Golang	language
+Rust	language
+Ruby	language
+PHP	language
+Dart	language
+Elixir	language
+Scala	language
+Objective-C	language
+C\+\+	language
+C#	language
+
+# API styles and API description formats
+GraphQL	api-style
+gRPC	api-style
+RESTful	api-style
+REST	api-style
+SOAP	api-style
+JSON-RPC	api-style
+OpenAPI	api-style
+
+# Framework-specific vocabulary
+JSX	framework-term
+TSX	framework-term
+useAuth	framework-term
+useQuery	framework-term
+useState	framework-term
+useEffect	framework-term
+ErrorBoundary	framework-term
+prop drilling	framework-term
+PrismaClient	framework-term
+IORedis	framework-term
+OpenTelemetry	framework-term
+OTLP	framework-term
+Web Vitals	framework-term
 
 # UI component libraries and styling frameworks
 MUI	ui-library

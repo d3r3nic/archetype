@@ -285,7 +285,7 @@ fi
 
 # Scan actual filesystem.
 # Supports single-app layout ($PROJECT_ROOT/src/*) AND monorepo layout
-# ($PROJECT_ROOT/apps/*/src/* where apps/ is a pnpm workspace directory).
+# ($PROJECT_ROOT/apps/*/src/* where apps/ is a workspace directory).
 # In a monorepo, features/systems from every app are aggregated — drift is
 # reported against the union. If multiple apps declare the same feature
 # name, duplicates are deduped at emit time.

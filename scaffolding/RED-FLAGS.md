@@ -95,7 +95,7 @@ A session pins versions from memory, which are stale by the time it scaffolds, a
 
 When the stack composes shared contexts at the root (error handling, data cache, theme, identity, navigation, shared state), the order decides what each can see, and a wrong order fails quietly: guards that read an identity context mounted below them see nothing and let everyone through; a component that needs the data cache fails at run time; a theme mounted too low flashes unstyled content.
 
-**Defense:** Step 8 records the order once, as one composition, and the test setup (Step 10) reuses that composition instead of copying it, so tests cannot run with a different order than production.
+**Defense:** SCAFFOLD-FRONTEND Step 8 records the order once, as one composition, and the test setup of SCAFFOLD-FRONTEND Step 10 reuses that composition instead of copying it, so tests cannot run with a different order than production.
 
 ## 15. Route guards forgotten on protected routes
 

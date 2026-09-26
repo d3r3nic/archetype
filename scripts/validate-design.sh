@@ -1,5 +1,11 @@
 #!/bin/bash
-# Validates the one live References.md Design Artifact section (convention #27).
+# Validates the one live References.md Design Artifact section (convention #27) for what a
+# script can check without judging the design:
+#   - a project known to have a screen (--required known-screen) has exactly one live section;
+#   - no line of the section still holds its template placeholder;
+#   - Brand decided reads as a known state, and a settled brand (yes) waits until First task and
+#     Return tasks are known, because a direction composes the screen for the first return task.
+# The section's other lines are the project's brief; which of them it keeps is its own choice.
 # Run from the project root: scripts/validate-design.sh [--required known-screen]
 # Use --required known-screen when the caller already knows the project has a screen.
 
@@ -14,7 +20,7 @@ while [ "$#" -gt 0 ]; do
       [ "$#" -ge 2 ] || { echo "--required needs a value (accepted: known-screen)"; exit 2; }
       REQUIRED="$2"; shift 2 ;;
     -h|--help)
-      sed -n '2,4p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+      sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown argument: $1 (accepted: --required known-screen)"; exit 2 ;;
   esac
 done
@@ -24,7 +30,6 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(pwd)"
-LABELS_FILE="$SCRIPT_DIR/design-artifact-labels.txt"
 
 REFS=""
 for dir in "$PROJECT_ROOT" "$PROJECT_ROOT/project" "$PROJECT_ROOT/archetype"; do
@@ -42,10 +47,6 @@ echo "Design Artifact Self-Test"
 
 if [ -z "$REFS" ]; then
   echo "Error: References.md not found. Run from the project root."
-  exit 1
-fi
-if [ ! -f "$LABELS_FILE" ]; then
-  echo "Error: $LABELS_FILE not found; the label contract ships beside this script."
   exit 1
 fi
 echo "References: $REFS"
@@ -100,8 +101,6 @@ awk '
   in_section { print }
 ' "$LIVE" > "$SECTION_FILE"
 
-LABELS="$(tr -d '\r' < "$LABELS_FILE" | sed -e 's/[[:space:]]*$//' | grep -v '^#' | grep -v '^$')"
-
 # Parse one-line list facts. Harmless inline decoration around a label is normalized so
 # the same field cannot evade missing, duplicate, or unfinished-value checks.
 awk '
@@ -120,38 +119,11 @@ awk '
 fact_count() { awk -F '\t' -v label="$1" '$1 == label { n++ } END { print n + 0 }' "$FACTS"; }
 fact_value() { awk -F '\t' -v label="$1" '$1 == label { sub(/^[^\t]*\t/, ""); print; exit }' "$FACTS"; }
 
-MISSING=""
-REPEATED=""
-while IFS= read -r label; do
-  [ -n "$label" ] || continue
+# The lines this script reads appear once: two values for one of them would be two facts.
+for label in "Brand decided" "First task" "Return tasks"; do
   n="$(fact_count "$label")"
-  if [ "$n" -eq 0 ]; then MISSING="$MISSING $label,"
-  elif [ "$n" -gt 1 ]; then REPEATED="$REPEATED $label,"
-  fi
-done <<EOF
-$LABELS
-EOF
-[ -n "$MISSING" ] && fail "Design Artifact section lacks label(s):${MISSING%,} (copy each line from the References template and fill it in; conv #27)"
-[ -n "$REPEATED" ] && fail "Design Artifact section repeats label(s):${REPEATED%,} (one line per field)"
-[ -z "$MISSING" ] && [ -z "$REPEATED" ] && pass "Every label of the contract appears exactly once"
-
-# Platform parity is the one optional template-specific field. Any other field may be a
-# note, but no unknown field can appear twice and masquerade as two different facts.
-DUPLICATE_OTHER="$(awk -F '\t' '
-  { count[$1]++ }
-  END { for (label in count) if (count[label] > 1) print label }
-' "$FACTS" | while IFS= read -r label; do
-  [ -n "$label" ] || continue
-  known=0
-  while IFS= read -r expected; do [ "$label" = "$expected" ] && known=1; done <<EOF
-$LABELS
-EOF
-  [ "$label" = "Platform parity" ] && known=0
-  [ "$known" -eq 0 ] && printf '%s\n' "$label"
-done)"
-if [ -n "$DUPLICATE_OTHER" ]; then
-  fail "Design Artifact section repeats field(s) outside the shared label contract: $(printf '%s' "$DUPLICATE_OTHER" | tr '\n' ',' | sed 's/,$//')"
-fi
+  [ "$n" -gt 1 ] && fail "Design Artifact section repeats \"$label\"; keep one line"
+done
 
 normalize_value() {
   printf '%s' "$1" | sed -E \
@@ -169,40 +141,32 @@ is_placeholder_text() {
 }
 
 is_incomplete() {
-  label="$1"; raw="$2"; value="$(normalize_value "$raw")"
-  [ -n "$value" ] || return 0
+  label="$1"; raw="$2"
   if is_placeholder_text "$raw"; then
     case "$raw" in '[to be created]'*) [ "$label" = "Artifact location" ] && return 1 ;; esac
     return 0
   fi
-  case "$value" in
-    pending*|tbd*|todo*|'status: pending'*|'awaiting owner'*|deferred*|'to decide'*|'to be decided'*|'to be determined'*|'to do'*)
-      if [ "$label" = "Brand decided" ] && [ "$value" = "deferred to downstream projects" ]; then return 1; fi
-      return 0 ;;
-  esac
   return 1
 }
 
 UNFILLED=""
-while IFS= read -r label; do
+while IFS="$(printf '\t')" read -r label value; do
   [ -n "$label" ] || continue
-  [ "$(fact_count "$label")" -gt 0 ] || continue
-  value="$(fact_value "$label")"
   if is_incomplete "$label" "$value"; then UNFILLED="$UNFILLED $label,"; fi
-done <<EOF
-$LABELS
-Platform parity
-EOF
+done < "$FACTS"
 if [ -n "$UNFILLED" ]; then
-  fail "Design Artifact line(s) still hold the template placeholder, a deferral, or no value:${UNFILLED%,} (this also includes decorated unfinished answers; record a fact, explicit unknown, justified none or not applicable, or the allowed template deferral)"
+  fail "Design Artifact line(s) still hold the template placeholder:${UNFILLED%,} (record the fact, unknown with what was assumed, or none with why)"
 else
-  pass "No Design Artifact line holds a template placeholder or unfinished answer"
+  pass "No Design Artifact line holds a template placeholder"
 fi
 
 # Brand decided uses a leading canonical state. Later prose cannot turn a leading no into
 # yes, and synonyms cannot silently settle the brand. Open and template states stay legal.
 BRAND_VALUE="$(normalize_value "$(fact_value "Brand decided")")"
 BRAND_STATE=""
+if [ "$(fact_count "Brand decided")" -eq 0 ]; then
+  fail "Design Artifact section has no Brand decided line: record yes, not yet, no, unknown, or deferred to downstream projects"
+fi
 case "$BRAND_VALUE" in
   yes|yes[[:space:]]*|yes,*|yes.*|yes:*|yes-*|yes\;*) BRAND_STATE="yes" ;;
   'not yet'|'not yet '*|'not yet,'*|'not yet.'*|'not yet:'*|'not yet-'*|'not yet;'*|no|no[[:space:]]*|no,*|no.*|no:*|no-*|no\;*|unknown|unknown[[:space:]]*|unknown,*|unknown.*|unknown:*|unknown-*|unknown\;*) BRAND_STATE="open" ;;

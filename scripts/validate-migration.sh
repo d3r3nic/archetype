@@ -1,17 +1,16 @@
 #!/bin/bash
-# Validates an existing-project migration produced by bootstrap/EXISTING-PROJECT.md.
-# Checks migration structure; semantic preservation still needs review. Run after migration,
-# before committing.
+# Validates an existing project's adoption (bootstrap/EXISTING-PROJECT.md): the records the
+# adoption must leave. It cannot tell whether every rule found its home; the walk through each
+# original that the flow describes does that, and the independent review reads the map.
+# Run after adoption, before committing.
 #
 # Checks:
-#   1. conventions/overrides/ length heuristic (warning only)
-#   2. Every override file starts with a "# Convention #N: {Name} — PROJECT OVERRIDES" header
-#   3. Every audit file names its convention with "Maps to convention: #N"
-#   4. INDEX.md exists and is non-trivial
-#   5. docs/migrated/ matches originals byte-for-byte (no accidental edits)
-#   6. CLAUDE.md.pre-archetype exists (original preserved)
-#   7. Project context artifacts exist
-#   8. References.md records the owner's peer-coding answer (bootstrap Step 2.6), through
+#   1. The earlier entry files were kept as .pre-archetype copies (reported, not required: a
+#      project may have had none)
+#   2. References.md and feature-tree.md exist
+#   3. The map exists: MIGRATION-NOTES.md, or INDEX.md from an adoption under an earlier version
+#   4. Copies an earlier version made in docs/migrated/ still match their originals
+#   5. References.md records the owner's peer-coding answer (bootstrap Step 2.6), through
 #      validate-bootstrap.py peer
 #
 # Exit 0 on pass, 1 on any error. Warnings do not fail.
@@ -59,81 +58,44 @@ echo "Project: $PROJECT_ROOT"
 echo "Archetype: $ARCHETYPE"
 
 # ----------------------------------------------------------------------
-group 1 "Override files non-trivial (catches summarization)"
+group 1 "The earlier entry files were kept"
 # ----------------------------------------------------------------------
-MIN_OVERRIDE_LINES=20  # Any override file under 20 lines is suspicious
-OVERRIDE_DIR="$(project_path conventions/overrides)"
-if [ -d "$OVERRIDE_DIR" ]; then
-  SHORT=0
-  for file in "$OVERRIDE_DIR"/*.md; do
-    [ -f "$file" ] || continue
-    lines=$(wc -l < "$file" | tr -d ' ')
-    if [ "$lines" -lt "$MIN_OVERRIDE_LINES" ]; then
-      warn "override file under ${MIN_OVERRIDE_LINES} lines (possible summarization): $(basename "$file") ($lines lines)"
-      SHORT=$((SHORT + 1))
-    fi
-  done
-  [ "$SHORT" -eq 0 ] && pass "all override files meet minimum length"
+if [ -f "$PROJECT_ROOT/CLAUDE.md.pre-archetype" ]; then
+  pass "original CLAUDE.md archived as CLAUDE.md.pre-archetype"
 else
-  warn "no conventions/overrides/ directory — migration may not have extracted rules"
+  warn "no CLAUDE.md.pre-archetype — either no prior CLAUDE.md existed, or inject.sh was not used"
+fi
+if [ -f "$PROJECT_ROOT/AGENTS.md.pre-archetype" ]; then
+  pass "original AGENTS.md archived as AGENTS.md.pre-archetype"
 fi
 
 # ----------------------------------------------------------------------
-group 2 "Override files have correct header"
+group 2 "References.md and feature-tree.md exist"
 # ----------------------------------------------------------------------
-if [ -d "$OVERRIDE_DIR" ]; then
-  MISSING=0
-  for file in "$OVERRIDE_DIR"/*.md; do
-    [ -f "$file" ] || continue
-    if ! head -1 "$file" | grep -qE "^# Convention #[0-9]+"; then
-      fail "override file missing '# Convention #N:' header: $(basename "$file")"
-      MISSING=$((MISSING + 1))
-    fi
-  done
-  [ "$MISSING" -eq 0 ] && pass "all override files have correct header"
-fi
-
-# ----------------------------------------------------------------------
-group 3 "Audit files name their convention"
-# ----------------------------------------------------------------------
-AUDIT_DIR="$(project_path docs/audit)"
-if [ -d "$AUDIT_DIR" ]; then
-  MISSING=0
-  AUDIT_COUNT=0
-  while IFS= read -r file; do
-    AUDIT_COUNT=$((AUDIT_COUNT + 1))
-    if ! grep -qE "Maps to convention.*#[0-9]+" "$file"; then
-      # Status table and SUMMARY files are exempt
-      base=$(basename "$file")
-      [ "$base" = "audit-status-table.md" ] && continue
-      [ "$base" = "SUMMARY.md" ] && continue
-      fail "audit file missing 'Maps to convention: #N' line: ${file#$AUDIT_DIR/}"
-      MISSING=$((MISSING + 1))
-    fi
-  done < <(find "$AUDIT_DIR" -type f -name '*.audit.md')
-  [ "$MISSING" -eq 0 ] && [ "$AUDIT_COUNT" -gt 0 ] && pass "$AUDIT_COUNT audit files name their convention"
-  [ "$AUDIT_COUNT" -eq 0 ] && warn "no audit files found in docs/audit/"
-else
-  warn "no docs/audit/ directory — Part D may not have run"
-fi
-
-# ----------------------------------------------------------------------
-group 4 "INDEX.md exists and is non-trivial"
-# ----------------------------------------------------------------------
-PROJECT_INDEX="$(project_path INDEX.md)"
-if [ -f "$PROJECT_INDEX" ]; then
-  lines=$(wc -l < "$PROJECT_INDEX" | tr -d ' ')
-  if [ "$lines" -lt 10 ]; then
-    warn "INDEX.md is under 10 lines — likely incomplete"
-  else
-    pass "INDEX.md exists ($lines lines)"
+REQUIRED=("References.md" "feature-tree.md")
+for f in "${REQUIRED[@]}"; do
+  if [ ! -f "$PROJECT_ROOT/$f" ] && [ ! -f "$ARCHETYPE/$f" ]; then
+    fail "required artifact missing: $f (checked project root and archetype/)"
   fi
+done
+[ "$ERRORS" -eq 0 ] && pass "required artifacts present"
+
+# ----------------------------------------------------------------------
+group 3 "The map of where each original rule lives"
+# ----------------------------------------------------------------------
+MAP=""
+for candidate in MIGRATION-NOTES.md INDEX.md; do
+  if [ -s "$PROJECT_ROOT/$candidate" ]; then MAP="$candidate"; break; fi
+  if [ -s "$ARCHETYPE/$candidate" ]; then MAP="$(basename "$ARCHETYPE")/$candidate"; break; fi
+done
+if [ -n "$MAP" ]; then
+  pass "the map is $MAP"
 else
-  fail "INDEX.md missing — Part C cross-reference step was skipped"
+  fail "no MIGRATION-NOTES.md: write the map of where each original rule and section lives now (bootstrap/EXISTING-PROJECT.md, Part B)"
 fi
 
 # ----------------------------------------------------------------------
-group 5 "Migrated docs match originals byte-for-byte"
+group 4 "Copies an earlier version made in docs/migrated/ match their originals"
 # ----------------------------------------------------------------------
 MIGRATED_DIR="$(project_path docs/migrated)"
 if [ -d "$MIGRATED_DIR" ]; then
@@ -160,30 +122,7 @@ if [ -d "$MIGRATED_DIR" ]; then
 fi
 
 # ----------------------------------------------------------------------
-group 6 "Original instruction preservation records"
-# ----------------------------------------------------------------------
-if [ -f "$PROJECT_ROOT/CLAUDE.md.pre-archetype" ]; then
-  pass "original CLAUDE.md archived as CLAUDE.md.pre-archetype"
-else
-  warn "no CLAUDE.md.pre-archetype — either no prior CLAUDE.md existed, or inject.sh was not used"
-fi
-if [ -f "$PROJECT_ROOT/AGENTS.md.pre-archetype" ]; then
-  pass "original AGENTS.md archived as AGENTS.md.pre-archetype"
-fi
-
-# ----------------------------------------------------------------------
-group 7 "Project-root required artifacts"
-# ----------------------------------------------------------------------
-REQUIRED=("References.md" "feature-tree.md")
-for f in "${REQUIRED[@]}"; do
-  if [ ! -f "$PROJECT_ROOT/$f" ] && [ ! -f "$ARCHETYPE/$f" ]; then
-    fail "required artifact missing: $f (checked project root and archetype/)"
-  fi
-done
-[ "$ERRORS" -eq 0 ] && pass "required artifacts present"
-
-# ----------------------------------------------------------------------
-group 8 "The owner's peer-coding answer (bootstrap Step 2.6)"
+group 5 "The owner's peer-coding answer (bootstrap Step 2.6)"
 # ----------------------------------------------------------------------
 if [ -f "$PROJECT_ROOT/References.md" ]; then
   if PEER_RESULT="$(cd "$PROJECT_ROOT" && python3 "$ARCHETYPE/scripts/validate-bootstrap.py" peer 2>&1)"; then
@@ -198,8 +137,7 @@ echo ""
 echo "==="
 if [ "$ERRORS" -gt 0 ]; then
   printf "${RED}%d errors${NC}, %d warnings\n" "$ERRORS" "$WARNINGS"
-  echo "Fix errors before committing. Summarization in overrides (group 1) is"
-  echo "the most common and most dangerous failure — re-extract in full."
+  echo "Fix errors before committing. A rule with no home in the map is lost; walk each original again."
   exit 1
 else
   printf "${GREEN}Pass${NC}: 0 errors, %d warnings\n" "$WARNINGS"

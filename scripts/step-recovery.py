@@ -12,10 +12,10 @@ import tempfile
 from pathlib import Path
 
 
-DECISION_FIELDS = (
-    "Date", "Status", "Decision", "Reason", "Alternatives", "Authority",
-    "Evidence", "Review", "Depends on", "Supersedes", "History",
-)
+# The fields the recovery contract reads (#16). Status, Decision, Reason and Authority are required
+# of a decision cited as a basis; Depends on and Supersedes are read when present; the template's
+# other fields are the project's own.
+DECISION_STATUSES = {"proposed", "accepted", "superseded", "retired"}
 DECISION_ID = re.compile(r"DEC-[0-9]{3,}")
 STEP_ID = re.compile(r"[a-z][a-z0-9-]*\.[A-Za-z0-9][A-Za-z0-9.]*")
 EVENT = re.compile(r"^- \[([x~ -])\] (.+?) \|")
@@ -72,7 +72,17 @@ def decision_source(project: Path, cwd: Path) -> tuple[Path, str | None]:
     return path, None
 
 
+def field_value(block: str, label: str) -> list[str]:
+    """Every value of one field in a decision block: a line with the label, optionally as a list
+    item and optionally in bold or italic, then a colon."""
+    pattern = rf"(?mi)^[ \t]*(?:[-*+][ \t]+)?[*_]*{re.escape(label)}[*_]*[ \t]*:[*_]*[ \t]*(.*?)[ \t]*$"
+    return [value for value in re.findall(pattern, block)]
+
+
 def decision_records(project: Path, cwd: Path) -> dict[str, bytes]:
+    """Every decision block at the decision location, read leniently. Problems are recorded per
+    decision in decision_records.problems and raised only when a cited decision, or one it depends
+    on or is superseded by, carries one, so a malformed decision elsewhere blocks nothing."""
     path, section = decision_source(project, cwd)
     text = path.read_text()
     if section:
@@ -93,87 +103,93 @@ def decision_records(project: Path, cwd: Path) -> dict[str, bytes]:
     text = "".join(visible)
     headings = list(re.finditer(r"(?m)^###[ \t]+(DEC-[0-9]{3,})(?:[ \t]*[: -].*)?$", text))
     records: dict[str, bytes] = {}
-    relationships: dict[str, dict[str, list[str] | str]] = {}
+    relationships: dict[str, dict] = {}
+    problems: dict[str, list[str]] = {}
     for index, heading in enumerate(headings):
         end = headings[index + 1].start() if index + 1 < len(headings) else len(text)
         block = text[heading.start():end]
         decision_id = heading.group(1)
         if decision_id in records:
-            raise ContractError(f"duplicate decision id: {decision_id}")
-        values = {}
-        for label in DECISION_FIELDS:
-            hits = re.findall(rf"(?m)^{re.escape(label)}:[ \t]*(.*?)[ \t]*$", block)
-            if len(hits) != 1 or not hits[0]:
-                raise ContractError(f"{decision_id} needs exactly one non-empty '{label}:' field")
-            values[label] = hits[0]
-            plain = re.sub(r"[*_`]", "", hits[0]).strip().lower()
-            if (hits[0].strip().startswith("[") and hits[0].strip().endswith("]")) or plain in {"pending", "todo", "tbd"}:
-                raise ContractError(f"{decision_id} {label} is still a template placeholder")
-        if values["Status"] not in {"proposed", "accepted", "superseded", "retired"}:
-            raise ContractError(f"{decision_id} has unsupported Status: {values['Status']}")
+            problems.setdefault(decision_id, []).append(f"duplicate decision id: {decision_id}")
+            continue
+        issues: list[str] = []
+        values: dict[str, str] = {}
+        for label in ("Status", "Decision", "Reason", "Authority", "Date", "Depends on", "Supersedes"):
+            hits = [hit for hit in field_value(block, label)]
+            distinct = {hit.strip() for hit in hits}
+            if len(distinct) > 1:
+                issues.append(f"{decision_id} gives {label} more than one value")
+            values[label] = hits[0].strip() if hits else ""
+        status_words = re.findall(r"[a-z]+", values["Status"].lower())
+        status = status_words[0] if status_words else ""
+        if status not in DECISION_STATUSES:
+            issues.append(f"{decision_id} has no readable Status (proposed, accepted, superseded or retired)" if not status
+                          else f"{decision_id} has unsupported Status: {values['Status']}")
+        links: dict[str, list[str]] = {}
         for label in ("Depends on", "Supersedes"):
-            if values[label] != "none":
-                for target in values[label].split(";"):
-                    if not DECISION_ID.fullmatch(target.strip()):
-                        raise ContractError(f"{decision_id} {label} names invalid decision '{target.strip()}'")
+            raw = values[label]
+            if not raw or raw.lower() in {"none", "n/a", "-"}:
+                links[label] = []
+                continue
+            items = [item.strip().strip("`*_") for item in re.split(r"[;,]", raw) if item.strip()]
+            bad = [item for item in items if not DECISION_ID.fullmatch(item)]
+            if bad:
+                issues.append(f"{decision_id} {label} names invalid decision '{bad[0]}'")
+            links[label] = [item for item in items if DECISION_ID.fullmatch(item)]
         records[decision_id] = (block.strip() + "\n").encode()
         relationships[decision_id] = {
-            "status": values["Status"],
-            "depends": [] if values["Depends on"] == "none" else [v.strip() for v in values["Depends on"].split(";")],
-            "supersedes": [] if values["Supersedes"] == "none" else [v.strip() for v in values["Supersedes"].split(";")],
+            "status": status,
+            "depends": links["Depends on"],
+            "supersedes": links["Supersedes"],
             "values": values,
         }
-    for decision_id, relation in relationships.items():
-        for label in ("depends", "supersedes"):
-            for target in relation[label]:
-                if target not in records:
-                    raise ContractError(f"{decision_id} {label.replace('depends', 'Depends on').replace('supersedes', 'Supersedes')} names unknown decision {target}")
-    visiting: set[str] = set()
-    visited: set[str] = set()
-    def visit(decision_id: str) -> None:
-        if decision_id in visiting:
-            raise ContractError(f"decision dependency cycle includes {decision_id}")
-        if decision_id in visited:
-            return
-        visiting.add(decision_id)
-        for target in relationships[decision_id]["depends"]:
-            visit(str(target))
-        visiting.remove(decision_id); visited.add(decision_id)
-    for decision_id in records:
-        visit(decision_id)
-    visiting.clear(); visited.clear()
-    def visit_supersedes(decision_id: str) -> None:
-        if decision_id in visiting:
-            raise ContractError(f"decision supersession cycle includes {decision_id}")
-        if decision_id in visited:
-            return
-        visiting.add(decision_id)
-        for target in relationships[decision_id]["supersedes"]:
-            visit_supersedes(str(target))
-        visiting.remove(decision_id); visited.add(decision_id)
-    for decision_id in records:
-        visit_supersedes(decision_id)
+        if issues:
+            problems[decision_id] = issues
     decision_records.relationships = relationships  # type: ignore[attr-defined]
+    decision_records.problems = problems  # type: ignore[attr-defined]
     return records
 
 
-def decision_fingerprint(records: dict[str, bytes], decision_id: str) -> str:
+def decision_closure(records: dict[str, bytes], decision_id: str) -> set[str]:
+    """The cited decision, the decisions it depends on, and every accepted decision that supersedes
+    one of them, transitively. Raises on a problem, an unknown reference or a cycle inside it."""
     relationships = decision_records.relationships  # type: ignore[attr-defined]
+    problems = decision_records.problems  # type: ignore[attr-defined]
+    if decision_id not in records:
+        raise ContractError(f"unknown decision: {decision_id}")
     included: set[str] = set()
-    def dependencies(value: str) -> None:
+    def dependencies(value: str, trail: tuple[str, ...]) -> None:
+        if value in trail:
+            raise ContractError(f"decision dependency cycle includes {value}")
+        if value not in records:
+            raise ContractError(f"{trail[-1] if trail else decision_id} Depends on names unknown decision {value}")
+        if value in problems:
+            raise ContractError(problems[value][0])
         if value in included:
             return
         included.add(value)
         for target in relationships[value]["depends"]:
-            dependencies(str(target))
-    dependencies(decision_id)
+            dependencies(str(target), trail + (value,))
+    dependencies(decision_id, ())
     changed = True
     while changed:
         changed = False
         for value, relation in relationships.items():
-            if (value not in included and relation["status"] == "accepted"
-                    and any(target in included for target in relation["supersedes"])):
-                included.add(value); dependencies(value); changed = True
+            if value in included or not any(target in included for target in relation["supersedes"]):
+                continue
+            if value in problems:
+                raise ContractError(problems[value][0])
+            if relation["status"] == "accepted":
+                dependencies(value, ()); changed = True
+    for value in list(included):
+        for target in relationships[value]["supersedes"]:
+            if target not in records:
+                raise ContractError(f"{value} Supersedes names unknown decision {target}")
+    return included
+
+
+def decision_fingerprint(records: dict[str, bytes], decision_id: str) -> str:
+    included = decision_closure(records, decision_id)
     payload = b"".join(value.encode() + b"\0" + records[value] for value in sorted(included))
     return digest(payload)
 
@@ -189,13 +205,16 @@ def basis(project: Path, cwd: Path, decisions: list[str], inputs: list[str]) -> 
                 raise ContractError(f"invalid or repeated decision basis: {decision_id}")
             if decision_id not in records:
                 raise ContractError(f"unknown decision basis: {decision_id}")
+            decision_closure(records, decision_id)
             relationships = decision_records.relationships  # type: ignore[attr-defined]
             if relationships[decision_id]["status"] != "accepted":
                 raise ContractError(f"decision basis is not active and accepted: {decision_id}")
             values = relationships[decision_id]["values"]
-            for label in ("Date", "Decision", "Reason", "Authority"):
-                if values[label].strip().lower() == "unknown":
-                    raise ContractError(f"accepted decision basis {decision_id} has unknown {label}")
+            for label in ("Decision", "Reason", "Authority"):
+                value = values[label].strip()
+                plain = re.sub(r"[*_`]", "", value).strip().lower()
+                if not value or plain in {"unknown", "pending", "todo", "tbd"} or (value.startswith("[") and value.endswith("]")):
+                    raise ContractError(f"accepted decision basis {decision_id} needs a {label} line that says what it records, not {value or 'nothing'}")
             if any(relation["status"] == "accepted" and decision_id in relation["supersedes"] for relation in relationships.values()):
                 raise ContractError(f"decision basis has been superseded: {decision_id}")
             seen.add(decision_id)
@@ -496,6 +515,18 @@ def main() -> int:
             print("\n".join(stale(Path(args.engine), Path(args.project), Path(args.ledger))))
         elif args.command == "validate-decisions":
             records = decision_records(Path(args.project), Path(args.cwd or args.project))
+            problems = decision_records.problems  # type: ignore[attr-defined]
+            for decision_id in records:
+                try:
+                    decision_closure(records, decision_id)
+                except ContractError as exc:
+                    problems.setdefault(decision_id, []).append(str(exc))
+            if problems:
+                for decision_id in sorted(problems):
+                    for problem in dict.fromkeys(problems[decision_id]):
+                        print(f"FAIL: {problem}")
+                print("Only a decision a step cites, and the ones it depends on or is superseded by, block that step.")
+                return 1
             print(f"OK: {len(records)} decision record(s) follow the recovery contract")
         elif args.command == "validate-graph":
             graph, _ = parse_steps(Path(args.engine))

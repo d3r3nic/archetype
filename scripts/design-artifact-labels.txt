@@ -1,10 +1,10 @@
-# Design Artifact label contract (convention #27). Read by scripts/validate-framework.sh
-# (group 7: the UI References templates and convention #27 carry these labels) and by
-# scripts/validate-design.sh (a project's References.md carries them, filled in).
+# The Design Artifact brief the UI References templates carry (convention #27). Read by
+# scripts/validate-framework.sh (group 7), which keeps the frontend and mobile templates in
+# step with this list. A project's own section is not held to it: scripts/validate-design.sh
+# reads only the lines it needs.
 #
 # One label per line, matched literally. A label never holds a colon or a backslash.
-# The mobile template adds "Platform parity"; that one label stays in the two scripts
-# because it belongs to one template only.
+# The mobile template adds "Platform parity".
 Primary tool
 Direction of truth
 Artifact location

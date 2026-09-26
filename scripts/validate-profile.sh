@@ -11,27 +11,18 @@
 #      synthetic disposable data, no external effects, no reliance, no valuable records, no
 #      commitments; a trial is not public, not relied upon, and has a fallback not recorded as no;
 #      regulated data contradicts synthetic-only data
-#   3. Deferrals are well-formed: Kind: deferral needs Control, Due-before, Review-by, and
-#      Closure-evidence; Control names a convention, a backend rule, or a floor item; Due-before is
-#      a known trigger or a real date; a floor item is never a deferral; each of the six fields this
-#      script reads (Status, Kind, Control, Due-before, Review-by, Closure-evidence) appears once
-#      per entry and the first value wins; a Kind line with no value fails; ids are unique; an entry
-#      runs from its "## TD-" heading to the next one or a level-one heading; a TD heading of any
-#      other shape (another level, no space, underlined) fails if it carries entry fields and
-#      warns otherwise; a field is a list item with a bold label and the value on the same line;
-#      a field label written in another recognizable shape fails rather than vanishing; any other
-#      line inside an entry that mentions a field name warns as a possible unread field; fenced
-#      examples are skipped with fence length respected, and an unclosed code fence fails (it would
-#      hide every entry after it)
-#   The contract is the documented format. The parser recognizes many deviations and fails them; it
-#   does not parse arbitrary Markdown or HTML, so a deviation it cannot recognize is caught only by the
-#   warning above and by review.
+#   3. Deferrals are readable and well-formed: an entry starts at a heading whose text begins
+#      "TD-"; its fields are read in the common written forms (a list item or a plain line, the
+#      label bold or not, the value after the colon). A deferral names its Control and its
+#      Due-before trigger or date; a floor item is never postponed. An entry the parser cannot read
+#      (a field given two values, a Kind that is neither shortcut nor deferral, entries hidden by a
+#      code fence that never closes) is UNVERIFIED, which --strict fails; it never passes.
 #   4. Triggered deferrals fail: a Due-before trigger the facts make true, or a Due-before date
 #      reached (inclusive), blocks until the entry is fixed; won't-fix does not clear it
-#   5. A Review-by date in the past warns
+#   5. A Review-by date in the past warns; Review-by and Closure-evidence are optional
 #
 # Result words: OK, FAIL, WARN, plus DEFERRED (a deferral whose trigger is not yet true) and
-# UNVERIFIED (a fact recorded as unknown, or a trigger resting on one).
+# UNVERIFIED (a fact recorded as unknown, a trigger resting on one, or an entry the parser cannot read).
 # Profile source: "declared" when PROFILE.md exists, "missing" otherwise. A missing profile is read
 # as the strictest profile (operational, every fact unknown) with a WARN; a deferral that cannot be
 # evaluated without a profile is a FAIL, so never creating the file is not a way around deferrals.
@@ -53,7 +44,7 @@ for arg in "$@"; do
   case "$arg" in
     --strict) STRICT=1 ;;
     --declared) DECLARED=1 ;;
-    -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,35p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown argument: $arg (accepted: --strict, --declared)"; exit 2 ;;
   esac
 done
@@ -293,366 +284,123 @@ trigger_state() {
 group 3 "Deferrals are well-formed and not yet due"
 # ----------------------------------------------------------------------
 US=$'\x1f'
+first_word() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -e 's/^[^a-z]*//' -e 's/[^a-z-].*$//'; }
 if [ ! -f "$TD" ]; then
   pass "no TECHNICAL-DEBT.md, so no deferrals to check"
 else
   BEFORE=$ERRORS
+  UNREAD_BEFORE=$UNKNOWNS
   SEEN=0
-  SUPPRESS_PASS=0
   SEEN_IDS=" "
   PARSER_EXIT=""
-  while IFS="$US" read -r id status kind control due review closure dups strays kindpresent metapresent mentions; do
+  while IFS="$US" read -r id status kind control due review closure conflicts; do
     [ -z "$id" ] && continue
     # The parser's exit status arrives as the last record; a parser that stopped early has read only
     # part of the file, and what it did not read must not pass as "no deferrals".
     if [ "$id" = "PARSER-EXIT" ]; then PARSER_EXIT="$status"; continue; fi
+    if [ "$id" = "UNCLOSED-FENCE" ]; then
+      unver "TECHNICAL-DEBT.md has a code fence that never closes (opened at line $status); the entries after it could not be read"
+      continue
+    fi
     ENTRY_ERRORS=$ERRORS
     PENDING_DEFER=""
-    if [ "$id" = "UNCLOSED-FENCE" ]; then
-      fail "TECHNICAL-DEBT.md has a code fence that never closes (opened at line $status); every entry after it is hidden from this check"
-      SUPPRESS_PASS=1
-      continue
-    fi
-    if [ "$id" = "ODD-HEADING" ]; then
-      if [ "$kind" = "1" ]; then
-        fail "TECHNICAL-DEBT.md: \"$status\" carries entry fields but is not a level-two heading, so it would not be checked; entries start with \"## TD-\""
-        SUPPRESS_PASS=1
-      else
-        warn "TECHNICAL-DEBT.md: \"$status\" is not a level-two heading, so it is not read as an entry; entries start with \"## TD-\""
-      fi
-      continue
-    fi
     case "$SEEN_IDS" in
-      *" $id "*) fail "$id appears more than once in TECHNICAL-DEBT.md; one entry per id" ;;
+      *" $id "*) warn "$id appears more than once in TECHNICAL-DEBT.md; give each entry its own id" ;;
       *) SEEN_IDS="$SEEN_IDS$id " ;;
     esac
-    if [ -n "$dups" ]; then
-      fail "$id: field(s) repeated inside the entry:$dups; one value each"
-    fi
-    if [ -n "$strays" ]; then
-      fail "$id: field label(s) found on lines the validator does not read as fields:$strays; write each as a list item such as \"- **Kind:** deferral\""
-      SUPPRESS_PASS=1
-    fi
-    if [ -n "$mentions" ]; then
-      warn "$id: line(s)$mentions mention a field name but were not read as fields; if one of them is a field, write it as \"- **Name:** value\" (the six field names are reserved words inside an entry)"
-    fi
-    if [ -z "$kind" ] && [ "$kindpresent" != "1" ] && [ "$metapresent" = "1" ]; then
-      fail "$id: carries deferral fields (Control, Due-before, Review-by, or Closure-evidence) but no Kind line; add \"- **Kind:** deferral\" or \"- **Kind:** shortcut\""
-      SUPPRESS_PASS=1
+    if [ -n "$conflicts" ]; then
+      unver "$id: field(s) given two different values:$conflicts; this entry cannot be read until one value remains"
       continue
     fi
-    # The Control is checked for every open entry that declares one, whatever the Kind says: it must
-    # name a convention, a backend rule, or a floor item, and a floor item is never postponed.
-    if [ -n "$control" ] && [ "$status" != "fixed" ]; then
+    kind_w="$(first_word "$kind")"
+    status_w="$(first_word "$status")"
+    # The Control of every open entry that declares one is read, whatever its Kind: a floor item is
+    # never postponed (#30).
+    if [ -n "$control" ] && [ "$status_w" != "fixed" ]; then
       lc_control="$(printf '%s' "$control" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]*:[[:space:]]*/:/; s/^[[:space:]]+//; s/[[:space:]]+$//')"
       case "$lc_control" in
-        \[*) fail "$id: Control still holds a template placeholder"; SUPPRESS_PASS=1 ;;
-        floor|floor:)
-          fail "$id: Control says floor but names no floor item; floor items: ${FLOOR// /, }"; SUPPRESS_PASS=1 ;;
+        \[*) warn "$id: Control still holds a template placeholder" ;;
+        floor|floor:) unver "$id: Control says floor but names no floor item; floor items: ${FLOOR// /, }" ;;
         floor:*)
           item="${lc_control#floor:}"; item="${item%% *}"
           if in_list "$item" "$FLOOR"; then
-            if [ "$kind" = "deferral" ]; then
-              fail "$id: a floor item ($item) is never a deferral (#30)"
-            else
-              fail "$id: a floor item ($item) is never postponed, as a deferral or as a shortcut (#30)"
-            fi
+            fail "$id: a floor item ($item) is never postponed, as a deferral or as a shortcut (#30)"
           else
-            fail "$id: Control names unknown floor item \"$item\"; floor items: ${FLOOR// /, }"
-          fi
-          SUPPRESS_PASS=1 ;;
+            unver "$id: Control names an unknown floor item \"$item\"; floor items: ${FLOOR// /, }"
+          fi ;;
         '#'[0-9]*|b[0-9]*) ;;
-        *) fail "$id: Control is \"$control\"; name a convention (#N and the obligation), a backend rule (BN), or a floor item (floor: name)"; SUPPRESS_PASS=1 ;;
+        *) warn "$id: Control is \"$control\"; name the convention (#N and the obligation), the backend rule (BN), or the floor item (floor: name), so a review can see what is postponed" ;;
       esac
     fi
-    if [ -z "$kind" ] && [ "$kindpresent" = "1" ]; then
-      fail "$id: Kind is present but has no value on its line; write \"- **Kind:** shortcut\" or \"- **Kind:** deferral\""
-      SUPPRESS_PASS=1
-      continue
-    fi
-    case "$kind" in
-      ""|shortcut) continue ;;
+    case "$kind_w" in
+      shortcut) continue ;;
       deferral) ;;
-      *) fail "$id: Kind is \"$kind\"; expected shortcut or deferral (lower case)"; SUPPRESS_PASS=1; continue ;;
+      '')
+        if [ -n "$due" ]; then
+          unver "$id carries a Due-before but no Kind; say whether it is a deferral or a shortcut"
+        fi
+        continue ;;
+      *) unver "$id: Kind is \"$kind\", neither shortcut nor deferral; this entry cannot be read"; continue ;;
     esac
     SEEN=$((SEEN + 1))
-    [ "$status" = "fixed" ] && continue
-    [ -z "$control" ] && fail "$id: deferral without Control"
-    [ -z "$due" ] && fail "$id: deferral without Due-before (a trigger or a date)"
-    [ -z "$review" ] && fail "$id: deferral without Review-by"
-    [ -z "$closure" ] && fail "$id: deferral without Closure-evidence"
-    case "$closure" in \[*) fail "$id: Closure-evidence still holds a template placeholder" ;; esac
+    [ "$status_w" = "fixed" ] && continue
+    [ -z "$control" ] && fail "$id: deferral without Control; name what is postponed"
+    if [ -z "$due" ]; then
+      fail "$id: deferral without Due-before; name the trigger or the date that ends it"
+      continue
+    fi
     if [ "$PROFILE_PRESENT" -eq 0 ]; then
       fail "$id: a deferral cannot be evaluated without PROFILE.md; create the profile or fix the entry"
       continue
     fi
-    if [ -n "$due" ]; then
-      if is_date "$due"; then
-        if [[ "$due" < "$TODAY" ]] || [ "$due" = "$TODAY" ]; then
-          fail "$id: Due-before date $due reached; the deferral is blocking until fixed (status: $status)"
-        else
-          PENDING_DEFER="$id until $due"
-        fi
-      elif is_trigger "$due"; then
-        state="$(trigger_state "$due")"
-        case "$state" in
-          true) fail "$id: trigger $due is true per PROFILE.md; the deferral is blocking until fixed (status: $status; won't-fix does not clear it)" ;;
-          false) PENDING_DEFER="$id until $due" ;;
-          unknown) unver "$id is due before $due, which rests on a fact recorded as unknown" ;;
-        esac
+    due_w="$(printf '%s' "$due" | sed -e 's/^[[:space:]`*_]*//' -e 's/[[:space:]`*_.,;]*$//')"
+    if is_date "$due_w"; then
+      if [[ "$due_w" < "$TODAY" ]] || [ "$due_w" = "$TODAY" ]; then
+        fail "$id: Due-before date $due_w reached; the deferral is blocking until fixed (status: ${status:-open})"
       else
-        fail "$id: Due-before \"$due\" is neither a known trigger nor a date. Triggers: ${TRIGGERS// /, }"
+        PENDING_DEFER="$id until $due_w"
       fi
+    elif is_trigger "$due_w"; then
+      state="$(trigger_state "$due_w")"
+      case "$state" in
+        true) fail "$id: trigger $due_w is true per PROFILE.md; the deferral is blocking until fixed (status: ${status:-open}; won't-fix does not clear it)" ;;
+        false) PENDING_DEFER="$id until $due_w" ;;
+        unknown) unver "$id is due before $due_w, which rests on a fact recorded as unknown" ;;
+      esac
+    else
+      fail "$id: Due-before \"$due\" is neither a known trigger nor a date. Triggers: ${TRIGGERS// /, }"
     fi
     if [ -n "$review" ]; then
-      if is_date "$review"; then
-        if [[ "$review" < "$TODAY" ]]; then warn "$id: Review-by $review has passed; review it and write the new date with the reason"; fi
+      review_w="$(printf '%s' "$review" | sed -e 's/^[[:space:]`*_]*//' -e 's/[[:space:]`*_.,;]*$//')"
+      if is_date "$review_w"; then
+        if [[ "$review_w" < "$TODAY" ]]; then warn "$id: Review-by $review_w has passed; review it and write the new date with the reason"; fi
       else
-        fail "$id: Review-by \"$review\" is not a real calendar date YYYY-MM-DD"
+        warn "$id: Review-by \"$review\" is not a calendar date YYYY-MM-DD"
       fi
     fi
+    case "$closure" in \[*) warn "$id: Closure-evidence still holds a template placeholder" ;; esac
     # The DEFERRED line is printed only for an entry that passed every check above.
     if [ -n "$PENDING_DEFER" ] && [ "$ERRORS" -eq "$ENTRY_ERRORS" ]; then defer "$PENDING_DEFER"; fi
   done < <(awk -v US="$US" '
-    # A character list never escapes a bracket: busybox awk keeps the backslash of "\[" or "\]"
-    # inside a list, so the list would hold a backslash and end early. "]" goes first and "[" stands
-    # bare ("[]*_`[]"), which every awk reads the same.
-    function flush(   mp) {
-      mp = (("Control" in seen) || ("Due-before" in seen) || ("Review-by" in seen) || ("Closure-evidence" in seen)) ? 1 : 0
-      if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%d%s%d%s%s\n", id, US, status, US, kind, US, control, US, due, US, review, US, closure, US, dups, US, strays, US, kindpresent, US, mp, US, mentions
-      if (odd != "") printf "ODD-HEADING%s%s%s%d\n", US, odd, US, oddfields
+    # An entry starts at a heading whose text begins "TD-" and runs to the next such heading or a
+    # level-one heading. A field is a line whose label, with or without a list marker and with or
+    # without bold, italic or code marks around it, is one of the six names below, followed by a
+    # colon; "due before", "review by" and "closure evidence" may be written with a space. Every
+    # other line is left alone. A field written twice with two different values is reported, so the
+    # shell can count the entry as unreadable.
+    function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
+    function flush() {
+      if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", id, US, f["status"], US, f["kind"], US, f["control"], US, f["due-before"], US, f["review-by"], US, f["closure-evidence"], US, conflicts
     }
-    function reset() { id = ""; status = ""; kind = ""; control = ""; due = ""; review = ""; closure = ""; dups = ""; strays = ""; mentions = ""; odd = ""; oddfields = 0; kindpresent = 0; split("", seen) }
-    # A governed label that appears on a line the list-item rule does not read (a tab-indented or
-    # deeply indented block, a label in running text) is a stray: the entry fails instead of the
-    # field vanishing.
-    # Stray detection casts a wide net on purpose: a governed name followed by a colon anywhere on a
-    # line that is not a field line (any markup around it, or none) fails loudly instead of being
-    # read as prose, so no spelling of a field can vanish.
-    # Returns every governed label found on a non-field line, space separated: any governed name
-    # followed by a colon anywhere on the line, plus a label wrapped in emphasis at the start of the
-    # line (after indentation or a list marker) even without a colon. Mid-sentence italics of an
-    # everyday word are not labels.
-    # Position where the markup opened at the start of r has all closed again (inclusive), or the end
-    # of r when something never closes. Brackets pair with brackets (a stray "]" is content); tags
-    # nest and close with their closing tags, void elements open nothing. An emphasis run closes when
-    # it can close (it follows a non-space, and if it follows punctuation it precedes a space,
-    # punctuation, or the end) and something of its character is open; otherwise it opens when it can
-    # open (it precedes a non-space, and if it precedes punctuation it follows a space, punctuation, or
-    # the start); otherwise it is content. A closing run consumes as much of the open runs of its
-    # character as its length covers, so "**note *Kind***" closes both at once.
-    function stacklast(st) { sub(/,$/, "", st); sub(/^.*,/, "", st); return st + 0 }
-    function stackpop(st) { sub(/,$/, "", st); if (st ~ /,/) sub(/,[^,]*$/, ",", st); else st = ""; return st }
-    function labelend(r,   i, j, c, ch, q, n, runlen, prev, nxt, canopen, canclose, opened, brackets, tags, emopen, stk, tagtxt, tname, L, t, k, m2, found_close) {
-      n = length(r); i = 1; opened = 0; brackets = 0; tags = 0; emopen = 0; LABCLOSED = 0
-      split("", stk)
-      while (i <= n) {
-        c = substr(r, i, 1)
-        if (c == "<") {
-          j = i + 1; q = ""
-          while (j <= n) { ch = substr(r, j, 1); if (q != "") { if (ch == q) q = "" } else if (ch == "\"" || ch == "\047") q = ch; else if (ch == ">") break; j++ }
-          if (j > n) return n
-          tagtxt = substr(r, i, j - i + 1); tname = tolower(tagtxt); sub(/^<\/?[ \t]*/, "", tname); sub(/[^a-z0-9].*$/, "", tname)
-          if (tagtxt ~ /^<\//) { if (tags > 0) tags-- }
-          else if (tagtxt !~ /\/>$/ && tname !~ /^(area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)$/) { tags++; opened = 1 }
-          i = j + 1
-        } else if (c == "[") { brackets++; opened = 1; i++ }
-        else if (c == "]") { if (brackets > 0) brackets--; i++ }
-        else if (c == "`") {
-          # A code span: a backtick run closed by the next run of the same length, contents opaque,
-          # padding allowed. Without a closer the run is literal text.
-          j = i; while (j <= n && substr(r, j, 1) == c) j++
-          runlen = j - i; k = j; found_close = 0
-          while (k <= n) {
-            if (substr(r, k, 1) == "`") { m2 = k; while (m2 <= n && substr(r, m2, 1) == "`") m2++; if (m2 - k == runlen) { found_close = 1; break } k = m2 } else k++
-          }
-          if (found_close) { if (i == 1) { opened = 1; i = k + runlen; if (brackets + tags + emopen <= 0) { LABCLOSED = 1; return i - 1 } } else i = k + runlen }
-          else i = j
-        }
-        else if (c == "*" || c == "_") {
-          j = i; while (j <= n && substr(r, j, 1) == c) j++
-          runlen = j - i; prev = (i == 1) ? " " : substr(r, i - 1, 1); nxt = (j > n) ? " " : substr(r, j, 1)
-          canopen = (nxt !~ /[ \t]/) && (nxt !~ /[[:punct:]]/ || prev ~ /[ \t[:punct:]]/)
-          canclose = (prev !~ /[ \t]/) && (prev !~ /[[:punct:]]/ || nxt ~ /[ \t[:punct:]]/)
-          # A run that could both open and close may not close an opener when the two lengths add up
-          # to a multiple of three unless both are multiples of three; it opens instead.
-          if (canclose && canopen && stk[c] != "") { t = stacklast(stk[c]); if ((t + runlen) % 3 == 0 && !(t % 3 == 0 && runlen % 3 == 0)) canclose = 0 }
-          if (canclose && stk[c] != "") {
-            L = runlen
-            while (L > 0 && stk[c] != "") {
-              t = stacklast(stk[c]); stk[c] = stackpop(stk[c]); emopen--
-              if (t > L) { stk[c] = stk[c] (t - L) ","; emopen++; L = 0 } else L -= t
-            }
-          } else if (canopen) { stk[c] = stk[c] runlen ","; emopen++; opened = 1 }
-          i = j
-        } else i++
-        if (opened && brackets + tags + emopen <= 0) { LABCLOSED = 1; return i - 1 }
-      }
-      return n
-    }
-    # In a closed label the governed name must be the first or the last word of a short span ("Kind,
-    # if any", "note Kind", "(Kind)", at most four words); a bold sentence that mentions the word is
-    # prose. An unclosed label is malformed markup, so a governed name anywhere in it is reported
-    # rather than risked. Returns the lower-case name found, or "".
-    function labelname(lab, unclosed,   nwords, words, m) {
-      gsub(/^[^a-z]+|[^a-z]+$/, "", lab); nwords = split(lab, words, /[ \t]+/)
-      if ((unclosed && match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) || (nwords <= 4 && (match(lab, /^(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) || match(lab, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)$/)))) {
-        m = substr(lab, RSTART, RLENGTH); gsub(/[^a-z-]/, "", m); return m
-      }
-      return ""
-    }
-    # Remove tags, code marks, and emphasis marks from a span; with spaces = 1 the marks become spaces.
-    function decode(x, spaces) {
-      if (spaces) gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, " ", x); else gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", x)
-      gsub(/\]\(([^()"]|"[^"]*"|\([^()]*\))*\)/, "]", x); gsub(/[][()]/, " ", x)
-      if (spaces) gsub(/[`*_]/, " ", x); else gsub(/[`*_]/, "", x)
-      return x
-    }
-    function strayname(s,   found, m, t, s0, rest, lab, op, full, unclosed, tail) {
-      s = tolower(s); s0 = s; found = ""
-      # An emphasized or tagged span at the start of the line (after an optional list marker and
-      # markup-free leading words) is decoded, parentheses and punctuation included, and a governed
-      # name found in it as a whole word is a stray even without a colon. A prose sentence with an
-      # italic everyday word has no list marker and no leading markup, so it is not a label.
-      if (match(s, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<[]*[ \t])?)?([*_`[]|<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>)+/)) {
-        op = substr(s, RSTART, RLENGTH); sub(/^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+([^*_`<[]*[ \t])?)?/, "", op)
-        rest = substr(s, RSTART + RLENGTH)
-        # The label is the span from the opening markup to the point where every bracket, tag, and
-        # emphasis opened inside it has closed again (brackets pair with brackets, tags with their closing
-        # tags, emphasis runs with runs of the same character); an unclosed label runs to the end of the
-        # line. Link destinations, values, and annotations after the label stay outside it.
-        full = op rest
-        lab = substr(full, 1, labelend(full))
-        unclosed = !LABCLOSED
-        # A word fused to a closed label ("**note**Kind**", "<span>note</span>Control") is taken as a
-        # separate trailing word; a link destination that follows the label is not part of it.
-        tail = ""
-        if (LABCLOSED && substr(full, length(lab) + 1) ~ /^[^ \t(]/) { tail = substr(full, length(lab) + 1); sub(/[ \t].*$/, "", tail); sub(/\(.*$/, "", tail) }
-        # The label is decoded in more than one way and a governed name found in any of them counts:
-        # with tags, code marks, and emphasis marks removed without adding a space ("K<span>ind</span>"
-        # and "K*ind*" read "kind"), with the marks turned into spaces ("**note**Kind**" reads "note
-        # kind"), and with the fused word decoded on its own and joined by a space ("**note**K*ind***"
-        # reads "note kind"); brackets and parentheses become spaces throughout.
-        m = labelname(decode(lab, 0), unclosed)
-        if (m == "") m = labelname(decode(lab, 1), unclosed)
-        if (m == "" && tail != "") m = labelname(decode(lab, 0) " " decode(tail, 0), unclosed)
-        if (m == "" && tail != "") m = labelname(decode(lab, 1) " " decode(tail, 0), unclosed)
-        if (m != "") {
-          found = " " canon(m)
-          s = substr(s, length(s) - length(rest) + length(lab) + length(tail) + 1)
-        }
-      }
-      # A governed name followed by a colon anywhere, with any markup between the name and the colon.
-      t = s0; gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", t); gsub(/\]\(([^()]|\([^()]*\))*\)/, "", t); gsub(/[]*_`[]/, "", t)
-      while (match(t, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)[ \t]*:/)) {
-        m = substr(t, RSTART, RLENGTH); sub(/^[^a-z]/, "", m); sub(/[ \t]*:$/, "", m)
-        if (index(found, " " canon(m)) == 0) found = found " " canon(m)
-        t = substr(t, RSTART + RLENGTH)
-      }
-      sub(/^ /, "", found); return found
-    }
-    # Labels are compared without regard to letter case; canon() returns the spelling the template uses.
-    function governed(n) { n = tolower(n); return (n == "status" || n == "kind" || n == "control" || n == "due-before" || n == "review-by" || n == "closure-evidence") }
-    function canon(n) {
-      n = tolower(n)
-      if (n == "status") return "Status"; if (n == "kind") return "Kind"; if (n == "control") return "Control"
-      if (n == "due-before") return "Due-before"; if (n == "review-by") return "Review-by"; if (n == "closure-evidence") return "Closure-evidence"
-      return n
-    }
-    # A field line is a list item (marker "-", "*", "+", or an ordered marker such as "1." or "1)",
-    # indented at most three spaces, followed by spaces or tabs) whose text starts with a bold label
-    # in either bold syntax and either colon placement: "**Name:** value", "**Name**: value",
-    # "__Name:__ value". The list marker is required; a bold label in running text is not a field.
-    # A field line is a list item whose text up to the first colon is a label carrying some inline
-    # markup (bold, italic, code, a link, an HTML tag, nested in any order). The label is normalized
-    # by removing every marker and tag before the name is compared, so "**Kind:**", "**Kind**:",
-    # "***Control***:", "**_Control_**:", "**`Kind`:**", "[**Kind**](#k):" all read as the field.
-    # A plain "Kind: value" list item carries no markup and is left to the stray rule.
-    # The label delimiter is the first colon that sits outside parentheses (link destinations, which
-    # may nest one level) and outside HTML tags, so "https:" inside a link never splits a label.
-    # Heading identifier normalization, shared by ATX and underlined headings: closed HTML tags are
-    # removed (so "<span>TD</span>-12" reads TD-12), then whitespace, emphasis markers, brackets, and
-    # an unclosed tag start ("<span TD-12") are peeled off in turn.
-    # Literal character count (markers are regex metacharacters, so gsub cannot count them).
-    function countchar(str, ch,   i, n) { n = 0; for (i = 1; i <= length(str); i++) if (substr(str, i, 1) == ch) n++; return n }
-    function idtext(t) {
-      gsub(/<([^>"\047]|"[^"]*"|\047[^\047]*\047)*>/, "", t)
-      while (t ~ /^([ \t]|[*_`[]|<[^ \t>]*[ \t])/) sub(/^([ \t]+|[*_`[]+|<[^ \t>]*[ \t]+)/, "", t)
-      # Inline markup inside the identifier itself ("**TD**-903", "T*D*-903", "[TD](#x)-903") is
-      # removed too: link destinations first, then markers and brackets.
-      gsub(/\]\(([^()"]|"[^"]*"|\([^()]*\))*\)/, "]", t); gsub(/[]*_`[]/, "", t); sub(/^[ \t]+/, "", t)
-      # The identifier prefix is read in any letter case and reported as TD-.
-      if (tolower(substr(t, 1, 3)) == "td-") t = "TD-" substr(t, 4)
-      return t
-    }
-    function delimpos(s,   i, c, depth, intag, q) {
-      depth = 0; intag = 0; q = ""
-      for (i = 1; i <= length(s); i++) {
-        c = substr(s, i, 1)
-        if (intag) {
-          if (q != "") { if (c == q) q = ""; continue }
-          if (c == "\"" || c == "\047") { q = c; continue }
-          if (c == ">") intag = 0
-          continue
-        }
-        if (c == "<") { intag = 1; continue }
-        if (c == "(") { depth++; continue }
-        if (c == ")") { if (depth > 0) depth--; continue }
-        if (c == ":" && depth == 0) return i
-      }
-      return 0
-    }
-    # The label must carry some inline markup; every marker, tag, and link destination is removed
-    # from it before the name is compared. A label that is not a governed name but contains one as a
-    # word ("oops Kind", "Control value") is recorded in mixedlabel so the caller fails it loudly.
-    function fieldname(s,   pos, label, lab0, lab1) {
-      mixedlabel = ""
-      if (s !~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/) return ""
-      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/, "", s)
-      pos = delimpos(s); if (pos == 0) return ""
-      label = substr(s, 1, pos - 1)
-      if (label !~ /[*_`<[]/) return ""
-      # Two decodings: marks and tags removed ("K<span>ind</span>" reads Kind), and marks and tags
-      # turned into spaces ("**note**Control" reads "note Control").
-      lab0 = decode(label, 0); gsub(/#/, "", lab0); sub(/^[ \t]+/, "", lab0); sub(/[ \t]+$/, "", lab0)
-      lab1 = decode(label, 1); gsub(/#/, "", lab1); gsub(/[ \t]+/, " ", lab1); sub(/^ /, "", lab1); sub(/ $/, "", lab1)
-      if (governed(lab0)) return lab0
-      if (governed(lab1)) return lab1
-      # A governed name as a whole word among other words or punctuation ("Control / rule",
-      # "Control, if any", "note Control") in either decoding is recorded so the caller fails it.
-      if (match(tolower(lab0), /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) || match(tolower(lab1), /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) {
-        mixedlabel = substr(tolower(lab0 " " lab1), RSTART, RLENGTH); if (mixedlabel !~ /(status|kind|control|due-before|review-by|closure-evidence)/) { match(tolower(lab0 " " lab1), /(status|kind|control|due-before|review-by|closure-evidence)/); mixedlabel = substr(tolower(lab0 " " lab1), RSTART, RLENGTH) }
-        gsub(/[^a-z-]/, "", mixedlabel); mixedlabel = canon(mixedlabel); return ""
-      }
-      # A label that markup splits into several parts and that holds a governed name inside
-      # ("**note**C*ontrol***" reads "notecontrol" one way and "note c ontrol" the other) is not a
-      # clean field name either; "Controller" has no split and stays free.
-      if (lab1 ~ / / && match(tolower(lab0), /(status|kind|control|due-before|review-by|closure-evidence)/)) {
-        mixedlabel = canon(substr(tolower(lab0), RSTART, RLENGTH)); return ""
-      }
-      if (lab0 !~ /^[A-Za-z][A-Za-z \t-]*$/) return ""
-      return lab0
-    }
-    # The value is everything after the delimiter, with the markers that closed the label stripped,
-    # then whitespace; the value itself, links and all, is left alone.
-    function val(s,   pos) {
-      sub(/^ ? ? ?([-*+]|[0-9]+[.)])[ \t]+/, "", s)
-      pos = delimpos(s); if (pos == 0) return ""
-      s = substr(s, pos + 1)
-      sub(/^(\*|_|`|<[^>]*>)*/, "", s); sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s
-    }
+    function reset() { id = ""; conflicts = ""; split("", f); split("", seen) }
     { sub(/\r$/, "") }
-    # Fenced examples are skipped. Fences are classified on the raw line, before any HTML rewriting. A fence opens with three or more backticks or tildes indented by
-    # at most three spaces and closes only with a run of the same character at least as long,
-    # indented by at most three spaces, followed by nothing but whitespace; a shorter or different
-    # run inside the fence, or one indented four spaces or more, is content.
+    # Fenced examples are skipped: a fence opens with three or more backticks or tildes, indented
+    # at most three spaces, and closes with a run of the same character at least as long.
     /^ ? ? ?(```|~~~)/ {
       body = $0; sub(/^ ? ? ?/, "", body)
       c = substr(body, 1, 1); n = 0
       while (substr(body, n + 1, 1) == c) n++
       rest = substr(body, n + 1)
-      # A backtick run followed by more backticks on the same line is inline code, not a fence: the
-      # line is left for the ordinary rules instead of being skipped.
       if (!infence) {
         if (!(c == "`" && rest ~ /`/)) { infence = 1; fchar = c; flen = n; fence_line = NR; next }
       }
@@ -660,90 +408,38 @@ else
       else next
     }
     infence { next }
-    # HTML bold tags in any letter case, with attributes (quoted values may contain ">") or inner
-    # whitespace, are rewritten to bold markers so a field written with them is still a field.
-    { gsub(/<[ \t]*\/?[ \t]*([bB]|[sS][tT][rR][oO][nN][gG])([ \t]([^>"\047]|"[^"]*"|\047[^\047]*\047)*)?[ \t]*>/, "**"); gsub(/<[ \t]*\/?[ \t]*([iI]|[eE][mM])([ \t]([^>"\047]|"[^"]*"|\047[^\047]*\047)*)?[ \t]*>/, "*") }
-    # HTML italic tags become single emphasis markers, so an italic label is caught as a stray; HTML
-    # code tags become backticks, which the label rules unwrap or the stray rule ignores.
-    { gsub(/<[ \t]*\/?[ \t]*([cC][oO][dD][eE]|[tT][tT])([ \t]([^>"\047]|"[^"]*"|\047[^\047]*\047)*)?[ \t]*>/, "`") }
-    # Code spans and links around a label are unwrapped inside the label only (see fieldname), so
-    # "**`Kind`:**" and "**[Kind](#kind):**" read as Kind while values keep their brackets.
-    # A paragraph that starts with a "TD-" line and is underlined with dashes or equals signs (any
-    # length, possibly after wrapped title lines) is a setext heading the parser does not read as an
-    # entry; it is recorded like a wrong-level heading so its fields cannot vanish. The identifier is
-    # exposed by the same normalization the ATX path uses.
-    /^ ? ? ?(-+|=+)[ \t]*$/ && prevtd != "" { flush(); reset(); odd = prevtd; prevtd = ""; next }
-    {
-      if (idtext($0) ~ /^TD-[^ \t]/) prevtd = $0
-      else if ($0 ~ /^[ \t]*$/ || $0 ~ /^ ? ? ?([-*+]|[0-9]+[.)])[ \t]/ || $0 ~ /^ ? ? ?#/) prevtd = ""
-    }
-    # Headings: up to three spaces of indentation, one to six marks, then whitespace. An entry starts
-    # at a level-two "TD-" heading and runs until the next one or a level-one heading; other headings
-    # inside it, such as "### Follow-up" or a stray "## Follow-up", stay part of it, so fields written
-    # under them are still read and a repeated field still fails. A "TD-" heading at any other level
-    # is recorded so the shell can fail or warn about it.
     /^ ? ? ?#/ {
       h = $0; sub(/^ ? ? ?/, "", h)
       level = 0; while (substr(h, level + 1, 1) == "#") level++
-      text = idtext(substr(h, level + 1))
-      if (text ~ /^TD-/) {
-        # A TD heading of any shape: level two with a space is an entry; anything else (another
-        # level, seven or more marks, no space after the marks) is recorded for the shell.
+      text = substr(h, level + 1); gsub(/[*_`]/, "", text); text = trim(text)
+      if (toupper(substr(text, 1, 3)) == "TD-") {
         flush(); reset()
-        if (level == 2 && h ~ /^##[ \t]/) { id = text; sub(/[^A-Za-z0-9-].*$/, "", id) } else { odd = $0 }
+        id = "TD-" substr(text, 4); sub(/[^A-Za-z0-9-].*$/, "", id)
         next
       }
-      if (h ~ /^#+([ \t]|$)/) {
-        if (level == 1) { flush(); reset() }
-        next
-      }
+      if (level == 1) { flush(); reset() }
+      next
     }
-    odd != "" { name = fieldname($0); if ((name != "" && governed(name)) || mixedlabel != "" || strayname($0) != "") oddfields = 1; next }
     id == "" { next }
     {
-      name = fieldname($0)
-      if (name == "") {
-        st = strayname($0)
-        if (st == "" && mixedlabel != "") st = mixedlabel
-        if (st != "") strays = strays " " st
-        else {
-          # The broad net: a line that is not a field and not a recognized stray but still mentions a
-          # field name, in any letter case and under any markup, is reported as a possible field the
-          # validator did not read. Prose that merely uses the word is warned about, not failed.
-          lw = tolower(decode($0, 0)); lw1 = tolower(decode($0, 1))
-          if (match(lw, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/) || match(lw1, /(^|[^a-z-])(status|kind|control|due-before|review-by|closure-evidence)([^a-z-]|$)/)) mentions = mentions " " FNR
-          else {
-            # A word split by markup ("K[ind](#f)", "K<span>ind</span>") shows as a letter touching a
-            # marker, bracket, or tag; then the letters alone are searched for a field name.
-            lw2 = tolower($0)
-            if (lw2 ~ /[a-z]([*_`[<]|\]\()|([]*_`>])[a-z]/) { lw2 = decode(lw2, 0); gsub(/[^a-z]/, "", lw2); if (lw2 ~ /(status|kind|control|due-before|review-by|closure-evidence|duebefore|reviewby|closureevidence)/) mentions = mentions " " FNR }
-          }
-        }
-        next
+      low = tolower($0)
+      if (match(low, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+)?[*_`]*(status|kind|control|due[- ]before|review[- ]by|closure[- ]evidence)([*_`]*[ \t]*:|[ \t]*:[*_`]*)/)) {
+        lab = substr(low, 1, RLENGTH)
+        sub(/^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+)?[*_`]*/, "", lab)
+        sub(/[*_` \t]*:.*$/, "", lab)
+        gsub(/ /, "-", lab)
+        v = substr($0, RLENGTH + 1); sub(/^[*_` \t]+/, "", v); v = trim(v)
+        if (lab in seen) { if (f[lab] != v && index(conflicts, " " lab) == 0) conflicts = conflicts " " lab }
+        else { seen[lab] = 1; f[lab] = v }
       }
-      if (!governed(name)) next
-      name = canon(name)
-      seen[name]++; if (seen[name] == 2) dups = dups " " name
-      if (seen[name] > 1) next
-      v = val($0)
-      if (name == "Status") status = v
-      else if (name == "Kind") { kind = v; kindpresent = 1 }
-      else if (name == "Control") control = v
-      else if (name == "Due-before") due = v
-      else if (name == "Review-by") review = v
-      else if (name == "Closure-evidence") closure = v
     }
     END { flush(); if (infence) printf "UNCLOSED-FENCE%s%d\n", US, fence_line }
   ' "$TD"; printf 'PARSER-EXIT%s%s\n' "$US" "$?")
   if [ "$PARSER_EXIT" != "0" ]; then
     fail "TECHNICAL-DEBT.md was not read to the end (the parser exited with status ${PARSER_EXIT:-unknown}); nothing after the point where it stopped was checked"
-    SUPPRESS_PASS=1
-  fi
-  if [ "$SUPPRESS_PASS" -eq 1 ]; then
-    :
-  elif [ "$SEEN" -eq 0 ]; then
+  elif [ "$SEEN" -eq 0 ] && [ "$ERRORS" -eq "$BEFORE" ] && [ "$UNKNOWNS" -eq "$UNREAD_BEFORE" ]; then
     pass "TECHNICAL-DEBT.md has no deferrals"
-  elif [ "$ERRORS" -eq "$BEFORE" ]; then
+  elif [ "$ERRORS" -eq "$BEFORE" ] && [ "$UNKNOWNS" -eq "$UNREAD_BEFORE" ]; then
     pass "every deferral is well-formed and none is due"
   fi
 fi
