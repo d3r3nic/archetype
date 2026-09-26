@@ -11,7 +11,7 @@ Apply the setup the bootstrap recorded, researching current practice for the cho
 - The runtime and package manager pinned, with the lock file committed.
 - Type checking at the strongest level the project will keep passing, recorded (#7).
 - A formatter and a linter with real rules for the mistakes this project must not make (#15, #25), not empty configurations.
-- Where the checks run before work reaches the main line, chosen for the stage: a hook that installs itself on every fresh clone, a pipeline, or both (#2, #15). Record it in References.md.
+- Where the checks run before work reaches the main line, chosen for the stage (#2, #15): a hook that installs itself on every fresh clone, a pipeline, or both; or, until #15 calls for automation, the step runner, recorded with why. Record it in References.md.
 - Configuration's one owner: it reads the environment, validates every required value at startup, and hands values to the rest of the code (#1). Record `` - Configuration: `<pattern that reads the environment>` only in `<its path>` `` in References.md § Boundaries.
 - The shared data shapes and the one validation approach for outside data (#7).
 - Typecheck and bundling as separate steps, so a check never writes build output.

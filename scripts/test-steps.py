@@ -1187,6 +1187,16 @@ class Steps(unittest.TestCase):
         self.assertEqual(refused.returncode, 1, refused.stdout)
         self.assertIn('DEC-002 has unsupported Status', refused.stdout)
 
+    def test_labelled_lines_under_history_do_not_count_as_fields(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions required\nCheck:'))
+        self.ledger('boot'); self.decisions()
+        decisions = self.project / 'DECISIONS.md'
+        decisions.write_text(decisions.read_text() + '- Date: 2026-09-15, retained after the first review\n- Reason: still fits the owner\'s purpose\n')
+        closed = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+        self.assertEqual(self.run_tool().returncode, 0, self.run_tool().stdout)
+
     def test_markdown_input_cannot_claim_a_different_decision_basis(self):
         path = self.engine / 'bootstrap' / 'BOOT.md'
         path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions and inputs required\nCheck:'))

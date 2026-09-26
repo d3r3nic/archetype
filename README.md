@@ -57,7 +57,7 @@ Run the installed update.sh to fetch current shared rules. It is a manual latest
 
 **Peer coding:** two AI assistants, each in its own chat, can take turns on a branch: the one holding the writing turn implements, the other reviews every change and can repair what it finds and hand it back for another review. The owner passes one short line between the chats at each hand-over. The framework owns the rules; each project tailors them in one settings file, `peer-coding/SETTINGS.md` (which two assistants, who writes new work, the checks before each hand-over, branch naming, push and merge, extra project rules), and each branch keeps its hand-over record in `peer-coding/<branch>/`, committed with the branch and renamed `<branch>--done` when it closes for its merge. Setup asks whether a second assistant will work on the project. See [development/PEER-CODING.md](development/PEER-CODING.md); `python3 scripts/test-peer-coding.py` exercises the helper script.
 
-Verification: `bash scripts/validate-framework.sh` checks structural consistency and runs the timeless-content check (`scripts/validate-timeless.sh`: no named technology anywhere in the framework's documents or checks, no factory step references, no dated AI statistics, no tool-bound numeric limits, no changelog language); `python3 scripts/test-entrypoints.py` exercises distribution and preservation. Set `ARCHETYPE_LEGACY_SOURCE` to an exported previous release directory to include the two-step upgrade regression. These checks do not prove that an agent obeys instructions or that a platform enforces them.
+Verification: `bash scripts/validate-framework.sh` checks structural consistency and runs the timeless-content check (`scripts/validate-timeless.sh`: no technology on its term list anywhere in the framework's documents or checks outside the allowlisted plumbing, no factory step references, no dated AI statistics, no tool-bound numeric limits, no changelog language); `python3 scripts/test-entrypoints.py` exercises distribution and preservation. Set `ARCHETYPE_LEGACY_SOURCE` to an exported previous release directory to include the two-step upgrade regression. These checks do not prove that an agent obeys instructions or that a platform enforces them.
 
 ## How It Works
 
@@ -85,7 +85,7 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 ├── LICENSE                    # Apache License 2.0
 ├── NOTICE                     # Copyright and license attribution
 ├── conventions/               # Framework-agnostic convention docs
-│   ├── 00-reusability.md      # Meta: evaluate reuse and abstraction in context
+│   ├── 00-reusability.md      # Meta: the standard; build once and reuse, separation recorded
 │   ├── 01-31.md               # Project setup, git, architecture, components, state,
 │   │                          # styling, types, errors, API, contract, authentication,
 │   │                          # testing, performance, accessibility, CI/CD, documentation,
@@ -146,7 +146,7 @@ inject.sh installs the framework files into the engine folder (`archetype/` by d
 ## Key Principles
 
 - **Investigate before choosing.** Understand the purpose, inspect existing work and research material uncertainty. Current evidence may overturn the first idea.
-- **Patterns need context.** Reuse, abstraction, architecture and visual style are choices to justify. Respect accepted project commitments; record consequential changes and their dependencies.
+- **Reuse by default.** Build once and reuse; separation is the recorded exception (#0). Architecture and visual style are chosen for the project and justified. Respect accepted project commitments; record consequential changes and their dependencies.
 - **The owner sets the intent.** The AI recommends and implements within the recorded authority. Supplied requirements survive delegation of the look.
 - **Evidence supports completion.** Verify behavior and inspect the resulting interface. Record limits honestly; a script cannot certify judgment or prove that instructions were read.
 - **Read what the work needs.** The root and playbooks route relevant knowledge; current facts have one authoritative home, with links for other readers.

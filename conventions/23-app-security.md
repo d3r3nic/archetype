@@ -26,7 +26,7 @@ References.md records each piece and where it lives.
 - Encode output for its destination. Never render people's content as raw markup unless it is sanitized first.
 - Never write a secret into code or commit one. Secrets come from the environment or a secret store, and are replaced when they may have leaked.
 - Never show internal details to callers: no stack traces, storage errors, file paths or internal identifiers. Log them with a correlation identifier and return a plain message carrying that identifier.
-- Encrypt connections that carry anything sensitive.
+- Encrypt every connection that crosses a network, whatever it carries; only traffic that never leaves the machine is exempt.
 - Encrypt sensitive data at rest, and give the most sensitive fields their own protection when the facts call for it (#30).
 - Check dependencies for known vulnerabilities in the project's checks, keep a lock on exact versions, and review a new dependency before adding it.
 - Record security-relevant events: sign-in attempts, access denials, access to sensitive records, administrative actions, configuration changes.

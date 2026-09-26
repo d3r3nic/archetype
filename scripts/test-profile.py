@@ -739,9 +739,22 @@ class ValidateProfileTests(unittest.TestCase):
         entry = "## TD-205 — unread kind\n\n- Status: open\n- Kind (deferral) until the first outside participant\n"
         code, out = self.run_validator(profile_text(), entry)
         self.assertEqual(code, 0, out)
-        self.assertIn("UNVERIFIED: TD-205 mentions a deferral but has no Kind line this check can read", out)
+        self.assertIn("UNVERIFIED: TD-205 mentions deferring but has no Kind line this check can read", out)
         code, out = self.run_validator(profile_text(), entry, strict=True)
         self.assert_fail(out, code, "strict mode")
+
+    def test_a_deferral_written_as_a_table_or_prose_is_unverified(self):
+        facts = profile_text(OPERATIONAL)
+        table = ("## TD-206 — table\n\n| Field | Value |\n|---|---|\n| Kind | deferred |\n| Control | #23 rate limiting |\n"
+                 "| Due-before | public-access |\n| Status | open |\n")
+        prose = "## TD-207 — prose\n\nDeferred until public-access. Control: #23 rate limiting. Status: open.\n"
+        for entry in (table, prose):
+            with self.subTest(entry=entry.splitlines()[0]):
+                code, out = self.run_validator(facts, entry)
+                self.assertIn("mentions deferring but has no Kind line this check can read", out)
+                self.assertNotIn("has no deferrals", out)
+                code, out = self.run_validator(facts, entry, strict=True)
+                self.assert_fail(out, code, "strict mode")
 
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:

@@ -5,12 +5,12 @@ This doc explains the mechanism by which Archetype improves. It sits alongside `
 ## The four-layer stack
 
 ```
-Factory (archetype-lab) → Framework (archetype) → Template → Product (customer site)
+Factory → Framework (archetype) → Template → Product (customer site)
 ```
 
 | Layer | Role | Repo / location |
 |---|---|---|
-| Factory | Where framework changes are authored; all history is narrative numbered steps in `planning/CHANGELOG.md` | the maintainers' private repository |
+| Factory | Where framework changes are authored; all history is narrative numbered steps in the factory's change log | the maintainers' repository |
 | Framework | What consumers use: the convention catalogue, the phase playbooks (bootstrap/scaffold/develop/maintain), scripts, file templates | `d3r3nic/archetype` (published dist) |
 | Template | A reusable project shape — monorepo with `@scope/*` packages, a reference app, governed by the framework | per-template repo |
 | Product | A customer site spawned from a template | per-site repo |
@@ -67,8 +67,8 @@ After any working session that involves a downstream project:
 
 - [ ] Audit: what patterns / rules / lint recipes / tooling gotchas were applied locally?
 - [ ] Classify each: framework-level (convention, playbook, script, template) vs local (brand, vendor, feature).
-- [ ] Framework-level findings → file a numbered Step in factory CHANGELOG.md with (trigger, finding, fix) tuple.
-- [ ] Fix in `dist/` at the right layer (convention vs script vs template vs playbook).
+- [ ] Framework-level findings → report them upstream (development/FEEDBACK.md) with the trigger, the finding and the fix you propose.
+- [ ] The fix lands in the published framework at the right layer (convention, script, template or playbook).
 - [ ] Push factory, push framework, pull into active projects.
 - [ ] Confirm the finding is no longer local: fresh AI could rebuild from framework alone.
 

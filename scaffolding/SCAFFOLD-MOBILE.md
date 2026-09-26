@@ -14,7 +14,7 @@ Build the systems this app needs, each from its convention, applying the decisio
 - shared state and data caching, where screens share them (#5);
 - the API client for each remote service (#9, #10);
 - authentication, with credentials in the platform's secure store (#11);
-- navigation between screens, protected by default (#21);
+- navigation between screens, protected by default when the app has accounts (#21);
 - forms (#20);
 - testing, with the shared setup (#12).
 

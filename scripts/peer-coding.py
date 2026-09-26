@@ -367,7 +367,7 @@ def alignment_of(text):
     names = []
     if roles:
         for raw in roles.groups():
-            # "claude" or "claude (its tool)"; a placeholder such as "<claude | codex>" names no one.
+            # "alpha" or "alpha (its tool)"; a placeholder such as "<alpha | beta>" names no one.
             match = re.match(r'^([A-Za-z][A-Za-z0-9-]*)\s*(\([^)]*\))?\s*$', plain(raw))
             names.append(match.group(1).lower() if match else '')
     verdict = re.search(r'^Receiver verdict:\s*(.*)$', text, re.M)
@@ -668,7 +668,7 @@ def attributed(folder, commit, names):
 
 
 def peer_line_names(message):
-    """The names on a commit message's Peer lines: `Peer: claude`, `Peer: claude (its tool)`, `Peer: claude, codex`."""
+    """The names on a commit message's Peer lines: `Peer: alpha`, `Peer: alpha (its tool)`, `Peer: alpha, beta`."""
     names = []
     for value in re.findall(r'^peer:[ \t]*(.*)$', message, re.M | re.I):
         value = re.sub(r'\([^)]*\)', ' ', value)

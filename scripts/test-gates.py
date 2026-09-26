@@ -666,6 +666,21 @@ class RegulatedDataGate(unittest.TestCase):
     def profile(self, value, where=None):
         (where or self.project).joinpath('PROFILE.md').write_text('# Profile\n\n- Regulated data: %s\n\n## Notes\n' % value)
 
+    def test_an_interface_or_a_factory_is_not_a_production_store(self):
+        self.references(self.COMPLIANCE.replace('- Regimes: none, the project keeps no regulated data\n', '- Regimes: a health-data law applies\n') + '- Audit log: `src/audit`\n')
+        self.profile('yes')
+        store = self.project / 'src' / 'audit'
+        store.mkdir(parents=True)
+        (store / 'store.ext').write_text('export interface IAuditStore {}\n'
+                                         'class InMemoryAuditStore { private records: AuditRecord[] = []; add(r) { this.records.push(r) } }\n'
+                                         'export const createAuditStore = () => new InMemoryAuditStore()\n')
+        result = self.check()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('audit log uses an in-memory store only', ANSI.sub('', result.stdout))
+        (store / 'durable.ext').write_text('export class LedgerTableAuditStore {}\n')
+        result = self.check()
+        self.assertEqual(result.returncode, 0, result.stdout)
+
     def audit_store(self, backing=False):
         store = self.project / 'src' / 'shared' / 'audit-log'
         store.mkdir(parents=True, exist_ok=True)

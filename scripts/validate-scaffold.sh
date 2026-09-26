@@ -397,8 +397,9 @@ if [ "$RUN_4B" -eq 1 ]; then
     # Signs of a store that lives only in memory: its name, or a list the entries are pushed into.
     if grep -rqE '(InMemoryAuditStore|MemoryAuditStore|inMemoryStore|this\.records[[:space:]]*=[[:space:]]*\[\]|records:[[:space:]]*Array|push\(record\))' "$AUDIT_DIR" 2>/dev/null; then
       # A production store beside it: the pattern References.md § Compliance records on its Audit store
-      # line, or any other store the code names ...AuditStore (not an in-memory, fake, test, mock or stub
-      # one), or an append-only or write-once store.
+      # line, or another class the code names ...AuditStore (capitalized, not an interface such as
+      # IAuditStore, and not an in-memory, fake, test, mock, stub, dummy or no-op one), or an append-only
+      # or write-once store.
       AUDIT_STORE_PATTERN="$(tr -d '\r' < "$REFS" | awk '
         /^## / { inside = ($0 ~ /^## Compliance[ \t]*$/); next }
         inside && /^- Audit store:/ { v = $0; sub(/^- Audit store:[ \t]*/, "", v)
@@ -406,7 +407,7 @@ if [ "$RUN_4B" -eq 1 ]; then
       DURABLE=0
       if [ -n "$AUDIT_STORE_PATTERN" ] && grep -rqE -e "$AUDIT_STORE_PATTERN" "$AUDIT_DIR" 2>/dev/null; then
         DURABLE=1
-      elif grep -rhoE '[A-Za-z0-9_]*AuditStore' "$AUDIT_DIR" 2>/dev/null | grep -vE '^(InMemory|Memory|Fake|Test|Mock|Stub|Dummy|Noop)' | grep -vE '^AuditStore$' | grep -q .; then
+      elif grep -rhoE '[A-Za-z0-9_]*AuditStore' "$AUDIT_DIR" 2>/dev/null | grep -E '^[A-Z]' | grep -vE '^I[A-Z]' | grep -viE '^(inmemory|memory|fake|test|mock|stub|dummy|noop)' | grep -vE '^AuditStore$' | grep -q .; then
         DURABLE=1
       elif grep -rqE '(AppendOnlyStore|WormStore|WORMStore)' "$AUDIT_DIR" 2>/dev/null; then
         DURABLE=1

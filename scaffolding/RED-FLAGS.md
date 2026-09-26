@@ -26,7 +26,7 @@ A project with regulated data needs two logging systems. A session writes audit 
 **Defense:**
 - SCAFFOLD-BACKEND builds the audit trail as its own step, separate from the application logger.
 - B4 opens with the two systems; #23 points to it.
-- validate-scaffold.sh checks for a dedicated audit log, separate from the application logger and not a memory-only store, wherever the unit handles regulated data (PROFILE.md, or the unit's References.md), at the location References.md § Compliance records on its Audit log line.
+- validate-scaffold.sh checks, wherever the unit handles regulated data (PROFILE.md, or the unit's References.md), that an audit log exists at the location References.md § Compliance records on its Audit log line and is not a memory-only store. That it is separate from the application logger is the review's to read.
 
 ## 4. Middleware pipeline in wrong order
 
@@ -71,7 +71,7 @@ References.md says public or device clients call an API that lets clients compos
 
 B1 keeps production migrations behind a manual or gated path. Many pipeline templates run the migration command on every push to the main branch, so a bad migration reaches production before anyone reviews it.
 
-**Defense:** SCAFFOLD-BACKEND records the migration command in References.md § Commands and bounds it to its production path in § Boundaries; validate-scaffold.sh fails when a recorded migration command has no such line, and the boundary check fails when the command appears anywhere else.
+**Defense:** SCAFFOLD-BACKEND records the migration command in References.md § Commands and bounds it to its production path in § Boundaries. Once § Boundaries exists, validate-scaffold.sh fails a recorded migration command no line bounds, and the boundary check fails the command anywhere else; while the section is absent the gate warns, and validate-develop.sh requires the section.
 
 ## 11. Scaffold-complete without integration proof
 

@@ -39,7 +39,7 @@ Whenever the protected asset or the hazardous capability exists: secrets and env
 
 ## Deferrals
 
-Live in TECHNICAL-DEBT.md as entries with `Kind: deferral`, a `Control`, a `Due-before` trigger or date, a `Review-by` date, and `Closure-evidence`. A trigger the facts above make true turns its deferrals blocking; renewing a date, relabeling the stage, or won't-fix does not clear it. Before any action that changes exposure (inviting a user, importing real data, enabling payments, publishing), refresh the facts and run `scripts/validate-profile.sh --strict`.
+Live in TECHNICAL-DEBT.md as entries with `Kind: deferral`, a `Control`, and a `Due-before` trigger or date; `Review-by` and `Closure-evidence` are optional. A trigger the facts above make true turns its deferrals blocking; renewing a date, relabeling the stage, or won't-fix does not clear it. Before any action that changes exposure (inviting a user, importing real data, enabling payments, publishing), refresh the facts and run `scripts/validate-profile.sh --strict`.
 
 ## Change log
 

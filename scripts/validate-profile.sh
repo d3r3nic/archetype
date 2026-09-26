@@ -364,7 +364,7 @@ else
         if [ -n "$due$control$review$closure" ]; then
           unver "$id carries deferral fields (Control, Due-before, Review-by or Closure-evidence) but no Kind; say whether it is a deferral or a shortcut"
         elif [ "$mention" = "1" ]; then
-          unver "$id mentions a deferral but has no Kind line this check can read; write Kind: deferral or Kind: shortcut"
+          unver "$id mentions deferring but has no Kind line this check can read; write Kind: deferral or Kind: shortcut"
         fi
         continue ;;
       *) unver "$id: Kind is \"${kind_w#other:}\", neither shortcut nor deferral; this entry cannot be read"; continue ;;
@@ -480,7 +480,7 @@ else
           if (index(RS_ "" f[lab] RS_, RS_ v RS_) == 0) { f[lab] = f[lab] RS_ v; if (index(conflicts, " " lab) == 0) conflicts = conflicts " " lab }
         }
         else { seen[lab] = 1; f[lab] = v }
-      } else if (low ~ /deferral/) mention = 1
+      } else if (low ~ /defer/) mention = 1
     }
     END { flush(); if (infence) printf "UNCLOSED-FENCE%s%d\n", US, fence_line }
   ' "$TD"; printf 'PARSER-EXIT%s%s\n' "$US" "$?")

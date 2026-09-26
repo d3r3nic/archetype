@@ -84,12 +84,17 @@ done
 group 3 "The map of where each original rule lives"
 # ----------------------------------------------------------------------
 MAP=""
+MAP_FILE=""
 for candidate in MIGRATION-NOTES.md INDEX.md; do
-  if [ -s "$PROJECT_ROOT/$candidate" ]; then MAP="$candidate"; break; fi
-  if [ -s "$ARCHETYPE/$candidate" ]; then MAP="$(basename "$ARCHETYPE")/$candidate"; break; fi
+  if [ -f "$PROJECT_ROOT/$candidate" ]; then MAP="$candidate"; MAP_FILE="$PROJECT_ROOT/$candidate"; break; fi
+  if [ -f "$ARCHETYPE/$candidate" ]; then MAP="$(basename "$ARCHETYPE")/$candidate"; MAP_FILE="$ARCHETYPE/$candidate"; break; fi
 done
 if [ -n "$MAP" ]; then
-  pass "the map is $MAP"
+  if [ "$(wc -l < "$MAP_FILE" | tr -d ' ')" -lt 3 ]; then
+    warn "the map $MAP is nearly empty: it should say where each original rule and section lives now"
+  else
+    pass "the map is $MAP"
+  fi
 else
   fail "no MIGRATION-NOTES.md: write the map of where each original rule and section lives now (bootstrap/EXISTING-PROJECT.md, Part B)"
 fi

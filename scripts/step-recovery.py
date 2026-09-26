@@ -73,8 +73,13 @@ def decision_source(project: Path, cwd: Path) -> tuple[Path, str | None]:
 
 
 def field_value(block: str, label: str) -> list[str]:
-    """Every value of one field in a decision block: a line with the label, optionally as a list
-    item and optionally in bold or italic, then a colon."""
+    """The values of one field in a decision block. A plain `Label:` line at the start of a line,
+    the form templates/decisions.md writes and earlier releases read, is taken when present; list
+    items further down, such as a dated line under History, are then left alone. Only when no plain
+    line exists is the field read as a list item or in bold or italic, in any letter case."""
+    plain = re.findall(rf"(?m)^{re.escape(label)}:[ \t]*(.*?)[ \t]*$", block)
+    if plain:
+        return plain
     pattern = rf"(?mi)^[ \t]*(?:[-*+][ \t]+)?[*_]*{re.escape(label)}[*_]*[ \t]*:[*_]*[ \t]*(.*?)[ \t]*$"
     return [value for value in re.findall(pattern, block)]
 
