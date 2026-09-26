@@ -1,8 +1,12 @@
 # Convention #22: Design System
 
+## Applies when
+
+The product has an interface built from reusable controls. What varies: the platform's native controls, whether an established foundation fits, and how many screens share the same controls. A product with no interface skips this convention.
+
 ## Principle
 
-Choose the interface foundation that best serves the project's purpose, platform, existing work, access needs, and likely change. An established library may carry valuable behavior. Native elements may already provide the right contract. Selective adapters may isolate real volatility. A project-owned foundation may be justified. Research current evidence and record the consequential choice instead of assuming that every project needs a library, wrapper layer, or catalog.
+Every control the product uses has one implementation, and every screen reuses it. Choose the interface foundation that best serves the project's purpose, platform, existing work, access needs, and likely change. An established library may carry valuable behavior. Native elements may already provide the right contract. Selective adapters may isolate real volatility. A project-owned foundation may be justified. Research current evidence and record the consequential choice instead of assuming that every project needs a library, wrapper layer, or catalog.
 
 Whatever the architecture, the implemented interface must honor the accepted artifact, committed schemes and contexts, accessibility target, and tested interaction behavior.
 
@@ -22,7 +26,7 @@ Establish the interface system the project chose:
 - Follow the chosen boundary. If direct imports are the recorded pattern, use them consistently. If adapters or wrappers isolate a real concern, consumers use that layer.
 - Add an adapter only when it configures behavior, preserves a stable project contract, centralizes a meaningful policy, or isolates demonstrated volatility.
 - Do not rebuild a control when an existing option meets the requirement. Do not adopt an existing option merely because it is popular when its behavior or cost does not fit.
-- Reuse or extract a component when shared behavior, repeated change, accessibility risk, or coupling justifies it. A fixed use count is not proof.
+- When a second screen needs a control the project already has, it uses that control; when two screens hold the same control, it becomes one shared component. Never build a second copy. Keep apart only controls that look alike but serve different roles, and record why (#0).
 - Name components and variants from their project meaning. Similar roles should look and behave consistently; different roles may use different patterns.
 - Keep available components and interaction states discoverable through the project's recorded method. A catalog is required only when it is the selected discovery and review surface.
 - Preserve focus, input, semantics, state communication, and every committed scheme and context through component changes.
@@ -34,6 +38,7 @@ Establish the interface system the project chose:
 
 - Choosing a foundation or wrapper policy without examining the project's actual platform and requirements.
 - Bypassing the recorded import or composition boundary without new evidence or a migration decision.
+- A second implementation of a control the project already has.
 - Adding pass-through wrappers, unused primitives, or catalog entries with no demonstrated purpose.
 - Rebuilding interaction and accessibility behavior that a fitting selected foundation already provides.
 - Losing required keyboard, focus, controller, semantic, state, scheme, or context behavior.
@@ -49,8 +54,6 @@ Establish the interface system the project chose:
 - RIGHT: choose a discovery and review surface proportional to the project and keep it current.
 
 ## Research Notes
-
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options when the foundation is selected.
 
 - Research current platform controls and maintained foundations, including accessibility, theming, interaction coverage, maintenance, runtime cost, and migration risk.
 - Inspect the project's existing components and actual repeated behavior before proposing a new layer.

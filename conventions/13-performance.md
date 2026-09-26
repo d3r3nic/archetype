@@ -1,8 +1,12 @@
 # Convention #13: Performance & Optimization
 
+## Applies when
+
+Every project. What varies is the workload that matters: how fast a screen answers, how many requests a service carries, how smoothly a simulation runs, how much a job costs to run, how much battery an app uses. The facts gathered at setup (who uses it, how many, how often) size it.
+
 ## Principle
 
-Performance matters through the experience or workload the product promises. Identify what must remain responsive, timely or economical in its actual contexts, then measure it. Select budgets and techniques from those needs, not from a generic page or application template.
+Speed, capacity and cost are sized to the real workload: measured, budgeted where a regression would matter, and never built far beyond need or left to grow unchecked. Identify what must stay responsive, timely or economical in the product's actual contexts, then measure it. Select budgets and techniques from those needs, not from a generic page or application template.
 
 ## Reusable System
 
@@ -32,7 +36,5 @@ Define representative workloads, environments, measurements and acceptable limit
 - WRONG: use a web page score to approve a continuously animated simulation. RIGHT: measure the intended interaction and workload on the committed contexts.
 
 ## Research Notes
-
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 Research current measurement tools and runtime behavior for the selected workload. Read primary documentation for proposed optimizations and reproduce material claims in a representative experiment. Record the method, environment and limits alongside results (#18).

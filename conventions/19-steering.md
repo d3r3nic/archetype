@@ -1,81 +1,65 @@
 # Convention #19: AI Steering & Drift Prevention
 
+## Applies when
+
+Every session that changes the project. What varies is who decides technical questions, a setting in PROFILE.md: under `owner-decides` the owner approves architecture, plans and foundational changes; under `ai-decides` the AI decides them, records each decision with its reason, and proceeds. The owner keeps authority over what the product is, who it serves, what it promises, and what it may spend and commit under both settings (#29).
+
 ## Principle
 
-AI agents drift from the intended path without explicit boundaries. Specifications define scope before implementation starts. Plans define approach before code is written. The owner keeps authority over what the product is, who it serves, what it promises, and what it may spend and commit (#29). Who decides technical questions is a declared project setting: under `owner-decides` the owner approves architecture, plans, and foundational changes; under `ai-decides` the AI decides them, records each decision with its reason, and proceeds. The discipline below holds under both.
+Do what was asked, completely, and nothing that was not. Know the scope before building, plan in proportion to the risk, verify as you go, and keep every change inside the authority the project granted. Drift, whether unrequested features, silent refactors or a changed interface nobody agreed to, is a defect even when it works.
 
 ## Reusable System
 
-Create steering artifacts that the team reuses:
-- A specification template for defining features before implementation: what to build, why, acceptance criteria, and explicitly what is out of scope
-- A plan template for implementation: which files change, in what order, what approach
-- Persistent planning files that survive context resets so AI agents can restore context when starting a new session
-- A decision record (#16, #29) that holds every consequential technical decision with its reason and the alternatives rejected, so a later session restores the why, not only the what
+The steering records: the scope of the current work with what is out of it, the plan where the work needs one, and the decision record (#16, #29) that holds each consequential technical choice with its reason and rejected alternatives. They live in the project's files, so a later session restores the why and not only the what (#17).
 
 ## Rules
 
 These hold under both settings:
 
-- Write a specification before complex features. Include an explicit "out of scope" section. Without it, AI explores everything.
-- Write a plan before multi-file changes. List the files, the changes, and the sequence.
-- One change at a time. Verify between changes. Do not batch multiple changes without verification.
-- Do exactly what was asked. Do not refactor surrounding code, add improvements, or clean up files that weren't part of the request. AI does this unprompted.
-- Start fresh after two failed corrections. If the AI has failed twice on the same issue and the context is polluted with failed approaches, start a new session with a better prompt incorporating what was learned.
-- Clear context between unrelated tasks. Never mix unrelated work in one session.
-- Read feature-tree.md before building anything. Check what already exists.
+- Know the scope before building. For work larger than an obvious edit, write down what is in it, what is out of it, and what done looks like.
+- Plan in proportion to uncertainty, coupling and consequence: an obvious local fix needs only the change and its check; a change across several parts needs its sequence, affected consumers and checks written down.
+- Verify at each coherent step, not only at the end (#18).
+- Do exactly what was asked. Do not refactor nearby code, add improvements or clean up files outside the request; propose them separately.
+- Add no requirements nobody asked for: extra modes, formats, options or compatibility layers.
+- Read what exists before building: feature-tree.md, the relevant code and the shared systems (#0).
 
 These read the decision-authority setting in PROFILE.md first:
 
 - Plans. Under `owner-decides`, get approval before implementing. Under `ai-decides`, record the plan at the decision location and proceed.
-- Competing approaches. Under `owner-decides`, present them with trade-offs and wait for a decision. Under `ai-decides`, choose, record the alternatives rejected and why, proceed, and tell the owner in the session summary.
-- Uncertainty. About scope or product intent, ask the owner under both settings; do not guess, do not build something that seems wrong. About a technical question, under `owner-decides` ask; under `ai-decides` research, decide, record.
-- Foundational systems. These affect every feature. Under `owner-decides`, never modify one without explicit permission. Under `ai-decides`, never modify one without a recorded decision and the breaking-change protocol below.
-- Comprehension. The owner understands what the product does and what it promises; the decision record carries the technical why. Under `owner-decides` the owner also maintains system comprehension and decides what NOT to build. Under `ai-decides` the AI decides what not to build, records it, and the owner hears it as a recommendation when it changes scope.
+- Competing approaches. Under `owner-decides`, present them with their trade-offs and wait. Under `ai-decides`, choose, record the rejected alternatives and why, proceed, and tell the owner in the session summary.
+- Uncertainty. About scope or product intent, ask the owner under both settings; never guess and never build something that seems wrong. About a technical question, ask under `owner-decides`; research, decide and record under `ai-decides`.
+- Foundational systems. Under `owner-decides`, change one only with the owner's permission. Under `ai-decides`, change one only with a recorded decision, and follow the protocol below when other code depends on it.
+- What not to build. Under `owner-decides` the owner decides. Under `ai-decides` the AI decides, records it, and tells the owner as a recommendation when it changes scope.
+
+## Changing an interface others depend on
+
+When a change alters how other code uses a component, a shared service, a contract or a foundational system:
+
+1. Record what exists now, what must change and why, and what depends on it.
+2. Keep every dependant working. With one or two callers in the same change, update them together and verify. With many callers, other teams, or released consumers, add the new version beside the old, move the users, verify between moves, then remove the old version (#2).
+3. Under `owner-decides`, get the owner's go-ahead before each phase. Under `ai-decides`, record the plan and proceed phase by phase. A phase that touches a live customer environment is escalated under both settings (#29).
+
+A change that does not alter how other code uses the system (moving a value into configuration, adding missing error handling, routing an import through its owner) needs no protocol.
 
 ## Violations
 
-- Starting implementation without a specification or plan for complex features
-- Refactoring code adjacent to the requested change ("while I'm here, I'll also...")
-- Continuing after multiple failed attempts without starting fresh
-- Mixing unrelated tasks in one session (context becomes noisy, quality drops)
-- Modifying foundational systems during feature work without permission (owner-decides) or without a recorded decision (ai-decides)
-- Guessing at scope or intent instead of asking the owner
-- Asking the owner a technical question under `ai-decides`, or deciding one without recording it
-- Waiting for approval under `ai-decides` for work that is already within scope
-- Adding phantom requirements nobody asked for (batch mode, dry-run, legacy format support)
-- Building a feature without reading the feature-tree.md to understand what already exists
-
-## Breaking Change Protocol
-
-When a change will alter an existing component API, shared service interface, or foundational system behavior:
-
-1. Document what exists now, what needs to change, why it needs to change, and what will break.
-2. Propose a phased approach:
-   - Phase 1: Add the new version alongside the old. Mark the old as deprecated.
-   - Phase 2: Migrate all usage from old to new.
-   - Phase 3: Remove the old version.
-3. Under `owner-decides`, present this to the team and wait for explicit go-ahead before each phase. Under `ai-decides`, record it at the decision location and proceed phase by phase, verifying between phases. A phase that touches a live customer environment is escalated under both settings (#29).
-
-Non-breaking changes (extracting hardcoded values to config, adding missing error handling, fixing imports to use wrappers) can be done immediately while working on a feature. Only changes that alter how OTHER code interacts with a system require the protocol.
+- Building before the scope is known.
+- "While I was here" changes outside the request.
+- Features, modes or options nobody asked for.
+- A shared interface changed with its dependants left broken.
+- A foundational change made without permission (`owner-decides`) or without a recorded decision (`ai-decides`).
+- Guessing at product intent instead of asking.
+- Asking the owner a technical question under `ai-decides`, or deciding one without recording it.
+- Waiting for approval under `ai-decides` for work already in scope.
 
 ## Wrong vs Right
 
-- WRONG: user asks to "add user roles." AI immediately starts writing code across 8 files with no plan.
-- RIGHT: user asks to "add user roles." AI first confirms scope with the owner: which roles, what is out of scope. Then it plans where they are enforced (approved under `owner-decides`, recorded under `ai-decides`). Then implements file by file with verification after each.
-- WRONG: user asks to "fix the login button color." AI fixes the color, then also refactors the form structure, updates validation, and adds a loading state that wasn't asked for.
-- RIGHT: user asks to "fix the login button color." AI fixes the button color, verifies it, done.
-- WRONG: a shared component's API needs to change. AI changes the component and breaks 15 features that use it.
-- RIGHT: AI documents what needs to change and proposes a phased migration. New API is added alongside old. Features migrate one at a time. Old API removed after all migration is complete.
-- WRONG: under `ai-decides`, the AI asks the owner which caching approach to use. RIGHT: it chooses per #9 and #13, records the alternatives, and moves on.
-- WRONG: under `owner-decides`, the AI rewrites a foundational system because a plan from last month mentioned it. RIGHT: permission for this change, now.
+- WRONG: asked to "add user roles", the AI starts editing eight files. RIGHT: it confirms which roles and what is out of scope, plans where roles are enforced (approved or recorded, per the setting), then builds and verifies step by step.
+- WRONG: asked to fix a button's color, the AI also restructures the form and adds a loading state. RIGHT: it fixes the color, verifies it, and mentions anything else it noticed.
+- WRONG: a shared component's interface changes and fifteen screens break. RIGHT: the dependants are known first; they are moved over and verified, then the old interface is removed.
+- WRONG: a one-caller helper in a prototype gets a deprecation period and a migration plan. RIGHT: the helper and its one caller change together in one verified commit.
+- WRONG: under `ai-decides`, the AI asks the owner which caching approach to use. RIGHT: it chooses under #9 and #13, records the alternatives, and moves on.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-This convention is about AI collaboration workflow, not framework-specific implementation. Apply these principles to every AI-assisted development session regardless of framework. Ensure:
-- Specification and plan templates are available in the project
-- The decision-authority setting and the decision location are recorded in PROFILE.md and References.md at bootstrap (#29, #30)
-- The team agrees on the plan-before-implement workflow for complex changes
-- The team agrees on the breaking change protocol for shared systems
-- Feature-tree.md is the first thing read before any work
+Research whether the team already has scope, plan or change-management practices worth keeping, and adopt them rather than adding a second set. Record the decision-authority setting and the decision location at bootstrap (PROFILE.md, References.md; #29, #30).

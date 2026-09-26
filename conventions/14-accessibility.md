@@ -1,65 +1,49 @@
 # Convention #14: Accessibility
 
+## Applies when
+
+The product has an interface people use: screens, pages, a device app, a terminal interface, a game. What varies: the platform's own accessibility services, the input methods it supports (pointer, touch, keyboard, controller, voice, assistive technology), and the level the project commits to. A product with no interface skips this convention.
+
 ## Principle
 
-The application works for everyone. Semantic markup is the foundation. Interactive elements are keyboard-navigable. Screen readers can interpret the UI. Focus is managed intentionally. Color is never the only way to communicate information. Accessibility is built into the component foundation during scaffolding, not added after features are complete.
+The product works for everyone who is meant to use it, whatever their abilities and inputs. Accessibility is built into the shared components during scaffolding, not added after features are done. The project commits to an accessibility target, a recognized standard and level, researched at bootstrap and recorded. Absent a stronger requirement from law, contract or platform, the target is the level that most accessibility laws reference.
 
 ## Reusable System
 
-Create accessible base components during scaffolding that all features use:
-- Modal and dialog components with proper focus trapping (focus stays inside the modal until it's closed) and focus return (when the modal closes, focus returns to the element that opened it)
-- Dropdown and menu components with proper keyboard navigation (arrow keys to navigate items, escape to close, enter to select)
-- Form components with built-in label association, error message linking, and required field indication that work with screen readers
-- A skip navigation link as the first focusable element on every page
-- Screen reader utility for visually hidden text that is read by screen readers but not visible on screen
+Accessible shared components that every feature uses: dialogs that hold focus and return it, menus and lists that work by keyboard or equivalent, form fields with their labels and errors tied to them, and the platform's way to give assistive technology text that is not shown on screen. References.md records the target, the target size, and the tools that check accessibility.
 
 ## Rules
 
-- Use semantic markup for interactive elements. Buttons for actions, links for navigation. Never use generic elements with click handlers to simulate buttons or links.
-- Every form input must have a visible label associated with it programmatically. Placeholder text is not a label.
-- Every image must have descriptive alt text that explains the purpose of the image, or be explicitly marked as decorative. Never use placeholder alt text like "image" or "photo."
-- Heading hierarchy must be logical and sequential. Never skip heading levels for styling purposes.
-- Focus must be visible on all interactive elements. Never remove the focus indicator without providing an equally visible replacement.
-- Color must never be the only way to communicate information. Red for error is fine, but it must also have an icon or text label for people who cannot distinguish colors.
-- Modals must trap focus inside them and return focus to the trigger element when closed.
-- Respect the user's reduced motion preference. If the user's system says they prefer reduced motion, disable or simplify all animations.
-- Targets meet the platform's minimum, recorded on the `Target size` line of References.md, and adjacent targets have space between them so a miss does not hit the neighbor.
-- Reading order equals visual order equals focus order. A screen whose keyboard path jumps has a design defect, not a markup one.
-- Focus is a designed state with its own token, visible on every surface in every scheme, never removed and never left to a default the foundation's reset may erase.
-- At the zoom level the accessibility target sets, text reflows within the measure, nothing truncates in a way that loses meaning, and no fixed-height container clips text.
-- Every meaning carried by color, sound, motion, or position has a second carrier in text, icon, or structure.
-- Every action reachable by pointer is reachable by keyboard and by touch; hover reveals nothing essential; drag has an equivalent; time limits can be extended and self-moving content can be paused.
+- Use the platform's semantic elements for their meaning: actions are actions and navigation is navigation. Never simulate a control with a generic element.
+- Every input has a visible label tied to it. Placeholder text is not a label.
+- Every image or icon that carries meaning has a text alternative that says what it means; decoration is marked as decoration.
+- Structure is real: headings, regions and reading order follow the content. On web pages this includes heading levels in order and a way to skip repeated navigation.
+- Focus is visible on every interactive element, in every scheme, and designed rather than left to a default a reset can erase.
+- Every meaning carried by color, sound, motion or position has a second carrier in text, an icon or structure.
+- Dialogs keep focus inside while open and return it to where it came from.
+- Respect the person's reduced-motion and other platform preferences without losing meaning or control.
+- Targets meet the platform's minimum size, recorded on the `Target size` line of References.md, with space between adjacent targets.
+- Reading order, visual order and focus order agree.
+- At the zoom level the target sets, text reflows without losing meaning or being clipped.
+- Every action reachable by pointer is reachable by keyboard and by touch where the platform has them. Hover reveals nothing essential, drag has an alternative, time limits can be extended, and moving content can be paused.
 
 ## Violations
 
-- Using a generic element with a click handler instead of a semantic button or link element
-- Input fields without labels (or using only placeholder text as a label)
-- Images without alt text, or with placeholder alt text like "image" that was never replaced with a real description
-- Skipping heading levels (jumping from level 1 to level 3 for visual styling)
-- Removing the focus outline without providing a visible replacement
-- Color as the only way to indicate state (red for error with no icon or text)
-- Modals that don't trap focus or don't return focus to the trigger on close
-- Ignoring the user's reduced motion preference
-- A focus ring visible in one scheme and invisible in another
-- Actions reachable only on hover or only by drag
+- A generic element acting as a button or link.
+- An input with no label, or only a placeholder.
+- A meaningful image with no alternative, or a meaningless one like "image".
+- Structure faked with styling: headings chosen for size, regions that are not regions.
+- A focus indicator removed or invisible in one scheme.
+- Color as the only signal of state.
+- A dialog that lets focus escape or loses it on close.
+- Actions reachable only by hover or only by drag.
 
 ## Wrong vs Right
 
-- WRONG: a clickable div styled to look like a button. It looks right visually but screen readers don't announce it as interactive, keyboard users can't tab to it, and it doesn't respond to keyboard activation.
-- RIGHT: a semantic button element. Screen readers announce it as a button, keyboard users can tab to it and press enter or space to activate it. Built-in behavior, no extra code needed.
-- WRONG: a form input with placeholder text "Email" and no label. When the user starts typing, the placeholder disappears and they can't remember what the field is for. Screen readers may not announce what the field is.
-- RIGHT: a visible label "Email" associated with the input. Always visible, always announced by screen readers, always linked to the field for click-to-focus.
-- WRONG: an image with alt="image" that was generated by AI and never replaced. Screen readers announce "image" which gives the user zero information.
-- RIGHT: an image with alt="Revenue chart showing 32% growth from Q1 to Q2" that describes what the user needs to know from the image.
+- WRONG: a styled box that looks like a button but cannot be reached or activated by keyboard and is not announced. RIGHT: the platform's button, which is reachable, announced and activated with no extra code.
+- WRONG: an email field whose only label is placeholder text that disappears on typing. RIGHT: a visible label tied to the field, always shown and always announced.
+- WRONG: a chart image described as "image". RIGHT: an alternative that says what the chart shows, such as the growth it reports.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention:
-- Research the framework's accessibility patterns. What accessible component libraries are recommended? Do they handle focus trapping, keyboard navigation, and ARIA automatically?
-- Research the framework's focus management utilities. How do you trap focus in modals, return focus on close, and move focus on route changes?
-- Research accessibility testing tools that integrate with the framework's test runner
-- Research automated accessibility auditing tools that can run in CI to catch common violations
-- Target WCAG 2.2 Level AA as the minimum standard
-- Document the accessible base components, testing tools, and audit configuration in References.md
+Research the current accessibility standard and its levels, the laws and contracts that apply to the project (#30), the platform's accessibility services and guidelines, accessible component options for the chosen stack, and tools that test accessibility automatically in the project's checks. Record the target, the target size, the shared components and the checks in References.md.

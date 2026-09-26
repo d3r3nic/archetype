@@ -1,8 +1,12 @@
 # Convention #5: State Management & Data Flow
 
+## Applies when
+
+The product holds state that changes while it runs: an interface, a service with sessions or caches, a simulation, a synchronizing client. What varies is where state lives and how long: a single screen, a whole application, a server, a device that goes offline.
+
 ## Principle
 
-Choose state ownership, lifetime and propagation from the behavior the project promises. Make authoritative state and its derived views distinguishable, and make updates understandable. Component-local state, shared stores, server caches, persistent models and simulation worlds solve different needs. Preserve an accepted contract until a justified change identifies its affected consumers.
+Choose state ownership, lifetime and propagation from the behavior the project promises. Every important fact has one authoritative owner; everything else reads it or derives from it, and updates are understandable. Component-local state, shared stores, server caches, persistent models and simulation worlds solve different needs. Preserve an accepted contract until a justified change identifies its affected consumers.
 
 ## Reusable System
 
@@ -45,7 +49,5 @@ Establish what offline use means for this project. A fully local application may
 Share coordination where features must honor the same invariants; keep separately evolving responsibilities separate (#0). Preserve critical data, make pending or failed synchronization visible when it exists, and exercise interruption and recovery. Do not promise that a request succeeded before its actual commitment point.
 
 ## Research Notes
-
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current evidence when the state contract changes.
 
 Research the runtime's maintained state, persistence and concurrency approaches where they affect the project. Compare freshness and ownership requirements before selecting caching or synchronization tools. For shareable web views, check URL and privacy behavior; for local or synchronized data, check durability, migration and recovery. Record the chosen contracts and verification in the existing project context.

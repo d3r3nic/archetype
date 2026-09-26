@@ -1,52 +1,41 @@
-# Convention #7: Type Safety & Type System
+# Convention #7: Type Safety & Data Validation
+
+## Applies when
+
+Every project that handles data. What varies: whether the language checks types before running, at run time only, or both; and where outside data enters: requests, responses, files, user input, configuration, other services.
 
 ## Principle
 
-The type system is the first line of defense against bugs and the primary documentation for AI. Strict typing eliminates entire categories of runtime errors. Data from external sources (API responses, user input, environment variables) is validated at runtime with schema libraries. Richer types produce better AI output because they communicate contracts explicitly. One schema definition produces both the type and the validation - never maintain them separately.
+Data that crosses into the program from outside is validated at the boundary, before anything trusts it. Each data shape has one definition. The type checks the project uses are never silenced to hide a real error. Types and validation are the contracts the next reader, human or AI, relies on, so they must say what is true.
 
 ## Reusable System
 
-Create a type safety foundation that establishes:
-- Strict type checking configuration for the project (the strictest mode the language supports)
-- A validation schema library configured and integrated. One schema definition produces both the type and the runtime validation. Never write a type interface AND a validation schema separately for the same data.
-- Shared type definitions for concepts used across the project (user types, common response shapes, ID types)
-- Branded or opaque ID types that prevent accidentally passing one kind of ID where another is expected (a user ID where an order ID is expected, for example)
+One definition per shared data shape, in one place, with the static type and the runtime validation derived from each other where the stack allows. Where it does not, one is generated from the other or a check keeps them in step (#0, #10). References.md records the checking level the project holds to, where shared shapes live, and how outside data is validated.
 
 ## Rules
 
-- Enable the strictest type checking mode the language supports.
-- Never use "any" or the language's equivalent of an untyped escape hatch. Use the "unknown" equivalent and narrow with type guards.
-- Validate all data from external sources at boundaries (API responses, user input, environment variables) using the schema library. Never trust external data.
-- One schema = types + validation. Define the schema once, derive the type from it. Never maintain a separate type definition and a separate validation schema for the same data.
-- Explicit return types on all public/exported functions. This documents the contract and prevents accidental return type changes.
-- Never use non-null assertions to bypass null checks. Handle the null case properly.
-- Never use type assertions to silence real type errors. Fix the underlying type issue.
+- Validate every piece of outside data at the boundary where it enters: requests, responses, files, user input, environment values, messages from other services.
+- Define each shared data shape once. Never maintain a hand-written type and a separate validation for the same data.
+- Use the strongest checking the stack offers that the project keeps passing, and record the setting. New code meets it.
+- Never use an untyped escape, a forced cast or a suppression comment to hide a real type error. Fix the cause: the call site, the shape, or the contract.
+- Handle missing values explicitly rather than asserting they cannot happen.
+- Make public contracts explicit: what goes in, what comes out, what can fail.
+- Where two kinds of identifier or value can be confused (a customer number passed as an order number) and the stack can tell them apart cheaply, make them distinct.
 
 ## Violations
 
-- "any" used anywhere in production code
-- API response used without runtime validation (trusting external data shape)
-- Separate type definition AND validation schema for the same data structure (they drift apart)
-- Type assertion used to silence a real type error instead of fixing it
-- Non-null assertion used to bypass a null check instead of handling the null case
-- Missing return type on an exported function
+- Outside data used without validation because its shape was assumed.
+- The same shape defined twice, once as a type and once as a validation, drifting apart.
+- A cast, suppression or untyped escape added to make a type error disappear.
+- A missing value asserted away instead of handled.
+- A new client for a shared service created only to get around a type mismatch.
 
 ## Wrong vs Right
 
-- WRONG: a function accepts "any" and accesses properties without checking. Works in development, crashes in production when the API returns a different shape.
-- RIGHT: a function accepts "unknown" and validates it against a schema at the boundary. If the data doesn't match, the error is caught immediately with a clear message.
-- WRONG: a User type defined as a type definition, and separately a UserSchema defined as a validation schema, with the same fields listed twice. When a field is added to one, the other is forgotten.
-- RIGHT: a UserSchema defined once in the validation library. The User type is derived from the schema automatically. One source of truth.
-- WRONG: a type error appears. AI adds "as SomeType" to make it go away. The underlying issue remains. It breaks at runtime.
-- RIGHT: a type error appears. The developer investigates why the types don't match, fixes the root cause. The types accurately represent the data.
+- WRONG: a response is used as if it had the expected shape; a different shape crashes it in production. RIGHT: the response is validated where it arrives, and a mismatch fails there with a clear message.
+- WRONG: a user shape is written once as a type and again as a validation, and a new field is added to only one. RIGHT: one definition produces both.
+- WRONG: a type error is silenced with a cast, and the program breaks at run time. RIGHT: find why the types disagree and fix the cause.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention:
-- Research the language's strict mode configuration options. Enable the maximum strictness.
-- Research runtime validation libraries for the language/framework. Find one that integrates well and can derive types from schemas (or vice versa).
-- Research branded/opaque type patterns for the language. How do you create ID types that are structurally different from plain strings?
-- Research the language's type narrowing patterns (type guards, discriminated unions, pattern matching)
-- Document the type checking config, validation library, shared types location, and patterns in References.md
+Research the language's checking modes, how its runtime validation and static types can share one definition, and how it narrows unknown data after validation. Record the checking level, the validation approach and the shared-shape location in References.md.

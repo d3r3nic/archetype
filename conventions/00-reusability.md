@@ -1,39 +1,50 @@
 # Convention #0: Reusability & Composition (META)
 
+## Applies when
+
+Every project. Which concerns are shared depends on how the application works: a client that calls a service has one place that talks to it, and a command-line tool with no network has no such place; a product with many screens shares components that a one-screen tool does not have.
+
 ## Principle
 
-Start from the owner's purpose and the work that already exists. Reuse can reduce effort and prevent inconsistent behavior; abstraction can also create coupling and maintenance that the project does not need. Choose between reuse, adaptation and a focused implementation using the actual requirements and evidence. This lens applies across the conventions without requiring a foundational system for every concern.
+Build each capability once and reuse it. This is the standard the other conventions apply to their own concerns:
+- **One owner per concern.** One place holds each rule, contract, component and integration, and everything else uses it.
+- **No duplicated logic, components or contracts.** When the same shape is needed in a second place, it moves to one owner instead of being copied.
+- **No bloat.** Build what the product needs now: no layer, option or abstraction without a present consumer.
+- **Sized to real usage.** Speed, capacity and cost follow the workload the project's facts describe, measured rather than guessed (#13).
+
+Separation is the exception, and it is recorded. Code that looks alike but changes for different reasons stays separate, with the reason written where the project records decisions.
 
 ## Reusable System
 
-Look for capabilities and invariants with more than one real consumer. A shared implementation is valuable when those consumers should change together. Keep separately evolving behavior separate. Record where accepted shared capabilities live so later work can find them; do not create speculative consumers to justify an abstraction.
+The project's shared systems: each concern the application has, its one owner, and the rule that keeps other code from going around it. References.md records each owner and its location. Its `## Boundaries` section records what only that owner may use, one line per concern, and `scripts/validate-develop.sh` enforces those lines. A concern gets its owner the first time a second place needs it.
 
 ## Rules
 
-- Understand whether the owner is seeking a shipped outcome, learning, experimentation or another goal. Evaluate success against that purpose.
-- Inspect the relevant project code and records before building. Evaluate existing products, libraries and services when they could materially meet the need.
-- Research uncertain or changing facts, including current support, limitations, integration, ownership and lifetime cost. Compare alternatives against important requirements, not a coverage percentage or market ranking.
-- Use a shared capability when its contract fits. If it does not, examine adaptation, composition and a separate implementation, including the cost of coupling and duplicated invariants.
-- Choose an abstraction when current uses or a concrete commitment justify it. Similar code is evidence to inspect, not an automatic instruction to extract or forbid duplication.
-- Respect the project's accepted boundaries and ownership. Replacing a shared capability is a consequential decision, with affected consumers and verification identified (#16, #29).
-- Record a material choice once at the project's decision location, including its reason and conditions for revisiting it. A routine use of that choice needs no new decision record.
+- Before building, look for what already exists: in the project first, then in the stack's standard library and maintained packages, then in services that fit the need. Reuse what fits and adapt what nearly fits. Build new only for a reason you can state.
+- When the same logic, component, rule or contract is needed a second time, give it one owner and make both places use it. Never keep two copies that can drift.
+- Keep one source of truth across boundaries too: between client and server, between packages, between a template and the products made from it. When a copy is the price of separation, a sync step keeps it in step (#10).
+- Do not merge what only looks alike. Two things that change for different reasons stay separate; record the reason in one line.
+- Build for the uses that exist or are committed. A speculative abstraction is bloat, and copying code is not the way to avoid one.
+- Respect the owner of a shared capability. Changing or replacing it is a consequential decision, made with its consumers identified and verified (#16, #29).
+- Record a material choice once, at the project's decision location, with its reason. A routine use of that choice needs no new record.
 
 ## Violations
 
-- Rebuilding a capability without checking whether the existing contract fits
-- Forcing a platform because it satisfies many minor requirements while missing the owner's central purpose
-- Creating an unused framework of services for a small experiment
-- Sharing behavior that only looks similar but has different reasons to change
-- Copying a critical invariant into multiple places with no ownership or consistency check
+- A second implementation of something the project already owns: another client, error path, validation, component, or copy of a rule.
+- Two copies of one contract that drift, such as a shape defined on both sides of an API with nothing keeping them in step.
+- A shared system that features route around.
+- An abstraction, layer or option no current feature uses.
+- Two things that change for different reasons merged into one, so that every change to one breaks the other.
+- Capacity, caching or infrastructure far beyond the workload the facts describe.
 
 ## Wrong vs Right
 
-- WRONG: choose the market leader before checking the required workflow. RIGHT: verify its relevant capabilities and compare the unmet need, integration, control and maintenance costs with viable alternatives.
-- WRONG: extract a shared service because any code might someday be reused. RIGHT: inspect current consumers and expected change; keep a focused implementation when extraction adds no demonstrated value.
-- WRONG: use a different error path in each feature despite an accepted shared recovery contract. RIGHT: reuse that contract, or deliberately revise it with affected consumers and evidence.
+- WRONG: a second feature copies the first feature's request code and adjusts it. RIGHT: both use the one place the project calls that service from.
+- WRONG: two screens each build their own confirmation dialog. RIGHT: one dialog component, configured by each screen.
+- WRONG: merge an invoice total and a cart total into one function because the arithmetic looks the same, although their tax rules change separately. RIGHT: keep them apart and record why.
+- WRONG: build a plugin system for a tool with one known use. RIGHT: build the one use, and extract when the second arrives.
+- WRONG: choose the most popular option before checking the owner's workflow. RIGHT: compare fit, integration and the cost of owning it against the alternatives.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-Use the project's language, runtime and purpose to find relevant current practice. Look for evidence that challenges the initial option as well as supports it. Place selected tools and implementation details in References.md. Bootstrap's research step and conventions #3, #16 and #29 carry the related architecture, record and authority concerns.
+Before building a shared system, research what the chosen stack already provides: the standard library, maintained packages, and the platform's own services. Compare fit, maintenance and lifetime cost, and look for evidence against the first option as well as for it. Record each shared system's owner in References.md and its boundary in § Boundaries.
