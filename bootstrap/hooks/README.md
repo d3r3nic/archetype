@@ -8,7 +8,7 @@ Dated example: the shipped settings files target Claude Code and its `PreToolUse
 
 ## Scripts
 
-- `pre-destructive-warn.sh`: the guard, a before-tool-call hook on the shell tool. Blocks `rm -rf /`, `git reset --hard`, `git push --force`, `DROP TABLE`, `TRUNCATE`, `chmod -R 777`, `dd if=`, `mkfs.`, fork bombs, and similar. Exits 2 with the reason on stderr, which the host gives the agent.
+- `pre-destructive-warn.sh`: the guard, a before-tool-call hook on the shell tool. Blocks `rm -rf /`, `git reset --hard`, a push that overwrites remote history (`--force`, `-f` alone or with other short options, `--mirror`, a refspec that opens with `+`), `DROP TABLE`, `TRUNCATE`, `chmod -R 777`, `dd if=`, `mkfs.`, fork bombs, and similar. `git push --force-with-lease`, which refuses when the remote moved, is the safer form it names and lets through. Exits 2 with the reason on stderr, which the host gives the agent.
 - `post-task-verify.sh`: retired. It was a turn-end reminder written to stderr with exit 0, which the host does not give the agent. It stays only so settings that still register it do not fail on every turn; it reads its input and exits 0 without output. Remove such a registration.
 
 The guard reads the host's event JSON from stdin.
@@ -62,7 +62,7 @@ Guidance when adding hooks:
 
 ## Bypass
 
-If the guard is wrong for a specific case, explain the scoped, safe intent and retry: it blocks on patterns, and the agent can restructure the command. Never disable the hook system globally to push a change through. If a hook is broken, fix the script.
+When the guard blocks a command, do not reword the command to get past it. Use the safer form its message names, or ask the owner to run the command when it is truly needed: it is irreversible, and the owner's to decide (conventions/29-decision-authority.md). Never disable the hook system to push a change through. A guard that blocks a safe command, or lets a destructive one through, is a defect: fix it in the framework, and from a project report it upstream (development/FEEDBACK.md).
 
 ## See also
 

@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,6 +17,33 @@ STUB = 'bootstrap/hooks/post-task-verify.sh'
 OLD_SETTINGS = {'hooks': {
     'PreToolUse': [{'matcher': 'Bash', 'hooks': [{'type': 'command', 'command': '$CLAUDE_PROJECT_DIR/archetype/' + GUARD}]}],
     'Stop': [{'hooks': [{'type': 'command', 'command': '$CLAUDE_PROJECT_DIR/archetype/' + STUB}]}]}}
+
+# Pushes the guard must stop (2) or let through (0). A force push overwrites remote history;
+# --force-with-lease refuses when the remote moved, and is the safer form the guard names.
+PUSHES = [
+    ('git push --force-with-lease origin feature', 0),
+    ('git push --force-with-lease=main:abc123 origin main', 0),
+    ('git push origin feature', 0),
+    ('git push -u origin feature', 0),
+    ('git push origin fix-f', 0),
+    ('git push origin main+x', 0),
+    ('git push origin HEAD:refs/for/main', 0),
+    ('git commit -m "later: push -f is blocked" && git push origin main', 0),
+    ('git push origin main && rm -f build.log', 0),
+    ('git push --force origin main', 2),
+    ('git push origin main --force', 2),
+    ('git push -f', 2),
+    ('git push -uf origin main', 2),
+    ('git push origin +feature', 2),
+    ("git push origin '+feature'", 2),
+    ('git push origin "+HEAD:main"', 2),
+    ('git push --mirror', 2),
+    ('git -C /repo push --force origin main', 2),
+    ('git -c user.name=x push -f', 2),
+    ('git --git-dir .git push origin +main', 2),
+    ('cd repo && git push --force', 2),
+    ('git push \\\n  --force origin main', 2),
+]
 
 
 class Hooks(unittest.TestCase):
@@ -206,6 +234,29 @@ class Hooks(unittest.TestCase):
         result = self.check()
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertNotIn('relative path', result.stdout)
+
+    def test_the_guard_stops_pushes_that_overwrite_history_and_lets_the_safer_form_through(self):
+        readers = []
+        if shutil.which('jq'):
+            readers.append(('jq', os.environ.get('PATH', '')))
+        # Without jq the guard reads the event with python3: a PATH with only the tools it needs.
+        tools = Path(self.temp.name) / 'tools-without-jq'
+        tools.mkdir()
+        for tool in ('cat', 'sed', 'head', 'grep'):
+            os.symlink(shutil.which(tool), str(tools / tool))
+        os.symlink(sys.executable, str(tools / 'python3'))
+        readers.append(('python3', str(tools)))
+        bash = shutil.which('bash')
+        for reader, path in readers:
+            for command, want in PUSHES:
+                with self.subTest(reader=reader, command=command):
+                    event = json.dumps({'tool_name': 'Bash', 'tool_input': {'command': command}})
+                    result = subprocess.run([bash, str(ENGINE / GUARD)], input=event, capture_output=True, text=True,
+                                            env=dict(os.environ, PATH=path))
+                    self.assertEqual(result.returncode, want, result.stderr)
+                    if want == 2:
+                        self.assertIn('Do not reword the command to get past this guard', result.stderr)
+                        self.assertNotIn('retry', result.stderr)
 
     def test_the_retired_reminder_reads_its_input_and_says_nothing(self):
         result = subprocess.run(['bash', str(ENGINE / STUB)], input='{"hook_event_name": "Stop"}',

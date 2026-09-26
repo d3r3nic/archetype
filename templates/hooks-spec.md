@@ -17,7 +17,7 @@ The rest of this file is the conceptual spec: hooks a project may add. Each new 
 Dated notes: verified against Claude Code's hooks documentation on 2026-09-24. Other hosts differ; re-verify the event names, what reaches the agent, and the blocking rules for the host in use at bootstrap.
 
 - The host exposes lifecycle events, among them before a tool call (PreToolUse), after a tool call (PostToolUse), on stop (Stop), and session start and end (SessionStart, SessionEnd).
-- Event data arrives as JSON on stdin. The guard parses it with `jq` when available; any JSON tool works.
+- Event data arrives as JSON on stdin. The guard reads it with `jq` when available, else with python3; any JSON reader works.
 - A hook blocks by exiting 2 with the reason on stderr, which the agent then sees. Which events a block can stop is event-specific; check the host's table before relying on it.
 - The stderr of a hook that exits 0 goes to the host's debug log, not to the agent. A reminder written that way reaches no one.
 - A hook command that cannot start (a missing path, or an unquoted path placeholder split at a space) is a non-blocking error: the tool call proceeds. Double-quote path placeholders in shell-form commands, or use the host's argument form.
