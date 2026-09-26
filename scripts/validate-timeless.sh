@@ -164,7 +164,8 @@ for file in "${FILES[@]}"; do
     SIBLING_STEPS="$( { printf '%s\n' "$ENTRY"; sed -n 's/^Step files: //p' "$ENTRY" | tr ';' '\n'; } | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | while IFS= read -r sib; do
       [ -f "$sib" ] && sed -n -E 's/^#{1,6} Step ([0-9]+[a-z]?).*/\1/p' "$sib"; done | tr '\n' ' ')"
   fi
-  case "$file" in *.md) NAMES_ONLY=0 ;; *) NAMES_ONLY=1 ;; esac
+  # The parenthesized patterns keep bash 3.2 from ending the enclosing command substitution early.
+  case "$file" in (*.md) NAMES_ONLY=0 ;; (*) NAMES_ONLY=1 ;; esac
   awk -v FILE="$file" -v TERMS_PATH="$TMP_TERMS" -v ALLOW_PATH="$TMP_ALLOW" -v SIBLING_STEPS="$SIBLING_STEPS" -v NAMES_ONLY="$NAMES_ONLY" '
   function bounded(term) { return "(^|[^[:alnum:]_])" term "([^[:alnum:]_]|$)" }
   BEGIN {

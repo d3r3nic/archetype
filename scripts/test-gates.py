@@ -1109,6 +1109,52 @@ class OneRowRule(unittest.TestCase):
         self.assertIn('feature row 06 has no name', gate.stdout)
 
 
+class NameCheck(unittest.TestCase):
+    """validate-timeless.sh: no named technology anywhere, in documents or in checks."""
+
+    TIMELESS = SOURCE / 'scripts' / 'validate-timeless.sh'
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='archetype-names-')
+        self.addCleanup(self.temp.cleanup)
+        self.engine = Path(self.temp.name) / 'engine'
+        shutil.copytree(SOURCE, self.engine, ignore=shutil.ignore_patterns('.git'))
+
+    def scan(self, relative, text):
+        path = self.engine / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        result = subprocess.run([BASH, str(self.engine / 'scripts' / 'validate-timeless.sh'), relative],
+                                cwd=self.engine, text=True, capture_output=True)
+        return result.returncode, ANSI.sub('', result.stdout)
+
+    def test_no_section_or_line_is_exempt(self):
+        for text in ('# X\n\n## Research Notes\n\nDated notes: examples expire.\n\n- TanStack for caching\n',
+                     '# X\n\nDated example: a Next.js fork needs standalone output.\n'):
+            with self.subTest(text=text):
+                code, out = self.scan('development/NOTE.md', text)
+                self.assertEqual(code, 1, out)
+                self.assertIn('[A] development/NOTE.md', out)
+
+    def test_languages_and_api_styles_are_named_technologies(self):
+        for word in ('TypeScript', 'Python', 'Kotlin', 'GraphQL', 'gRPC', 'REST'):
+            with self.subTest(word=word):
+                code, out = self.scan('conventions/99-note.md', '# Note\n\nUse %s here.\n' % word)
+                self.assertEqual(code, 1, out)
+                self.assertIn('named technology', out)
+
+    def test_checks_are_read_for_names_too(self):
+        code, out = self.scan('scripts/check-extra.sh', '#!/bin/bash\ngrep -q "new PrismaClient(" "$1"\n')
+        self.assertEqual(code, 1, out)
+        self.assertIn('[A] scripts/check-extra.sh:2: named technology', out)
+
+    def test_open_standards_and_the_framework_plumbing_pass(self):
+        code, out = self.scan('conventions/99-note.md', '# Note\n\nServe it over HTTP with JSON and meet the accessibility standard.\n')
+        self.assertEqual(code, 0, out)
+        code, out = self.scan('bootstrap/hooks/README.md', (SOURCE / 'bootstrap' / 'hooks' / 'README.md').read_text())
+        self.assertEqual(code, 0, out)
+
+
 class PortableCharacterLists(unittest.TestCase):
     """The shipped shell scripts read text the same under busybox, mawk, gawk and the BSD tools.
 
