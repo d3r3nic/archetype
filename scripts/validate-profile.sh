@@ -299,6 +299,10 @@ else
     # The parser's exit status arrives as the last record; a parser that stopped early has read only
     # part of the file, and what it did not read must not pass as "no deferrals".
     if [ "$id" = "PARSER-EXIT" ]; then PARSER_EXIT="$status"; continue; fi
+    if [ "$id" = "ORPHAN" ]; then
+      unver "TECHNICAL-DEBT.md line $status: a Kind, Control or Due-before line outside any entry that starts with a TD- heading; this check cannot read it"
+      continue
+    fi
     if [ "$id" = "UNCLOSED-FENCE" ]; then
       unver "TECHNICAL-DEBT.md has a code fence that never closes (opened at line $status); the entries after it could not be read"
       continue
@@ -335,24 +339,46 @@ else
       for cv in $control; do
         IFS="$OLDIFS"
         [ -n "$cv" ] || { IFS="$RSEP"; continue; }
-        lc_control="$(printf '%s' "$cv" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]*:[[:space:]]*/:/; s/^[[:space:]]+//; s/[[:space:]]+$//')"
+        lc_control="$(printf '%s' "$cv" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+        # "floor: x", "floor item: x", "floor items: x, y" and "floor (x)" all name floor items. The
+        # items are split at commas, semicolons, slashes and "and", with spaces read as hyphens.
+        floor_items=""
         case "$lc_control" in
-          \[*) warn "$id: Control still holds a template placeholder" ;;
-          floor|floor:) unver "$id: Control says floor but names no floor item; floor items: ${FLOOR// /, }" ;;
-          floor:*)
-            item="${lc_control#floor:}"; item="${item%% *}"
-            if in_list "$item" "$FLOOR"; then
-              if [ "$kind_w" = "deferral" ]; then
-                fail "$id: a floor item ($item) is never a deferral (#30)"
-              else
-                fail "$id: a floor item ($item) is never postponed, as a deferral or as a shortcut (#30)"
-              fi
-            else
-              unver "$id: Control names an unknown floor item \"$item\"; floor items: ${FLOOR// /, }"
-            fi ;;
-          '#'[0-9]*|b[0-9]*) ;;
-          *) warn "$id: Control is \"$cv\"; name the convention (#N and the obligation), the backend rule (BN), or the floor item (floor: name), so a review can see what is postponed" ;;
+          floor|floor:|'floor item'|'floor item:'|'floor items:') floor_items="-" ;;
+          floor:*|'floor '*|'floor('*) floor_items="$(printf '%s' "$lc_control" | sed -E 's/^floor([[:space:]]+items?)?[[:space:]]*[:(][[:space:]]*//; s/[)].*$//')" ;;
         esac
+        if [ -n "$floor_items" ]; then
+          named=""; unknown_item=""
+          if [ "$floor_items" != "-" ]; then
+            for part in $(printf '%s' "$floor_items" | sed -E 's/[[:space:]]+and[[:space:]]+/,/g; s/[;/]/,/g' | tr ',' '\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]+/-/g'); do
+              [ -n "$part" ] || continue
+              if in_list "$part" "$FLOOR"; then named="$named $part"; else unknown_item="$part"; fi
+            done
+          fi
+          if [ -n "$named" ]; then
+            if [ "$kind_w" = "deferral" ]; then
+              fail "$id: a floor item (${named# }) is never a deferral (#30)"
+            else
+              fail "$id: a floor item (${named# }) is never postponed, as a deferral or as a shortcut (#30)"
+            fi
+          elif [ -n "$unknown_item" ]; then
+            unver "$id: Control names an unknown floor item \"$unknown_item\"; floor items: ${FLOOR// /, }"
+          else
+            unver "$id: Control says floor but names no floor item; floor items: ${FLOOR// /, }"
+          fi
+        else
+          case "$lc_control" in
+            \[*) warn "$id: Control still holds a template placeholder" ;;
+            '#'[0-9]*|b[0-9]*)
+              # A convention number followed by a floor item ("#30 floor: secrets") is read as the
+              # floor item it names, and reported for review.
+              for item in $FLOOR; do
+                spaced="$(printf '%s' "$item" | tr '-' ' ')"
+                case "$lc_control" in *floor*"$item"*|*floor*"$spaced"*) unver "$id: Control \"$cv\" names the floor item $item; a floor item is never postponed (#30)"; break ;; esac
+              done ;;
+            *) warn "$id: Control is \"$cv\"; name the convention (#N and the obligation), the backend rule (BN), or the floor item (floor: name), so a review can see what is postponed" ;;
+          esac
+        fi
         IFS="$RSEP"
       done
       IFS="$OLDIFS"; set +f
@@ -446,7 +472,9 @@ else
     infence { next }
     # HTML tags around a label or an identifier are read through, like any other markup.
     { gsub(/<\/?[A-Za-z][^>]*>/, "") }
-    /^ ? ? ?#/ {
+    # A heading is one to six marks followed by a space or the line end: a wrapped line that starts
+    # with "#23" is text, not a heading.
+    /^ ? ? ?#+([ \t]|$)/ {
       h = $0; sub(/^ ? ? ?/, "", h)
       level = 0; while (substr(h, level + 1, 1) == "#") level++
       text = substr(h, level + 1); gsub(/[*_`]/, "", text); gsub(/\]\([^)]*\)/, "", text); gsub(/[][]/, "", text); text = trim(text)
@@ -458,7 +486,13 @@ else
       if (level == 1) { flush(); reset() }
       next
     }
-    id == "" { next }
+    # A Kind, Control or Due-before line outside any entry (under a heading that is not "TD-",
+    # or an underlined one) is reported, so a deferral written there is never silently dropped.
+    id == "" {
+      low = tolower($0)
+      if (low ~ /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+)?[*_` \t]*(kind|control|due[- ]before)([*_` \t]*:|[ \t]*:[*_`]*)/) printf "ORPHAN%s%d\n", US, NR
+      next
+    }
     {
       # A link around a label is read through: [text](destination) becomes text. Brackets
       # without a destination, such as a template placeholder, stay.

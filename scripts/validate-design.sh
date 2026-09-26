@@ -190,7 +190,11 @@ if [ "$BRAND_STATE" = "yes" ]; then
   OWED=""
   for label in "First task" "Return tasks"; do
     value="$(normalize_value "$(fact_value "$label")")"
-    case "$value" in ''|unknown|unknown[[:space:]]*|unknown,*|unknown.*|unknown:*|unknown-*|unknown\;*) OWED="$OWED $label," ;; esac
+    case "$value" in
+      ''|unknown|unknown[[:space:]]*|unknown,*|unknown.*|unknown:*|unknown-*|unknown\;*) OWED="$OWED $label," ;;
+      # An unfinished answer is no answer: the words earlier releases refused here.
+      pending*|tbd*|todo*|'to decide'*|'to be decided'*|'to be determined'*|'awaiting owner'*|deferred*) OWED="$OWED $label," ;;
+    esac
   done
   if [ -n "$OWED" ]; then
     fail "Brand decided is yes, but unknown:${OWED%,}. A direction composes the screen for the first return task (bootstrap/DESIGN-INTERVIEW.md). Ask the owner, record the answer, then settle the look."

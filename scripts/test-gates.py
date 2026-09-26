@@ -172,6 +172,43 @@ class DevelopGate(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("still holds the template's placeholder line", ANSI.sub('', result.stdout))
 
+    def test_a_file_named_like_an_option_does_not_switch_the_check_off(self):
+        self.git()
+        (self.project / 'References.md').write_text(
+            '# References\n\n## Boundaries\n\n- Network: `callRemote\\(` only in `src/shared/api/`\n')
+        (self.project / '-q').write_text('x\n')
+        (self.project / '-sub').mkdir()
+        (self.project / '-sub' / 'x.ext').write_text('x\n')
+        (self.project / 'src' / 'features' / 'orders.ext').write_text('callRemote("/orders")\n')
+        result = self.check(features_tree([]))
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('Network: src/features/orders.ext uses', ANSI.sub('', result.stdout))
+
+    def test_a_pattern_that_is_not_a_valid_expression_fails(self):
+        self.git()
+        (self.project / 'References.md').write_text(
+            '# References\n\n## Boundaries\n\n- Network: `callRemote(` only in `src/shared/api/`\n')
+        (self.project / 'src' / 'features' / 'orders.ext').write_text('callRemote("/orders")\n')
+        result = self.check(features_tree([]))
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('the pattern `callRemote(` is not a valid extended regular expression', ANSI.sub('', result.stdout))
+
+    def test_numbered_and_plus_list_lines_are_read(self):
+        self.git()
+        (self.project / 'References.md').write_text(
+            '# References\n\n## Boundaries\n\n1. Store: `connectStore\\(` only in `src/db/`\n'
+            '+ Network: `callRemote\\(` only in `src/shared/api/`\n')
+        (self.project / 'src' / 'features' / 'orders.ext').write_text('connectStore()\ncallRemote("/orders")\n')
+        out = ANSI.sub('', self.check(features_tree([])).stdout)
+        self.assertIn('Store: src/features/orders.ext uses', out)
+        self.assertIn('Network: src/features/orders.ext uses', out)
+
+    def test_a_section_with_no_line_in_the_recorded_form_fails_here(self):
+        (self.project / 'References.md').write_text('# References\n\n## Boundaries\n\nThe API layer owns every network call.\n')
+        result = self.check(features_tree([]))
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('References.md § Boundaries is empty', ANSI.sub('', result.stdout))
+
     # ---- group 2: feature records -------------------------------------------------------
 
     def test_shipped_template_fails_on_its_placeholder_row_only(self):
@@ -275,6 +312,11 @@ class DevelopGate(unittest.TestCase):
         result = self.check(features_tree(rows))
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(group(result.stdout, '2'), ['OK: no feature rows yet'])
+
+    def test_only_the_exact_smoke_test_status_is_exempt(self):
+        result = self.check(features_tree(['| 01 | orders | src/orders | /orders | API | implemented, smoke-tested | |']))
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("orders", '\n'.join(group(result.stdout, '2')))
 
     # ---- group 3: the tests each record names --------------------------------------------
 
@@ -584,6 +626,94 @@ class ScaffoldRecords(unittest.TestCase):
         self.assertEqual(code, 0, out)
 
 
+    def test_a_section_with_no_line_in_the_recorded_form_warns(self):
+        code, out = self.check('## Boundaries\n\nThe API layer owns every network call.\n\n- It is kept small.\n')
+        self.assertEqual(code, 0, out)
+        self.assertIn('§ Boundaries holds no line in the recorded form yet', out)
+
+    def test_a_migration_command_this_check_cannot_read_is_not_none(self):
+        unreadable = '## Commands\n\n- migrate: tool run migrate\n'
+        code, out = self.check(unreadable)
+        self.assertEqual(code, 0, out)
+        self.assertIn('records a migration command this check cannot read', out)
+        code, out = self.check(unreadable + '\n## Boundaries\n\n- none: a single local store\n')
+        self.assertEqual(code, 1, out)
+        self.assertIn('records a migration command this check cannot read', out)
+        code, out = self.check('## Commands\n\n- migrate: production only, `tool migrate apply`\n\n## Boundaries\n\n- none: x\n')
+        self.assertEqual(code, 1, out)
+        self.assertIn('no § Boundaries line bounds it', out)
+        code, out = self.check('## Commands\n\n- migrate: none, the project keeps no store\n\n## Boundaries\n\n- none: x\n')
+        self.assertEqual(code, 0, out)
+        self.assertIn('no migration command recorded', out)
+
+
+class BoundaryLayouts(unittest.TestCase):
+    """Both gates read one § Boundaries line against the same files, in every install layout."""
+
+    RULE = '# References\n\n## Boundaries\n\n- Store: `connectStore\\(` only in `src/db/`\n'
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='archetype-layouts-')
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name).resolve()
+        subprocess.run(['git', 'init', '-q'], cwd=self.root, check=True)
+
+    def unit(self, folder, references_in=None):
+        (folder / 'src' / 'db').mkdir(parents=True)
+        (folder / 'src' / 'db' / 'store.ext').write_text('connectStore()\n')
+        (references_in or folder).mkdir(parents=True, exist_ok=True)
+        (references_in or folder).joinpath('References.md').write_text(self.RULE)
+        (references_in or folder).joinpath('feature-tree.md').write_text(systems_tree([]))
+
+    def gates(self, scaffold=SCAFFOLD, develop=DEVELOP):
+        scaffold_run = subprocess.run([BASH, str(scaffold)], cwd=self.root, text=True, capture_output=True)
+        develop_run = subprocess.run([BASH, str(develop)], cwd=self.root, text=True, capture_output=True)
+        return group(scaffold_run.stdout, '2'), group(develop_run.stdout, '1')
+
+    def test_references_kept_in_the_engine_folder_name_paths_from_the_project_root(self):
+        self.unit(self.root, references_in=self.root / 'archetype')
+        scaffold, develop = self.gates()
+        self.assertIn('OK: Store: only its recorded paths use `connectStore\\(`', '\n'.join(scaffold))
+        self.assertIn('OK: Store: only its recorded paths use `connectStore\\(`', '\n'.join(develop))
+        (self.root / 'src' / 'features').mkdir()
+        (self.root / 'src' / 'features' / 'orders.ext').write_text('connectStore()\n')
+        scaffold, develop = self.gates()
+        self.assertIn('Store: src/features/orders.ext uses', '\n'.join(scaffold))
+        self.assertIn('Store: src/features/orders.ext uses', '\n'.join(develop))
+
+    def test_a_project_folder_names_paths_from_that_folder(self):
+        self.unit(self.root / 'project')
+        scaffold, develop = self.gates()
+        self.assertIn('OK: Store: only its recorded paths use', '\n'.join(scaffold))
+        self.assertIn('OK: Store: only its recorded paths use', '\n'.join(develop))
+        (self.root / 'project' / 'src' / 'features').mkdir()
+        (self.root / 'project' / 'src' / 'features' / 'orders.ext').write_text('connectStore()\n')
+        scaffold, develop = self.gates()
+        self.assertIn('Store: src/features/orders.ext uses', '\n'.join(scaffold))
+        self.assertIn('Store: src/features/orders.ext uses', '\n'.join(develop))
+
+    def test_an_installed_engine_run_by_a_relative_path_checks_the_project_and_not_itself(self):
+        self.unit(self.root)
+        shutil.copytree(SOURCE / 'scripts', self.root / 'archetype' / 'scripts')
+        (self.root / 'archetype' / 'scripts' / 'note.ext').write_text('connectStore()\n')
+        (self.root / 'src' / 'features').mkdir()
+        (self.root / 'src' / 'features' / 'orders.ext').write_text('connectStore()\n')
+        run = subprocess.run([BASH, 'archetype/scripts/validate-scaffold.sh'], cwd=self.root, text=True, capture_output=True)
+        self.assertNotIn('No such file', run.stdout + run.stderr)
+        lines = '\n'.join(group(run.stdout, '2'))
+        self.assertIn('Store: src/features/orders.ext uses', lines)
+        self.assertNotIn('archetype/scripts/note.ext', lines)
+
+    def test_an_engine_at_the_root_run_by_a_relative_path_checks_the_project_folder(self):
+        self.unit(self.root / 'project')
+        shutil.copytree(SOURCE / 'scripts', self.root / 'scripts')
+        (self.root / 'project' / 'src' / 'features').mkdir()
+        (self.root / 'project' / 'src' / 'features' / 'orders.ext').write_text('connectStore()\n')
+        run = subprocess.run([BASH, 'scripts/validate-scaffold.sh'], cwd=self.root, text=True, capture_output=True)
+        self.assertNotIn('No such file', run.stdout + run.stderr)
+        self.assertIn('Store: src/features/orders.ext uses', '\n'.join(group(run.stdout, '2')))
+
+
 class MaintainGate(unittest.TestCase):
     """validate-maintain.sh: the map against the project, with no fixed layout."""
 
@@ -678,6 +808,22 @@ class RegulatedDataGate(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn('audit log uses an in-memory store only', ANSI.sub('', result.stdout))
         (store / 'durable.ext').write_text('export class LedgerTableAuditStore {}\n')
+        result = self.check()
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_a_spy_or_a_constructor_of_the_in_memory_store_is_not_a_production_store(self):
+        self.references(self.COMPLIANCE.replace('- Regimes: none, the project keeps no regulated data\n', '- Regimes: a health-data law applies\n') + '- Audit log: `src/audit`\n')
+        self.profile('yes')
+        store = self.project / 'src' / 'audit'
+        store.mkdir(parents=True)
+        for extra in ('class SpyAuditStore {}', 'func NewInMemoryAuditStore() *InMemoryAuditStore { return &InMemoryAuditStore{} }',
+                      'const inMemoryAuditStore = new InMemoryAuditStore()', 'export const store = createInMemoryAuditStore()'):
+            with self.subTest(extra=extra):
+                (store / 'store.ext').write_text('class InMemoryAuditStore { private records: AuditRecord[] = [] }\n' + extra + '\n')
+                result = self.check()
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn('audit log uses an in-memory store only', ANSI.sub('', result.stdout))
+        (store / 'durable.ext').write_text('export class DurableTableAuditStore {}\n')
         result = self.check()
         self.assertEqual(result.returncode, 0, result.stdout)
 

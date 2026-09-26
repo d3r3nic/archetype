@@ -17,6 +17,7 @@ from pathlib import Path
 # other fields are the project's own.
 DECISION_STATUSES = {"proposed", "accepted", "superseded", "retired"}
 DECISION_ID = re.compile(r"DEC-[0-9]{3,}")
+DECISION_MENTION = re.compile(r"(?i)\bDEC-[0-9]{3,}")
 STEP_ID = re.compile(r"[a-z][a-z0-9-]*\.[A-Za-z0-9][A-Za-z0-9.]*")
 EVENT = re.compile(r"^- \[([x~ -])\] (.+?) \|")
 
@@ -110,12 +111,31 @@ def decision_records(project: Path, cwd: Path) -> dict[str, bytes]:
     records: dict[str, bytes] = {}
     relationships: dict[str, dict] = {}
     problems: dict[str, list[str]] = {}
+
+    def links_of(block: str, label: str) -> tuple[list[str], bool]:
+        """The decision ids a Depends on or Supersedes value names, in any wording: "DEC-001; DEC-003",
+        "DEC-001 and DEC-003", "DEC-001 (why)" or a link to it. The flag is set when the value holds
+        text but names no id, so what it links to cannot be read."""
+        hits = field_value(block, label)
+        raw = hits[0].strip() if hits else ""
+        found = list(dict.fromkeys(item.upper() for item in DECISION_MENTION.findall(raw)))
+        plain = re.sub(r"[*_`~]", "", raw).strip().lower()
+        unreadable = not found and bool(plain) and not re.match(r"(none|n/a|-|\u2014)(\W|$)", plain)
+        return found, unreadable
+
     for index, heading in enumerate(headings):
         end = headings[index + 1].start() if index + 1 < len(headings) else len(text)
         block = text[heading.start():end]
         decision_id = heading.group(1)
         if decision_id in records:
+            # A second block with a known id is a problem on that id. What it supersedes is still
+            # read, so a duplicate that replaces a cited decision stops that basis instead of hiding.
             problems.setdefault(decision_id, []).append(f"duplicate decision id: {decision_id}")
+            superseded, unreadable = links_of(block, "Supersedes")
+            relation = relationships[decision_id]
+            relation["supersedes"] = list(dict.fromkeys(relation["supersedes"] + superseded))
+            relation["unreadable_supersedes"] = relation["unreadable_supersedes"] or unreadable
+            relation["status"] = ""
             continue
         issues: list[str] = []
         values: dict[str, str] = {}
@@ -126,8 +146,14 @@ def decision_records(project: Path, cwd: Path) -> dict[str, bytes]:
                 issues.append(f"{decision_id} gives {label} more than one value")
             values[label] = hits[0].strip() if hits else ""
         status_words = re.findall(r"[a-z]+", values["Status"].lower())
+        named = list(dict.fromkeys(word for word in status_words if word in DECISION_STATUSES))
         status = status_words[0] if status_words else ""
-        if status not in DECISION_STATUSES:
+        if len(named) > 1:
+            # "~~accepted~~ retired" or "accepted, superseded by DEC-002" names two states; which one
+            # holds cannot be read, so the decision is not read as either.
+            issues.append(f"{decision_id} Status names more than one state ({', '.join(named)}): {values['Status']}")
+            status = ""
+        elif status not in DECISION_STATUSES:
             issues.append(f"{decision_id} has no readable Status (proposed, accepted, superseded or retired)" if not status
                           else f"{decision_id} has unsupported Status: {values['Status']}")
         if status == "accepted":
@@ -137,21 +163,17 @@ def decision_records(project: Path, cwd: Path) -> dict[str, bytes]:
                 if (value.startswith("[") and value.endswith("]")) or plain in {"pending", "todo", "tbd"}:
                     issues.append(f"{decision_id} {label} is still a template placeholder")
         links: dict[str, list[str]] = {}
+        unreadable_links: dict[str, bool] = {}
         for label in ("Depends on", "Supersedes"):
-            raw = values[label]
-            if not raw or raw.lower() in {"none", "n/a", "-"}:
-                links[label] = []
-                continue
-            items = [item.strip().strip("`*_") for item in re.split(r"[;,]", raw) if item.strip()]
-            bad = [item for item in items if not DECISION_ID.fullmatch(item)]
-            if bad:
-                issues.append(f"{decision_id} {label} names invalid decision '{bad[0]}'")
-            links[label] = [item for item in items if DECISION_ID.fullmatch(item)]
+            links[label], unreadable_links[label] = links_of(block, label)
+            if unreadable_links[label]:
+                issues.append(f"{decision_id} {label} names no decision id: {values[label]}; write the ids, or none")
         records[decision_id] = (block.strip() + "\n").encode()
         relationships[decision_id] = {
             "status": status,
             "depends": links["Depends on"],
             "supersedes": links["Supersedes"],
+            "unreadable_supersedes": unreadable_links["Supersedes"],
             "values": values,
         }
         if issues:
@@ -182,6 +204,11 @@ def decision_closure(records: dict[str, bytes], decision_id: str) -> set[str]:
         for target in relationships[value]["depends"]:
             dependencies(str(target), trail + (value,))
     dependencies(decision_id, ())
+    # A decision whose Supersedes cannot be read may replace any other, so unless it is known to be
+    # inactive it stops every basis until its Supersedes names ids.
+    for value, relation in relationships.items():
+        if relation["unreadable_supersedes"] and relation["status"] not in {"proposed", "superseded", "retired"}:
+            raise ContractError(f"{value} Supersedes names no decision id: {relation['values']['Supersedes']}; write the ids it replaces, or none")
     changed = True
     while changed:
         changed = False
@@ -536,7 +563,7 @@ def main() -> int:
                 for decision_id in sorted(problems):
                     for problem in dict.fromkeys(problems[decision_id]):
                         print(f"FAIL: {problem}")
-                print("Only a decision a step cites, and the ones it depends on or is superseded by, block that step.")
+                print("Only a decision a step cites, and the ones it depends on or is superseded by, block that step; a Supersedes line that names no decision blocks every step.")
                 return 1
             print(f"OK: {len(records)} decision record(s) follow the recovery contract")
         elif args.command == "validate-graph":

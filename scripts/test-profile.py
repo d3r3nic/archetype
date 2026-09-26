@@ -756,6 +756,44 @@ class ValidateProfileTests(unittest.TestCase):
                 code, out = self.run_validator(facts, entry, strict=True)
                 self.assert_fail(out, code, "strict mode")
 
+    def test_floor_items_are_read_in_every_written_form(self):
+        for control, named in (("floor item: secrets", "secrets"), ("floor: trust boundary", "trust-boundary"),
+                               ("floor: secrets, personal-data", "secrets personal-data"), ("floor (secrets)", "secrets"),
+                               ("floor items: secrets and honest completion", "secrets honest-completion"),
+                               ("floor: vibes; secrets", "secrets")):
+            with self.subTest(control=control):
+                code, out = self.run_validator(profile_text(), debt_entry(208, control=control))
+                self.assert_fail(out, code, f"TD-208: a floor item ({named}) is never a deferral")
+
+    def test_a_convention_number_that_names_a_floor_item_is_unverified(self):
+        for control in ("#30 floor: secrets", "#23 floor item trust boundary"):
+            with self.subTest(control=control):
+                code, out = self.run_validator(profile_text(), debt_entry(209, control=control))
+                self.assertEqual(code, 0, out)
+                self.assertIn(f'UNVERIFIED: TD-209: Control "{control}" names the floor item', out)
+                code, out = self.run_validator(profile_text(), debt_entry(209, control=control), strict=True)
+                self.assert_fail(out, code, "strict mode")
+
+    def test_a_wrapped_line_that_starts_with_a_convention_number_stays_in_its_entry(self):
+        entry = ("## TD-210 — rate limits later\n\n- **What:** the sign-in route has no attempt limit;\n"
+                 "#23 requires one before anyone outside the owner can reach it\n- **Status:** open\n- **Kind:** deferral\n"
+                 "- **Control:** #23 rate limiting\n- **Due-before:** first-outside-participant\n")
+        code, out = self.run_validator(profile_text(), entry)
+        self.assert_clean(out, code)
+        self.assertIn("DEFERRED: TD-210 until first-outside-participant", out)
+        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
+        self.assert_fail(out, code, "trigger first-outside-participant is true")
+
+    def test_fields_outside_any_entry_are_unverified(self):
+        facts = profile_text(TRIAL)
+        fields = "- Status: open\n- Kind: deferral\n- Control: #23 rate limiting\n- Due-before: first-outside-participant\n"
+        for heading in ("## TD 001 — no hyphen\n\n", "TD-001 underlined\n----------------\n\n"):
+            with self.subTest(heading=heading.splitlines()[0]):
+                code, out = self.run_validator(facts, "# Technical Debt Log\n\n" + heading + fields)
+                self.assertIn("a Kind, Control or Due-before line outside any entry that starts with a TD- heading", out)
+                code, out = self.run_validator(facts, "# Technical Debt Log\n\n" + heading + fields, strict=True)
+                self.assert_fail(out, code, "strict mode")
+
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:
             proc = subprocess.run(["bash", str(SCRIPT), "--help"], cwd=root, capture_output=True, text=True)

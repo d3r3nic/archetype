@@ -1271,6 +1271,67 @@ class Steps(unittest.TestCase):
         (self.project / 'DECISIONS.md').write_text(old + '\n' + newer)
         self.assertIn('basis changed', self.run_tool().stdout)
 
+    def basis_of(self, *decisions):
+        args = ['python3', str(self.engine / 'scripts' / 'step-recovery.py'), 'basis',
+                '--project', str(self.project), '--cwd', str(self.project)]
+        for value in decisions:
+            args += ['--decision', value]
+        return subprocess.run(args, text=True, capture_output=True)
+
+    def test_a_superseding_decision_is_read_in_any_wording(self):
+        for wording, extra in (('DEC-001 (sessions replace tokens)', ''), ('[DEC-001](#dec-001)', ''),
+                               ('DEC-001 and DEC-003', '\n### DEC-003: Other\nStatus: proposed\n')):
+            with self.subTest(wording=wording):
+                self.setUp(); self.ledger('boot'); self.decisions()
+                self.assertEqual(self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001').returncode, 0)
+                old = (self.project / 'DECISIONS.md').read_text()
+                newer = (old[old.index('### DEC-001'):].replace('DEC-001', 'DEC-002')
+                         .replace('Decision: blue', 'Decision: green').replace('Supersedes: none', 'Supersedes: ' + wording))
+                (self.project / 'DECISIONS.md').write_text(old + '\n' + newer + extra)
+                self.assertIn('basis changed', self.run_tool().stdout)
+                refused = self.basis_of('DEC-001')
+                self.assertEqual(refused.returncode, 1, refused.stdout)
+                self.assertIn('superseded', refused.stdout)
+
+    def test_a_status_naming_two_states_is_not_read_as_accepted(self):
+        for status in ('~~accepted~~ retired', 'accepted, superseded by DEC-002'):
+            with self.subTest(status=status):
+                self.setUp(); self.decisions()
+                path = self.project / 'DECISIONS.md'
+                path.write_text(path.read_text().replace('Status: accepted', 'Status: ' + status))
+                refused = self.basis_of('DEC-001')
+                self.assertEqual(refused.returncode, 1, refused.stdout)
+                self.assertIn('more than one state', refused.stdout)
+
+    def test_a_duplicate_block_that_supersedes_the_cited_decision_stops_it(self):
+        self.ledger('boot'); self.decisions()
+        path = self.project / 'DECISIONS.md'
+        old = path.read_text()
+        other = old[old.index('### DEC-001'):].replace('DEC-001', 'DEC-002').replace('Decision: blue', 'Decision: web')
+        path.write_text(old + '\n' + other)
+        self.assertEqual(self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001').returncode, 0)
+        duplicate = other.replace('Decision: web', 'Decision: green').replace('Supersedes: none', 'Supersedes: DEC-001')
+        path.write_text(old + '\n' + other + '\n' + duplicate)
+        self.assertIn('basis changed', self.run_tool().stdout)
+        refused = self.basis_of('DEC-001')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('duplicate decision id: DEC-002', refused.stdout)
+
+    def test_a_supersedes_line_that_names_no_decision_stops_every_basis_until_it_does(self):
+        self.decisions()
+        path = self.project / 'DECISIONS.md'
+        old = path.read_text()
+        newer = (old[old.index('### DEC-001'):].replace('DEC-001', 'DEC-002')
+                 .replace('Supersedes: none', 'Supersedes: the token decision'))
+        path.write_text(old + '\n' + newer)
+        refused = self.basis_of('DEC-001')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('DEC-002 Supersedes names no decision id', refused.stdout)
+        path.write_text(old + '\n' + newer.replace('Status: accepted', 'Status: retired'))
+        self.assertEqual(self.basis_of('DEC-001').returncode, 0)
+        path.write_text(old + '\n' + newer.replace('Supersedes: the token decision', 'Supersedes: none (the first of its kind)'))
+        self.assertEqual(self.basis_of('DEC-001').returncode, 0)
+
     def test_appending_an_unrelated_decision_does_not_stale_the_previous_last_record(self):
         self.ledger('boot'); self.decisions()
         artifact = self.project / 'review.md'; artifact.write_text('- Decision basis: DEC-001\n')

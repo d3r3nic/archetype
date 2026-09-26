@@ -110,8 +110,9 @@ else
       fail "feature row $num is the placeholder row left from the template (name $cell); replace it with a real feature or delete it"
       MISSING=$((MISSING + 1)); continue
     fi
-    status_lc="$(printf '%s' "$status" | tr -d '`*' | tr '[:upper:]' '[:lower:]')"
-    case "$status_lc" in *smoke-test*) SKIPPED_SMOKE="$SKIPPED_SMOKE $name"; continue ;; esac
+    # Only the status smoke-test exempts a row; "smoke-tested" or a note that mentions it does not.
+    status_lc="$(printf '%s' "$status" | tr -d '`*' | tr '[:upper:]' '[:lower:]' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    case "$status_lc" in smoke-test|'smoke-test '*|'smoke-test,'*|'smoke-test('*|'smoke-test;'*) SKIPPED_SMOKE="$SKIPPED_SMOKE $name"; continue ;; esac
     # The conventional smoke-test names, for a tree that predates the smoke-test status.
     case "$name" in health|_health|ping|smoke) SKIPPED_SMOKE="$SKIPPED_SMOKE $name"; continue ;; esac
     FEATURES=$((FEATURES + 1))

@@ -11,7 +11,7 @@
 #      label contract in the UI templates agrees with convention #27
 #   8. No project artifacts inside the framework folder
 #   9. Task protocol routing targets exist
-#  10. Timeless conventions: no expirable content outside Research Notes
+#  10. Timeless content: no named technology anywhere, no expirable content
 #      (delegates to scripts/validate-timeless.sh)
 #  11. Self-claims: counts, engine paths, and convention references in the
 #      shipped docs match the tree (delegates to scripts/validate-claims.sh)
@@ -269,10 +269,10 @@ fi
 group 10 "Timeless content (no named technology, no expirable content)"
 # ----------------------------------------------------------------------
 # The framework encodes character; specifics live in project artifacts.
-# scripts/validate-timeless.sh fails on tool or vendor names outside a
-# Research Notes section, factory step references, statistics attached to
-# AI claims, tool-bound numeric limits, changelog language, and Research
-# Notes sections without the dated notice.
+# scripts/validate-timeless.sh fails on a named technology anywhere in the
+# shipped documents, checks and page templates (outside the allowlisted
+# plumbing), factory step references, statistics attached to AI claims,
+# tool-bound numeric limits, and changelog language.
 if [ -f "$SCRIPT_DIR/validate-timeless.sh" ]; then
   if TIMELESS_OUT="$(bash "$SCRIPT_DIR/validate-timeless.sh" 2>&1)"; then
     pass "timeless check clean"

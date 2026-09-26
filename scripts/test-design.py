@@ -137,6 +137,13 @@ class DesignGate(unittest.TestCase):
                 self.assertEqual(result.returncode, 1)
                 self.assertRegex(result.stdout, r'Brand decided is yes, but unknown: %s\.' % re.escape(label))
 
+    def test_settled_look_with_an_unfinished_task_answer_fails(self):
+        for value in ('TBD', 'to be decided', 'pending the owner', 'To be determined', 'awaiting owner', 'deferred to later', 'todo'):
+            with self.subTest(value=value):
+                result = self.check(section({'Brand decided': 'yes', 'First task': value}), '--required', 'known-screen')
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn('Brand decided is yes, but unknown: First task.', result.stdout)
+
     def test_unknown_task_is_allowed_while_the_look_is_open(self):
         result = self.check(section({
             'Brand decided': 'not yet, directions pending the owner',

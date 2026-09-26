@@ -42,6 +42,8 @@ done
 }
 
 PROJECT_ROOT="$(pwd)"
+# Resolved before any cd, so a relative invocation still finds the scripts beside this one.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
 # Detect project layout: framework at root, in archetype/ subfolder, or in ./project/
 SRC_DIR=""
@@ -213,7 +215,9 @@ group 2 "Each shared system's boundary holds (References.md § Boundaries)"
 # ----------------------------------------------------------------------
 # The lines the project recorded are enforced; a project that has not recorded the section yet
 # (installed before it existed) gets a warning here, and scripts/validate-develop.sh requires it.
-BOUNDARY_OUT="$(cd "$PROJECT_DIR" && bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/check-boundaries.sh" 2>&1)"
+# Run from the project root on the References.md this check read, so both read one record and
+# name paths from the same unit root.
+BOUNDARY_OUT="$(cd "$PROJECT_ROOT" && bash "$SCRIPT_DIR/check-boundaries.sh" --references "$REFS" 2>&1)"
 BOUNDARY_STATUS=$?
 printf '%s\n' "$BOUNDARY_OUT" | sed 's/^/  /'
 if [ "$BOUNDARY_STATUS" -ne 0 ]; then
@@ -398,8 +402,8 @@ if [ "$RUN_4B" -eq 1 ]; then
     if grep -rqE '(InMemoryAuditStore|MemoryAuditStore|inMemoryStore|this\.records[[:space:]]*=[[:space:]]*\[\]|records:[[:space:]]*Array|push\(record\))' "$AUDIT_DIR" 2>/dev/null; then
       # A production store beside it: the pattern References.md § Compliance records on its Audit store
       # line, or another class the code names ...AuditStore (capitalized, not an interface such as
-      # IAuditStore, and not an in-memory, fake, test, mock, stub, dummy or no-op one), or an append-only
-      # or write-once store.
+      # IAuditStore, and with none of memory, fake, test, mock, stub, dummy, noop or spy anywhere in
+      # its name), or an append-only or write-once store.
       AUDIT_STORE_PATTERN="$(tr -d '\r' < "$REFS" | awk '
         /^## / { inside = ($0 ~ /^## Compliance[ \t]*$/); next }
         inside && /^- Audit store:/ { v = $0; sub(/^- Audit store:[ \t]*/, "", v)
@@ -407,7 +411,7 @@ if [ "$RUN_4B" -eq 1 ]; then
       DURABLE=0
       if [ -n "$AUDIT_STORE_PATTERN" ] && grep -rqE -e "$AUDIT_STORE_PATTERN" "$AUDIT_DIR" 2>/dev/null; then
         DURABLE=1
-      elif grep -rhoE '[A-Za-z0-9_]*AuditStore' "$AUDIT_DIR" 2>/dev/null | grep -E '^[A-Z]' | grep -vE '^I[A-Z]' | grep -viE '^(inmemory|memory|fake|test|mock|stub|dummy|noop)' | grep -vE '^AuditStore$' | grep -q .; then
+      elif grep -rhoE '[A-Za-z0-9_]*AuditStore' "$AUDIT_DIR" 2>/dev/null | grep -E '^[A-Z]' | grep -vE '^I[A-Z]' | grep -viE '(memory|fake|test|mock|stub|dummy|noop|spy)' | grep -vE '^AuditStore$' | grep -q .; then
         DURABLE=1
       elif grep -rqE '(AppendOnlyStore|WormStore|WORMStore)' "$AUDIT_DIR" 2>/dev/null; then
         DURABLE=1
@@ -456,21 +460,34 @@ group 6 "A recorded migration command is bounded to its production path"
 # B1: production migrations never run automatically. The project records its migration command
 # as migrate: (or db:migrate:) in References.md § Commands and bounds it in § Boundaries to the
 # path that may apply it to production; the boundary check then fails the command anywhere else.
-MIGRATE_CMD="$(tr -d '\r' < "$REFS" | awk '
+MIGRATE_VALUE="$(tr -d '\r' < "$REFS" | awk '
   /^## / { inside = ($0 ~ /^## Commands[ \t]*$/); next }
   inside {
     line = $0; sub(/^[ \t]*([-*][ \t]+)?/, "", line)
-    if (line ~ /^(db:)?migrate[ \t]*:/) {
-      sub(/^(db:)?migrate[ \t]*:[ \t]*/, "", line)
-      if (line ~ /^`/) { line = substr(line, 2); i = index(line, "`"); if (i > 1) { print substr(line, 1, i - 1); exit } }
-    }
+    if (line ~ /^(db:)?migrate[ \t]*:/) { sub(/^(db:)?migrate[ \t]*:[ \t]*/, "", line); sub(/[ \t]+$/, "", line); print line; exit }
   }')"
-case "$(printf '%s' "$MIGRATE_CMD" | tr '[:upper:]' '[:lower:]')" in ''|none|n/a) MIGRATE_CMD="" ;; esac
+# The command is the first text in backticks on the line, wherever it sits.
+MIGRATE_CMD=""
+case "$MIGRATE_VALUE" in
+  *'`'*'`'*) MIGRATE_CMD="${MIGRATE_VALUE#*\`}"; MIGRATE_CMD="${MIGRATE_CMD%%\`*}" ;;
+esac
+case "$(printf '%s' "$MIGRATE_CMD" | tr '[:upper:]' '[:lower:]')" in none|n/a) MIGRATE_CMD="" ;; esac
+MIGRATE_PLAIN="$(printf '%s' "$MIGRATE_VALUE" | tr -d '`' | tr '[:upper:]' '[:lower:]' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+HAS_BOUNDARIES=0
+tr -d '\r' < "$REFS" | grep -qE '^## Boundaries[[:space:]]*$' && HAS_BOUNDARIES=1
 if [ -z "$MIGRATE_CMD" ]; then
-  pass "no migration command recorded in References.md § Commands"
+  case "$MIGRATE_PLAIN" in
+    ''|'['*|none|'none '*|'none,'*|'none.'*|'none:'*|'none;'*|'none-'*|n/a|'n/a '*|'n/a,'*|'n/a.'*|'n/a;'*) pass "no migration command recorded in References.md § Commands" ;;
+    *)
+      if [ "$HAS_BOUNDARIES" -eq 1 ]; then
+        fail "References.md § Commands records a migration command this check cannot read (\"$MIGRATE_VALUE\"): write it in backticks, and bound it to its production path in § Boundaries (B1)"
+      else
+        warn "References.md § Commands records a migration command this check cannot read (\"$MIGRATE_VALUE\"): write it in backticks and record § Boundaries with the path that may apply it to production (B1)"
+      fi ;;
+  esac
 else
   BOUNDED=""
-  BOUNDARY_RULES="$(cd "$PROJECT_DIR" && bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/check-boundaries.sh" --rules 2>/dev/null)"
+  BOUNDARY_RULES="$(cd "$PROJECT_ROOT" && bash "$SCRIPT_DIR/check-boundaries.sh" --rules --references "$REFS" 2>/dev/null)"
   while IFS="$(printf '\t')" read -r blabel bpattern; do
     [ -n "$bpattern" ] || continue
     if printf '%s\n' "$MIGRATE_CMD" | grep -qE -e "$bpattern" 2>/dev/null; then BOUNDED="$blabel"; break; fi
@@ -479,7 +496,7 @@ $BOUNDARY_RULES
 EOF
   if [ -n "$BOUNDED" ]; then
     pass "the migration command is bounded in § Boundaries ($BOUNDED)"
-  elif ! tr -d '\r' < "$REFS" | grep -qE '^## Boundaries[[:space:]]*$'; then
+  elif [ "$HAS_BOUNDARIES" -eq 0 ]; then
     warn "References.md records the migration command \`$MIGRATE_CMD\` but no § Boundaries section: record the path that may apply it to production, so it cannot run anywhere else (B1)"
   else
     fail "References.md records the migration command \`$MIGRATE_CMD\`, and no § Boundaries line bounds it to its production path: add one whose pattern matches the command (B1)"
@@ -549,7 +566,7 @@ fi
 # ----------------------------------------------------------------------
 group 8 "Design Artifact section filled in (conv #27)"
 # ----------------------------------------------------------------------
-VD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/validate-design.sh"
+VD="$SCRIPT_DIR/validate-design.sh"
 if [ ! -f "$VD" ]; then
   fail "scripts/validate-design.sh missing beside this script"
 elif [ "$DESIGN_REQUIRED" = "known-screen" ]; then
