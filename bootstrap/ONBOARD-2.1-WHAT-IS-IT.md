@@ -4,6 +4,7 @@
 Read: bootstrap/ONBOARD-DISCOVERY.md; bootstrap/RED-FLAGS.md § Discovery Turn Budget
 Produces: what the product does and for whom, template or product, ship or learn, and the owner's answer to the one look question
 Check: evidence: the owner's answers to this group in their own words, quoted; a question an earlier answer settled is recorded as inferred, with the inference; a question the owner declined is recorded as declined, with what was assumed
+Skip by: owner
 
 - What does your app do? Describe it like you're explaining to a friend.
 - Who uses it? Just you? Your team? The public?

@@ -297,7 +297,7 @@ class Steps(unittest.TestCase):
         self.assertIn('  - conventions/08-errors.md § Principle', result.stdout)
         self.assertIn('  - templates/thing.md', result.stdout)
         self.assertIn('  - project: References.md', result.stdout)
-        self.assertIn('Skip when: never', result.stdout)
+        self.assertIn('Skip when: no listed condition', result.stdout)
         self.assertNotIn('Step 99', self.run_tool('--list').stdout)
 
     def test_evidence_step_needs_evidence(self):
@@ -324,6 +324,131 @@ class Steps(unittest.TestCase):
         skipped = self.run_tool('--skip', 'boot.2.2', '--reason', 'no extras on this project')
         self.assertEqual(skipped.returncode, 0, skipped.stdout)
         self.assertRegex(self.closed()[-1], r'^- \[-\] boot\.2\.2 \| \d{4}-\d\d-\d\d \| rev \S+ \| cwd \. \| owner - \| basis none \| skipped \(allowed when: the project has no extras\): no extras on this project$')
+
+    # --- the session's final word -------------------------------------------------
+
+    def mark_owner_step(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace(
+            "Check: evidence: the owner's answers to this group, quoted\n",
+            "Check: evidence: the owner's answers to this group, quoted\nSkip by: owner\n"))
+
+    def test_a_step_that_does_not_fit_is_set_aside_with_its_reason_never_passed(self):
+        self.ledger()
+        self.run_tool('--close', 'boot.1', '--evidence', 'done')
+        self.run_tool('--close', 'boot.2.1', '--evidence', 'quoted')
+        named = self.run_tool()
+        self.assertIn('Skip when: the project has no extras', named.stdout)
+        self.assertIn('Set aside: when it does not fit how this application works:', named.stdout)
+        self.assertEqual(self.run_tool('--set-aside', 'boot.2.2').returncode, 1)
+        self.assertEqual(self.run_tool('--set-aside', 'boot.2.2', '--reason', '  ').returncode, 1)
+        self.assertEqual(len(self.closed()), 2)
+        recorded = self.run_tool('--set-aside', 'boot.2.2', '--reason', 'extras are | handled by the host')
+        self.assertEqual(recorded.returncode, 0, recorded.stdout)
+        self.assertIn('It is not done', recorded.stdout)
+        self.assertRegex(self.closed()[-1], r'^- \[-\] boot\.2\.2 \| \d{4}-\d\d-\d\d \| rev \S+ \| cwd \. \| owner - \| basis none \| '
+                                            r'set aside by the session; its check did not run: extras are handled by the host$')
+        self.assertIn('Next step: boot.3', self.run_tool().stdout)
+        self.assertRegex(self.run_tool('--list').stdout, r'(?m)^set aside\s+boot\.2\.2\s')
+
+    def test_a_step_marked_for_the_owner_is_set_aside_only_on_the_owners_words(self):
+        self.mark_owner_step()
+        self.ledger()
+        self.run_tool('--close', 'boot.1', '--evidence', 'done')
+        self.assertIn("Set aside: only on the owner's words:", self.run_tool().stdout)
+        refused = self.run_tool('--set-aside', 'boot.2.1', '--reason', 'the brief already says who it is for')
+        self.assertEqual(refused.returncode, 1)
+        self.assertIn("only on the owner's words", refused.stdout)
+        self.assertEqual(len(self.closed()), 1)
+        recorded = self.run_tool('--set-aside', 'boot.2.1', '--reason', 'answered in the brief',
+                                 '--owner', 'skip the audience questions, it is just me')
+        self.assertEqual(recorded.returncode, 0, recorded.stdout)
+        self.assertTrue(self.closed()[-1].endswith(
+            '| set aside on the owner\'s words "skip the audience questions, it is just me"; its check did not run: answered in the brief'),
+            self.closed()[-1])
+        self.assertEqual(self.run_tool('--skip', 'boot.2.2', '--reason', 'no extras').returncode, 0)
+
+    def test_lint_takes_one_skip_by_line_whose_value_is_owner(self):
+        self.mark_owner_step()
+        self.assertEqual(self.run_tool('--lint', cwd=self.engine).returncode, 0)
+        for wrong in ('Skip by: the session', 'Skip By: owner', 'skip by:owner'):
+            self.lint_with('Skip by: owner\n', wrong + '\n')
+            result = self.run_tool('--lint', cwd=self.engine)
+            self.assertEqual(result.returncode, 1, wrong)
+            self.assertIn("write the owner mark exactly 'Skip by: owner' (found '%s')" % wrong, result.stdout)
+            self.lint_with(wrong + '\n', 'Skip by: owner\n')
+        self.lint_with('Skip by: owner\n', 'Skip by: the session\n')
+        self.lint_with('Skip by: the session\n', 'Skip by: owner\nSkip by: owner\n')
+        result = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("more than one 'Skip by:' line", result.stdout)
+
+    def test_a_misspelt_owner_mark_still_holds_the_step_and_a_stray_one_fails_the_lint(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace(
+            "Check: evidence: the owner's answers to this group, quoted\n",
+            "Check: evidence: the owner's answers to this group, quoted\nSkip By: owner\n"))
+        self.ledger()
+        self.run_tool('--close', 'boot.1', '--evidence', 'done')
+        refused = self.run_tool('--set-aside', 'boot.2.1', '--reason', 'answered in the brief')
+        self.assertEqual(refused.returncode, 1)
+        self.assertIn("only on the owner's words", refused.stdout)
+        path.write_text(BOOT.replace('Body of step one.\n', 'Body of step one.\n\n### Notes\n\nSkip by: owner\n'))
+        result = self.run_tool('--lint', cwd=self.engine)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("a 'Skip by:' line sits outside a step's own lines", result.stdout)
+
+    def test_when_every_step_is_set_aside_the_runner_never_says_closed(self):
+        self.ledger('boot')
+        for step in ('boot.1', 'boot.2.1', 'boot.2.2', 'boot.3'):
+            self.assertEqual(self.run_tool('--set-aside', step, '--reason', 'x').returncode, 0, step)
+        bare = self.run_tool()
+        self.assertEqual(bare.returncode, 0, bare.stdout)
+        self.assertIn('No step is open. Set aside, not done: boot.1, boot.2.1, boot.2.2, boot.3.', bare.stdout)
+        self.assertNotIn('closed', bare.stdout)
+        again = self.run_tool('--close', 'boot.3')
+        self.assertEqual(again.returncode, 1)
+        self.assertIn('No step is open. Set aside, not done:', again.stdout)
+        self.assertNotIn('already closed', again.stdout)
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(BOOT + '\n## Next Step\n\nGo on.\n')
+        self.assertIn('No step is open. Set aside, not done: boot.1, boot.2.1, boot.2.2, boot.3. What follows: the Next Step section',
+                      self.run_tool().stdout)
+
+    def test_a_closed_step_whose_check_does_not_fit_is_reopened_then_set_aside(self):
+        self.close_all_of_boot()
+        (self.project / 'flag.txt').unlink()
+        halted = self.run_tool()
+        self.assertEqual(halted.returncode, 1)
+        self.assertIn('If a check itself does not fit how this application works', halted.stdout)
+        self.assertEqual(self.run_tool('--set-aside', 'boot.3', '--reason', 'no flag here').returncode, 1)
+        self.assertEqual(self.run_tool('--reopen', 'boot.3', '--reason', 'the flag check does not fit').returncode, 0)
+        recorded = self.run_tool('--set-aside', 'boot.3', '--reason', 'the flag check does not fit')
+        self.assertEqual(recorded.returncode, 0, recorded.stdout)
+        bare = self.run_tool()
+        self.assertEqual(bare.returncode, 0, bare.stdout)
+        self.assertNotIn('REOPENED', bare.stdout)
+
+    def test_a_set_aside_in_a_repeating_playbook_belongs_to_its_unit(self):
+        self.close_all_of_boot()
+        recorded = self.run_tool('--set-aside', 'dev.1', '--unit', 'board', '--reason', 'the board has no systems to inventory')
+        self.assertEqual(recorded.returncode, 0, recorded.stdout)
+        self.assertRegex(self.closed()[-1], r'^- \[-\] dev\.1 @board \| .* \| set aside by the session; its check did not run: '
+                                            r'the board has no systems to inventory$')
+        self.assertIn('Next step: dev.2 @board', self.run_tool('--unit', 'board').stdout)
+        self.assertIn('Next step: dev.1 @profile', self.run_tool('--unit', 'profile').stdout)
+
+    def test_a_step_that_depends_on_a_set_aside_step_says_so(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: flag.txt\nCheck:', 'Produces: flag.txt\nDepends on: boot.2.2\nCheck:'))
+        self.ledger()
+        self.run_tool('--close', 'boot.1', '--evidence', 'done')
+        self.run_tool('--close', 'boot.2.1', '--evidence', 'quoted')
+        self.assertEqual(self.run_tool('--set-aside', 'boot.2.2', '--reason', 'extras do not apply').returncode, 0)
+        named = self.run_tool()
+        self.assertIn('Next step: boot.3', named.stdout)
+        self.assertIn('Note:      it depends on boot.2.2, which was set aside: by the session; its check did not run: '
+                      'extras do not apply', named.stdout)
 
     def close_up_to_three(self):
         self.ledger()

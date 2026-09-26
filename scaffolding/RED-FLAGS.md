@@ -8,7 +8,7 @@ Silent-failure means no error, no warning, no build break — but the system is 
 
 A step tagged `[backend]` or `[frontend]` or `[if applicable]` gets skipped by an agent that reads the tag as permission to skip rather than as a routing hint. Tag strength matters.
 
-**Defense:** SCAFFOLD.md routes by project shape first (SCAFFOLD-BACKEND vs FRONTEND vs MOBILE vs PLATFORM). Within a shape-specific playbook, every step applies unless explicitly marked "skip if X" with X being a REFERENCES.md fact, not an agent judgment.
+**Defense:** SCAFFOLD.md routes by project shape first (SCAFFOLD-BACKEND vs FRONTEND vs MOBILE vs PLATFORM). Within a shape-specific playbook a step is skipped by its listed condition, a fact the project records, or set aside with the reason when it does not fit how this application works (development/STEPS.md). Never silently: an unrecorded skip is the failure this entry names.
 
 ## 2. Checklist-only verification (no execution)
 
@@ -82,7 +82,7 @@ Every system individually looks built. But nobody tried to USE them together. Fi
 
 ## 12. Implicit "skip if not regulated" treated as "skip because I don't want to build it"
 
-Audit log, rate limiting, tenant isolation — agent rationalizes skipping because "this is just a scaffold, the project can add it later." References.md had the system listed. Skipping is NOT a decision the agent gets to make autonomously.
+Audit log, rate limiting, tenant isolation: the agent rationalizes skipping because "this is just a scaffold, the project can add it later." References.md had the system listed. A system the project's facts require is built; one the operating stage lets wait is a recorded deferral (#30); one that does not fit is set aside with its reason. "Later" with no record is the failure, and the #30 floor is never postponed.
 
 **Defense:** Handoff check (Step 0 of each shape playbook) requires reading References.md Foundational Systems list and inventorying every system against the playbook before building. Missed systems surfaced at inventory time, not after the scaffold claims complete.
 
@@ -130,10 +130,9 @@ Mobile-specific: a managed mobile SDK pins the native runtime and several peers 
 ## Handling a fired red flag
 
 If one of these fires during or after scaffolding:
-1. STOP. Do not continue to the next step until resolved.
-2. Document the red flag in `VERSION-LOG.md` scaffold entry.
-3. Fix the underlying issue (do not paper over with a `// TODO` comment).
+1. Resolve it before the step closes: fix the cause, or, when the flag does not fit how this application works, set the step aside with the reason (development/STEPS.md).
+2. Record the red flag and its resolution in the `VERSION-LOG.md` scaffold entry.
+3. Never paper it over with a `// TODO` comment.
 4. Re-run `scripts/validate-scaffold.sh`.
-5. Only then proceed.
 
 Silent failure is worse than loud failure. A loud failure blocks the merge; a silent failure ships to production.

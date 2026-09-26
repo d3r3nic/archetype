@@ -150,6 +150,7 @@ inject.sh installs the framework files into the engine folder (`archetype/` by d
 - **The owner sets the intent.** The AI recommends and implements within the recorded authority. Supplied requirements survive delegation of the look.
 - **Evidence supports completion.** Verify behavior and inspect the resulting interface. Record limits honestly; a script cannot certify judgment or prove that instructions were read.
 - **Read what the work needs.** The root and playbooks route relevant knowledge; current facts have one authoritative home, with links for other readers.
+- **The framework reminds; the session decides fit.** Guidance, a step or a check that does not fit how an application works is set aside with the reason recorded, never passed silently, and reported upstream when it would get in the way of other projects (development/FEEDBACK.md).
 - **Recover when the basis changes.** Declared decisions and inputs identify affected work. Preserve history and unrelated work while rechecking dependent evidence.
 
 ## License

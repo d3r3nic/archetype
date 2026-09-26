@@ -4,6 +4,7 @@
 Read: bootstrap/ONBOARD-DISCOVERY.md; bootstrap/RED-FLAGS.md § Discovery Turn Budget; bootstrap/RED-FLAGS.md § Mobile Disambiguation
 Produces: the platforms, the mobile mode when a phone is involved, and the primary context
 Check: evidence: the owner's answers to this group in their own words, quoted; a question an earlier answer settled is recorded as inferred, with the inference; a question the owner declined is recorded as declined, with what was assumed
+Skip by: owner
 
 - Should this work in a web browser?
 - Should this be a phone app, installed from an app store?

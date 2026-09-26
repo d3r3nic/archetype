@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,6 +17,71 @@ STUB = 'bootstrap/hooks/post-task-verify.sh'
 OLD_SETTINGS = {'hooks': {
     'PreToolUse': [{'matcher': 'Bash', 'hooks': [{'type': 'command', 'command': '$CLAUDE_PROJECT_DIR/archetype/' + GUARD}]}],
     'Stop': [{'hooks': [{'type': 'command', 'command': '$CLAUDE_PROJECT_DIR/archetype/' + STUB}]}]}}
+
+# Pushes the guard must stop (2) or let through (0). A force push overwrites remote history;
+# --force-with-lease refuses when the remote moved, and is the safer form the guard names.
+PUSHES = [
+    ('git push --force-with-lease origin feature', 0),
+    ('git push --force-with-lease=main:abc123 origin main', 0),
+    ('git push --force-w origin feature', 0),
+    ('git push --no-force-with-lease origin main', 0),
+    ('git push origin feature', 0),
+    ('git push -u origin feature', 0),
+    ('git push origin fix-f', 0),
+    ('git push origin main+x', 0),
+    ('git push origin HEAD:refs/for/main', 0),
+    ('git commit -m "later: push -f is blocked" && git push origin main', 0),
+    ('git push origin main && rm -f build.log', 0),
+    ('git -C "/Users/me/My Project" push origin main', 0),
+    ('git push --force origin main', 2),
+    ('git push origin main --force', 2),
+    ('git push -f', 2),
+    ('git push -uf origin main', 2),
+    ('git push origin +feature', 2),
+    ("git push origin '+feature'", 2),
+    ('git push origin "+HEAD:main"', 2),
+    ('git push --mirror', 2),
+    ('git push --mirro', 2),
+    ('git push --m', 2),
+    ('git -C /repo push --force origin main', 2),
+    ('git -c user.name=x push -f', 2),
+    ('git --git-dir .git push origin +main', 2),
+    ('cd repo && git push --force', 2),
+    ('git push \\\n  --force origin main', 2),
+    ('(cd repo && git push origin main --force)', 2),
+    ("bash -c 'git push origin main --force'", 2),
+    ('out=$(git push --force)', 2),
+    ('git push "--force" origin main', 2),
+    ('(git push -f)', 2),
+    ('git -C "/Users/me/My Project" push --force origin main', 2),
+    ('git -P push --force origin main', 2),
+    ('git --no-pager push -f', 2),
+    ('`git push --force`', 2),
+    ('git push --force > push.log', 2),
+    ('git push -f4 origin main', 2),
+    ('git push -4f origin main', 2),
+    ('git push -f6 origin main', 2),
+    ('git -C /path/work\\ dir push --force origin main', 2),
+    ('git --attr-source HEAD push --force origin main', 2),
+    ('git -C $(git rev-parse --show-toplevel) push --force origin main', 2),
+    ('git push -o "title=A;B" --force origin main', 2),
+    ('git push -4 origin main', 0),
+    ('git push -o "a;b" origin main', 0),
+    ('git push -o "it\'s done" --force origin main', 2),
+    ('git push -o merge_request.title="Don\'t merge yet" --force origin feature', 2),
+    ('git push -o "fix Bob\'s bug" origin +main', 2),
+    ('git -C "/Users/me/Bob\'s Project" push --force origin main', 2),
+    ('git --git-dir="/Users/me/Bob\'s Project/.git" push -f', 2),
+    ("git -C '/Users/me/say \"hi\" dir' push --force origin main", 2),
+    ('git -c core.sshCommand="ssh -i ~/.ssh/deploy_key" push -f', 2),
+    ('git -C ~/"My Project" push --force', 2),
+    ('git -C $(pwd)/app push --force', 2),
+    ('git push $(git remote | head -1) --force', 2),
+    ('git push -o "title=Fix +1" --force-with-lease origin feature', 0),
+    ('git push -o "it\'s done" origin main', 0),
+    ("git push -o title=Bob\\'s --force origin main", 2),
+    ('git push -o "a \\"b" --force origin main', 2),
+]
 
 
 class Hooks(unittest.TestCase):
@@ -206,6 +272,40 @@ class Hooks(unittest.TestCase):
         result = self.check()
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertNotIn('relative path', result.stdout)
+
+    def test_the_guard_stops_pushes_that_overwrite_history_and_lets_the_safer_form_through(self):
+        def tools(name, python=None):
+            folder = Path(self.temp.name) / name
+            folder.mkdir()
+            for tool in ('cat', 'sed', 'head', 'grep'):
+                os.symlink(shutil.which(tool), str(folder / tool))
+            if python:
+                os.symlink(python, str(folder / 'python3'))
+            return str(folder)
+        broken = Path(self.temp.name) / 'broken-python3'
+        broken.write_text('#!/bin/sh\necho "no developer tools" >&2\nexit 1\n')
+        broken.chmod(0o755)
+        readers = []
+        if shutil.which('jq'):
+            readers.append(('jq', os.environ.get('PATH', '')))
+        # Without jq the guard reads the event with python3; without either, or when python3
+        # fails, with sed, which stops at an escaped quote or a newline in the command.
+        readers.append(('python3', tools('without-jq', sys.executable)))
+        readers.append(('sed', tools('without-jq-or-python3')))
+        readers.append(('sed after a failing python3', tools('failing-python3', str(broken))))
+        bash = shutil.which('bash')
+        for reader, path in readers:
+            for command, want in PUSHES + [('rm -rf /', 2), ('git reset --hard', 2)]:
+                if reader.startswith('sed') and any(c in command for c in '"\\\n'):
+                    continue
+                with self.subTest(reader=reader, command=command):
+                    event = json.dumps({'tool_name': 'Bash', 'tool_input': {'command': command}})
+                    result = subprocess.run([bash, str(ENGINE / GUARD)], input=event, capture_output=True, text=True,
+                                            env=dict(os.environ, PATH=path))
+                    self.assertEqual(result.returncode, want, result.stderr)
+                    if want == 2:
+                        self.assertIn('Do not reword the command to get past this guard', result.stderr)
+                        self.assertNotIn('retry', result.stderr)
 
     def test_the_retired_reminder_reads_its_input_and_says_nothing(self):
         result = subprocess.run(['bash', str(ENGINE / STUB)], input='{"hook_event_name": "Stop"}',

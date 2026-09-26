@@ -27,8 +27,8 @@ Session reviews document a finding ("we keep hitting this pattern — convention
 
 **Defense:** MAINTAIN.md explicit "Convention evolution" section:
 - After every session review, check the "Suggested Convention Improvements" section.
-- If any item is marked for framework promotion: open an issue in the framework repo (not just the project repo). Include a link to the session review.
-- Framework maintainer (or agent running framework audit) aggregates issues across projects into the next step's scope.
+- If any item is marked for framework promotion: report it upstream (development/FEEDBACK.md), written out in the report itself; the framework's repository is public, and a link to a project file shows nothing.
+- The framework's maintainers gather reports across projects, the ones that ask to remove or soften guidance as much as the ones that ask to add it.
 - Loop closes when framework edit lands → project pulls via `update.sh` → next session review confirms the finding is addressed.
 
 The feedback loop is the whole point. A session review with no promotion path is just a journal.

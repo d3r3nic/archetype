@@ -80,4 +80,4 @@ Agent codes a screen or a state (an error, an empty list, a confirm dialog) the 
 
 Read before starting a feature. If you notice yourself heading toward one of these patterns (e.g., about to import a shared client class directly because it's "just one call"), STOP — that IS red flag #2. Resolve by using the shared getter before proceeding.
 
-If `validate-develop.sh` flags a violation, as an error or as a warning, FIX the violation. Do not paper over with a lint-suppression comment. Most of these patterns have no check at all, so a clean validator run is not evidence that none of them fired. Silent failure is worse than loud failure.
+If `validate-develop.sh` flags a violation, as an error or as a warning, fix it; when the finding misreads a justified approach, reproduce the mismatch and record it as DEVELOP.md Step 6 says. Never paper it over with a lint-suppression comment. Most of these patterns have no check at all, so a clean validator run is not evidence that none of them fired. Silent failure is worse than loud failure.

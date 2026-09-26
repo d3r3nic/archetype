@@ -4,6 +4,7 @@
 Read: bootstrap/ONBOARD-DISCOVERY.md; bootstrap/RED-FLAGS.md § Discovery Turn Budget
 Produces: what users do in it, the first-minute task, what people come back to do most, and how long they stay
 Check: evidence: the owner's answers to this group in their own words, quoted; a question an earlier answer settled is recorded as inferred, with the inference; a question the owner declined is recorded as declined, with what was assumed
+Skip by: owner
 
 - Do users need to create accounts and log in?
 - Do users fill out forms or submit data?
