@@ -1,54 +1,42 @@
 # Convention #12: Testing Strategy
 
+## Applies when
+
+Every project with behavior worth keeping. What varies: what the product's behavior is (screens, an API, a library, a job, a simulation), where its outer boundaries are (a network, a clock, files, other services, a device), and how much risk a failure carries (#30).
+
 ## Principle
 
-Tests verify behavior, not implementation. They describe what the system does from the user's perspective, serving as executable specifications. Test infrastructure is a reusable system - custom renderers, mock factories, and API mocks are built once and shared by all features. Tests that break when you refactor are testing the wrong thing.
+Tests verify behavior, not implementation: what a person sees, what a caller receives, what the system records. They survive refactoring and fail when behavior breaks. Test infrastructure is shared like any other system: setup, data builders and fakes are built once and reused by every test. Effort goes where a bug would hurt most.
 
 ## Reusable System
 
-Create a test infrastructure that establishes:
-- A custom test renderer pre-configured with all the project's providers, contexts, and wrappers. Every test uses this shared renderer instead of setting up providers manually.
-- Test data factories that generate realistic test data for each entity in the project. Factories are composable and configurable.
-- API mock setup that intercepts HTTP requests at the network level (not by mocking internal modules). Mocks return realistic responses and can simulate errors, delays, and edge cases.
-- A consistent test file organization: test files colocated next to the code they test.
+The project's test setup: the runner and commands, the shared setup every test uses, builders for test data, fakes for the outer boundaries, and the isolation strategy that keeps tests independent. References.md records them, the test location the project chose, and the critical journeys covered end to end.
 
 ## Rules
 
-- Test behavior, not implementation. Assert what the user sees or what the system outputs, not internal state variables or function call counts.
-- Mock at boundaries only. Mock the network layer (HTTP requests) and external services. Let everything between the entry point and the boundary run as real code.
-- Tests must survive refactoring. If you rename an internal variable or restructure a function without changing behavior, zero tests should break. If they break, they're testing implementation, not behavior.
-- Colocate test files next to the code they test. Not in a separate /tests directory.
-- Use the shared test renderer, factories, and mocks. Never set up providers or create mock data from scratch in individual test files.
-- Test names describe behavior: "displays error message when email is invalid." Not "test1" or "should work."
-- Coverage thresholds on critical business paths, not 100% on everything. Focus testing effort where bugs matter most.
-- End-to-end tests cover the most critical user journeys: authentication, primary workflows, payment flows.
+- Assert behavior: output, visible state, recorded effects. Do not assert internal variables or how often an internal function was called.
+- Fake only the outer boundaries: the network, the clock, outside services, hardware. Everything between the entry point and that boundary runs as real code.
+- A refactor that keeps behavior breaks no test. When one breaks, it was testing implementation.
+- Use the shared setup, builders and fakes. A test file does not build its own copy of them.
+- Keep tests independent. Shared data never makes a result depend on the order tests run in (development/RED-FLAGS.md).
+- Name a test for the behavior it checks.
+- Put the most testing where failure is most costly: money, permissions, data integrity, the main journeys. Cover those journeys end to end.
 
 ## Violations
 
-- Tests that assert on internal state variables, function call counts, or implementation details
-- Mocking internal modules instead of testing real code paths (mocking the service you're testing)
-- Tests that break when you refactor without changing behavior (implementation-coupled tests)
-- Custom test setup in every test file (each file configures its own providers and mock data)
-- Testing framework guarantees (asserting that the framework renders a div, or that state updates work)
-- No tests on critical business logic
+- Tests that assert internal state or call counts.
+- Faking the very module under test, so the test checks its own fakes.
+- Tests that break on a refactor that kept behavior.
+- Every test file with its own setup and data.
+- Tests that pass alone and fail together.
+- No test on the logic where a bug costs the most.
 
 ## Wrong vs Right
 
-- WRONG: a test asserts that a specific internal function was called with specific arguments. Refactor the function name and the test breaks, even though the behavior is identical.
-- RIGHT: a test asserts that after submitting a form, a success message appears on screen. The form can be refactored any way you want and the test still passes as long as the success message shows up.
-- WRONG: a test mocks the user service, the auth module, the format utility, and the API client. Every dependency is fake. The test verifies that mocks were called correctly. You're testing your mocks, not your code.
-- RIGHT: a test uses the network-level API mock to simulate a realistic API response. Everything between the UI and the network layer runs as real code. The test verifies what the user actually sees.
-- WRONG: each test file manually configures providers, creates its own mock data, and sets up its own API mocks. Fifty test files, fifty slightly different setups.
-- RIGHT: all tests use the shared renderer, shared factories, and shared API mock handlers. Setup is consistent. Adding a new provider means changing one file.
+- WRONG: a test checks that an internal function was called with certain arguments; renaming the function breaks it. RIGHT: a test submits the form and checks that the confirmation appears; any refactor that keeps that behavior passes.
+- WRONG: a test fakes the service, the formatter and the client it is supposed to exercise. RIGHT: the test fakes only the network response and lets everything else run.
+- WRONG: fifty test files, fifty slightly different setups. RIGHT: one shared setup; adding a new piece of context changes one file.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention:
-- Research the framework's recommended testing libraries and test runner
-- Research network-level API mocking tools for the framework (tools that intercept HTTP requests, not module-level mocks)
-- Research test data factory patterns and libraries for the language
-- Research the framework's custom renderer pattern (how to wrap the renderer with project providers)
-- Research end-to-end testing tools for the framework
-- Document the test setup, shared utilities, mock configuration, and coverage thresholds in References.md
+Research the chosen stack's test runners, its ways to fake network and time at the boundary, test data builders, end-to-end tools for the product's platforms, and isolation for any shared store. Record the setup, the commands, the isolation strategy and the covered journeys in References.md.

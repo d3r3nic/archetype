@@ -1,44 +1,33 @@
-# Convention: [NAME]
+# Convention #N: [NAME]
 
 ## Applies when
 
-[Optional. Name the project shapes this convention covers so a project outside them can mark it not applicable in feature-tree.md without violating anything. Delete the section if the convention applies to every project.]
+[What about the application decides whether this convention applies and how: the facts gathered at setup (References.md, PROFILE.md), such as what the product runs on, who uses it, what it stores, what it calls. Write "Every project." when that is true, then what changes by shape. A project outside the covered shapes records "not applicable" with the reason where it records the system (feature-tree.md).]
 
 ## Principle
 
-[2-3 sentences. Framework-agnostic. What this convention IS and WHY it exists.]
+[2-4 sentences. The standard this concern must meet, stated firmly, and why. The standard itself is never optional; how it applies depends on the shape above. Name no technology.]
 
 ## Reusable System
 
-Apply #0: build once, configure for context.
-- [system/component]: [what it does]
-- [system/component]: [what it does]
+[Where this applies, the one owner of this concern: what it covers, what the project records about the form it chose (References.md, its decision location), and the § Boundaries line that keeps other code from going around it. Features use that owner and never build a second one (#0).]
 
 ## Rules
 
-- [Short directive. Concept, not code.]
-- [Short directive.]
+- [A firm rule about behaviour or outcome, conditioned on the application's shape where shape matters. Concept, not code.]
+- [Another rule.]
 
 ## Violations
 
-- [What wrong looks like, conceptually.]
 - [What wrong looks like.]
 
 ## Wrong vs Right
 
-- WRONG: [concept in a few words]
-- RIGHT: [concept in a few words]
+- WRONG: [a concrete failure, no technology named]. RIGHT: [what the standard asks instead].
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention, research:
-- [What to look for in the chosen framework]
-- [What questions the agent should answer]
-- [What to document in References.md]
-
-Tool, library, and vendor names are allowed only in this section. Everywhere else, name the category and the concern.
+[What to research for the chosen stack when this concern is decided, and where the result is recorded (References.md, § Boundaries, the decision location). Name categories, never products.]
 
 ## Project Overrides
 

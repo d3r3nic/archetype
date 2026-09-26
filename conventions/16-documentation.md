@@ -1,63 +1,49 @@
 # Convention #16: Documentation & Decisions
 
+## Applies when
+
+Every project. What varies: how many people and sessions read the records, how long the product lives, and whether the team already keeps decisions in a format of its own.
+
 ## Principle
 
-Documentation captures what code cannot express: intent, constraints, business reasoning, and architectural decisions. Comments explain WHY, never WHAT. AI over-comments generated code with obvious descriptions by default - this convention corrects that. Documentation that matters is specifications, decision records, and constraint explanations. Documentation that wastes time restates what the code already says.
+Records hold what the code cannot say: intent, constraints, business reasons and the decisions behind the design, each in one place. Every consequential decision can be found with its reason, so "why did we choose this?" has an answer that does not depend on anyone's memory. Documentation that restates the code is noise, and documentation that has drifted from the code is worse.
 
 ## Reusable System
 
-Create a documentation system that establishes:
-- An architecture decision record (ADR) template for recording significant decisions with context, reasoning, and trade-offs
-- One feature documentation template, templates/feature-doc-template.md, whose relevant fields explain purpose, contracts, non-obvious choices and evidence. Keep simple records brief; do not fill irrelevant sections.
-- A naming convention: descriptive names that communicate purpose without abbreviations. AI and humans should be able to understand an identifier without context.
-- A structured TODO format that links to tracking systems so TODOs are actionable, not forgotten
+One decision location, named in References.md: the team's existing decision records when it has them, otherwise DECISIONS.md from templates/decisions.md. One feature record format, templates/feature-doc-template.md. Current facts live in one place each (References.md, feature-tree.md), and other records link to them.
 
 ## Rules
 
-- Comments explain WHY or provide constraints. Never explain WHAT the code does. If the code needs a comment to explain what it does, the code should be rewritten to be clearer.
-- If code is self-explanatory, no comment needed. Most code is self-explanatory.
-- Keep the feature record and its discoverable index current when behavior, contracts or decisions change. Explain what a later reader cannot reliably recover from code. A routine edit within an existing feature updates that record only when its facts change.
-- Architecture decisions are recorded with context, reasoning, and trade-offs. When someone asks "why did we choose X over Y?" the answer exists in the decision record, not in someone's memory.
-- References.md names one decision location. Reuse an existing architecture decision record location; otherwise use DECISIONS.md from templates/decisions.md. Never create a second decision store.
-- Each `### DEC-NNN` entry has one non-empty line for Date, Status, Decision, Reason, Alternatives, Authority, Evidence, Review, Depends on, Supersedes, and History. IDs are stable. Status is proposed, accepted, superseded, or retired. Unknown is recorded as unknown. `Depends on` and `Supersedes` contain semicolon-separated decision IDs or none.
-- History records dated observations, reasons, and retain, supersede, retire, or unresolved outcomes. Freshness is derived from review conditions and declared input fingerprints; it is never asserted by changing a date alone.
-- Sessions review the `Review` trigger when they use a decision. The step tool checks declared dependencies, accepted supersession and content fingerprints; it does not evaluate review triggers.
-- Descriptive naming over brevity. Names that communicate purpose without requiring context. No abbreviations except universally understood ones.
-- Magic numbers have explanations. If a timeout is 3000ms, a comment explains why 3000 (the payment gateway SLA requires response within 3 seconds). The number isn't magic anymore.
-- Structured TODOs link to tracking: // TODO(scope): description [TICKET-123]. Not bare TODO comments that are never addressed.
+- Comment what a reader cannot recover from the code: a reason, a constraint, a business rule, a workaround and what it works around. Do not narrate what the code plainly does; unclear code is rewritten before it is explained.
+- Explain every number that encodes a constraint: why this timeout, this limit, this batch size.
+- Name things for what they mean. Use abbreviations only where the domain's readers all know them.
+- Record each consequential decision once, at the decision location, with what was decided, why, the alternatives, and who decided it. Never keep a second decision store.
+- Keep a record current when the behavior, contract or decision it describes changes. A routine edit that changes none of these needs no new record.
+- A reminder left in code says what is missing and where it is tracked, so it can be found and closed.
+- Keep explanations proportional to the decision and its risk.
+
+## Decisions the step runner reads
+
+A step that declares a decision basis (development/STEPS.md) fingerprints the decisions it cites. Such a decision sits under a `### DEC-NNN` heading and has a line for each of `Status:` (proposed, accepted, superseded or retired, in any case), `Decision:`, `Reason:` and `Authority:`, plus `Depends on:` and `Supersedes:` when it has them (decision IDs, or none). Only the cited decisions and those they depend on or are superseded by are read. The other fields in templates/decisions.md are the project's to use. A team whose own record format differs keeps it and cites its records to the step runner as `--input` files instead.
 
 ## Violations
 
-- Comments explaining what the code does: "// Initialize the user array," "// Loop through each order," "// Check if total is greater than 100"
-- Stale documentation that describes a previous version of the code
-- Magic numbers with no explanation: TIMEOUT = 3000 (why 3000?), MAX_RETRIES = 5 (why 5?), BATCH_SIZE = 50 (why 50?)
-- Domain abbreviations that only insiders understand
-- Features whose purpose or consequential decisions cannot be found
-- Bare TODO comments with no ticket reference or context
-- Over-commenting: a doc-comment block on every function describing obvious parameters and return values
+- Comments that repeat the code line by line.
+- A record that describes a previous version of the code.
+- A constraint encoded as an unexplained number.
+- A consequential decision that cannot be found, or that lives in two places that disagree.
+- A reminder in code with nothing that tracks it.
 
 ## Wrong vs Right
 
-- WRONG: every line has a comment. "Initialize the user array." "Loop through each order." "Get the order total." The comments describe what the code already says. They add noise, not value.
-- RIGHT: one comment on the business rule that isn't obvious from the code. "Orders over $100 qualify for the loyalty discount per the current partnership agreement [TICKET-1234]." The code shows the logic, the comment explains why.
-- WRONG: TIMEOUT = 3000 with no explanation. Someone changes it to 5000 because "bigger is safer." The original value was chosen because the payment gateway's SLA is 3 seconds. Now payments sometimes hang for 5 seconds unnecessarily.
-- RIGHT: "Payment gateway SLA requires response within 3 seconds. Exceeding this triggers the fallback payment processor." The next developer understands the constraint and doesn't change it arbitrarily.
-- WRONG: a long doc-comment block on a function called getUserById that documents every parameter and the return type. The function name and types already communicate everything the block says.
-- RIGHT: no comment needed. The function name, parameter types, and return type are the documentation.
+- WRONG: "loop through each order" above a loop. RIGHT: one comment on the rule the code cannot show: "orders over the threshold get the partner discount under the current agreement", with where the agreement is recorded.
+- WRONG: a timeout of three seconds with no explanation, raised to five because "bigger is safer". RIGHT: "the payment provider fails over after three seconds", so the next reader leaves it alone.
+- WRONG: a long comment block on a function whose name and types already say everything. RIGHT: no comment.
 
 ## Documentation Formatting
 
-Use structure that helps the actual reader and any declared parser. The feature template is the single home for its format; preserve headings and fields a tool reads. Link to authoritative current facts rather than copying locations, schemas or verification commands into every document. Historical logs may retain revision-specific snapshots and must be identified as history.
-
-Keep the explanation proportional to the decision and risk. A brief purpose and a link to the existing contract can be enough for a small feature; complex behavior needs the additional context its consumers will use. Removing formatting does not itself establish a token or reliability improvement.
+Use the structure that helps the actual reader and any declared parser. The feature template is the single home for its format. Link to current facts instead of copying locations, shapes or commands into every document. Historical logs keep revision-specific snapshots and say they are history.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention:
-- Research ADR (Architecture Decision Record) template formats recommended for the framework or team size
-- Research the framework's documentation tooling (component catalogs, API documentation generators)
-- Research naming conventions specific to the framework and language
-- Set up feature documentation templates and link them to the feature development workflow (convention #19 steering, DEVELOP.md)
-- Document the ADR location, documentation templates, naming conventions, and formatting rules in References.md
+Research the decision-record formats the team or ecosystem already uses, the stack's documentation tooling, and its naming conventions. Record the decision location, the templates in use and the naming rules in References.md.

@@ -1,39 +1,35 @@
 # Convention #17: Context Management
 
+## Applies when
+
+Every session in which an AI works on the project. Code structure is #1; this convention is about how a session keeps and restores what it needs to know.
+
 ## Principle
 
-AI performance degrades as context fills. Code structure, file size, and session management directly affect AI output quality. Critical information goes at the start and end of documents (the middle gets lost). Sessions are scoped to one task. Context is cleared between unrelated work. This convention governs how AI sessions are managed, not how code is structured (that's convention #1).
+The project's records, not a conversation's memory, carry what the next session needs. A session works on one scope at a time, reads what its step or task routes it to, and leaves what it learned where the next session will find it. When attempts keep failing, the session stops and re-examines the approach from the evidence instead of retrying variations.
 
 ## Rules
 
-- Keep files small enough for the tool in use to read whole. The project sets its file-size limit in References.md; split when a file grows past it. Small files load fully into AI context.
-- One responsibility per file. AI loads exactly what it needs for the task at hand.
-- Colocate related code. Minimize the number of files AI needs to read to understand one feature.
-- Place critical instructions and important information at the start and end of documents, not in the middle. AI models lose accuracy on information buried in the middle of long context.
-- Clear context between unrelated tasks. Never mix unrelated work in one AI session.
-- Start fresh after two failed corrections on the same issue. If the AI fails twice and you correct it twice, the context is now polluted with failed approaches. Start a new session with a better initial prompt incorporating what you learned.
-- Use scoped instruction files for feature-specific context. A feature can have its own instruction file with context relevant only to that feature, keeping the main instruction file lean.
-- Compact context proactively during long sessions. Don't wait until the context window is full; the tool's window size sets the cadence, and the project records a cadence in References.md if it sets one.
+- Work on one scope at a time. Unrelated work gets its own session, or at least its own plan and records.
+- Restore context from the project's records: References.md, PROFILE.md, the ledger, the decision location, feature records and the implementer plan. Do not rely on what an earlier conversation said.
+- Read what the current step or task routes to (development/STEPS.md, Conventions.md). Reading everything up front is reading that is gone by the time it is needed.
+- Before a session ends or its context is reset, write down what the next session needs: decisions, open questions, the next action.
+- When the same problem survives repeated attempts, stop. Re-read the evidence, question the approach, and start again from what was learned, in a fresh session if the current one is crowded with failed attempts.
+- In documents written for AI readers, put what matters most first.
 
 ## Violations
 
-- Files past the project's size limit (References.md), mixing multiple concerns
-- An AI session with 5 unrelated tasks without clearing context between them
-- Correcting the same issue 4 times instead of starting fresh (context pollution)
-- Critical rules or constraints buried in the middle of a long document
-- Loading entire large files when only a specific section is needed
+- A decision or finding that exists only in a past conversation.
+- Several unrelated tasks tangled in one session and one record.
+- Retrying small variations of a failing approach without re-examining it.
+- Reading the whole framework before the first step.
 
 ## Wrong vs Right
 
-- WRONG: one AI session that starts with fixing a bug, then adds a feature, then refactors something unrelated, then reviews code. The context is full of mixed concerns. Quality degrades on every subsequent task.
-- RIGHT: fix the bug, clear context. Add the feature, clear context. Each task gets fresh context and full attention.
-- WRONG: the AI makes a mistake. You correct it. It makes the same mistake differently. You correct again. It tries a third approach, still wrong. The context now has three failed attempts polluting every future response.
-- RIGHT: the AI makes a mistake. You correct it. It makes the same mistake differently. You start a fresh session with a better prompt that incorporates what you learned from the first attempt. Fresh context, better result.
-- WRONG: a 1000-line convention document where the most critical rule is on line 500. The AI reads the whole document but the rule in the middle gets the least attention.
-- RIGHT: the most critical rules are at the top and bottom. The middle contains supporting detail that's less critical.
+- WRONG: a new session asks the owner again for facts an earlier session already learned. RIGHT: the earlier session recorded them, and the new one reads them.
+- WRONG: after two failed fixes, a third variation of the same idea. RIGHT: stop, re-read the evidence, find what the first two missed, and record it.
+- WRONG: one session fixes a defect, adds a feature and refactors something unrelated, with one summary for all three. RIGHT: each scope gets its own plan, checks and record.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-This convention is about AI session management, not framework-specific implementation. No framework research needed. Apply these principles to every AI-assisted development session regardless of framework.
+Research how the AI host in use stores instructions, restores sessions and limits context, and which of its features help a session restore from the project's records. Record any project-specific practice in CLAUDE.md.additions or References.md.
