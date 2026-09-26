@@ -18,8 +18,8 @@ Append-only log of known issues, shortcuts, and convention violations deferred r
 - **Kind:** shortcut / deferral (a deferral is work the operating profile allows to wait; see #30. Work waiting on an owner action is blocked, not deferred: #29)
 - **Control:** the convention, backend rule, or floor item concerned (#N with the obligation named, BN, or floor: secrets / trust-boundary / irreversible-effects / personal-data / authorized-reuse / honest-completion). A floor item is never a deferral; name the obligation after the number ("#23 rate limiting") so a review can see that it is not one.
 - **Due-before:** a named trigger from PROFILE.md (first-outside-participant, public-access, real-data, personal-data, real-money-or-external-action, operational-reliance, valuable-records, second-contributor, regulated-data-or-commitment, trial-stage, operational-stage) or a date YYYY-MM-DD, inclusive. Required when Kind is deferral.
-- **Review-by:** YYYY-MM-DD. Required when Kind is deferral.
-- **Closure-evidence:** what will prove it closed (a passing check, a file, a review). Required when Kind is deferral.
+- **Review-by:** YYYY-MM-DD. Optional: when to look at a deferral again before its trigger.
+- **Closure-evidence:** what will prove it closed (a passing check, a file, a review). Optional.
 ```
 
 ## Severity guidance
@@ -33,9 +33,9 @@ Append-only log of known issues, shortcuts, and convention violations deferred r
 - **Append-only during the log's lifetime.** Never edit past entries except to update `Status` or add notes in a `### Follow-up` subsection. An entry runs from its `## TD-` heading to the next `## TD-` heading; a level-two heading other than `## TD-` stays part of the entry, and only a level-one heading ends it, so anything written after the last entry that is not part of it (an audit history, notes) starts with a level-one heading.
 - **Status transitions:** open → in-progress (when someone starts work) → fixed (when verified) OR won't-fix (with justification in a `Rationale` note).
 - **Pruning:** remove `fixed` entries only during explicit maintenance cycles; keep them at least one cycle for history. Never remove `open` or `in-progress` entries.
-- **Escalation:** entries in `open` status for more than N cycles (project-specific threshold, typically 3-6 months) either get severity bumped OR explicitly force-fixed. See `development/MAINTAIN-RED-FLAGS.md` #2 for why.
+- **Revisiting:** an open entry that has sat unchanged through several looks gets a decision: fix it, raise its severity, or close it as won't-fix with the reason (development/MAINTAIN.md). The project may record how long an entry may wait.
 - **One entry per issue.** If an issue spans multiple locations, list them under `Where`; do not split into N entries.
-- **Field labels are exact.** `Status`, `Kind`, `Control`, `Due-before`, `Review-by`, and `Closure-evidence` are read by `scripts/validate-profile.sh`; write each as a list item with the bold label and the value on the same line, exactly as the format above shows. The validator fails the misspellings and markup variations it can recognize and warns about any other line inside an entry that mentions one of the six words; it does not read fields written in arbitrary Markdown or HTML, so keep to the format. Other labels are free, but must not contain one of those six words (`Control plane` would be read as a misspelled `Control` and fail).
+- **How the fields are read.** `scripts/validate-profile.sh` reads `Status`, `Kind`, `Control`, `Due-before`, `Review-by` and `Closure-evidence` from each entry, written as a list item or a plain line, with the label bold or not, and the value after the colon. An entry it cannot read, such as a deferral with no readable trigger, or a field given two different values, is reported as unverified, which `--strict` fails; it never passes.
 - **Triggered deferrals block.** When the facts in PROFILE.md make a `Due-before` trigger true, every deferral due before it is blocking until fixed: `scripts/validate-profile.sh` fails, and renewing the date, relabeling the stage, or `won't-fix` does not clear it. Downgrading a stage needs a recorded reason and a review of the deferrals that survive it.
 
 ## Example entry
@@ -44,11 +44,11 @@ Append-only log of known issues, shortcuts, and convention violations deferred r
 ## TD-007 — Test-env bootstrap boilerplate duplicated across test files
 
 - **Logged:** 2026-04-17 by phase-4-agent
-- **What:** Every *.test.ts file repeats the same `beforeAll` + env setup + `afterAll` cleanup pattern.
-- **Where:** src/features/*/test files (3 files currently).
-- **Convention:** #0 (Reusability) — violates "built once, configured for context."
+- **What:** Every test file repeats the same setup and cleanup of the test environment.
+- **Where:** the three feature test files.
+- **Convention:** #0 (Reusability) and #12: the shared test setup is built once.
 - **Severity:** medium
-- **Proposed fix:** Extract into `src/shared/test-utils/` with `buildTestApp()` and `cleanupTestApp()` helpers. Each test file becomes a single import + two hooks.
+- **Proposed fix:** Move the setup into the shared test setup and have each test file use it.
 - **Status:** open
 - **Related:** —
 - **Kind:** shortcut
@@ -64,14 +64,14 @@ Append-only log of known issues, shortcuts, and convention violations deferred r
 - **Where:** src/api/ (both public routes)
 - **Convention:** #23 (Application Security)
 - **Severity:** medium
-- **Proposed fix:** Add the shared rate-limit middleware per #23 and B3 before anyone outside the team can reach the app.
+- **Proposed fix:** Add the shared rate limit in the request pipeline (#23, B3) before anyone outside the team can reach the app.
 - **Status:** open
 - **Related:** —
 - **Kind:** deferral
 - **Control:** #23 rate limiting on public endpoints
 - **Due-before:** first-outside-participant
 - **Review-by:** 2026-07-01
-- **Closure-evidence:** the middleware-order test in the API layer passes with the limiter present
+- **Closure-evidence:** the pipeline test passes with the limiter present
 ```
 
 ## Entries

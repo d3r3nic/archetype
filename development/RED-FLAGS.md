@@ -6,29 +6,27 @@ Silent-failure in Phase 3 means: the feature passes tests, the build succeeds, b
 
 ## 1. Rebuild a shared system instead of using it
 
-Agent writes its own database client, its own error class, its own token parser — when `src/shared/db/`, `src/shared/errors/`, `src/shared/auth/` already exist. Root CLAUDE.md says "Read feature-tree.md before building anything new" — but DEVELOP.md's system-inventory step is the operational gate.
+A session writes its own database client, its own error type, its own token parser, when the project already has an owner for each. Root AGENTS.md says to check what exists before building; DEVELOP.md Step 1 is where that happens.
 
-**Defense:** DEVELOP.md Step 1 inspects the affected behavior and relevant existing systems. Reuse a fitting accepted contract; deliberately revise a mismatch instead of silently creating a competing owner. `validate-develop.sh` detects only fixed shared-client constructions, not every duplicated invariant or incorrect import. Independent review examines the actual dependency and lifecycle.
+**Defense:** DEVELOP.md Step 1 inspects the affected behavior and the shared systems it can reuse. Reuse a fitting owner; revise a mismatch deliberately instead of silently creating a competing one (#0). The project's § Boundaries lines make the common cases machine-checked: `scripts/validate-develop.sh` fails when code outside an owner's paths uses what only that owner may use. A duplicated rule that no line describes is caught only by review.
 
-## 2. Bypass a shared getter by instantiating the class directly
+## 2. Bypass a shared owner by creating its client directly
 
-Most insidious form of #1. Agent imports the database client class from its package and news-up its own instance because "just for this one query." Violates convention #0 (single source of truth) silently — code typechecks, tests pass, but two client instances now exist in the process and transactions won't compose.
+The most insidious form of #1. A session creates its own instance of a shared client "just for this one query". The code checks and the tests pass, but two instances now exist, with different configuration and transactions that do not compose.
 
-**Defense:** Rule (#0 and #7): *"Never instantiate a shared getter's underlying class. Type imports and namespace imports are OK."* `validate-develop.sh` fails on direct construction of a shared database or cache client anywhere under features/. The pattern list is fixed and dated, and only non-test files under features/ are scanned: a client class the list does not name, the same bypass outside features/, and a bypass inside a test file all pass the check. The rule is wider than the gate.
-
-- Dated example: the shapes the list carries today are `new PrismaClient(`, `new Redis(`, and `new IORedis(`; a project whose clients are not those gets no machine help here.
+**Defense:** the rule (#0, #7): never create a shared owner's underlying client outside the owner; type-only references are fine. Record the owner's § Boundaries line, such as `` - Database: `<the pattern that creates a connection>` only in `<the data-access path>`, `*.test.*` ``, and `scripts/validate-develop.sh` fails every construction outside those paths. The check reads the patterns the project recorded, so its reach is exactly the lines the project wrote: a client with no line is caught only by review.
 
 ## 3. Zero tests because DEVELOP.md is vague about minimums
 
-A playbook that says only "run tests after every significant change" leaves the minimum unstated. A lazy agent writes zero new tests, runs the existing ones, and claims conformance. Convention #18 is about VERIFICATION, not test COVERAGE.
+A playbook that says only "run tests after every significant change" leaves the minimum unstated, and a session writes no new tests, runs the old ones, and claims conformance.
 
-**Defense:** DEVELOP.md Step 5 selects coverage from behavior and risk: authenticated access, invalid input, success and relevant domain failures where those apply. `validate-develop.sh` checks test-file presence, not those behaviors. Review the tests and their observed results rather than counting files.
+**Defense:** DEVELOP.md Step 5 chooses coverage from behavior and risk: unauthorized access, invalid input, success and the relevant domain failures where they apply. Each feature record's Tests line names where its tests are, and `scripts/validate-develop.sh` checks that those paths exist (or that the record says none, with the reason). It cannot see what the tests cover; review the tests and their results rather than counting files.
 
 ## 4. Skip the feature doc
 
-Feature docs sit late in the workflow (DEVELOP.md Step 7). An agent building to completion-deadline skips "docs can come later." Silent: code ships, doc never gets written, next agent has no feature-level onboarding context.
+The feature record comes late in the workflow (DEVELOP.md Step 7), and a session racing to finish decides "docs can come later". The code ships, the record never does, and the next session has no feature-level context.
 
-**Defense:** DEVELOP.md Step 7 makes the feature doc a completion gate, not an optional trailing step. `validate-develop.sh` cross-checks in the other direction — every feature row in feature-tree.md must have a `docs/features/{name}.md` — and it warns and skips that check entirely when the project has no feature tree or no `docs/features/` directory. A feature that never reached the feature tree is caught by neither check, so the feature-tree update is the same gate and it rests on the agent.
+**Defense:** DEVELOP.md Step 7 makes the record part of completion. `scripts/validate-develop.sh` checks every feature row in feature-tree.md: its record (the path in its Docs column, or `docs/features/{name}.md`) must exist. A feature that never reached the feature tree is caught by neither, so the feature-tree row is part of the same completion.
 
 ## 5. Skip the References.md update when new top-level paths emerge
 
@@ -62,11 +60,11 @@ The common failure mode: a list/aggregate endpoint's test asserts row count or e
 
 If none of these is in place, assertions must be isolation-resilient (scoped lookups, not total-count assertions). A list-endpoint test that says "returned rows contain my test's fixtures" rather than "returned rows.length === N" will survive sibling contamination.
 
-## 9. Escape-hatch on type errors (casts, re-instantiation)
+## 9. Escape-hatch on type errors (casts, suppressions, a second client)
 
-When the language's strict type config fights a library's generic signatures (e.g., `exactOptionalPropertyTypes` vs. an ORM's optional-property types), the tempting fix is `as any`, `// @ts-ignore`, or instantiating a fresh client with a laxer config. All three silently violate framework conventions (#7 types, #0 reusability).
+When the language's strict checking fights a library's signatures, the tempting fix is an untyped escape, a suppression comment, or a fresh client created with looser settings. All three hide a real mismatch (#7, #0).
 
-**Defense:** refactor the call site, don't escape-hatch the type system. If `where: condition ? {...} : undefined` fights `exactOptionalPropertyTypes`, use a conditional spread (`where: { ...(condition && { ... }) }`) or build the args object imperatively. Never `as any`. Never `new` a fresh client to dodge one call's type friction. Rule (#0 and #7): *"Never escape-hatch the type system with casts, ignore comments, or re-instantiation to dodge a single call site. Refactor the call site."* Type friction is a signal that the API surface is wrong for the data, not a signal that the type system is wrong.
+**Defense:** fix the call site: build the arguments so their shape is what the signature expects, narrow the value, or change the contract. Never cast or suppress to make one call pass, and never create a second client to get around a type. Type friction says the interface does not fit the data, not that the checker is wrong.
 
 ## 10. Undesigned screen shipped
 
