@@ -12,6 +12,11 @@
 #   scripts/next-step.sh --close ID [--evidence TEXT]   close the next open step (its check must pass)
 #   scripts/next-step.sh --skip ID --reason TEXT        record a step that does not apply; only a step
 #                                                       whose playbook says when it may be skipped
+#   scripts/next-step.sh --set-aside ID --reason TEXT [--owner WORDS]
+#                                                       record that the session set a step aside: it does
+#                                                       not fit how this application works, or its check is
+#                                                       wrong here. Never a pass; its check does not run. A
+#                                                       step marked "Skip by: owner" needs the owner's words
 #   add --unit NAME for a playbook that repeats (one run of its steps per feature)
 #   add --verify to re-run the project's own commands behind closed steps now (they are
 #   otherwise re-run whenever a step closes or is skipped; engine scripts are re-run every time)
@@ -21,7 +26,7 @@
 # What it reads in a playbook: a "Step ledger: <id>" line (with "(per feature)" when the steps
 # repeat), headings of the form "## Step N: Title" or "### Step N.M - Title", and inside each
 # step, before any sub-heading, the lines "Read:", "Produces:", "Check:", and optionally
-# "Skip when:". A step with sub-steps (2 with 2.1, 2.2) is a container; only its sub-steps
+# "Skip when:" and "Skip by: owner". A step with sub-steps (2 with 2.1, 2.2) is a container; only its sub-steps
 # open and close. A check passes when it exits 0. A check that runs the project's own commands
 # finds each on its label's line (or list item) in the project's References.md, section Commands,
 # in backticks: only the text between them runs (build: `<command>` and any note after it, which
@@ -31,9 +36,9 @@
 #
 # What it cannot do: tell whether a step was done well, whether quoted evidence is what the
 # owner said, whether a skip's reason is true, or stop anyone editing PROGRESS.md by hand.
-# A skipped step's check is never run. A check it can run, it re-runs.
+# A skipped or set-aside step's check is never run. A check it can run, it re-runs.
 #
-# Exit 0: a next step was named, a step was closed or skipped, or everything is closed.
+# Exit 0: a next step was named, a step was closed, skipped or set aside, or everything is closed.
 # Exit 1: refused, or a closed step's check now fails, or the lint found a fault.
 
 # The caller's locale is kept for the project's own commands, whose tests may depend on it.
@@ -47,7 +52,7 @@ ENGINE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 START_DIR="$(pwd)"
 SEP="$(printf '\037')"
 
-MODE="next"; ID=""; UNIT=""; EVIDENCE=""; REASON=""; VERIFY=0; BASES=""; INPUTS=""
+MODE="next"; ID=""; UNIT=""; EVIDENCE=""; REASON=""; OWNER_WORDS=""; VERIFY=0; BASES=""; INPUTS=""
 take_value() {
   [ -n "${1:-}" ] && case "$1" in --*) false ;; *) true ;; esac || {
     echo "Missing value for $2."; exit 1;
@@ -60,6 +65,8 @@ while [ $# -gt 0 ]; do
     --verify) VERIFY=1 ;;
     --close) take_value "${2:-}" "$1"; MODE="close"; ID="$2"; shift ;;
     --skip) take_value "${2:-}" "$1"; MODE="skip"; ID="$2"; shift ;;
+    --set-aside) take_value "${2:-}" "$1"; MODE="setaside"; ID="$2"; shift ;;
+    --owner) take_value "${2:-}" "$1"; OWNER_WORDS="$2"; shift ;;
     --reopen) take_value "${2:-}" "$1"; MODE="reopen"; ID="$2"; shift ;;
     --unit) take_value "${2:-}" "$1"; UNIT="$2"; shift ;;
     --evidence) take_value "${2:-}" "$1"; EVIDENCE="$2"; shift ;;
@@ -70,7 +77,7 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-case "$ID" in --*) echo "Name the step: --close ID, --skip ID, or --reopen ID."; exit 1 ;; esac
+case "$ID" in --*) echo "Name the step: --close ID, --skip ID, --set-aside ID, or --reopen ID."; exit 1 ;; esac
 
 # One line per step of every stepped playbook, fields separated by the unit separator:
 # playbook id, once|unit, step id, title, file, line, Read, Produces, Check, Skip when,
@@ -156,6 +163,19 @@ $pid$SEP$mode$SEP$SEP$SEP$part$SEP""0$SEP$SEP$SEP$SEP$SEP""0$SEP""0$SEP""0$SEP""
         if (steps == 0) print pid S mode S "" S "" S file S 0 S "" S "" S "" S "" S 0 S 0 S 0 S "empty"
       }'
   done
+}
+
+# A step's "Skip by:" lines, from its heading to the next heading: "<count><SEP><first value>".
+# "Skip by: owner" marks a step that is set aside only on the owner's words.
+skip_by_of() { # file (from the engine root), the step heading's line number
+  awk -v start="$2" -v S="$SEP" '
+    NR <= start { next }
+    { sub(/\r$/, "") }
+    /^(```|~~~)/ { fence = !fence; next }
+    fence { next }
+    /^#+ / { exit }
+    /^Skip by: / { n++; if (n == 1) { v = substr($0, 10); sub(/[ \t]+$/, "", v) } }
+    END { print n + 0 S v }' "$ENGINE_DIR/$1"
 }
 
 # A playbook's entry file, from the engine root: the file whose "Step ledger:" line declares the id.
@@ -377,6 +397,12 @@ $pid.$sid"
     [ "$pc" = "1" ] || bad "$where: needs exactly one 'Produces:' line directly under the heading (found $pc)"
     [ "$cc" = "1" ] || bad "$where: needs exactly one 'Check:' line directly under the heading (found $cc)"
     [ "$pc" = "1" ] && [ -z "$(trim "$pr")" ] && bad "$where: 'Produces:' is empty"
+    skip_by="$(skip_by_of "$file" "$line")"
+    case "$skip_by" in
+      0"$SEP"*|1"$SEP"owner) ;;
+      1"$SEP"*) bad "$where: 'Skip by:' takes one value, owner (found '${skip_by#*$SEP}')" ;;
+      *) bad "$where: more than one 'Skip by:' line" ;;
+    esac
     if [ "$rc" = "1" ]; then
       [ -z "$(trim "$rd")" ] && bad "$where: 'Read:' is empty; write none when nothing is read"
       OLDIFS="$IFS"; IFS=";"
@@ -508,8 +534,10 @@ for pb in $PLAYBOOKS; do
     if [ "$mode" = "unit" ] && [ -z "$UNIT" ]; then NEED_UNIT="$pb"; continue; fi
     key="$(key_of "$pid.$sid" "$mode")"
     st="$(state_of "$key")"
+    shown="$st"
+    if [ "$st" = "skipped" ]; then case "$(event_line_of "$key")" in *'| set aside '*) shown="set aside" ;; esac; fi
     LISTING="$LISTING
-$st  $key  $title"
+$shown  $key  $title"
     if { [ "$st" = "open" ] || [ "$st" = "reopened" ]; } && [ -z "$NEXT_ID" ]; then
       NEXT_ID="$pid.$sid"; NEXT_KEY="$key"; NEXT_TITLE="$title"; NEXT_FILE="$file"; NEXT_LINE="$line"
       NEXT_READ="$rd"; NEXT_PROD="$pr"; NEXT_CHECK="$ck"; NEXT_SKIP="$sw"
@@ -548,7 +576,7 @@ while IFS="$SEP" read -r pid mode sid title file line rd pr ck sw rc pc cc kind;
   [ -n "$cmd" ] || continue
   keys="$(closed_keys_of "$pid.$sid")"
   [ -n "$keys" ] || continue
-  if is_project_command "$cmd" && [ "$MODE" != "close" ] && [ "$MODE" != "skip" ] && [ "$VERIFY" != "1" ]; then PROJECT_CHECKS_WAITING=1; continue; fi
+  if is_project_command "$cmd" && [ "$MODE" != "close" ] && [ "$MODE" != "skip" ] && [ "$MODE" != "setaside" ] && [ "$VERIFY" != "1" ]; then PROJECT_CHECKS_WAITING=1; continue; fi
   if ! valid_command "$cmd" || ! command_exists "$cmd"; then
     REVERIFY_OK=0
     FAILED_KEYS="$FAILED_KEYS
@@ -607,7 +635,7 @@ EOF
 
 if [ "$MODE" = "list" ]; then
   printf '%s\n' "$LISTING" | sed '/^$/d' | F="$FAILED_KEYS" awk 'BEGIN { n = split(ENVIRON["F"], f, "\n"); for (i = 1; i <= n; i++) if (f[i] != "") bad[f[i]] = 1 }
-    { for (k in bad) if (index($0, "closed  " k "  ") == 1 || index($0, "skipped  " k "  ") == 1) { sub(/^(closed|skipped)  /, "reopened  "); break } print }'
+    { for (k in bad) if (index($0, "closed  " k "  ") == 1 || index($0, "skipped  " k "  ") == 1 || index($0, "set aside  " k "  ") == 1) { sub(/^(closed|skipped|set aside)  /, "reopened  "); break } print }'
   [ -n "$NEED_UNIT" ] && echo "(the playbook '$NEED_UNIT' repeats: add --unit NAME to list one run of it)"
   [ "$PROJECT_CHECKS_WAITING" = "1" ] && echo "(closed steps that ran the project's own commands were not re-run for this listing: add --verify)"
   [ "$REVERIFY_OK" = "1" ] || exit 1
@@ -615,6 +643,7 @@ if [ "$MODE" = "list" ]; then
 fi
 if [ "$REVERIFY_OK" != "1" ]; then
   echo "Fix what failed, then run this again. Nothing is named, closed, or skipped while a closed step's check fails."
+  echo "If a check itself does not fit how this application works: $SELF --reopen <step> --reason \"<why>\", then $SELF --set-aside <step> --reason \"<why>\" (report the check upstream: ${SELF%scripts/next-step.sh}development/FEEDBACK.md)."
   exit 1
 fi
 
@@ -650,11 +679,28 @@ if [ "$MODE" = "next" ]; then
   NEXT_BASIS="$(python3 "$SCRIPT_DIR/step-recovery.py" requirement --engine "$ENGINE_DIR" --step "$NEXT_ID")"
   echo "Depends on: $NEXT_DEPENDS"
   echo "Basis:      $NEXT_BASIS"
-  if [ -n "$NEXT_SKIP" ]; then echo "Skip when: $NEXT_SKIP"; else echo "Skip when: never"; fi
+  if [ -n "$NEXT_SKIP" ]; then echo "Skip when: $NEXT_SKIP"; else echo "Skip when: no listed condition"; fi
   UNIT_ARG=""; [ -n "$UNIT" ] && UNIT_ARG=" --unit $UNIT"
   BASIS_ARGS=""
   case "$NEXT_BASIS" in *decisions*) BASIS_ARGS="$BASIS_ARGS --basis DEC-NNN" ;; esac
   case "$NEXT_BASIS" in *inputs*) BASIS_ARGS="$BASIS_ARGS --input <project-relative-path>" ;; esac
+  if [ "$(skip_by_of "$NEXT_FILE" "$NEXT_LINE")" = "1$SEP""owner" ]; then
+    echo "Set aside: only on the owner's words: $SELF --set-aside $NEXT_ID$UNIT_ARG$BASIS_ARGS --reason \"<why it does not fit>\" --owner \"<their words>\""
+  else
+    echo "Set aside: when it does not fit how this application works: $SELF --set-aside $NEXT_ID$UNIT_ARG$BASIS_ARGS --reason \"<why>\""
+  fi
+  OLDIFS="$IFS"; IFS=";"
+  for dep in $NEXT_DEPENDS; do
+    IFS="$OLDIFS"
+    dep="$(trim "$dep")"
+    [ -n "$dep" ] && [ "$dep" != "none" ] || { IFS=";"; continue; }
+    dep_line=""
+    [ -n "$UNIT" ] && dep_line="$(event_line_of "$dep @$UNIT")"
+    [ -n "$dep_line" ] || dep_line="$(event_line_of "$dep")"
+    case "$dep_line" in *'| set aside '*) echo "Note:      it depends on $dep, which was set aside: ${dep_line#*| set aside }" ;; esac
+    IFS=";"
+  done
+  IFS="$OLDIFS"
   if [ -n "$(check_evidence "$NEXT_CHECK")" ]; then echo "Close it:  $SELF --close $NEXT_ID$UNIT_ARG$BASIS_ARGS --evidence \"<what the check asks for>\""
   else echo "Close it:  $SELF --close $NEXT_ID$UNIT_ARG$BASIS_ARGS"; fi
   [ "$PROJECT_CHECKS_WAITING" = "1" ] && echo "Note:      closed steps that ran the project's own commands are re-run when a step closes, or now with --verify."
@@ -662,7 +708,7 @@ if [ "$MODE" = "next" ]; then
 fi
 
 # --close and --skip
-if [ -z "$ID" ]; then echo "Name the step: --close ID or --skip ID."; exit 1; fi
+if [ -z "$ID" ]; then echo "Name the step: --close ID, --skip ID or --set-aside ID."; exit 1; fi
 if [ -z "$NEXT_ID" ]; then
   if [ -n "$NEED_UNIT" ]; then echo "The playbook '$NEED_UNIT' repeats: add --unit NAME."; else echo "Every step is already closed."; fi
   exit 1
@@ -708,11 +754,26 @@ case "$(check_command "$NEXT_CHECK")" in 'project: '*)
 esac
 
 if [ "$MODE" = "skip" ]; then
-  if [ -z "$NEXT_SKIP" ]; then echo "Refused: $NEXT_KEY cannot be skipped; its playbook names no condition under which it does not apply."; exit 1; fi
+  if [ -z "$NEXT_SKIP" ]; then echo "Refused: $NEXT_KEY cannot be skipped; its playbook names no condition under which it does not apply. If it does not fit how this application works, set it aside with the reason: --set-aside $NEXT_ID --reason \"<why>\"."; exit 1; fi
   REASON="$(clean "$REASON")"
   if [ -z "$REASON" ]; then echo "Refused: this step is skipped only when: $NEXT_SKIP. Say with --reason how that holds here."; exit 1; fi
   append "- [-] $NEXT_KEY | $TODAY | rev $REV | cwd $CONTEXT_DIR | owner $OWNER_CONTEXT | basis $BASIS_VALUE | skipped (allowed when: $(clean "$NEXT_SKIP")): $REASON"
   echo "Recorded: $NEXT_KEY skipped."
+  exit 0
+fi
+
+if [ "$MODE" = "setaside" ]; then
+  REASON="$(clean "$REASON")"
+  if [ -z "$REASON" ]; then echo "Refused: say with --reason why $NEXT_KEY does not fit how this application works, or why its check is wrong here."; exit 1; fi
+  OWNER_WORDS="$(clean "$OWNER_WORDS")"
+  if [ "$(skip_by_of "$NEXT_FILE" "$NEXT_LINE")" = "1$SEP""owner" ] && [ -z "$OWNER_WORDS" ]; then
+    echo "Refused: $NEXT_KEY is set aside only on the owner's words. Ask the owner, then add --owner \"<their words>\"."
+    exit 1
+  fi
+  BY="set aside by the session"
+  [ -n "$OWNER_WORDS" ] && BY="set aside on the owner's words \"$OWNER_WORDS\""
+  append "- [-] $NEXT_KEY | $TODAY | rev $REV | cwd $CONTEXT_DIR | owner $OWNER_CONTEXT | basis $BASIS_VALUE | $BY; its check did not run: $REASON"
+  echo "Recorded: $NEXT_KEY set aside. It is not done: say so wherever the work is reported. If it is noise for projects like this one, report it upstream (${SELF%scripts/next-step.sh}development/FEEDBACK.md)."
   exit 0
 fi
 
