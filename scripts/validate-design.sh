@@ -30,6 +30,9 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(pwd)"
+# The brief's own lines, as the UI References templates carry them: a line of these still holding
+# its template placeholder, or no value, is unfilled. Other lines in the section are the project's.
+LABELS_FILE="$SCRIPT_DIR/design-artifact-labels.txt"
 
 REFS=""
 for dir in "$PROJECT_ROOT" "$PROJECT_ROOT/project" "$PROJECT_ROOT/archetype"; do
@@ -142,6 +145,7 @@ is_placeholder_text() {
 
 is_incomplete() {
   label="$1"; raw="$2"
+  [ -n "$(normalize_value "$raw")" ] || return 0
   if is_placeholder_text "$raw"; then
     case "$raw" in '[to be created]'*) [ "$label" = "Artifact location" ] && return 1 ;; esac
     return 0
@@ -149,13 +153,20 @@ is_incomplete() {
   return 1
 }
 
+BRIEF_LABELS="Platform parity"
+[ -f "$LABELS_FILE" ] && BRIEF_LABELS="$(tr -d '\r' < "$LABELS_FILE" | grep -v '^#' | grep -v '^[[:space:]]*$')
+Platform parity"
+is_brief_label() {
+  printf '%s\n' "$BRIEF_LABELS" | grep -qxF -- "$1"
+}
 UNFILLED=""
 while IFS="$(printf '\t')" read -r label value; do
   [ -n "$label" ] || continue
+  is_brief_label "$label" || continue
   if is_incomplete "$label" "$value"; then UNFILLED="$UNFILLED $label,"; fi
 done < "$FACTS"
 if [ -n "$UNFILLED" ]; then
-  fail "Design Artifact line(s) still hold the template placeholder:${UNFILLED%,} (record the fact, unknown with what was assumed, or none with why)"
+  fail "Design Artifact line(s) still hold the template placeholder or no value:${UNFILLED%,} (record the fact, unknown with what was assumed, or none with why)"
 else
   pass "No Design Artifact line holds a template placeholder"
 fi

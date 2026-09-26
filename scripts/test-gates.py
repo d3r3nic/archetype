@@ -105,49 +105,106 @@ class TemplateText(unittest.TestCase):
 
 
 class DevelopGate(unittest.TestCase):
+    """validate-develop.sh: the project's recorded boundaries, feature records and their tests."""
+
+    NONE = '# References\n\n## Boundaries\n\n- none: a fixture with nothing to guard\n'
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='archetype-develop-')
         self.addCleanup(self.temp.cleanup)
         self.project = Path(self.temp.name)
         (self.project / 'src' / 'features').mkdir(parents=True)
         (self.project / 'docs' / 'features').mkdir(parents=True)
+        (self.project / 'References.md').write_text(self.NONE)
 
     def check(self, tree):
         (self.project / 'feature-tree.md').write_text(tree)
         return subprocess.run([BASH, str(DEVELOP)], cwd=self.project, text=True, capture_output=True)
 
-    def document(self, name):
-        (self.project / 'docs' / 'features' / (name + '.md')).write_text('# %s\n' % name)
+    def document(self, name, tests=True):
+        """A feature record; by default with a Tests line naming a test file that exists."""
+        body = '# %s\n' % name
+        if tests:
+            folder = self.project / 'src' / 'features' / name
+            folder.mkdir(parents=True, exist_ok=True)
+            (folder / (name + '.test.ext')).write_text('behavior test\n')
+            body += '\nTests: `src/features/%s/%s.test.ext`\n' % (name, name)
+        (self.project / 'docs' / 'features' / (name + '.md')).write_text(body)
+
+    def git(self):
+        subprocess.run(['git', 'init', '-q'], cwd=self.project, check=True)
+
+    # ---- group 1: the boundaries the project recorded -----------------------------------
+
+    def test_boundaries_section_is_required(self):
+        (self.project / 'References.md').write_text('# References\n\n## Project\n\n- Name: x\n')
+        result = self.check(features_tree([]))
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('References.md has no ## Boundaries section', ANSI.sub('', result.stdout))
+
+    def test_a_recorded_boundary_is_enforced(self):
+        self.git()
+        (self.project / 'References.md').write_text(
+            '# References\n\n## Boundaries\n\n- Network: `callRemote\\(` only in `src/shared/api/`, `*.test.*`\n')
+        (self.project / 'src' / 'shared' / 'api').mkdir(parents=True)
+        (self.project / 'src' / 'shared' / 'api' / 'client.ext').write_text('export const get = () => callRemote("/x")\n')
+        (self.project / 'src' / 'features' / 'orders.test.ext').write_text('callRemote("/fake")\n')
+        (self.project / 'docs' / 'notes.md').write_text('an example: callRemote("/x")\n')
+        clean = self.check(features_tree([]))
+        self.assertEqual(clean.returncode, 0, clean.stdout)
+        self.assertIn('OK: Network: only its recorded paths use', ANSI.sub('', clean.stdout))
+        (self.project / 'src' / 'features' / 'orders.ext').write_text('callRemote("/orders")\n')
+        broken = self.check(features_tree([]))
+        self.assertEqual(broken.returncode, 1, broken.stdout)
+        self.assertIn('Network: src/features/orders.ext uses `callRemote\\(`, which only src/shared/api/, *.test.* may use',
+                      ANSI.sub('', broken.stdout))
+
+    def test_an_unreadable_boundary_line_fails(self):
+        (self.project / 'References.md').write_text('# References\n\n## Boundaries\n\n- Network: callRemote only in src/api\n')
+        result = self.check(features_tree([]))
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('line not readable: Network: callRemote only in src/api', ANSI.sub('', result.stdout))
+
+    def test_the_template_placeholder_lines_fail(self):
+        text = (SOURCE / 'templates' / 'references-frontend.md').read_text()
+        (self.project / 'References.md').write_text(text)
+        result = self.check(features_tree([]))
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("still holds the template's placeholder line", ANSI.sub('', result.stdout))
+
+    # ---- group 2: feature records -------------------------------------------------------
 
     def test_shipped_template_fails_on_its_placeholder_row_only(self):
         result = self.check(TEMPLATE.read_text())
         self.assertEqual(result.returncode, 1, result.stdout)
-        lines = group(result.stdout, '4')
-        self.assertEqual(lines, [
+        self.assertEqual(group(result.stdout, '2'), [
             'FAIL: feature row 01 is the placeholder row left from the template (name [name]); '
             'replace it with a real feature or delete it',
         ])
-        for word in ('Location', 'implemented', 'no docs/features/[name].md'):
-            self.assertNotIn(word, ANSI.sub('', result.stdout))
         self.assertIn('1 errors, 0 warnings', ANSI.sub('', result.stdout))
 
     def test_template_with_one_real_row_passes(self):
         text = TEMPLATE.read_text()
         self.assertIn(PLACEHOLDER_ROW, text)
         text = text.replace(PLACEHOLDER_ROW, '| 01 | sign-in | src/features/sign-in | /sign-in | Auth & Security | implemented | docs/features/sign-in.md |')
-        feature = self.project / 'src' / 'features' / 'sign-in'
-        feature.mkdir()
-        (feature / 'sign-in.test.ts').write_text('// behavior test\n')
         self.document('sign-in')
         result = self.check(text)
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertEqual(group(result.stdout, '4'), ['OK: every feature in feature-tree.md has a docs/features/ entry'])
+        self.assertEqual(group(result.stdout, '2'), ['OK: every feature in feature-tree.md has its record'])
+        self.assertEqual(group(result.stdout, '3'), ["OK: every feature's tests are where its record says"])
 
-    def test_real_row_without_its_document_is_named(self):
+    def test_real_row_without_its_record_is_named(self):
         text = TEMPLATE.read_text().replace(PLACEHOLDER_ROW, '| 01 | sign-in | src/features/sign-in | /sign-in | Auth & Security | in progress | docs/features/sign-in.md |')
         result = self.check(text)
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertEqual(group(result.stdout, '4'), ["FAIL: feature 'sign-in' in feature-tree.md but no docs/features/sign-in.md"])
+        self.assertEqual(group(result.stdout, '2'), ["FAIL: feature 'sign-in' has no record at docs/features/sign-in.md"])
+
+    def test_the_docs_column_names_the_record(self):
+        (self.project / 'records').mkdir()
+        (self.project / 'records' / 'orders.md').write_text('# orders\n\nTests: none, a static page with no behavior\n')
+        result = self.check(features_tree(['| 01 | orders | src/orders | /orders | API | implemented | records/orders.md |']))
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn("WARN: feature 'orders' records no tests: a static page with no behavior", ANSI.sub('', result.stdout))
 
     def test_pipe_prose_in_the_features_section_is_not_a_feature(self):
         self.document('sign-in')
@@ -168,55 +225,90 @@ class DevelopGate(unittest.TestCase):
     def test_bold_number_row_is_still_a_feature(self):
         result = self.check(features_tree(['| **02** | reports | src/features/reports | /reports | Auth | implemented | docs/features/reports.md |']))
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertEqual(group(result.stdout, '4'), ["FAIL: feature 'reports' in feature-tree.md but no docs/features/reports.md"])
+        self.assertEqual(group(result.stdout, '2'), ["FAIL: feature 'reports' has no record at docs/features/reports.md"])
 
     def test_last_row_without_a_final_newline_is_read(self):
         tree = ('# Feature Tree\n\n## Features\n\n' + FEATURES_HEADER + '\n|---|---|---|---|---|---|---|\n'
                 '| 01 | reports | src/features/reports | /reports | Auth | implemented | docs/features/reports.md |')
         result = self.check(tree)
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn("feature 'reports' in feature-tree.md but no docs/features/reports.md", result.stdout)
+        self.assertIn("feature 'reports' has no record at docs/features/reports.md", result.stdout)
 
     def test_placeholder_row_is_reported_whatever_its_other_cells_hold(self):
         result = self.check(features_tree(['| 03 | [feature name] | src/features/x | /x | Auth | implemented | docs/features/x.md |']))
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertEqual(group(result.stdout, '4'), [
+        self.assertEqual(group(result.stdout, '2'), [
             'FAIL: feature row 03 is the placeholder row left from the template (name [feature name]); '
             'replace it with a real feature or delete it',
         ])
 
     def test_numbered_rows_named_like_header_cells_are_features(self):
         rows = [
-            '| 01 | Feature | src/features/feature | /f | Auth | implemented | docs/features/Feature.md |',
-            '| 02 | Name | src/features/name | /n | Auth | implemented | docs/features/Name.md |',
-            '| 03 | -beta | src/features/beta | /b | Auth | implemented | docs/features/-beta.md |',
+            '| 01 | Feature | src/features/Feature | /f | Auth | implemented | docs/features/Feature.md |',
+            '| 02 | Name | src/features/Name | /n | Auth | implemented | docs/features/Name.md |',
+            '| 03 | -beta | src/features/-beta | /b | Auth | implemented | docs/features/-beta.md |',
         ]
         missing = self.check(features_tree(rows))
         self.assertEqual(missing.returncode, 1, missing.stdout)
-        self.assertEqual(group(missing.stdout, '4'), [
-            "FAIL: feature 'Feature' in feature-tree.md but no docs/features/Feature.md",
-            "FAIL: feature 'Name' in feature-tree.md but no docs/features/Name.md",
-            "FAIL: feature '-beta' in feature-tree.md but no docs/features/-beta.md",
+        self.assertEqual(group(missing.stdout, '2'), [
+            "FAIL: feature 'Feature' has no record at docs/features/Feature.md",
+            "FAIL: feature 'Name' has no record at docs/features/Name.md",
+            "FAIL: feature '-beta' has no record at docs/features/-beta.md",
         ])
         for name in ('Feature', 'Name', '-beta'):
             self.document(name)
         present = self.check(features_tree(rows))
         self.assertEqual(present.returncode, 0, present.stdout)
-        self.assertEqual(group(present.stdout, '4'), ['OK: every feature in feature-tree.md has a docs/features/ entry'])
+        self.assertEqual(group(present.stdout, '2'), ['OK: every feature in feature-tree.md has its record'])
 
     def test_numbered_row_with_an_empty_name_is_named(self):
         result = self.check(features_tree(['| 04 |  | src/features/x | /x | Auth | implemented | docs/features/x.md |']))
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertEqual(group(result.stdout, '4'), [
+        self.assertEqual(group(result.stdout, '2'), [
             'FAIL: feature row 04 has no name (its Feature cell is empty); name the feature or delete the row',
         ])
 
-    def test_smoke_test_names_stay_exempt(self):
+    def test_smoke_test_feature_stays_exempt(self):
         rows = ['| %02d | %s | src/features/%s | /%s | Auth | implemented | docs/features/%s.md |' % (i, n, n, n, n)
                 for i, n in enumerate(('health', '_health', 'ping', 'smoke'), 1)]
+        rows.append('| 05 | probe | src/probe | /probe | Auth | smoke-test | |')
         result = self.check(features_tree(rows))
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertEqual(group(result.stdout, '4'), ['OK: every feature in feature-tree.md has a docs/features/ entry'])
+        self.assertEqual(group(result.stdout, '2'), ['OK: no feature rows yet'])
+
+    # ---- group 3: the tests each record names --------------------------------------------
+
+    def test_a_named_test_path_must_exist(self):
+        (self.project / 'docs' / 'features' / 'orders.md').write_text('# orders\n\n- **Tests:** `tests/orders/`\n')
+        result = self.check(features_tree(['| 01 | orders | src/orders | /orders | API | implemented | docs/features/orders.md |']))
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("feature 'orders': its record names tests at `tests/orders/`, which does not exist", ANSI.sub('', result.stdout))
+        (self.project / 'tests' / 'orders').mkdir(parents=True)
+        result = self.check(features_tree(['| 01 | orders | src/orders | /orders | API | implemented | docs/features/orders.md |']))
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_no_tests_line_falls_back_to_a_test_file_in_the_location(self):
+        (self.project / 'docs' / 'features' / 'orders.md').write_text('# orders\n')
+        tree = features_tree(['| 01 | orders | src/features/orders | /orders | API | implemented | docs/features/orders.md |'])
+        result = self.check(tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("feature 'orders': its record (docs/features/orders.md) has no Tests line, and no test file was found",
+                      ANSI.sub('', result.stdout))
+        (self.project / 'src' / 'features' / 'orders').mkdir()
+        (self.project / 'src' / 'features' / 'orders' / 'test_orders.ext').write_text('test\n')
+        result = self.check(tree)
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_tests_none_needs_a_reason_and_a_placeholder_fails(self):
+        tree = features_tree(['| 01 | orders | src/orders | /orders | API | implemented | docs/features/orders.md |'])
+        (self.project / 'docs' / 'features' / 'orders.md').write_text('# orders\n\nTests: none\n')
+        result = self.check(tree)
+        self.assertIn("its record says Tests: none without a reason", ANSI.sub('', result.stdout))
+        self.assertEqual(result.returncode, 1, result.stdout)
+        (self.project / 'docs' / 'features' / 'orders.md').write_text('# orders\n\nTests: [where the tests are]\n')
+        result = self.check(tree)
+        self.assertIn("still holds the template's placeholder", ANSI.sub('', result.stdout))
+        self.assertEqual(result.returncode, 1, result.stdout)
 
 
 class ScaffoldGate(unittest.TestCase):
@@ -242,25 +334,30 @@ class ScaffoldGate(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text('# page\n')
 
-    def template_pages(self):
-        pages = re.findall(r'docs/systems/[a-z0-9-]+\.md', '\n'.join(section(TEMPLATE.read_text(), 'Foundational Systems')))
-        self.assertEqual(len(pages), 16, pages)
-        return pages
+    def declared_pages(self):
+        return ['docs/systems/git.md', 'docs/systems/structure.md', 'docs/systems/api.md']
 
-    def test_template_pages_named_in_the_docs_column_are_found(self):
-        for page in self.template_pages():
+    def declared_tree(self):
+        return systems_tree([
+            '| 01 | Git & Hooks | #2 | hooks/ | implemented | docs/systems/git.md |',
+            '| 02 | Project Structure & Types | #1, #7 | src/ | implemented | docs/systems/structure.md |',
+            '| 03 | API Layer & Contract | #9, #10 | src/api/ | implemented | docs/systems/api.md |',
+        ])
+
+    def test_pages_named_in_the_docs_column_are_found(self):
+        for page in self.declared_pages():
             self.page(page)
-        result = self.check(TEMPLATE.read_text())
+        result = self.check(self.declared_tree())
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(group(result.stdout, '1'), ['OK: every foundational system has a docs/systems/ entry'])
         self.assertNotIn('&', '\n'.join(group(result.stdout, '1')))
 
     def test_missing_declared_page_is_reported_by_its_exact_path(self):
-        for page in self.template_pages():
+        for page in self.declared_pages():
             if page != 'docs/systems/git.md':
                 self.page(page)
         self.page('docs/systems/git-hooks.md')  # a page under the derived name must not stand in
-        result = self.check(TEMPLATE.read_text())
+        result = self.check(self.declared_tree())
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(group(result.stdout, '1'), [
             "WARN: system 'Git & Hooks' has no document at docs/systems/git.md, the path its Docs column names",
@@ -383,11 +480,11 @@ class ScaffoldGate(unittest.TestCase):
         ])
 
     def test_blocked_system_does_not_quiet_unrelated_checks(self):
-        (self.project / 'hooks' / 'pre-commit.sh').unlink()
+        (self.project / 'References.md').write_text('# References\n\n## Foundational Systems\n\nChecks run: a hook at `hooks/missing.sh`\n')
         self.page('docs/systems/payments.md')
         result = self.check(systems_tree(['| 17 | Payments | #9 | src/shared/payments | blocked (owner: open the payments account) | docs/systems/payments.md |']))
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn('FAIL: no pre-commit hook found', ANSI.sub('', result.stdout))
+        self.assertIn("FAIL: References.md's Checks run line names `hooks/missing.sh`, which does not exist", ANSI.sub('', result.stdout))
 
     def test_deferred_system_keeps_its_page_like_any_other(self):
         row = '| 20 | Queue | #9 | src/shared/queue | deferred (TD-3) | docs/systems/queue.md |'
@@ -414,23 +511,123 @@ class ScaffoldGate(unittest.TestCase):
                                          prose='Pulse reads: `# | Name | Convention | Location | Status`.\n'))
         self.assertEqual(group(result.stdout, '1'), ['OK: every foundational system has a docs/systems/ entry'])
 
-    def test_console_output_under_a_development_guard_passes_with_either_quote(self):
-        # A guard written with single quotes, the usual JavaScript spelling, once went unseen: grep
-        # read the "\x27" meant for the quote as four literal characters.
-        guarded = 'export function log(message) {\n  if (process.env.NODE_ENV === %sdevelopment%s) {\n    console.log(message)\n  }\n}\n'
-        source = self.project / 'src'
-        source.mkdir()
-        (source / 'single.js').write_text(guarded % ("'", "'"))
-        (source / 'double.js').write_text(guarded % ('"', '"'))
-        (source / 'loud.js').write_text('export function shout(message) {\n  console.log(message)\n}\n')
-        self.page('docs/systems/git.md')
-        result = self.check(systems_tree(['| 01 | Git & Hooks | #2 | hooks/ | implemented | docs/systems/git.md |']))
-        lines = group(result.stdout, '3')
-        self.assertEqual([line for line in lines if 'single.js' in line or 'double.js' in line], [], result.stdout)
-        warnings = [line for line in lines if line.startswith('WARN: ')]
-        self.assertEqual(len(warnings), 1, result.stdout)
-        self.assertTrue(warnings[0].startswith('WARN: console-level output in '), result.stdout)
-        self.assertTrue(warnings[0].endswith('/src/loud.js (use structured logger)'), result.stdout)
+class ScaffoldRecords(unittest.TestCase):
+    """validate-scaffold.sh groups 2, 6, 6b and 6c: the lines the project recorded, not named tools."""
+
+    TREE = systems_tree(['| 01 | Git & Hooks | #2 | hooks/ | implemented | docs/systems/git.md |'])
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='archetype-records-')
+        self.addCleanup(self.temp.cleanup)
+        self.project = Path(self.temp.name)
+        subprocess.run(['git', 'init', '-q'], cwd=self.project, check=True)
+        (self.project / 'VERSION-LOG.md').write_text('# Version Log\n\n## Scaffold\n\nComplete.\n')
+        page = self.project / 'docs' / 'systems' / 'git.md'
+        page.parent.mkdir(parents=True)
+        page.write_text('# page\n')
+        (self.project / 'feature-tree.md').write_text(self.TREE)
+
+    def check(self, references):
+        (self.project / 'References.md').write_text('# References\n\n' + references)
+        result = subprocess.run([BASH, str(SCAFFOLD)], cwd=self.project, text=True, capture_output=True)
+        return result.returncode, ANSI.sub('', result.stdout)
+
+    def test_absent_boundaries_warn_and_recorded_ones_are_enforced(self):
+        code, out = self.check('## Commands\n\n- test: `none`\n')
+        self.assertEqual(code, 0, out)
+        self.assertIn("WARN: References.md § Boundaries is not recorded yet", out)
+        (self.project / 'src').mkdir()
+        (self.project / 'src' / 'page.ext').write_text('readEnv("KEY")\n')
+        code, out = self.check('## Boundaries\n\n- Configuration: `readEnv\\(` only in `src/config.ext`\n')
+        self.assertEqual(code, 1, out)
+        self.assertIn('Configuration: src/page.ext uses `readEnv\\(`', out)
+
+    def test_a_recorded_migration_command_must_be_bounded(self):
+        commands = '## Commands\n\n- migrate: `tool migrate apply`\n'
+        code, out = self.check(commands)
+        self.assertEqual(code, 0, out)
+        self.assertIn('no § Boundaries section: record the path that may apply it to production', out)
+        code, out = self.check(commands + '\n## Boundaries\n\n- none: a single local store\n')
+        self.assertEqual(code, 1, out)
+        self.assertIn('no § Boundaries line bounds it to its production path', out)
+        (self.project / 'ops').mkdir()
+        (self.project / 'ops' / 'migrate-production.ext').write_text('tool migrate apply\n')
+        code, out = self.check(commands + '\n## Boundaries\n\n- Production migrations: `migrate apply` only in `ops/migrate-production.ext`\n')
+        self.assertEqual(code, 0, out)
+        self.assertIn('the migration command is bounded in § Boundaries (Production migrations)', out)
+        (self.project / 'pipeline.ext').write_text('on push: tool migrate apply\n')
+        code, out = self.check(commands + '\n## Boundaries\n\n- Production migrations: `migrate apply` only in `ops/migrate-production.ext`\n')
+        self.assertEqual(code, 1, out)
+        self.assertIn('Production migrations: pipeline.ext uses `migrate apply`', out)
+
+    def test_the_recorded_check_location_must_exist(self):
+        code, out = self.check('## Foundational Systems\n\nChecks run: [where the checks run]\n')
+        self.assertEqual(code, 0, out)
+        self.assertIn("Checks run line still holds the template's placeholder", out)
+        code, out = self.check('## Foundational Systems\n\nChecks run: a pipeline at `ci/checks.ext`\n')
+        self.assertEqual(code, 1, out)
+        self.assertIn("Checks run line names `ci/checks.ext`, which does not exist", out)
+        (self.project / 'ci').mkdir()
+        (self.project / 'ci' / 'checks.ext').write_text('run checks\n')
+        code, out = self.check('## Foundational Systems\n\nChecks run: a pipeline at `ci/checks.ext`\n')
+        self.assertEqual(code, 0, out)
+        code, out = self.check('## Foundational Systems\n\nChecks run: none, the step runner runs them for this experiment\n')
+        self.assertEqual(code, 0, out)
+
+    def test_a_recorded_query_allow_list_must_exist(self):
+        code, out = self.check('## API\n\nQuery allow-list: `api/allowed-queries.ext`\n')
+        self.assertEqual(code, 1, out)
+        self.assertIn('records the query allow-list at `api/allowed-queries.ext`, which does not exist', out)
+        (self.project / 'api').mkdir()
+        (self.project / 'api' / 'allowed-queries.ext').write_text('query A\n')
+        code, out = self.check('## API\n\nQuery allow-list: `api/allowed-queries.ext`\n')
+        self.assertEqual(code, 0, out)
+
+
+class MaintainGate(unittest.TestCase):
+    """validate-maintain.sh: the map against the project, with no fixed layout."""
+
+    MAINTAIN = SOURCE / 'scripts' / 'validate-maintain.sh'
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='archetype-maintain-')
+        self.addCleanup(self.temp.cleanup)
+        self.project = Path(self.temp.name)
+
+    def check(self, tree, debt=None):
+        (self.project / 'feature-tree.md').write_text(tree)
+        if debt is not None:
+            (self.project / 'TECHNICAL-DEBT.md').write_text(debt)
+        result = subprocess.run([BASH, str(self.MAINTAIN)], cwd=self.project, text=True, capture_output=True)
+        return result.returncode, ANSI.sub('', result.stdout)
+
+    def test_rows_must_point_at_places_that_exist(self):
+        (self.project / 'app' / 'orders').mkdir(parents=True)
+        tree = features_tree([
+            '| 01 | orders | app/orders | /orders | API | implemented | docs/features/orders.md |',
+            '| 02 | refunds | app/refunds | /refunds | API | implemented | docs/features/refunds.md |',
+            '| 03 | later | app/later | /later | API | not started | docs/features/later.md |',
+        ])
+        code, out = self.check(tree)
+        self.assertEqual(code, 1, out)
+        self.assertIn('feature row 02 (refunds) names app/refunds, which does not exist', out)
+        self.assertNotIn('app/later', out)
+
+    def test_a_folder_beside_the_features_without_a_row_warns(self):
+        for name in ('orders', 'refunds', 'orphans'):
+            (self.project / 'app' / name).mkdir(parents=True)
+        code, out = self.check(features_tree([
+            '| 01 | orders | app/orders | /orders | API | implemented | docs/features/orders.md |',
+            '| 02 | refunds | app/refunds | /refunds | API | implemented | docs/features/refunds.md |',
+        ]))
+        self.assertEqual(code, 0, out)
+        self.assertIn('WARN: app/orphans sits beside the features in app/ but has no row', out)
+
+    def test_debt_entries_without_a_status_warn(self):
+        code, out = self.check(features_tree([]), '# Log\n\n## TD-001 x\n\n- Kind: shortcut\n\n## TD-002 y\n\n- **Status:** open\n')
+        self.assertEqual(code, 0, out)
+        self.assertIn('entries without a Status: TD-001', out)
+        self.assertNotIn('TD-002', out.split('entries without a Status:')[1].split('(')[0])
 
 
 class RegulatedDataGate(unittest.TestCase):
@@ -777,7 +974,7 @@ class PulseInspect(unittest.TestCase):
         result = self.inspect()
         self.assertEqual(result.returncode, 0, result.stderr)
         state = json.loads(result.stdout)
-        self.assertEqual(len(state['foundationalSystems']), 16)
+        self.assertEqual([s['name'] for s in state['foundationalSystems']], ['[system name]'])
         self.assertEqual([f['name'] for f in state['features']], ['[name]'])
 
     def test_out_creates_a_missing_nested_folder(self):
@@ -893,7 +1090,7 @@ class OneRowRule(unittest.TestCase):
             project = Path(temp)
             (project / 'src' / 'features').mkdir(parents=True)
             (project / 'docs' / 'features').mkdir(parents=True)
-            (project / 'References.md').write_text('# References\n')
+            (project / 'References.md').write_text(DevelopGate.NONE)
             (project / 'feature-tree.md').write_text(features_tree([
                 '| 01 | alpha | src/features/alpha | /a | Auth | implemented | docs/features/alpha.md |',
                 '| **02** | beta | src/features/beta | /b | Auth | implemented | docs/features/beta.md |',
@@ -904,7 +1101,7 @@ class OneRowRule(unittest.TestCase):
             ], PIPE_PROSE))
             gate = subprocess.run([BASH, str(DEVELOP)], cwd=project, text=True, capture_output=True)
             monitor = subprocess.run([BASH, str(PULSE)], cwd=project, text=True, capture_output=True)
-        flagged = set(re.findall(r"feature '([^']+)' in feature-tree\.md", ANSI.sub('', gate.stdout)))
+        flagged = set(re.findall(r"feature '([^']+)' has no record", ANSI.sub('', gate.stdout)))
         shown = {f['name'] for f in json.loads(monitor.stdout)['features']}
         self.assertEqual(flagged, {'alpha', 'beta', 'Feature', 'Name'}, gate.stdout)
         self.assertEqual(shown, flagged)

@@ -1150,6 +1150,43 @@ class Steps(unittest.TestCase):
         self.assertEqual(stale.returncode, 1, stale.stdout)
         self.assertIn('declared decision or input basis changed', stale.stdout)
 
+    def test_a_malformed_decision_elsewhere_blocks_no_step(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions required\nCheck:'))
+        self.ledger('boot'); self.decisions()
+        decisions = self.project / 'DECISIONS.md'
+        decisions.write_text(decisions.read_text() + '\n### DEC-007: Half written\nStatus: maybe\nDepends on: soon\n')
+        closed = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+        self.assertEqual(self.run_tool().returncode, 0, self.run_tool().stdout)
+        cited = self.run_tool('--reopen', 'boot.1', '--reason', 'test')
+        self.assertEqual(cited.returncode, 0, cited.stdout)
+        refused = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-007')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('DEC-007', refused.stdout)
+
+    def test_a_decision_is_read_in_common_written_forms(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions required\nCheck:'))
+        self.ledger('boot')
+        (self.project / 'References.md').write_text('# References\n\n- Decision location: DECISIONS.md\n')
+        (self.project / 'DECISIONS.md').write_text(
+            '# Decisions\n\n### DEC-001: Direction\n- **Status:** Accepted\n- **Decision:** blue\n'
+            '- **Reason:** the owner picked it\n- **Authority:** owner\n')
+        closed = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+
+    def test_a_malformed_decision_the_cited_one_depends_on_blocks(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions required\nCheck:'))
+        self.ledger('boot'); self.decisions()
+        decisions = self.project / 'DECISIONS.md'
+        decisions.write_text(decisions.read_text().replace('Depends on: none', 'Depends on: DEC-002')
+                             + '\n### DEC-002: Parent\nStatus: someday\nDecision: web\nReason: x\nAuthority: owner\n')
+        refused = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('DEC-002 has unsupported Status', refused.stdout)
+
     def test_markdown_input_cannot_claim_a_different_decision_basis(self):
         path = self.engine / 'bootstrap' / 'BOOT.md'
         path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions and inputs required\nCheck:'))

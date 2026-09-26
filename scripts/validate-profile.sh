@@ -284,6 +284,7 @@ trigger_state() {
 group 3 "Deferrals are well-formed and not yet due"
 # ----------------------------------------------------------------------
 US=$'\x1f'
+RSEP=$'\x1e'
 first_word() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -e 's/^[^a-z]*//' -e 's/[^a-z-].*$//'; }
 if [ ! -f "$TD" ]; then
   pass "no TECHNICAL-DEBT.md, so no deferrals to check"
@@ -293,7 +294,7 @@ else
   SEEN=0
   SEEN_IDS=" "
   PARSER_EXIT=""
-  while IFS="$US" read -r id status kind control due review closure conflicts; do
+  while IFS="$US" read -r id status kind control due review closure conflicts mention; do
     [ -z "$id" ] && continue
     # The parser's exit status arrives as the last record; a parser that stopped early has read only
     # part of the file, and what it did not read must not pass as "no deferrals".
@@ -309,38 +310,64 @@ else
       *) SEEN_IDS="$SEEN_IDS$id " ;;
     esac
     if [ -n "$conflicts" ]; then
-      unver "$id: field(s) given two different values:$conflicts; this entry cannot be read until one value remains"
-      continue
+      unver "$id: field(s) given more than one value:$conflicts; it is read the strictest way until one value remains"
     fi
-    kind_w="$(first_word "$kind")"
-    status_w="$(first_word "$status")"
+    # The strictest reading of every field: a deferral if any Kind says so, open unless every Status
+    # says fixed, every Control and every Due-before value checked.
+    kind_w=""
+    status_shown="${status%%"$RSEP"*}"; review="${review%%"$RSEP"*}"; closure="${closure%%"$RSEP"*}"
+    OLDIFS="$IFS"; IFS="$RSEP"; set -f
+    for kv in $kind; do
+      w="$(first_word "$kv")"
+      case "$w" in
+        deferral) kind_w=deferral ;;
+        shortcut) [ -z "$kind_w" ] && kind_w=shortcut ;;
+        *) [ "$kind_w" != deferral ] && kind_w="other:$kv" ;;
+      esac
+    done
+    status_w="fixed"; [ -z "$status" ] && status_w=""
+    for sv in $status; do [ "$(first_word "$sv")" = fixed ] || status_w=""; done
+    IFS="$OLDIFS"; set +f
     # The Control of every open entry that declares one is read, whatever its Kind: a floor item is
     # never postponed (#30).
     if [ -n "$control" ] && [ "$status_w" != "fixed" ]; then
-      lc_control="$(printf '%s' "$control" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]*:[[:space:]]*/:/; s/^[[:space:]]+//; s/[[:space:]]+$//')"
-      case "$lc_control" in
-        \[*) warn "$id: Control still holds a template placeholder" ;;
-        floor|floor:) unver "$id: Control says floor but names no floor item; floor items: ${FLOOR// /, }" ;;
-        floor:*)
-          item="${lc_control#floor:}"; item="${item%% *}"
-          if in_list "$item" "$FLOOR"; then
-            fail "$id: a floor item ($item) is never postponed, as a deferral or as a shortcut (#30)"
-          else
-            unver "$id: Control names an unknown floor item \"$item\"; floor items: ${FLOOR// /, }"
-          fi ;;
-        '#'[0-9]*|b[0-9]*) ;;
-        *) warn "$id: Control is \"$control\"; name the convention (#N and the obligation), the backend rule (BN), or the floor item (floor: name), so a review can see what is postponed" ;;
-      esac
+      OLDIFS="$IFS"; IFS="$RSEP"; set -f
+      for cv in $control; do
+        IFS="$OLDIFS"
+        [ -n "$cv" ] || { IFS="$RSEP"; continue; }
+        lc_control="$(printf '%s' "$cv" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]*:[[:space:]]*/:/; s/^[[:space:]]+//; s/[[:space:]]+$//')"
+        case "$lc_control" in
+          \[*) warn "$id: Control still holds a template placeholder" ;;
+          floor|floor:) unver "$id: Control says floor but names no floor item; floor items: ${FLOOR// /, }" ;;
+          floor:*)
+            item="${lc_control#floor:}"; item="${item%% *}"
+            if in_list "$item" "$FLOOR"; then
+              if [ "$kind_w" = "deferral" ]; then
+                fail "$id: a floor item ($item) is never a deferral (#30)"
+              else
+                fail "$id: a floor item ($item) is never postponed, as a deferral or as a shortcut (#30)"
+              fi
+            else
+              unver "$id: Control names an unknown floor item \"$item\"; floor items: ${FLOOR// /, }"
+            fi ;;
+          '#'[0-9]*|b[0-9]*) ;;
+          *) warn "$id: Control is \"$cv\"; name the convention (#N and the obligation), the backend rule (BN), or the floor item (floor: name), so a review can see what is postponed" ;;
+        esac
+        IFS="$RSEP"
+      done
+      IFS="$OLDIFS"; set +f
     fi
     case "$kind_w" in
       shortcut) continue ;;
       deferral) ;;
       '')
-        if [ -n "$due" ]; then
-          unver "$id carries a Due-before but no Kind; say whether it is a deferral or a shortcut"
+        if [ -n "$due$control$review$closure" ]; then
+          unver "$id carries deferral fields (Control, Due-before, Review-by or Closure-evidence) but no Kind; say whether it is a deferral or a shortcut"
+        elif [ "$mention" = "1" ]; then
+          unver "$id mentions a deferral but has no Kind line this check can read; write Kind: deferral or Kind: shortcut"
         fi
         continue ;;
-      *) unver "$id: Kind is \"$kind\", neither shortcut nor deferral; this entry cannot be read"; continue ;;
+      *) unver "$id: Kind is \"${kind_w#other:}\", neither shortcut nor deferral; this entry cannot be read"; continue ;;
     esac
     SEEN=$((SEEN + 1))
     [ "$status_w" = "fixed" ] && continue
@@ -353,23 +380,32 @@ else
       fail "$id: a deferral cannot be evaluated without PROFILE.md; create the profile or fix the entry"
       continue
     fi
-    due_w="$(printf '%s' "$due" | sed -e 's/^[[:space:]`*_]*//' -e 's/[[:space:]`*_.,;]*$//')"
-    if is_date "$due_w"; then
-      if [[ "$due_w" < "$TODAY" ]] || [ "$due_w" = "$TODAY" ]; then
-        fail "$id: Due-before date $due_w reached; the deferral is blocking until fixed (status: ${status:-open})"
+    PENDING_PARTS=""
+    OLDIFS="$IFS"; IFS="$RSEP"; set -f
+    for dv in $due; do
+      IFS="$OLDIFS"
+      [ -n "$dv" ] || { IFS="$RSEP"; continue; }
+      due_w="$(printf '%s' "$dv" | sed -e 's/^[[:space:]`*_]*//' -e 's/[[:space:]`*_.,;]*$//')"
+      if is_date "$due_w"; then
+        if [[ "$due_w" < "$TODAY" ]] || [ "$due_w" = "$TODAY" ]; then
+          fail "$id: Due-before date $due_w reached; the deferral is blocking until fixed (status: ${status_shown:-open})"
+        else
+          PENDING_PARTS="${PENDING_PARTS:+$PENDING_PARTS, }$due_w"
+        fi
+      elif is_trigger "$due_w"; then
+        state="$(trigger_state "$due_w")"
+        case "$state" in
+          true) fail "$id: trigger $due_w is true per PROFILE.md; the deferral is blocking until fixed (status: ${status_shown:-open}; won't-fix does not clear it)" ;;
+          false) PENDING_PARTS="${PENDING_PARTS:+$PENDING_PARTS, }$due_w" ;;
+          unknown) unver "$id is due before $due_w, which rests on a fact recorded as unknown" ;;
+        esac
       else
-        PENDING_DEFER="$id until $due_w"
+        fail "$id: Due-before \"$dv\" is neither a known trigger nor a date. Triggers: ${TRIGGERS// /, }"
       fi
-    elif is_trigger "$due_w"; then
-      state="$(trigger_state "$due_w")"
-      case "$state" in
-        true) fail "$id: trigger $due_w is true per PROFILE.md; the deferral is blocking until fixed (status: ${status:-open}; won't-fix does not clear it)" ;;
-        false) PENDING_DEFER="$id until $due_w" ;;
-        unknown) unver "$id is due before $due_w, which rests on a fact recorded as unknown" ;;
-      esac
-    else
-      fail "$id: Due-before \"$due\" is neither a known trigger nor a date. Triggers: ${TRIGGERS// /, }"
-    fi
+      IFS="$RSEP"
+    done
+    IFS="$OLDIFS"; set +f
+    [ -n "$PENDING_PARTS" ] && PENDING_DEFER="$id until $PENDING_PARTS"
     if [ -n "$review" ]; then
       review_w="$(printf '%s' "$review" | sed -e 's/^[[:space:]`*_]*//' -e 's/[[:space:]`*_.,;]*$//')"
       if is_date "$review_w"; then
@@ -381,7 +417,7 @@ else
     case "$closure" in \[*) warn "$id: Closure-evidence still holds a template placeholder" ;; esac
     # The DEFERRED line is printed only for an entry that passed every check above.
     if [ -n "$PENDING_DEFER" ] && [ "$ERRORS" -eq "$ENTRY_ERRORS" ]; then defer "$PENDING_DEFER"; fi
-  done < <(awk -v US="$US" '
+  done < <(awk -v US="$US" -v RS_="$RSEP" '
     # An entry starts at a heading whose text begins "TD-" and runs to the next such heading or a
     # level-one heading. A field is a line whose label, with or without a list marker and with or
     # without bold, italic or code marks around it, is one of the six names below, followed by a
@@ -390,9 +426,9 @@ else
     # shell can count the entry as unreadable.
     function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
     function flush() {
-      if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", id, US, f["status"], US, f["kind"], US, f["control"], US, f["due-before"], US, f["review-by"], US, f["closure-evidence"], US, conflicts
+      if (id != "") printf "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%d\n", id, US, f["status"], US, f["kind"], US, f["control"], US, f["due-before"], US, f["review-by"], US, f["closure-evidence"], US, conflicts, US, mention
     }
-    function reset() { id = ""; conflicts = ""; split("", f); split("", seen) }
+    function reset() { id = ""; conflicts = ""; mention = 0; split("", f); split("", seen) }
     { sub(/\r$/, "") }
     # Fenced examples are skipped: a fence opens with three or more backticks or tildes, indented
     # at most three spaces, and closes with a run of the same character at least as long.
@@ -408,10 +444,12 @@ else
       else next
     }
     infence { next }
+    # HTML tags around a label or an identifier are read through, like any other markup.
+    { gsub(/<\/?[A-Za-z][^>]*>/, "") }
     /^ ? ? ?#/ {
       h = $0; sub(/^ ? ? ?/, "", h)
       level = 0; while (substr(h, level + 1, 1) == "#") level++
-      text = substr(h, level + 1); gsub(/[*_`]/, "", text); text = trim(text)
+      text = substr(h, level + 1); gsub(/[*_`]/, "", text); gsub(/\]\([^)]*\)/, "", text); gsub(/[][]/, "", text); text = trim(text)
       if (toupper(substr(text, 1, 3)) == "TD-") {
         flush(); reset()
         id = "TD-" substr(text, 4); sub(/[^A-Za-z0-9-].*$/, "", id)
@@ -422,16 +460,27 @@ else
     }
     id == "" { next }
     {
-      low = tolower($0)
-      if (match(low, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+)?[*_`]*(status|kind|control|due[- ]before|review[- ]by|closure[- ]evidence)([*_`]*[ \t]*:|[ \t]*:[*_`]*)/)) {
+      # A link around a label is read through: [text](destination) becomes text. Brackets
+      # without a destination, such as a template placeholder, stay.
+      line = $0
+      while (match(line, /\[[^]]*\]\([^)]*\)/)) {
+        seg = substr(line, RSTART, RLENGTH); ci = index(seg, "](")
+        line = substr(line, 1, RSTART - 1) substr(seg, 2, ci - 2) substr(line, RSTART + RLENGTH)
+      }
+      low = tolower(line)
+      if (match(low, /^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+)?[*_` \t]*(status|kind|control|due[- ]before|review[- ]by|closure[- ]evidence)([*_` \t]*:|[ \t]*:[*_`]*)/)) {
         lab = substr(low, 1, RLENGTH)
-        sub(/^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+)?[*_`]*/, "", lab)
+        sub(/^[ \t]*(([-*+]|[0-9]+[.)])[ \t]+)?[*_` \t]*/, "", lab)
         sub(/[*_` \t]*:.*$/, "", lab)
         gsub(/ /, "-", lab)
-        v = substr($0, RLENGTH + 1); sub(/^[*_` \t]+/, "", v); v = trim(v)
-        if (lab in seen) { if (f[lab] != v && index(conflicts, " " lab) == 0) conflicts = conflicts " " lab }
+        v = substr(line, RLENGTH + 1); sub(/^[*_` \t]+/, "", v); v = trim(v)
+        # A field written again with another value keeps every value (separated by RS), so the
+        # shell can read the entry the strictest way; the conflict itself is reported too.
+        if (lab in seen) {
+          if (index(RS_ "" f[lab] RS_, RS_ v RS_) == 0) { f[lab] = f[lab] RS_ v; if (index(conflicts, " " lab) == 0) conflicts = conflicts " " lab }
+        }
         else { seen[lab] = 1; f[lab] = v }
-      }
+      } else if (low ~ /deferral/) mention = 1
     }
     END { flush(); if (infence) printf "UNCLOSED-FENCE%s%d\n", US, fence_line }
   ' "$TD"; printf 'PARSER-EXIT%s%s\n' "$US" "$?")

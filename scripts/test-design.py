@@ -75,32 +75,38 @@ class DesignGate(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn('References.md not found', result.stdout)
 
-    def test_missing_label_is_named(self):
-        result = self.check(section(drop=('Return tasks',)))
+    def test_only_the_lines_the_check_reads_are_required(self):
+        result = self.check(section(drop=('Density', 'Captures', 'Sync')))
+        self.assertEqual(result.returncode, 0, result.stdout)
+        result = self.check(section(drop=('Brand decided',)))
         self.assertEqual(result.returncode, 1)
-        self.assertRegex(result.stdout, r'lacks label\(s\): Return tasks')
+        self.assertIn('has no Brand decided line', result.stdout)
+        result = self.check(section({'Brand decided': 'yes'}, drop=('Return tasks',)))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('Brand decided is yes, but unknown: Return tasks', result.stdout)
 
-    def test_repeated_label_is_named(self):
+    def test_a_read_line_given_twice_is_named(self):
         result = self.check(section(extra=('- Density: dense, again',)))
+        self.assertEqual(result.returncode, 0, result.stdout)
+        result = self.check(section(extra=('- Brand decided: yes',)))
         self.assertEqual(result.returncode, 1)
-        self.assertRegex(result.stdout, r'repeats label\(s\): Density')
+        self.assertIn('repeats "Brand decided"', result.stdout)
 
     def test_template_placeholder_fails(self):
         result = self.check(section({'First task': '[the one thing a person should be able to do]'}))
         self.assertEqual(result.returncode, 1)
-        self.assertRegex(result.stdout, r'placeholder, a deferral, or no value: First task')
+        self.assertRegex(result.stdout, r'placeholder or no value: First task')
 
     def test_empty_value_fails(self):
         result = self.check(section({'Captures': ''}))
         self.assertEqual(result.returncode, 1)
-        self.assertRegex(result.stdout, r'placeholder, a deferral, or no value: Captures')
+        self.assertRegex(result.stdout, r'placeholder or no value: Captures')
 
-    def test_a_line_that_only_defers_is_not_filled_in(self):
-        for value in ('pending Step 4.5', 'Pending', 'TBD', 'to be decided with the owner', 'todo'):
+    def test_a_line_in_the_projects_own_words_is_its_record(self):
+        for value in ('pending Step 4.5', 'Pending', 'TBD', 'to be decided with the owner', 'todo', '**pending**', 'awaiting owner'):
             with self.subTest(value=value):
                 result = self.check(section({'Tokens source': value}))
-                self.assertEqual(result.returncode, 1, result.stdout)
-                self.assertRegex(result.stdout, r'a deferral, or no value: Tokens source')
+                self.assertEqual(result.returncode, 0, result.stdout)
         still_fine = self.check(section({'Brand decided': 'not yet, directions pending the owner\'s pick'}))
         self.assertEqual(still_fine.returncode, 0, still_fine.stdout)
 
@@ -109,12 +115,12 @@ class DesignGate(unittest.TestCase):
         self.assertEqual(allowed.returncode, 0, allowed.stdout)
         refused = self.check(section({'Tokens source': '[to be created]'}))
         self.assertEqual(refused.returncode, 1)
-        self.assertRegex(refused.stdout, r'placeholder, a deferral, or no value: Tokens source')
+        self.assertRegex(refused.stdout, r'placeholder or no value: Tokens source')
 
     def test_placeholder_on_an_extra_line_of_the_section_fails(self):
         result = self.check(section(extra=('- Platform parity: [how the two platforms are kept aligned]',)))
         self.assertEqual(result.returncode, 1)
-        self.assertRegex(result.stdout, r'placeholder, a deferral, or no value: Platform parity')
+        self.assertRegex(result.stdout, r'placeholder or no value: Platform parity')
 
     def test_placeholder_outside_the_section_is_not_read(self):
         # section() always carries one under the next heading.
@@ -148,7 +154,7 @@ class DesignGate(unittest.TestCase):
         (self.project / 'References.md').write_bytes(text.replace('\n', '\r\n').encode())
         result = self.check(None)
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertRegex(result.stdout, r'placeholder, a deferral, or no value: Captures')
+        self.assertRegex(result.stdout, r'placeholder or no value: Captures')
 
     def test_filled_section_with_carriage_returns_passes(self):
         text = '# References\n\n' + section()
@@ -186,16 +192,16 @@ class DesignGate(unittest.TestCase):
     def test_project_root_wins_over_a_copy_in_the_engine_folder(self):
         (self.project / 'archetype').mkdir()
         (self.project / 'archetype' / 'References.md').write_text(section())
-        result = self.check(section(drop=('Density',)))
+        result = self.check(section(drop=('Brand decided',)))
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertRegex(result.stdout, r'lacks label\(s\): Density')
+        self.assertIn('has no Brand decided line', result.stdout)
 
     def test_engine_in_a_subfolder_is_found(self):
         (self.project / 'archetype').mkdir()
-        (self.project / 'archetype' / 'References.md').write_text(section(drop=('Density',)))
+        (self.project / 'archetype' / 'References.md').write_text(section(drop=('Brand decided',)))
         result = self.check(None)
         self.assertEqual(result.returncode, 1)
-        self.assertRegex(result.stdout, r'lacks label\(s\): Density')
+        self.assertIn('has no Brand decided line', result.stdout)
 
     def test_shipped_templates_fail_until_filled(self):
         # The templates are all placeholders: a bootstrap that copies one and fills nothing must fail.
@@ -205,7 +211,7 @@ class DesignGate(unittest.TestCase):
                 result = self.check(None)
                 self.assertEqual(result.returncode, 1)
                 self.assertNotIn('lacks label', result.stdout)
-                self.assertIn('placeholder, a deferral, or no value', result.stdout)
+                self.assertIn('placeholder or no value', result.stdout)
 
     def test_required_known_screen_rejects_a_missing_section(self):
         result = self.check('## Tech Stack\n\n- Language: recorded\n', '--required', 'known-screen')
@@ -242,7 +248,7 @@ class DesignGate(unittest.TestCase):
             with self.subTest(fence=fence):
                 result = self.check(f'## Design Artifact\n\n{fence}\n{labels}\n{fence}\n')
                 self.assertEqual(result.returncode, 1, result.stdout)
-                self.assertIn('lacks label(s)', result.stdout)
+                self.assertIn('has no Brand decided line', result.stdout)
 
     def test_bold_labels_are_normalized(self):
         text = section()
@@ -251,13 +257,6 @@ class DesignGate(unittest.TestCase):
         result = self.check(text)
         self.assertEqual(result.returncode, 0, result.stdout)
 
-    def test_decorated_unfinished_values_fail(self):
-        for value in ('**pending**', '`pending`', '"pending"', 'Status: pending owner decision', 'awaiting owner', 'deferred', 'to decide with the owner'):
-            with self.subTest(value=value):
-                result = self.check(section({'Tokens source': value}))
-                self.assertEqual(result.returncode, 1, result.stdout)
-                self.assertIn('Tokens source', result.stdout)
-
     def test_decorated_unknown_task_fails_for_decided_brand(self):
         result = self.check(section({
             'Brand decided': 'yes, recorded in the brand book',
@@ -265,22 +264,6 @@ class DesignGate(unittest.TestCase):
         }))
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn('Brand decided is yes, but unknown: First task.', result.stdout)
-
-    def test_duplicate_unknown_field_fails(self):
-        result = self.check(section(extra=(
-            '- Review note: first',
-            '- Review note: second',
-        )))
-        self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn('repeats field(s) outside the shared label contract: Review note', result.stdout)
-
-    def test_duplicate_platform_parity_fails(self):
-        result = self.check(section(extra=(
-            '- Platform parity: aligned',
-            '- Platform parity: conflicting',
-        )))
-        self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn('Platform parity', result.stdout)
 
     def test_genuine_none_na_and_unknown_values_pass(self):
         result = self.check(section({

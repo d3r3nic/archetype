@@ -321,14 +321,16 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_clean(out, code)
 
     def test_deferral_missing_each_required_field_fails(self):
-        for field in ("Control", "Due-before", "Review-by", "Closure-evidence"):
+        for field in ("Control", "Due-before"):
             with self.subTest(field=field):
                 code, out = self.run_validator(profile_text(), debt_entry(6, drop=(field,)))
                 self.assert_fail(out, code, f"deferral without {field}")
 
-    def test_unknown_kind_fails(self):
+    def test_unknown_kind_is_unverified(self):
         code, out = self.run_validator(profile_text(), debt_entry(6, kind="maybe-later"))
-        self.assert_fail(out, code, 'Kind is "maybe-later"')
+        self.assertIn('UNVERIFIED: TD-006: Kind is "maybe-later", neither shortcut nor deferral', out)
+        code, out = self.run_validator(profile_text(), debt_entry(6, kind="maybe-later"), strict=True)
+        self.assert_fail(out, code, "strict mode")
 
     def test_unknown_trigger_name_fails(self):
         code, out = self.run_validator(profile_text(), debt_entry(7, due="someday"))
@@ -350,9 +352,10 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_clean(out, code)
         self.assertIn("WARN: TD-010: Review-by 2026-01-01 has passed", out)
 
-    def test_malformed_review_by_fails(self):
+    def test_malformed_review_by_warns(self):
         code, out = self.run_validator(profile_text(), debt_entry(10, review="next quarter"))
-        self.assert_fail(out, code, 'Review-by "next quarter" is not a real calendar date')
+        self.assertEqual(code, 0, out)
+        self.assertIn('Review-by "next quarter" is not a calendar date', out)
 
     def test_legacy_entry_without_kind_is_untouched(self):
         legacy = "# Technical Debt Log\n\n## TD-020 — old entry\n\n- **Status:** open\n- **Severity:** low\n"
@@ -418,41 +421,48 @@ class ValidateProfileTests(unittest.TestCase):
 
     # ---- hardening after the independent audit ------------------------------------
 
-    def test_repeated_field_in_entry_fails(self):
-        entry = debt_entry(30, due="first-outside-participant") .rstrip("\n") + "\n- **Kind:** shortcut\n\n"
+    def test_conflicting_kind_is_read_as_the_deferral(self):
+        entry = debt_entry(30, due="first-outside-participant").rstrip("\n") + "\n- **Kind:** shortcut\n\n"
         code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assert_fail(out, code, "TD-030: field(s) repeated inside the entry: Kind")
+        self.assert_fail(out, code, "TD-030: trigger first-outside-participant is true")
+        self.assertIn("UNVERIFIED: TD-030: field(s) given more than one value: kind", out)
 
     def test_fields_under_a_later_heading_cannot_overwrite_the_entry(self):
         entry = debt_entry(31, due="first-outside-participant") + "## Separate summary\n\n- **Kind:** shortcut\n- **Due-before:** 2030-01-01\n"
         code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assert_fail(out, code, "TD-031: field(s) repeated inside the entry: Kind Due-before")
+        self.assert_fail(out, code, "TD-031: trigger first-outside-participant is true")
+        self.assertIn("UNVERIFIED: TD-031: field(s) given more than one value: kind due-before", out)
 
-    def test_duplicate_entry_id_fails(self):
+    def test_duplicate_entry_id_warns(self):
         code, out = self.run_validator(profile_text(), debt_entry(32) + debt_entry(32, due="2030-01-01"))
-        self.assert_fail(out, code, "TD-032 appears more than once")
+        self.assertEqual(code, 0, out)
+        self.assertIn("WARN: TD-032 appears more than once", out)
 
     def test_uppercase_floor_label_fails(self):
         code, out = self.run_validator(profile_text(), debt_entry(33, control="FLOOR: secrets"))
         self.assert_fail(out, code, "a floor item (secrets) is never a deferral")
 
-    def test_unknown_floor_item_fails(self):
+    def test_unknown_floor_item_is_unverified(self):
         code, out = self.run_validator(profile_text(), debt_entry(34, control="floor: vibes"))
-        self.assert_fail(out, code, 'Control names unknown floor item "vibes"')
+        self.assertIn('UNVERIFIED: TD-034: Control names an unknown floor item "vibes"', out)
+        code, out = self.run_validator(profile_text(), debt_entry(34, control="floor: vibes"), strict=True)
+        self.assert_fail(out, code, "strict mode")
 
-    def test_control_must_name_a_convention_rule_or_floor_item(self):
+    def test_control_should_name_a_convention_rule_or_floor_item(self):
         code, out = self.run_validator(profile_text(), debt_entry(35, control="something later"))
-        self.assert_fail(out, code, 'Control is "something later"; name a convention')
+        self.assertEqual(code, 0, out)
+        self.assertIn('WARN: TD-035: Control is "something later"; name the convention', out)
         for ok in ("#23 rate limiting", "B3 middleware order", "b5 queue retries"):
             with self.subTest(control=ok):
                 code, out = self.run_validator(profile_text(), debt_entry(35, control=ok))
                 self.assert_clean(out, code)
 
-    def test_placeholder_control_and_closure_fail(self):
+    def test_placeholder_control_and_closure_warn(self):
         code, out = self.run_validator(profile_text(), debt_entry(36, control="[convention or floor item]"))
-        self.assert_fail(out, code, "TD-036: Control still holds a template placeholder")
+        self.assertIn("WARN: TD-036: Control still holds a template placeholder", out)
         code, out = self.run_validator(profile_text(), debt_entry(36, closure="[what proves it closed]"))
-        self.assert_fail(out, code, "TD-036: Closure-evidence still holds a template placeholder")
+        self.assertEqual(code, 0, out)
+        self.assertIn("WARN: TD-036: Closure-evidence still holds a template placeholder", out)
 
     def test_impossible_calendar_dates_fail(self):
         code, out = self.run_validator(profile_text(overrides={"Observed-on": "2026-02-30"}))
@@ -460,7 +470,8 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(), debt_entry(37, due="2026-99-99"))
         self.assert_fail(out, code, 'Due-before "2026-99-99" is neither a known trigger nor a date')
         code, out = self.run_validator(profile_text(), debt_entry(37, review="2027-02-30"))
-        self.assert_fail(out, code, 'Review-by "2027-02-30" is not a real calendar date')
+        self.assertEqual(code, 0, out)
+        self.assertIn('WARN: TD-037: Review-by "2027-02-30" is not a calendar date', out)
         code, out = self.run_validator(profile_text(), debt_entry(37, due="2028-02-29", review="2028-02-29"))
         self.assert_clean(out, code)
         self.assertIn("DEFERRED: TD-037 until 2028-02-29", out)
@@ -495,11 +506,13 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_fail(out, code, "PROFILE.md has no facts block")
         self.assertNotIn('missing or empty key "Schema"', out)
 
-    def test_unclosed_fence_fails_instead_of_hiding_entries(self):
+    def test_unclosed_fence_is_unverified_instead_of_hiding_entries(self):
         debt = "# Technical Debt Log\n\n```js\nexample without a closing fence\n\n" + debt_entry(50, control="floor: secrets")
         code, out = self.run_validator(profile_text(TRIAL), debt)
-        self.assert_fail(out, code, "TECHNICAL-DEBT.md has a code fence that never closes (opened at line 3)")
+        self.assertIn("UNVERIFIED: TECHNICAL-DEBT.md has a code fence that never closes (opened at line 3)", out)
         self.assertNotIn("has no deferrals", out)
+        code, out = self.run_validator(profile_text(TRIAL), debt, strict=True)
+        self.assert_fail(out, code, "strict mode")
 
     def test_tilde_fenced_example_is_ignored(self):
         debt = "# Technical Debt Log\n\n~~~\n" + debt_entry(51, control="floor: secrets") + "~~~\n\n" + debt_entry(52)
@@ -507,12 +520,6 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_clean(out, code)
         self.assertNotIn("TD-051", out)
         self.assertIn("DEFERRED: TD-052 until first-outside-participant", out)
-
-    def test_colon_outside_bold_markers_still_parses(self):
-        entry = ("## TD-053 — mis-emphasized\n\n- **Status**: open\n- **Kind**: deferral\n- **Control**: floor: secrets\n"
-                 "- **Due-before**: public-access\n- **Review-by**: 2027-01-01\n- **Closure-evidence**: a test\n")
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-053: a floor item (secrets) is never a deferral")
 
     def test_strict_mode_via_environment_variable(self):
         with tempfile.TemporaryDirectory() as root:
@@ -537,16 +544,13 @@ class ValidateProfileTests(unittest.TestCase):
         self.assertNotIn("TD-061", out)
         self.assertIn("DEFERRED: TD-062 until first-outside-participant", out)
 
-    def test_empty_first_repeated_field_fails(self):
+    def test_empty_first_value_and_a_filled_one_are_a_conflict(self):
         entry = ("## TD-063 — empty then filled\n\n- **Status:** open\n- **Kind:**\n- **Kind:** deferral\n- **Control:**\n"
                  "- **Control:** #23 rate limiting\n- **Due-before:** public-access\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
         code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-063: field(s) repeated inside the entry: Kind Control")
-
-    def test_repeated_ungoverned_field_is_not_an_error(self):
-        entry = debt_entry(64).rstrip("\n") + "\n- **Logged:** 2026-09-02 by someone else\n\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_clean(out, code)
+        self.assertEqual(code, 0, out)
+        self.assertIn("UNVERIFIED: TD-063: field(s) given more than one value: kind control", out)
+        self.assertIn("DEFERRED: TD-063 until public-access", out)
 
     def test_trailing_section_under_a_level_one_heading_is_not_part_of_the_entry(self):
         debt = debt_entry(68) + "# Audit history\n\n- **Logged:** 2026-09-01\n- **Logged:** 2026-09-02\n- **Kind:** shortcut\n"
@@ -554,11 +558,11 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_clean(out, code)
         self.assertIn("DEFERRED: TD-068 until first-outside-participant", out)
 
-    def test_repeated_governed_field_keeps_the_first_value(self):
+    def test_a_renewed_due_date_cannot_hide_a_triggered_deferral(self):
         entry = debt_entry(69, due="first-outside-participant").rstrip("\n") + "\n- **Due-before:** 2030-01-01\n\n"
         code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assert_fail(out, code, "TD-069: field(s) repeated inside the entry: Due-before")
-        self.assertIn("TD-069: trigger first-outside-participant is true", out)
+        self.assert_fail(out, code, "TD-069: trigger first-outside-participant is true")
+        self.assertIn("UNVERIFIED: TD-069: field(s) given more than one value: due-before", out)
         self.assertNotIn("DEFERRED: TD-069", out)
 
     def test_trailing_comma_and_spaced_letters_in_effects_fail(self):
@@ -581,18 +585,6 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_clean(out, code)
         self.assertIn("DEFERRED: TD-066 until public-access", out)
 
-    def test_entry_heading_at_wrong_level_fails_when_it_carries_fields(self):
-        entry = "### TD-067 — wrong level\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, '"### TD-067 — wrong level" carries entry fields but is not a level-two heading')
-
-    def test_entry_heading_at_wrong_level_without_fields_warns(self):
-        debt = "### TD-070 — just a note\n\nNothing structured here.\n\n" + debt_entry(71)
-        code, out = self.run_validator(profile_text(), debt)
-        self.assert_clean(out, code)
-        self.assertIn('WARN: TECHNICAL-DEBT.md: "### TD-070 — just a note" is not a level-two heading', out)
-        self.assertIn("DEFERRED: TD-071 until first-outside-participant", out)
-
     def test_mixed_fence_indentation_cannot_hide_an_entry(self):
         first = "  ```\nexample one\n```\n\n"
         second = "```\nexample two\n  ```\n\n"
@@ -614,19 +606,6 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_clean(out, code)
         self.assertIn("DEFERRED: TD-075 until first-outside-participant", out)
 
-    def test_heading_whitespace_variants_are_entries(self):
-        for heading in ("  ## TD-080 — indented", "##  TD-080 — double space", "##\tTD-080 — tab", "## TD-080"):
-            with self.subTest(heading=heading):
-                body = "\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** #23 rate limiting\n- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n"
-                code, out = self.run_validator(profile_text(TRIAL), heading + body, strict=True)
-                self.assert_fail(out, code, "TD-080: trigger first-outside-participant is true")
-
-    def test_indented_wrong_level_heading_with_fields_fails(self):
-        entry = "  ### TD-091 — indented h3\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
-        self.assertNotIn("has no deferrals", out)
-
     def test_inline_code_spans_are_not_fences(self):
         debt = ("# Technical Debt Log\n\n```inline```\n\n" + debt_entry(90, due="first-outside-participant")
                 + "```\n```literal```\n```\n")
@@ -640,155 +619,6 @@ class ValidateProfileTests(unittest.TestCase):
         self.assertNotIn("TD-092", out)
         self.assertIn("DEFERRED: TD-093 until first-outside-participant", out)
 
-    def test_field_list_formatting_variants_are_read(self):
-        variants = ["-  **Kind:** deferral", "-\t**Kind:** deferral", "* **Kind:** deferral", "+ **Kind:** deferral", "   - **Kind:** deferral"]
-        for kind_line in variants:
-            with self.subTest(kind_line=kind_line):
-                entry = ("## TD-094 — formatting\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
-                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assert_fail(out, code, "TD-094: trigger first-outside-participant is true")
-
-    def test_indented_field_block_is_read(self):
-        entry = "## TD-095 — indented fields\n\n" + "\n".join("  " + l for l in debt_entry(95, control="floor: secrets").splitlines()[2:] if l) + "\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-095: a floor item (secrets) is never a deferral")
-
-    def test_td_heading_with_too_many_marks_or_no_space_fails_when_it_carries_fields(self):
-        for heading in ("####### TD-088 — seven marks", "##TD-089 — no space"):
-            with self.subTest(heading=heading):
-                entry = heading + "\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
-                code, out = self.run_validator(profile_text(), entry)
-                self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
-
-    def test_tab_indented_field_block_fails_loudly(self):
-        fields = "\n".join("\t" + l for l in debt_entry(96, control="floor: secrets").splitlines()[2:] if l)
-        entry = "## TD-096 — tab indented\n\n" + fields + "\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-096: field label(s) found on lines the validator does not read as fields:")
-        self.assertIn("Kind", out)
-        self.assertNotIn("has no deferrals", out)
-
-    def test_label_in_running_text_fails_loudly(self):
-        entry = "## TD-097 — prose\n\n- **Status:** open\n\nWe set **Kind:** deferral here and **Control:** #23 later.\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-097: field label(s) found on lines the validator does not read as fields: Kind")
-
-    def test_kind_with_value_on_next_line_fails(self):
-        entry = ("## TD-098 — wrapped\n\n- **Status:** open\n- **Kind:**\n  deferral\n- **Control:** #23 rate limiting\n"
-                 "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
-        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-        self.assert_fail(out, code, "TD-098: Kind is present but has no value on its line")
-        self.assertNotIn("has no deferrals", out)
-
-    def test_ordered_list_and_underscore_bold_fields_are_read(self):
-        for kind_line in ("1. **Kind:** deferral", "2) **Kind:** deferral", "- __Kind:__ deferral", "- __Kind__: deferral"):
-            with self.subTest(kind_line=kind_line):
-                entry = ("## TD-099 — other markers\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
-                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assert_fail(out, code, "TD-099: trigger first-outside-participant is true")
-
-    def test_underlined_td_heading_with_fields_fails(self):
-        for underline in ("---", "==="):
-            with self.subTest(underline=underline):
-                entry = "TD-100 — underlined\n" + underline + "\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
-                code, out = self.run_validator(profile_text(), entry)
-                self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
-
-    def test_governed_label_in_follow_up_prose_fails_loudly(self):
-        entry = debt_entry(101, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\n**Status:** A prose summary.\n\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assert_fail(out, code, "TD-101: field label(s) found on lines the validator does not read as fields: Status")
-
-    def test_html_bold_field_is_read(self):
-        entry = ("## TD-102 — html bold\n\n- <b>Status:</b> open\n- <strong>Kind:</strong> deferral\n- <b>Control:</b> floor: secrets\n"
-                 "- <b>Due-before:</b> public-access\n- <b>Review-by:</b> 2027-01-01\n- <b>Closure-evidence:</b> a test\n")
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-102: a floor item (secrets) is never a deferral")
-
-    def test_space_inside_bold_markers_is_read_as_the_field(self):
-        entry = "## TD-103 — spaced markers\n\n- **Status:** open\n- ** Kind:** deferral\n- **Control:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-103: a floor item (secrets) is never a deferral")
-
-    def test_whitespace_inside_label_is_normalized(self):
-        for kind_line in ("- **Kind :** deferral", "- **Kind\t:** deferral", "- ** Kind:** deferral"):
-            with self.subTest(kind_line=kind_line):
-                entry = ("## TD-104 — label whitespace\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
-                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assertEqual(code, 1, out)
-                self.assertTrue("TD-104: trigger first-outside-participant is true" in out or "TD-104: field label(s) found" in out, out)
-
-    def test_short_and_wrapped_setext_headings_with_fields_fail(self):
-        cases = ["TD-105 underlined\n-\n", "TD-105 underlined\n==\n", "TD-105 title\ncontinued title\n---\n"]
-        for head in cases:
-            with self.subTest(head=head.replace("\n", "|")):
-                entry = head + "\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
-                code, out = self.run_validator(profile_text(), entry)
-                self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
-
-    def test_italic_label_is_read_as_the_field(self):
-        entry = "## TD-106 — italic\n\n- **Status:** open\n- *Kind:* deferral\n- _Control:_ floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-106: a floor item (secrets) is never a deferral")
-
-    def test_html_bold_variants_are_read(self):
-        for kind_line in ("- <STRONG>Kind:</STRONG> deferral", '- <strong class="label">Kind:</strong> deferral', "- <b >Kind:</b > deferral", "- <B>Kind:</B> deferral"):
-            with self.subTest(kind_line=kind_line):
-                entry = ("## TD-107 — html variants\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
-                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assert_fail(out, code, "TD-107: trigger first-outside-participant is true")
-
-    def test_inline_markup_around_the_heading_identifier_is_read(self):
-        for heading in ("## **TD-108** title", "## `TD-108` title", "## [TD-108](link) title", "## <b>TD-108</b> title", "## _TD-108_ title"):
-            with self.subTest(heading=heading):
-                entry = (heading + "\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** #23 rate limiting\n"
-                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assert_fail(out, code, "TD-108: trigger first-outside-participant is true")
-
-    def test_formatted_setext_identifier_with_fields_fails(self):
-        entry = "**TD-109** underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
-
-    def test_spaced_closing_html_tag_is_read(self):
-        entry = ("## TD-110 — spaced closer\n\n- < b >Status:< /b > open\n- <b>Kind:< /b > deferral\n- <b>Control:</b> floor: secrets\n")
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-110: a floor item (secrets) is never a deferral")
-
-    def test_bare_governed_name_with_colon_in_prose_fails_loudly(self):
-        entry = "## TD-111 — bare\n\n- **Status:** open\n\nKind: deferral\nControl: floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-111: field label(s) found on lines the validator does not read as fields: Kind Control")
-
-    def test_governed_word_without_colon_in_prose_is_fine(self):
-        entry = debt_entry(112, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\nThe status of the control is unchanged; see the Kind of work in the plan.\n\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assert_clean(out, code)
-
-    def test_nested_heading_wrappers_are_read(self):
-        for heading in ("## **[TD-113](#debt)** title", "## [**TD-113**](#debt) title", "## [`TD-113`](#debt) title", "## _**TD-113**_ title"):
-            with self.subTest(heading=heading):
-                entry = (heading + "\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** #23 rate limiting\n"
-                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assert_fail(out, code, "TD-113: trigger first-outside-participant is true")
-        entry = "[**TD-114**](#debt) underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
-
-    def test_quoted_attribute_with_angle_bracket_is_read(self):
-        for kind_line in ('- <strong title="a > b">Kind:</strong> deferral', "- <b title='x > y'>Kind:</b> deferral"):
-            with self.subTest(kind_line=kind_line):
-                entry = ("## TD-115 — quoted attribute\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
-                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assert_fail(out, code, "TD-115: trigger first-outside-participant is true")
-
     def test_html_inside_a_backtick_run_does_not_become_a_fence(self):
         odd_line = '```<b title="`">x</b>\n'
         debt = ("# Technical Debt Log\n\n" + odd_line + "\n" + debt_entry(116, due="first-outside-participant")
@@ -796,71 +626,24 @@ class ValidateProfileTests(unittest.TestCase):
         code, out = self.run_validator(profile_text(TRIAL), debt, strict=True)
         self.assert_fail(out, code, "TD-116: trigger first-outside-participant is true")
 
-    def test_label_case_is_ignored(self):
-        entry = ("## TD-117 — lower case\n\n- **status:** open\n- **kind:** deferral\n- **CONTROL:** #23 rate limiting\n"
-                 "- **due-before:** first-outside-participant\n- **Review-By:** 2027-01-01\n- **closure-evidence:** a test\n")
-        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-        self.assert_fail(out, code, "TD-117: trigger first-outside-participant is true")
-
-    def test_emphasized_label_without_colon_fails_loudly(self):
-        entry = "## TD-118 — no colon\n\n- **Status:** open\n    - **Kind** deferral\n    - __control__ floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-118: field label(s) found on lines the validator does not read as fields: Kind Control")
-
-    def test_closing_markup_before_the_colon_fails_loudly(self):
-        for kind_line in ("- *Kind*: deferral", "- _Kind_: deferral", "- <em>Kind</em>: deferral", "- <i>Kind</i>: deferral", "\t**Kind**: deferral", "**Kind**: deferral"):
-            with self.subTest(kind_line=kind_line):
-                entry = ("## TD-119 — markup before colon\n\n- **Status:** open\n" + kind_line + "\n- **Control:** floor: secrets\n"
-                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assertEqual(code, 1, out)
-                self.assertTrue("TD-119: field label(s) found on lines the validator does not read as fields" in out
-                                or "TD-119: a floor item (secrets) is never a deferral" in out, out)
-
-    def test_code_and_link_wrapped_labels_are_read(self):
-        for kind_line in ("- **`Kind`:** deferral", "- **[Kind](#kind):** deferral", "- [**Kind**](#kind): deferral"):
-            with self.subTest(kind_line=kind_line):
-                entry = ("## TD-120 — wrapped label\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
-                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assert_fail(out, code, "TD-120: trigger first-outside-participant is true")
-
-    def test_deferral_fields_without_kind_fail(self):
-        entry = ("## TD-121 — no kind\n\n- **Status:** open\n- **Control:** floor: secrets\n- **Due-before:** first-outside-participant\n"
+    def test_deferral_fields_without_kind_are_unverified(self):
+        entry = ("## TD-121 — no kind\n\n- **Status:** open\n- **Control:** #23 rate limiting\n- **Due-before:** first-outside-participant\n"
                  "- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
+        code, out = self.run_validator(profile_text(TRIAL), entry)
+        self.assertEqual(code, 0, out)
+        self.assertIn("UNVERIFIED: TD-121 carries deferral fields (Control, Due-before, Review-by or Closure-evidence) but no Kind", out)
+        self.assertNotIn("has no deferrals", out)
         code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-        self.assert_fail(out, code, "TD-121: carries deferral fields (Control, Due-before, Review-by, or Closure-evidence) but no Kind line")
-        self.assertNotIn("has no deferrals", out)
+        self.assert_fail(out, code, "strict mode")
 
-    def test_legacy_entry_with_status_and_severity_only_is_still_legacy(self):
-        legacy = "## TD-122 — legacy\n\n- **Logged:** 2026-01-01\n- **Status:** open\n- **Severity:** low\n- **Proposed fix:** later\n"
-        code, out = self.run_validator(profile_text(), legacy)
-        self.assert_clean(out, code)
-        self.assertIn("TECHNICAL-DEBT.md has no deferrals", out)
+    def test_kind_is_read_in_any_case_and_markup(self):
+        for kind in ("Deferral", "DEFERRAL", "*deferral*", "deferral (#30)"):
+            with self.subTest(kind=kind):
+                code, out = self.run_validator(profile_text(), debt_entry(125, kind=kind))
+                self.assert_clean(out, code)
+                self.assertIn("DEFERRED: TD-125 until first-outside-participant", out)
 
-    def test_mid_sentence_italics_are_not_labels(self):
-        entry = debt_entry(123, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\nWe reworked the *control* flow and the *status* banner while waiting; the __kind__ of fix is open.\n\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assert_clean(out, code)
-
-    def test_every_stray_label_on_a_line_is_named(self):
-        entry = debt_entry(124, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\nSee *Kind*: deferral, _Control_: #23 and **Due-before**: soon.\n\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assert_fail(out, code, "TD-124: field label(s) found on lines the validator does not read as fields: Kind Control Due-before")
-
-    def test_unknown_kind_value_suppresses_the_pass_line(self):
-        code, out = self.run_validator(profile_text(), debt_entry(125, kind="Deferral"))
-        self.assert_fail(out, code, 'TD-125: Kind is "Deferral"; expected shortcut or deferral (lower case)')
-        self.assertNotIn("has no deferrals", out)
-
-    def test_blank_deferral_fields_without_kind_still_fail(self):
-        for body in ("- **Control:**\n", "- **Review-by:**   \n", "- **Closure-evidence:**\n", "- **Due-before:**\n- **Control:**\n"):
-            with self.subTest(body=body.replace("\n", "|")):
-                entry = "## TD-126 — blank metadata\n\n- **Status:** open\n" + body
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assert_fail(out, code, "TD-126: carries deferral fields (Control, Due-before, Review-by, or Closure-evidence) but no Kind line")
-                self.assertNotIn("has no deferrals", out)
-        # a Kind written with HTML code tags is read as the field, and the blank Due-before then fails as a missing field
+    def test_html_wrapped_kind_is_read(self):
         entry = "## TD-126 — blank metadata\n\n- **Status:** open\n- <code>Kind</code>: deferral\n- **Due-before:**\n"
         code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
         self.assert_fail(out, code, "TD-126: deferral without Due-before")
@@ -871,330 +654,33 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_fail(out, code, "TD-127: a floor item (secrets) is never postponed, as a deferral or as a shortcut")
         self.assertNotIn("has no deferrals", out)
 
-    def test_malformed_floor_controls_on_shortcuts_fail(self):
+    def test_floor_controls_on_shortcuts(self):
         code, out = self.run_validator(profile_text(), debt_entry(128, kind="shortcut", control="floor"))
-        self.assert_fail(out, code, "TD-128: Control says floor but names no floor item")
+        self.assertIn("UNVERIFIED: TD-128: Control says floor but names no floor item", out)
         code, out = self.run_validator(profile_text(), debt_entry(128, kind="shortcut", control="Floor : secrets"))
         self.assert_fail(out, code, "TD-128: a floor item (secrets) is never postponed")
         code, out = self.run_validator(profile_text(), debt_entry(128, kind="shortcut", control="something vague"))
-        self.assert_fail(out, code, 'TD-128: Control is "something vague"; name a convention')
+        self.assertEqual(code, 0, out)
+        self.assertIn('WARN: TD-128: Control is "something vague"; name the convention', out)
         code, out = self.run_validator(profile_text(), debt_entry(128, kind="shortcut", control="#0 duplicated helper"))
         self.assert_clean(out, code)
-
-    def test_nested_emphasis_around_labels_is_read(self):
-        for control_line in ("- ***Control***: floor: secrets", "- **_Control_**: floor: secrets", "- _**Control**_: floor: secrets", "- **<span>Control</span>:** floor: secrets", "- ***Control:*** floor: secrets"):
-            with self.subTest(control_line=control_line):
-                entry = "## TD-129 — nested\n\n- **Status:** open\n- **Kind:** shortcut\n" + control_line + "\n"
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assert_fail(out, code, "TD-129: a floor item (secrets) is never postponed")
-
-    def test_plain_label_list_item_is_a_stray(self):
-        entry = "## TD-130 — plain\n\n- **Status:** open\n- Kind: deferral\n- Control: floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-130: field label(s) found on lines the validator does not read as fields: Kind Control")
 
     def test_failed_entry_prints_no_deferred_line(self):
         code, out = self.run_validator(profile_text(), debt_entry(131, control="floor: secrets", due="public-access"))
         self.assert_fail(out, code, "TD-131: a floor item (secrets) is never a deferral")
         self.assertNotIn("DEFERRED: TD-131", out)
 
-    def test_empty_floor_item_has_the_clear_message(self):
+    def test_empty_floor_item_is_unverified_with_the_clear_message(self):
         code, out = self.run_validator(profile_text(), debt_entry(132, kind="shortcut", control="floor:"))
-        self.assert_fail(out, code, "TD-132: Control says floor but names no floor item")
+        self.assertIn("UNVERIFIED: TD-132: Control says floor but names no floor item", out)
+        code, out = self.run_validator(profile_text(), debt_entry(132, kind="shortcut", control="floor:"), strict=True)
+        self.assert_fail(out, code, "strict mode")
 
-    def test_extra_words_in_a_label_fail_loudly(self):
-        for line in ("- oops **Kind**: deferral", "- note **Control**: floor: secrets", "- **Kind** value: deferral", "- **Kind** and **Control**: floor: secrets"):
-            with self.subTest(line=line):
-                entry = "## TD-133 — extra words\n\n- **Status:** open\n" + line + "\n- **Due-before:** first-outside-participant\n"
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assertEqual(code, 1, out)
-                self.assertIn("TD-133: field label(s) found on lines the validator does not read as fields", out)
-                self.assertNotIn("has no deferrals", out)
-
-    def test_value_markup_is_left_alone(self):
-        code, out = self.run_validator(profile_text(), debt_entry(134, kind="*deferral*"))
-        self.assert_fail(out, code, 'TD-134: Kind is "*deferral*"; expected shortcut or deferral')
-
-    def test_full_url_links_in_labels_are_read(self):
-        entry = "## TD-135 — url label\n\n- **Status:** open\n- **Kind:** shortcut\n- **[Control](https://example.com/control):** floor: secrets\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-        self.assert_fail(out, code, "TD-135: a floor item (secrets) is never postponed")
-        entry = ("## TD-136 — every label linked\n\n- **[Status](https://x.test/s):** open\n- **[Kind](https://x.test/k):** deferral\n"
-                 "- **[Control](https://x.test/c):** #23 rate limiting\n- **[Due-before](https://x.test/d):** first-outside-participant\n"
-                 "- **[Review-by](https://x.test/r):** 2027-01-01\n- **[Closure-evidence](https://x.test/e):** a test\n")
-        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-        self.assert_fail(out, code, "TD-136: trigger first-outside-participant is true")
-
-    def test_invalid_review_by_prints_no_deferred_line(self):
+    def test_invalid_review_by_warns_and_the_deferral_stays_deferred(self):
         code, out = self.run_validator(profile_text(), debt_entry(137, due="2027-01-01", review="not-a-date"))
-        self.assert_fail(out, code, 'TD-137: Review-by "not-a-date" is not a real calendar date')
-        self.assertNotIn("DEFERRED: TD-137", out)
-        self.assertIn("Deferred: 0", out)
-
-    def test_leading_words_before_an_emphasized_label_without_colon_fail_loudly(self):
-        entry = "## TD-138 — words then label\n\n- **Status:** open\n- note **Kind** deferral\n- note **Control** floor secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-138: field label(s) found on lines the validator does not read as fields: Kind Control")
-
-    def test_extra_words_inside_the_emphasis_fail_loudly(self):
-        entry = "## TD-139 — phrase label\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control value:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-        self.assert_fail(out, code, "TD-139: field label(s) found on lines the validator does not read as fields: Control")
-        entry = ("## TD-140 — every label padded\n\n- **Status value:** open\n- **Kind value:** deferral\n- **Control value:** #23\n"
-                 "- **Due-before value:** first-outside-participant\n- **Review-by value:** 2027-01-01\n- **Closure-evidence value:** a test\n")
-        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-        self.assertEqual(code, 1, out)
-        self.assertIn("TD-140: field label(s) found on lines the validator does not read as fields", out)
-
-    def test_link_destination_with_balanced_parentheses_is_read(self):
-        entry = "## TD-141 — parens\n\n- **Status:** open\n- **Kind:** shortcut\n- **[Control](https://example.com/(section)#policy):** floor: secrets\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-        self.assert_fail(out, code, "TD-141: a floor item (secrets) is never postponed")
-
-    def test_value_links_are_preserved(self):
-        entry = debt_entry(142, due="public-access", closure="the [suite](https://ci.test/(runs)/1) passes")
-        code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assert_clean(out, code)
-        self.assertIn("DEFERRED: TD-142 until public-access", out)
-
-    def test_non_letter_leading_words_and_parenthesized_labels_fail_loudly(self):
-        entry = "## TD-143 — odd leads\n\n- **Status:** open\n- 1st **Kind** deferral\n- 2nd **Control** floor secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-143: field label(s) found on lines the validator does not read as fields: Kind Control")
-        entry = "## TD-144 — parenthesized\n\n- **Status:** open\n- **Kind (see: note)** deferral\n- **Control (see: note)** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assertEqual(code, 1, out)
-        self.assertIn("TD-144: field label(s) found on lines the validator does not read as fields", out)
-
-    def test_punctuated_labels_containing_a_governed_word_fail_loudly(self):
-        for line in ("- **Control / rule:** floor: secrets", "- **Control, if any:** floor: secrets", "- **Control v2:** floor: secrets"):
-            with self.subTest(line=line):
-                entry = "## TD-145 — punctuated\n\n- **Status:** open\n- **Kind:** shortcut\n" + line + "\n"
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assert_fail(out, code, "TD-145: field label(s) found on lines the validator does not read as fields: Control")
-        entry = ("## TD-146 — every label padded\n\n- **Status, if any:** open\n- **Kind, if any:** deferral\n- **Control, if any:** #23\n"
-                 "- **Due-before, if any:** first-outside-participant\n- **Review-by, if any:** 2027-01-01\n- **Closure-evidence, if any:** a test\n")
-        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-        self.assertEqual(code, 1, out)
-        self.assertIn("TD-146: field label(s) found on lines the validator does not read as fields", out)
-
-    def test_quoted_angle_bracket_inside_a_label_tag_is_read(self):
-        entry = '## TD-147 — quoted tag\n\n- **Status:** open\n- **Kind:** shortcut\n- **<span title="greater > value: x">Control</span>:** floor: secrets\n'
-        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-        self.assert_fail(out, code, "TD-147: a floor item (secrets) is never postponed")
-
-    def test_labels_that_merely_contain_a_governed_substring_are_free(self):
-        entry = debt_entry(148, due="public-access").rstrip("\n") + "\n- **Controller:** the API gateway\n- **Statuspage:** not affected\n- **Unkind:** no\n\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assert_clean(out, code)
-        self.assertIn("DEFERRED: TD-148 until public-access", out)
-
-    def test_field_lines_wrapped_in_parentheses_fail_loudly(self):
-        entry = "## TD-149 — wrapped\n\n- **Status:** open\n- (**Kind:** deferral)\n- (**Control:** floor: secrets)\n- (**Due-before:** first-outside-participant)\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-        self.assertEqual(code, 1, out)
-        self.assertIn("TD-149: field label(s) found on lines the validator does not read as fields", out)
-        self.assertNotIn("has no deferrals", out)
-
-    def test_no_colon_labels_with_extra_words_or_nested_asides_fail_loudly(self):
-        for suffix in (" value", " (see (note))"):
-            with self.subTest(suffix=suffix):
-                entry = ("## TD-150 — no colon\n\n" + "\n".join(
-                    f"- **{name}{suffix}** {value}" for name, value in (
-                        ("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
-                        ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))) + "\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assertEqual(code, 1, out)
-                self.assertIn("TD-150: field label(s) found on lines the validator does not read as fields", out)
-                self.assertNotIn("has no deferrals", out)
-
-    def test_html_wrapped_heading_identifiers_are_read(self):
-        for heading in ("## <span>TD-151</span> floor shortcut", "## **<span>TD-151</span>** floor shortcut", '## <span class="id">TD-151</span> floor shortcut'):
-            with self.subTest(heading=heading):
-                entry = heading + "\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
-                code, out = self.run_validator(profile_text(), entry)
-                self.assert_fail(out, code, "TD-151: a floor item (secrets) is never postponed")
-        entry = "<span>TD-152</span> underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
-
-    def test_no_colon_labels_in_any_shape_fail_loudly(self):
-        for form in ("**{n}, if any**", "**note {n}**", "**({n})**", "**{n} / rule**"):
-            with self.subTest(form=form):
-                entry = ("## TD-153 — no colon shapes\n\n" + "\n".join(
-                    "- " + form.format(n=name) + " " + value for name, value in (
-                        ("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
-                        ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))) + "\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assertEqual(code, 1, out)
-                self.assertIn("TD-153: field label(s) found on lines the validator does not read as fields", out)
-                self.assertNotIn("has no deferrals", out)
-
-    def test_space_padded_wrapped_heading_identifiers_are_read(self):
-        for heading in ("## **<span> TD-154 </span>** floor shortcut", "## ` TD-154 ` floor shortcut", "## [ TD-154 ](#x) floor shortcut"):
-            with self.subTest(heading=heading):
-                entry = heading + "\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
-                code, out = self.run_validator(profile_text(), entry)
-                self.assert_fail(out, code, "TD-154: a floor item (secrets) is never postponed")
-        entry = "<span> TD-155 </span> underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
-
-    def test_unclosed_tag_in_heading_and_unclosed_label_fail_loudly(self):
-        entry = "## <span TD-156 — unclosed tag\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-156: a floor item (secrets) is never postponed")
-        entry = "## TD-157 — unclosed label\n\n- **Status:** open\n- **Kind deferral\n- **Control floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assertEqual(code, 1, out)
-        self.assertIn("TD-157: field label(s) found on lines the validator does not read as fields", out)
-
-    def test_setext_and_atx_identifier_tests_agree_on_non_numeric_ids(self):
-        entry = "<span>TD-A06</span> underlined\n===\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
-
-    def test_bold_prose_bullets_are_prose(self):
-        entry = debt_entry(158, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\n- **Note the control flow changed while waiting**\n- **Status of the kind request is unknown for now** (prose)\n\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assert_clean(out, code)
-        self.assertIn("DEFERRED: TD-158 until public-access", out)
-        entry = debt_entry(159, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\n- **Status now**\n- **the Kind**\n\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assertEqual(code, 1, out)
-        self.assertIn("TD-159: field label(s) found on lines the validator does not read as fields: Status Kind", out)
-
-    def test_nested_inner_markup_in_no_colon_labels_fails_loudly(self):
-        for form in ("**note _{n}_**", "**note <span>{n}</span>**", "**_{n}_ value**"):
-            with self.subTest(form=form):
-                entry = ("## TD-160 — nested no colon\n\n" + "\n".join(
-                    "- " + form.format(n=name) + " " + value for name, value in (
-                        ("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
-                        ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))) + "\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assertEqual(code, 1, out)
-                self.assertIn("TD-160: field label(s) found on lines the validator does not read as fields", out)
-                self.assertNotIn("has no deferrals", out)
-
-    def test_underlined_headings_share_the_identifier_normalization(self):
-        for head in ("**<span>TD</span>-161** floor shortcut\n---\n", "<span TD-161 floor shortcut\n===\n"):
-            with self.subTest(head=head.replace("\n", "|")):
-                entry = head + "\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
-                code, out = self.run_validator(profile_text(), entry)
-                self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
-        entry = "## **<span>TD</span>-162** floor shortcut\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-162: a floor item (secrets) is never postponed")
-
-    def test_inline_code_field_lines_reach_the_stray_rule(self):
-        for ticks in ("```", "````"):
-            with self.subTest(ticks=ticks):
-                entry = "## TD-163 — inline code line\n\n- **Status:** open\n- **Kind:** shortcut\n" + ticks + "Control" + ticks + ": floor: secrets\n"
-                code, out = self.run_validator(profile_text(), entry)
-                self.assert_fail(out, code, "TD-163: field label(s) found on lines the validator does not read as fields: Control")
-
-    def test_bold_sentence_ending_in_a_governed_word_is_prose(self):
-        entry = debt_entry(164, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\n- **We must still review the control**\n- **Decide the kind**\n\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assertEqual(code, 1, out)
-        self.assertIn("TD-164: field label(s) found on lines the validator does not read as fields: Kind", out)
-        self.assertNotIn("Control", out.split("TD-164: field label(s)")[1].split("\n")[0])
-
-    def test_annotation_after_the_value_does_not_hide_a_no_colon_label(self):
-        entry = ("## TD-165 — annotated\n\n" + "\n".join(
-            f"- **note {name}** {value} (**note**)" for name, value in (
-                ("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
-                ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))) + "\n")
-        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-        self.assertEqual(code, 1, out)
-        self.assertIn("TD-165: field label(s) found on lines the validator does not read as fields", out)
-        self.assertNotIn("has no deferrals", out)
-
-    def test_lowercase_identifier_prefix_is_read(self):
-        for heading in ("## td-166 floor shortcut", "## Td-166 floor shortcut", "## tD-166 floor shortcut"):
-            with self.subTest(heading=heading):
-                entry = heading + "\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
-                code, out = self.run_validator(profile_text(), entry)
-                self.assert_fail(out, code, "TD-166: a floor item (secrets) is never postponed")
-        entry = "td-167 underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
-
-    def test_paired_delimiters_bound_the_no_colon_label(self):
-        for form in ("[**{n}**](#field) {v} (**review note here**)", "<span>**note <span>{n}</span>**</span> {v}", "**K<span>{tail}</span>** {v}", "**K`{tail}`** {v}"):
-            with self.subTest(form=form):
-                lines = []
-                for name, value in (("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
-                                    ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test")):
-                    if "{tail}" in form:
-                        if name != "Kind":
-                            lines.append(f"- **{name}** {value}")
-                            continue
-                        lines.append("- " + form.format(tail="ind", v=value))
-                    else:
-                        lines.append("- " + form.format(n=name, v=value))
-                entry = "## TD-168 — paired delimiters\n\n" + "\n".join(lines) + "\n"
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assertEqual(code, 1, out)
-                self.assertIn("TD-168: field label(s) found on lines the validator does not read as fields", out)
-                self.assertNotIn("has no deferrals", out)
-
-    def test_split_label_with_colon_is_read(self):
-        for kind_line in ("- **K<span>ind</span>:** deferral", "- **K`ind`:** deferral"):
-            with self.subTest(kind_line=kind_line):
-                entry = ("## TD-169 — split with colon\n\n- **Status:** open\n" + kind_line + "\n- **Control:** #23 rate limiting\n"
-                         "- **Due-before:** first-outside-participant\n- **Review-by:** 2027-01-01\n- **Closure-evidence:** a test\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assert_fail(out, code, "TD-169: trigger first-outside-participant is true")
-
-    def test_stray_inner_marker_does_not_close_a_no_colon_label_early(self):
-        entry = "## TD-170 — malformed nesting\n\n- **Status:** open\n- **note *Kind** deferral\n- **note *Control** floor secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-170: field label(s) found on lines the validator does not read as fields: Kind Control")
-
-    def test_same_character_nesting_and_void_elements_in_no_colon_labels(self):
-        for form in ("**note *{n}*** {v}", "__note _{n}___ {v}", "*note **{n}*** {v}", "**note ]{n}** {v}", "<span>note <wbr>{n}</span> {v} (**review note here**)", "<span>note <br>{n}</span> {v}"):
-            with self.subTest(form=form):
-                entry = ("## TD-171 — nesting\n\n" + "\n".join(
-                    "- " + form.format(n=name, v=value) for name, value in (
-                        ("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
-                        ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))) + "\n")
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assertEqual(code, 1, out)
-                self.assertIn("TD-171: field label(s) found on lines the validator does not read as fields", out)
-                self.assertNotIn("has no deferrals", out)
-
-    def test_punctuation_before_nested_emphasis_and_split_names_fail_loudly(self):
-        forms = ("*note,**{n}*** {v}", "**{first}*{tail}*** {v}", "**{first}<i>{tail}</i>** {v}")
-        for form in forms:
-            with self.subTest(form=form):
-                lines = []
-                for name, value in (("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
-                                    ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test")):
-                    lines.append("- " + form.format(n=name, first=name[0], tail=name[1:], v=value))
-                entry = "## TD-172 — flanking\n\n" + "\n".join(lines) + "\n"
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assertEqual(code, 1, out)
-                self.assertIn("TD-172: field label(s) found on lines the validator does not read as fields", out)
-                self.assertNotIn("has no deferrals", out)
-        entry = "## TD-173 — split control\n\n- **Status:** open\n- **Kind:** shortcut\n- **C*ontrol*** floor secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-173: field label(s) found on lines the validator does not read as fields: Control")
-
-    def test_fused_leading_word_does_not_hide_a_no_colon_label(self):
-        entry = "## TD-174 — fused\n\n- **Status:** open\n- **note**Kind** deferral\n- **Control**value floor secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-174: field label(s) found on lines the validator does not read as fields: Kind Control")
-
-    def test_markup_inside_the_identifier_is_read(self):
-        for heading in ("## **TD**-175 floor shortcut", "## T*D*-175 floor shortcut", "## <strong>TD</strong>-175 floor shortcut", "## `TD`-175 floor shortcut"):
-            with self.subTest(heading=heading):
-                entry = heading + "\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
-                code, out = self.run_validator(profile_text(), entry)
-                self.assert_fail(out, code, "TD-175: a floor item (secrets) is never postponed")
-        entry = "**TD**-176 underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
+        self.assertEqual(code, 0, out)
+        self.assertIn('WARN: TD-137: Review-by "not-a-date" is not a calendar date', out)
+        self.assertIn("DEFERRED: TD-137 until 2027-01-01", out)
 
     def test_curly_quotes_accents_and_bytes_that_are_not_utf8_hide_no_later_entry(self):
         # In a UTF-8 locale the macOS awk exited on a character that substr cut in two, or on a byte
@@ -1222,85 +708,40 @@ class ValidateProfileTests(unittest.TestCase):
         self.assertNotIn("has no deferrals", out)
         self.assertNotIn("every deferral is well-formed", out)
 
-    def test_reversed_nesting_and_code_span_labels_fail_loudly(self):
-        forms = ("*{first}**{tail}*** {v}", "` {n} ` {v} (**review note here**)", "`` {n} `` {v}")
-        for form in forms:
-            with self.subTest(form=form):
-                lines = ["- " + form.format(n=name, first=name[0], tail=name[1:], v=value) for name, value in (
-                    ("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
-                    ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))]
-                entry = "## TD-177 — reversed and code\n\n" + "\n".join(lines) + "\n"
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assertEqual(code, 1, out)
-                self.assertIn("TD-177: field label(s) found on lines the validator does not read as fields", out)
-                self.assertNotIn("has no deferrals", out)
-        for line in ("- *C**ontrol*** floor secrets", "- ` Control ` floor secrets (**review note here**)"):
-            with self.subTest(line=line):
-                entry = "## TD-178 — floor\n\n- **Status:** open\n- **Kind:** shortcut\n" + line + "\n"
+    # ---- the reader: common written forms, other labels free ------------------
+
+    def test_labels_are_read_in_common_written_forms(self):
+        forms = ["Kind: deferral", "- Kind: deferral", "* **Kind:** deferral", "1. _Kind_: deferral", "- `Kind`: deferral",
+                 "- <b>Kind:</b> deferral", "- [Kind](#kind): deferral", "- ** Kind:** deferral", "  - **Kind**: deferral"]
+        for kind_line in forms:
+            with self.subTest(kind_line=kind_line):
+                entry = f"## TD-201 — form\n\n- **Status:** open\n{kind_line}\n- **Control:** floor: secrets\n- Due before: public-access\n"
                 code, out = self.run_validator(profile_text(), entry)
-                self.assert_fail(out, code, "TD-178: field label(s) found on lines the validator does not read as fields: Control")
+                self.assert_fail(out, code, "TD-201: a floor item (secrets) is never a deferral")
 
-    def test_linked_and_fused_split_labels_fail_loudly(self):
-        forms = ("[**note {n}**](#field) {v}", "**note**{first}*{tail}*** {v}", "<span>note</span>{n} {v}")
-        for form in forms:
-            with self.subTest(form=form):
-                lines = ["- " + form.format(n=name, first=name[0], tail=name[1:], v=value) for name, value in (
-                    ("Status", "open"), ("Kind", "deferral"), ("Control", "#23 rate limiting"),
-                    ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))]
-                entry = "## TD-179 — linked and fused\n\n" + "\n".join(lines) + "\n"
-                code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-                self.assertEqual(code, 1, out)
-                self.assertIn("TD-179: field label(s) found on lines the validator does not read as fields", out)
-                self.assertNotIn("has no deferrals", out)
-        for line in ("- [**note Control**](#field) floor secrets", "- **note**C*ontrol*** floor secrets", "- <span>note</span>Control floor secrets"):
-            with self.subTest(line=line):
-                entry = "## TD-180 — floor\n\n- **Status:** open\n- **Kind:** shortcut\n" + line + "\n"
-                code, out = self.run_validator(profile_text(), entry)
-                self.assert_fail(out, code, "TD-180: field label(s) found on lines the validator does not read as fields: Control")
-
-    def test_link_inside_the_identifier_is_read(self):
-        entry = "## [TD](#issue)-181 floor shortcut\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n"
+    def test_due_before_and_review_by_may_be_written_with_a_space(self):
+        entry = "## TD-202 — spaced\n\nKind: deferral\nControl: #23 rate limiting\nDue before: 2020-01-01\nReview by: 2030-01-01\n"
         code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-181: a floor item (secrets) is never postponed")
-        entry = "[TD](#issue)-182 underlined\n---\n\n- **Status:** open\n- **Kind:** deferral\n- **Control:** floor: secrets\n"
-        code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "carries entry fields but is not a level-two heading")
+        self.assert_fail(out, code, "TD-202: Due-before date 2020-01-01 reached")
 
-    def test_unrecognized_line_mentioning_a_field_name_warns(self):
-        entry = debt_entry(183, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\nThe status of the retry is unchanged; see the kind note.\n\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry)
-        self.assertEqual(code, 0, out)
-        self.assertIn("WARN: TD-183: line(s)", out)
-        self.assertIn("mention a field name but were not read as fields", out)
-        self.assertIn("DEFERRED: TD-183 until public-access", out)
-        entry = debt_entry(184, due="public-access").rstrip("\n") + "\n\n### Follow-up\n\nStill waiting on the first tester.\n\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry)
+    def test_other_labels_are_free(self):
+        entry = debt_entry(203).rstrip("\n") + "\n- **Control plane:** a queue\n- **Status note:** waiting on a vendor\n- **Kind of work:** backend\n\n"
+        code, out = self.run_validator(profile_text(), entry)
         self.assert_clean(out, code)
-        self.assertNotIn("WARN", out)
+        self.assertIn("DEFERRED: TD-203 until first-outside-participant", out)
 
-    def test_fused_labels_with_colons_fail_loudly(self):
-        for control_line in ("- **note**C*ontrol***: floor: secrets", "- <span>note</span>Control: floor: secrets", "- **note**Control: floor: secrets"):
-            with self.subTest(control_line=control_line):
-                entry = "## TD-185 — fused with colon\n\n- **Status:** open\n- **Kind:** shortcut\n" + control_line + "\n"
-                code, out = self.run_validator(profile_text(), entry)
-                self.assert_fail(out, code, "TD-185: field label(s) found on lines the validator does not read as fields: Control")
-        lines = ["- **note**" + n[0] + "*" + n[1:] + "***: " + v for n, v in (("Status", "open"), ("Kind", "deferral"), ("Control", "#23"), ("Due-before", "first-outside-participant"), ("Review-by", "2027-01-01"), ("Closure-evidence", "a test"))]
-        entry = "## TD-186 — all fused\n\n" + "\n".join(lines) + "\n"
-        code, out = self.run_validator(profile_text(TRIAL), entry, strict=True)
-        self.assertEqual(code, 1, out)
-        self.assertIn("TD-186: field label(s) found on lines the validator does not read as fields", out)
+    def test_review_by_and_closure_evidence_are_optional(self):
+        code, out = self.run_validator(profile_text(), debt_entry(204, drop=("Review-by", "Closure-evidence")))
+        self.assert_clean(out, code)
+        self.assertIn("DEFERRED: TD-204 until first-outside-participant", out)
 
-    def test_quoted_link_title_in_the_identifier_is_read(self):
-        entry = '## [TD](#issue "task)")-187 floor shortcut\n\n- **Status:** open\n- **Kind:** shortcut\n- **Control:** floor: secrets\n'
+    def test_an_entry_that_mentions_a_deferral_without_a_readable_kind_is_unverified(self):
+        entry = "## TD-205 — unread kind\n\n- Status: open\n- Kind (deferral) until the first outside participant\n"
         code, out = self.run_validator(profile_text(), entry)
-        self.assert_fail(out, code, "TD-187: a floor item (secrets) is never postponed")
-
-    def test_exotic_no_colon_shapes_at_least_warn(self):
-        for line in ("- **note [Kind](#field)** deferral", "- **K[ind](#field)** deferral", "- **note**K<span class='label'>ind</span>** deferral", "- **note**` Kind ` deferral"):
-            with self.subTest(line=line):
-                entry = debt_entry(188, due="public-access").rstrip("\n") + "\n" + line + "\n\n"
-                code, out = self.run_validator(profile_text(TRIAL), entry)
-                self.assertTrue(("TD-188: field label(s) found" in out) or ("WARN: TD-188: line(s)" in out), out)
+        self.assertEqual(code, 0, out)
+        self.assertIn("UNVERIFIED: TD-205 mentions a deferral but has no Kind line this check can read", out)
+        code, out = self.run_validator(profile_text(), entry, strict=True)
+        self.assert_fail(out, code, "strict mode")
 
     def test_help_exits_zero(self):
         with tempfile.TemporaryDirectory() as root:

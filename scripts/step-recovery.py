@@ -125,6 +125,12 @@ def decision_records(project: Path, cwd: Path) -> dict[str, bytes]:
         if status not in DECISION_STATUSES:
             issues.append(f"{decision_id} has no readable Status (proposed, accepted, superseded or retired)" if not status
                           else f"{decision_id} has unsupported Status: {values['Status']}")
+        if status == "accepted":
+            for label in ("Decision", "Reason", "Authority"):
+                value = values[label]
+                plain = re.sub(r"[*_`]", "", value).strip().lower()
+                if (value.startswith("[") and value.endswith("]")) or plain in {"pending", "todo", "tbd"}:
+                    issues.append(f"{decision_id} {label} is still a template placeholder")
         links: dict[str, list[str]] = {}
         for label in ("Depends on", "Supersedes"):
             raw = values[label]
