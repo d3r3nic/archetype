@@ -1,69 +1,54 @@
 # Convention #23: Application Security
 
+## Applies when
+
+Every project. The floor in #30 applies whenever the protected asset or the hazardous capability exists. What varies by shape: what the product exposes (a service on a network, pages served to browsers, a device app, a local tool), what data it holds, and which regimes apply to that data (#30). Browser-specific protections apply to products that browsers load.
+
 ## Principle
 
-Security is not a feature — it's a property of every feature. Every input is validated. Every output is encoded. Every secret is managed, never hardcoded. Every error message hides internal details. Every dependency is scanned. AI does not apply security controls unless told to, so security conventions must be explicit.
+Security is a property of every feature, not a feature. Every input from outside is validated, every output is encoded for where it goes, every secret is managed and never written into code, and every error hides the system's internals. The security system is shared: features use one validation, one output encoding, one secret source and one audit trail. They never build their own.
 
 ## Reusable System
 
-Create a security foundation that establishes:
-- Input validation middleware that runs on every endpoint (allowlist approach: only permit known fields, strip everything else)
-- Output encoding utilities that prevent XSS (the framework's template engine usually handles this, but raw HTML rendering must be explicitly sanitized)
-- Security header configuration applied globally (CSP, HSTS, X-Frame-Options, X-Content-Type-Options)
-- CORS configuration with explicit origin allowlist (never wildcard with credentials)
-- CSRF protection on state-mutating requests (SameSite cookies, CSRF tokens)
-- Rate limiting on public endpoints and authentication endpoints
-- Secret management: all secrets from environment variables or a vault, never in code
-- Audit logging service (SEPARATE from app logging): who did what, when, from where. Different retention, mutability, and access controls than app logs. Required for regulated data (HIPAA, SOC 2, PCI, GDPR audit-trail, financial). See `backend/conventions/B4-logging.md` for the app-log vs audit-log distinction.
+The security foundation, sized to what the product exposes:
+- Input validation at every entry point, allowlisting the fields each accepts (#7).
+- Output encoding for every destination (pages, queries, commands, files); raw markup is rendered only after sanitizing.
+- Secrets from the environment or a secret store, never from code.
+- For products browsers load: the security headers current guidance recommends, an explicit list of allowed cross-origin callers, and protection of state-changing requests from cross-site forgery.
+- Rate limiting on public and authentication endpoints, and on anything expensive, when the product is reachable by people outside the owner's control.
+- An audit trail kept separate from application logs when regulated data or a commitment requires one (#30, B4).
+
+References.md records each piece and where it lives.
 
 ## Rules
 
-- Validate all user input at entry points. Use allowlisting (permit known fields only). Never pass raw user input to services, databases, or templates without validation and sanitization.
-- Never render unsanitized user content. Use the framework's built-in escaping. If you must render raw HTML, sanitize with a library first.
-- Configure security headers globally: Content-Security-Policy, Strict-Transport-Security, X-Frame-Options, X-Content-Type-Options, Referrer-Policy. Research the framework's recommended security middleware.
-- Configure CORS with specific origin allowlists. Never use wildcard (*) with credentials. Understand that preflight OPTIONS requests must be handled.
-- Protect state-mutating requests against CSRF. Use SameSite cookie attribute and/or CSRF tokens.
-- Rate limit public endpoints, authentication endpoints (login, register, password reset), and any endpoint that triggers expensive operations.
-- Never hardcode secrets. All secrets come from environment variables or a secret vault. Rotate secrets periodically. Never commit .env files with real values.
-- Never expose internal error details to API consumers. Stack traces, database error messages, file paths, and internal IDs must not appear in production error responses. Log them internally, return a generic message with a correlation ID.
-- Encrypt sensitive data at rest (PII, financial data, health records). Use field-level encryption for the most sensitive fields (SSNs, credit cards). Use database-level encryption (TDE) as a baseline.
-- All connections use TLS. Never transmit sensitive data over unencrypted channels.
-- Scan dependencies for known vulnerabilities in CI. Use lockfile integrity checks. Audit new dependencies before adding them.
-- Log security-relevant events: authentication attempts (success and failure), authorization denials, data access to sensitive resources, admin actions, configuration changes. Include correlation ID, user ID, timestamp, and action.
-- Handle PII according to applicable regulations. Minimize collection. Define retention periods. Implement deletion capability. Mask or redact PII in logs and non-production environments.
+- Validate all outside input where it enters. Permit known fields only; never pass raw input to storage, queries, templates or commands.
+- Encode output for its destination. Never render people's content as raw markup unless it is sanitized first.
+- Never write a secret into code or commit one. Secrets come from the environment or a secret store, and are replaced when they may have leaked.
+- Never show internal details to callers: no stack traces, storage errors, file paths or internal identifiers. Log them with a correlation identifier and return a plain message carrying that identifier.
+- Encrypt connections that carry anything sensitive.
+- Encrypt sensitive data at rest, and give the most sensitive fields their own protection when the facts call for it (#30).
+- Check dependencies for known vulnerabilities in the project's checks, keep a lock on exact versions, and review a new dependency before adding it.
+- Record security-relevant events: sign-in attempts, access denials, access to sensitive records, administrative actions, configuration changes.
+- Handle personal data by the rules that apply to it: collect the minimum, set retention, provide deletion and export, and keep it out of logs and non-production copies (#30).
 
 ## Violations
 
-- Endpoint accepts any JSON body and passes it to the database without validation. Injection risk.
-- User content rendered as raw HTML without sanitization. XSS risk.
-- No security headers configured. Clickjacking, MIME sniffing, protocol downgrade risks.
-- CORS configured with Access-Control-Allow-Origin: * with credentials. Any origin can make authenticated requests.
-- No rate limiting on login endpoint. Brute force attack possible.
-- API key hardcoded in source code and committed to git.
-- Production error response includes the full stack trace and database connection string.
-- SSNs stored in plain text in the database. No encryption at rest.
-- No dependency vulnerability scanning. Known CVEs in production dependencies.
-- No audit log. An admin deletes a user's data and there's no record of who did it or when.
+- An endpoint that passes an unvalidated body to storage.
+- People's content rendered as raw markup without sanitizing.
+- A browser-served product with no security headers, or one that accepts credentialed requests from any origin.
+- A public sign-in with no limit on attempts.
+- A secret in source code or in history.
+- A production error that shows a stack trace or a connection address.
+- Sensitive records stored unencrypted.
+- No record of who changed or deleted sensitive data.
 
 ## Wrong vs Right
 
-- WRONG: endpoint accepts request body and passes it directly to a database query. Attacker sends crafted input that modifies the query.
-- RIGHT: endpoint validates against a strict schema (allowlist of known fields, type checks, length limits), strips unknown fields, then passes clean typed data to the service layer.
-- WRONG: production error returns { error: "TypeError: Cannot read property 'name' of undefined at /app/src/handlers/users.ts:42" }. Attacker learns the tech stack, file paths, and where the code is fragile.
-- RIGHT: production error returns { error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred", requestId: "abc-123" } }. Full details logged internally with the same requestId for debugging.
-- WRONG: .env file with DATABASE_URL=postgres://admin:password123@prod-db.example.com:5432/myapp committed to git.
-- RIGHT: .env.example committed with variable names and descriptions. Actual values in environment variables or secret vault. CI verifies no secrets in committed files.
+- WRONG: an endpoint passes the request body straight into a query, and crafted input rewrites it. RIGHT: the endpoint validates against its allowlist, drops unknown fields, and passes clean data to its owner.
+- WRONG: a production error returns the exception, the source file and the line. RIGHT: it returns a plain message and a request identifier; the details are in the log under that identifier.
+- WRONG: an environment file with the production database password is committed. RIGHT: an example file lists the variable names and what they are for; the values live in the environment or a secret store, and a check keeps secrets out of commits.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention:
-- Research the framework's recommended security-header middleware
-- Research CORS configuration for the framework
-- Research CSRF protection patterns for the framework (SameSite cookies, token-based)
-- Research rate limiting middleware for the framework
-- Research dependency scanning that integrates with the project's CI (the package manager's audit command and, if warranted, a dedicated scanner)
-- Research encryption patterns for the language (field-level encryption, key management)
-- Research audit logging patterns for the framework
-- Document the security middleware, CORS config, rate limit settings, and audit logging in References.md
+Research the current security guidance for what the product exposes, the chosen stack's validation, encoding, header and rate-limiting options, dependency scanning for its package manager, encryption and key management for its storage, and the rules for the data it holds (#30). Record each piece of the security foundation in References.md.

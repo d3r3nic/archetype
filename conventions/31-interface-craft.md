@@ -1,5 +1,9 @@
 # Convention #31: Interface Craft
 
+## Applies when
+
+The product has an interface people use: screens, pages, a device app, a terminal interface, a game. What varies: the medium, the activity, the accepted direction (#27), and the contexts it is used in. A product with no interface skips this convention.
+
 ## Principle
 
 An interface is good when people can understand and complete the activity it exists to support. The design may have one focused action or many concurrent actions; it may be quiet or continuously changing. Judge it against the owner's intent, the accepted direction, the medium, actual use, relevant current evidence, and access needs. Type, space, color, motion, words, and interaction should help people perceive state and act with confidence.
@@ -90,8 +94,6 @@ Build only the shared design knowledge the project needs:
 A script can verify declared files, references, tokens under a selected token policy, and concrete accessibility checks. It cannot establish that hierarchy, density, motion, wording, or aesthetics fit the activity. The design review examines those judgments against the artifact and observed interaction. A clean automated result is evidence for the checks it ran, not proof of good design.
 
 ## Research Notes
-
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current evidence when the interface system or a materially different activity is designed.
 
 - Research the medium's current interaction, motion, typography, localization, input, and accessibility practices relevant to this product.
 - Start from supplied constraints, accepted direction, actual tasks, primary and committed contexts, session conditions, and existing patterns.

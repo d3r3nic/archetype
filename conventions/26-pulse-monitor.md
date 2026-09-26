@@ -2,13 +2,13 @@
 
 ## Applies when
 
-The project has a scaffolded codebase with declared foundational systems and features (a feature-tree.md and References.md in the conventional shape) and a development environment that can serve a local page or run a local command. Projects without that shape — platform builds, or products with no code surface to inspect — mark #26 not applicable in feature-tree.md with a one-line reason. That is not a violation.
+The project chooses to have one. It helps most when the codebase has declared foundational systems and features (a feature-tree.md and References.md in the conventional shape), several sessions or people change it, and the development environment can serve a local page or run a local command. A project that does not build one records "not applicable" with a one-line reason in feature-tree.md; platform builds and products with no code surface to inspect usually do. That is not a violation.
 
 ## Principle
 
 The developer's pulse on the project. A dev-only surface that shows the scaffolded state — what framework and stack were chosen, what foundational systems were built, what features exist, what architecture emerged — without context-switching between the code host, docs, and the filesystem.
 
-Vibecoding creates silent drift. AI agents add deps, create utilities, generate migrations, touch env vars, wire routes — and the developer wakes up not knowing what got built. The pulse monitor closes that blind spot.
+Code can change faster than anyone reads it: dependencies, utilities, migrations, configuration and routes get added, and the developer loses track of what was built. The pulse monitor closes that blind spot.
 
 Visibility is a first-class concern, not a DevOps afterthought.
 
@@ -45,7 +45,7 @@ Plus drift: the inspector compares declared state with the actual filesystem and
 - Keeping the snapshot or the UI in a folder the production build copies, such as a dev server's public static folder on common stacks.
 - Writing to declared state FROM the pulse monitor (it is read-only).
 - Coupling the UI layer to the inspector implementation (breaks the replaceability intent).
-- Building the inspector in a project-specific language that won't run in other projects (inspector is language-agnostic; bash + portable shell tools).
+- Rewriting the shipped inspector into a form that runs only in this project; the framework's inspector is portable shell, and a project that replaces it keeps the data contract.
 - Adding data to the snapshot without updating the spec contract.
 
 ## Wrong vs Right
@@ -58,8 +58,6 @@ Plus drift: the inspector compares declared state with the actual filesystem and
 - RIGHT: inspector reads convention-mandated paths + respects References.md deviations.
 
 ## Research Notes
-
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 When bootstrapping this convention:
 - Decide where the pulse monitor is served in the project's stack: a dev-only route, a local static server over a project-owned folder the build never copies, a separate CLI, or a local companion window. Depends on project shape.

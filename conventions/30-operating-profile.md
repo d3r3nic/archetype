@@ -1,5 +1,9 @@
 # Convention #30: Operating Profile & Deferral
 
+## Applies when
+
+Every project. The facts it records (who uses the product, what data it holds, what it can do in the world, who depends on it) decide how the other conventions apply: the same rule can be deferred in a private experiment and owed at once in a product people rely on.
+
 ## Principle
 
 How careful a project must be follows from facts, not from a label and not from its age. Who uses it, whether the data is real and about people, whether it can move money or affect someone's health or access, whether anyone depends on it or on its records, what was promised: these set the obligations. A disposable experiment may postpone much of what an operational product owes, but it records every postponement with the trigger that ends it, and a short list of obligations is never postponed at all. The profile is a record the AI derives and keeps current, never a permission slip, and a project label cannot remove an obligation that arises from actual use.
@@ -7,7 +11,7 @@ How careful a project must be follows from facts, not from a label and not from 
 ## Reusable System
 
 - `PROFILE.md` at the repository root: the operating stage, the facts that set it, the decision-authority setting with its source (#29), cost ceilings, the date the facts were last confirmed, and a review condition. The facts block is one `- Key: value` line per fact, each key exactly once, up to the first `##` heading; the parse contract is the one References.md uses. `unknown` is a real value and is never read as "no". The template is templates/profile.md. A fullstack repository has one profile; a product spread over several repositories carries the same facts in each, and the owner channel keeps them aligned.
-- Deferrals in `TECHNICAL-DEBT.md` (templates/technical-debt.md): entries with `Kind: deferral`, the `Control` they postpone, a `Due-before` trigger or date, a `Review-by` date, and `Closure-evidence`. One log for shortcuts and deferrals, so nothing is tracked twice.
+- Deferrals in `TECHNICAL-DEBT.md` (templates/technical-debt.md): entries with `Kind: deferral`, the `Control` they postpone and the `Due-before` trigger or date that ends the postponement, and where useful a `Review-by` date and the `Closure-evidence` that will close it. One log for shortcuts and deferrals, so nothing is tracked twice.
 - `scripts/validate-profile.sh`: reads both files and reports, per check, OK, FAIL, WARN, DEFERRED, or UNVERIFIED, and says whether the profile was declared or missing. `--strict` turns every UNVERIFIED result into an error; run it that way before any action that changes exposure and in maintenance of operational projects.
 
 ## Stages
@@ -39,7 +43,7 @@ What a project owes is the union of this floor, its stage's baseline, the requir
 
 - Every fact in PROFILE.md is `yes`, `no`, a listed value, or `unknown`. A vague answer is recorded as `unknown`. For audience, effects, reliance, and records, `unknown` blocks real exposure and leaves the contained experiment open; the regulated-data question keeps its stricter gate from bootstrap, which halts scaffolding and deployment until it is answered.
 - The stage agrees with the facts. An `isolated` project has no outside users, no real data, no real external effects, no operational reliance, no valuable records, and no customer commitments. A `trial` is not public, is not relied upon, and has a fallback not recorded as `no`. Regulated data with synthetic-only data is a contradiction. Each is a validator failure, not a judgment call.
-- Every deferral has a control, a trigger or date, a review date, and closure evidence. "Later" without an entry is a loose end.
+- Every deferral names the control it postpones and the trigger or date that ends it. "Later" without an entry is a loose end.
 - Triggers are named and evaluated from the recorded facts: `first-outside-participant`, `public-access`, `real-data`, `personal-data`, `real-money-or-external-action`, `operational-reliance`, `valuable-records`, `second-contributor`, `regulated-data-or-commitment`, `trial-stage`, `operational-stage`. A date deadline is inclusive. A trigger the facts make true turns every deferral due before it blocking until fixed. Renewing the review date, relabeling the stage, or marking won't-fix does not clear it.
 - A trigger that rests on an `unknown` fact is unverified: the validator says so, strict mode fails on it, and learning the fact is the next task, not a footnote.
 - A deferral with no profile to evaluate it is a failure, so a project cannot sidestep its deferrals by never writing PROFILE.md.
@@ -49,7 +53,7 @@ What a project owes is the union of this floor, its stage's baseline, the requir
 
 ## What the validator cannot see
 
-It reads declarations and checks their consistency. It does not observe users, data, or money; it cannot tell whether a stated fact is true; it has no memory of earlier profiles, so a downgrade that also rewrites the facts is caught by review, not by the script; it knows a deferral is a floor item only when the entry labels the control as one, so whether a postponed piece of a security convention was rate limiting (deferrable) or input validation (floor) is a judgment the independent audit makes; and it stands at no action boundary. It reads the documented entry format (a list item, a bold label, the value on the same line, the six field names exact) and fails the deviations it can recognize; it does not parse arbitrary Markdown or HTML, so a field written in a shape it cannot recognize is reported only as a warning that a line mentions a field name, and the review reads the entry. The playbooks name where to run it. Nothing here claims automatic prevention.
+It reads declarations and checks their consistency. It does not observe users, data, or money; it cannot tell whether a stated fact is true; it has no memory of earlier profiles, so a downgrade that also rewrites the facts is caught by review, not by the script; it knows a deferral is a floor item only when the entry labels the control as one, so whether a postponed piece of a security convention was rate limiting (deferrable) or input validation (floor) is a judgment the independent audit makes; and it stands at no action boundary. It reads each field in the common written forms (a list item or a plain line, the label bold or not, the value after the colon); an entry it cannot read, such as a deferral whose trigger it cannot find, is reported as unverified, which strict mode fails, never as a pass. The review reads what it cannot. The playbooks name where to run it. Nothing here claims automatic prevention.
 
 ## Violations
 
@@ -71,7 +75,5 @@ It reads declarations and checks their consistency. It does not observe users, d
 - WRONG: a deferral labeled "#23" that postpones input validation. RIGHT: input validation is a floor item and is built now; the entry's control names what is really postponed, so the audit can see it.
 
 ## Research Notes
-
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
 
 At bootstrap, derive the stage from the discovery answers and write PROFILE.md before generating anything else that depends on it. Research the regulatory regime only when a fact calls for it (regulated data, customer commitments), and record the finding in References.md with its date. Standards bodies publish control baselines and secure-development practices graded by risk; read the current ones when the project's facts put it above `isolated`, and record which one the project follows. The stage names and triggers here are the framework's own vocabulary; they map to no external certification and claim none.
