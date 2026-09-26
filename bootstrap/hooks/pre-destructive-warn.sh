@@ -46,7 +46,7 @@ MATCHED="${COMMAND//\\$NL/ }"
 # A git push, with any of git's own options before the word push (git -C dir push, git -c k=v push).
 GIT_PUSH='(^|[^[:alnum:]_-])git([[:space:]]+(-C|-c)[[:space:]]+[^[:space:]]+|[[:space:]]+--(git-dir|work-tree|namespace)[[:space:]]+[^[:space:]]+|[[:space:]]+--[a-z-]+(=[^[:space:]]+)?)*[[:space:]]+push[[:space:]]'
 # A quote a refspec may open with.
-QUOTE="[\"']"
+QUOTE='['"'"'"]'
 
 # Destructive patterns. Order matters — most specific first.
 PATTERNS=(
