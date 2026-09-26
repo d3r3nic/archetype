@@ -8,11 +8,12 @@ Produces: the operation registry and the stream that replays its tail to a late 
 Check: run project: typecheck, lint, test, build; evidence: what was seen when this was tried: two clients watching one operation, and a reload mid-operation
 Skip when: the product has no operation that runs for seconds to minutes
 
-For any operation that takes seconds-to-minutes (deploy, build, teardown, import), build a subprocess/job registry + SSE stream pattern rather than one-shot HTTP:
+An operation that takes seconds to minutes (a deploy, a build, an import) is watched through a stream the client can resubscribe to, not one request that waits:
+- A registry keyed by the operation's target holds active and recently finished operations.
+- The registry keeps each operation's events as they happen, so a late subscriber replays the tail.
+- The stream subscribes to the registry; several clients can watch one operation, and a reload reconnects.
+- Finished operations are cleaned up after a window long enough for a late reload to see the final state.
 
-- A **registry** keyed by the operation target (slug, job id, etc.) holds active and recently-completed operations.
-- The registry stores events as they happen, so a late subscriber can **replay** the tail.
-- SSE endpoints subscribe to the registry; multiple clients can watch the same operation (reload-resilient).
-- Finished operations TTL-cleanup after a window so subscribers who reload late still see the final state.
+The same shape serves processes the product starts and work it runs in-process.
 
-Applies equally to shell subprocesses and async in-process jobs.
+**Verify:** two clients watch one operation and see the same events; a reload mid-operation reconnects and shows everything so far.

@@ -1,20 +1,20 @@
-# Frontend scaffold: routing, layouts, and the service worker for an installable web app
+# Frontend scaffold: routing, layouts, and the offline worker for an installable web app
 
 Use scaffolding/SCAFFOLD-FRONTEND.md for this route and scaffolding/_preamble.md for shared scaffold guidance.
 
-## Step 8: Routing, layouts, and the service worker for an installable web app
-Read: #21; #11; #14; bootstrap/RED-FLAGS.md § Mobile Disambiguation (when the app is installable or the mobile mode is still open); scaffolding/_preamble.md § Convention-mapping rule; scaffolding/RED-FLAGS.md § 14. Provider composition order (frontend/mobile); scaffolding/RED-FLAGS.md § 15. Route guards forgotten on protected routes
-Produces: the routes, the layouts, the guards, and for an installable web app the service worker and the manifest
+## Step 8: Routing, layouts, and the offline worker for an installable web app
+Read: #21; #11; #14; bootstrap/RED-FLAGS.md § Mobile Disambiguation (when the app is installable or the mobile mode is still open); scaffolding/_preamble.md § Convention-mapping rule; scaffolding/RED-FLAGS.md § 14. Root composition order (frontend/mobile); scaffolding/RED-FLAGS.md § 15. Route guards forgotten on protected routes
+Produces: the route definitions, the layouts, the guard, the root composition, and for an installable web app its offline worker and install manifest
 Check: run project: typecheck, lint, build; evidence: what was seen when this was tried: a protected route opened without a session, a navigation showing the loading state of Step 3, and the install prompt when the app is installable
 Depends on: scaffold-frontend.4; scaffold-frontend.7
+Skip when: the product has a single view and nothing to navigate between
 
-Build:
-- Route definitions.
-- Layout components (persistent shells per route section).
-- Route guards integrated with Step 7 (protected routes redirect when unauthenticated). Every route definition EITHER declares `public: true` OR wraps its element in a guard — no implicit-unprotected. See `scaffolding/RED-FLAGS.md` #15.
-- Loading and error states per route (integrated with Step 3).
-- **If PWA:** service worker + manifest. Test install flow on a real mobile browser. See `bootstrap/RED-FLAGS.md` "Mobile Disambiguation."
+Apply #21 through the recorded decisions:
+- Every route defined once; every link built from the definitions.
+- Protected by default: every route goes through the one guard (Step 7) unless its definition declares it public.
+- Layouts that stay in place while their content changes, where the stack supports it.
+- Each route's waiting and error states from Step 3.
+- The root composition: when the stack composes shared contexts at the root (error handling, data cache, theme, identity, navigation), their order decides what each can see. Record the order once, as one composition that the app and the test setup (Step 10) both use.
+- When References.md § Project, Mobile mode, commits to an installable web app: its offline worker and install manifest, and the install tried on a real phone browser (bootstrap/RED-FLAGS.md, Mobile Disambiguation).
 
-**Provider composition order at the app root: explicit.** Wrong order silently breaks behavior (see `scaffolding/RED-FLAGS.md` #14). Outermost to innermost: **ErrorBoundary → server-state provider → Theme → Auth → Router**. Each wraps everything below. The test render wrapper (Step 10) must mirror this order exactly: drift between production entry and the test wrapper = tests pass with the wrong context, silent-failure.
-
-**Verify:** a protected route redirects unauthenticated users. Navigating between routes shows loading states from Step 3. If PWA, the app is installable on a mobile browser.
+**Verify:** a protected route refuses a visitor without a session; navigating shows Step 3's loading state; an installable app installs on a phone browser.

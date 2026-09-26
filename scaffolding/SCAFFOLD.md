@@ -15,10 +15,10 @@ Build the foundations the project has justified in References.md. Run after boot
 
 Determine the shape from `References.md`:
 
-- **Backend** (API, worker, service, GraphQL server, data pipeline, etc.) → `scaffolding/SCAFFOLD-BACKEND.md`
-- **Frontend** (web app, SPA, SSR app, PWA) → `scaffolding/SCAFFOLD-FRONTEND.md`
+- **Backend** (an API, a worker, a service, a data pipeline) → `scaffolding/SCAFFOLD-BACKEND.md`
+- **Frontend** (a web app or site, rendered on the client, the server or both, including an installable web app) → `scaffolding/SCAFFOLD-FRONTEND.md`
 - **One unit with an interface and server systems** (for example a server-rendered app with its own data store, scheduled work or outgoing messages; its References.md lists both) → when the frontend playbook's contracts fit the unit (a client API layer, client caching and client state), walk its ledger for the interface systems, and build the server systems from `scaffolding/SCAFFOLD-BACKEND.md`'s steps for them in the implementer plan (development/TASKS.md): before the interface steps that use them, and inside the integration proof. Closing the frontend ledger does not complete them. When those contracts do not fit, carry the whole scaffold in the implementer plan, and build nothing only to close a step.
-- **Mobile** (native iOS/Android, cross-platform mobile) → `scaffolding/SCAFFOLD-MOBILE.md`
+- **Mobile** (an app installed on phones or tablets, built natively or cross-platform) → `scaffolding/SCAFFOLD-MOBILE.md`
 - **Platform** (user picked a hosted platform — storefront, site builder, practice-management suite, workspace tool — in `bootstrap/ONBOARD.md` Step 3) → `scaffolding/SCAFFOLD-PLATFORM.md`
 - **Fullstack with separate frontend + backend folders** → run SCAFFOLD-FRONTEND in the frontend folder AND SCAFFOLD-BACKEND in the backend folder. Each has its own `References.md` and `feature-tree.md`.
 
@@ -29,8 +29,9 @@ A playbook that declares a step ledger (development/STEPS.md) is walked with `sc
 ## Shared rules (apply across all shapes)
 
 All shared scaffold rules live in `scaffolding/_preamble.md`. Read that file before following any shape-specific playbook — it covers:
-- Zero-stale rule (no expirable specifics)
+- Zero-stale rule (the framework names no technology)
 - Convention-mapping rule (each step names its conventions)
+- Boundaries rule (each shared system records what only it may use)
 - Handoff-check rule (read References.md compliance + foundational-systems inventory before building)
 - Smoke-test rule (scaffold not complete until end-to-end smoke test passes)
 - Verification discipline (operational exit criteria, not "looks like it works")
@@ -73,8 +74,8 @@ Every shape-specific playbook ends with:
 
 1. `docs/systems/{name}.md` for every foundational system.
 2. `feature-tree.md` with each system marked with its real location.
-3. `References.md` updated with actual paths, DB/API summaries where applicable.
-4. `.env.example` at project root with every required env var documented (no real values).
+3. `References.md` updated with actual paths, data and API summaries where applicable, and a § Boundaries line for each shared system built.
+4. An example configuration file at the project root documenting every required value, with no real values.
 5. `VERSION-LOG.md` appended with a Scaffold entry — see template at bottom of this file.
 6. Initial "scaffold complete" commit AFTER `scripts/validate-scaffold.sh` passes.
 7. Platform projects use `docs/runbook.md` instead of `docs/systems/` — see SCAFFOLD-PLATFORM.
@@ -89,17 +90,15 @@ After scaffold completes, add a `## Scaffold` section at the end of `VERSION-LOG
 Date: [today's date]
 Type: [custom / platform]
 Shape: [backend / frontend / mobile / platform / fullstack]
-Sessions: [how many discrete AI sessions it took]
 Systems built:
 - [system name] → [location] (convention #N, verify: `<command>` exit 0)
 - [system name] → [location] (convention #N, verify: ...)
 - ...
-Systems deferred: [which ones and why, with References.md implications]
+Systems deferred or not applicable: [which ones and why, with the trigger for each deferral]
 Smoke-test feature: [path] — integration test status
 Red flags fired: [which RED-FLAGS.md item, how it was resolved]
 validate-scaffold.sh: [pass / fail, with pass required to mark scaffold complete]
 Dependencies installed: [key packages]
-Conventions read: [which convention docs were read during scaffolding]
 ```
 
 ## What scaffolding produces

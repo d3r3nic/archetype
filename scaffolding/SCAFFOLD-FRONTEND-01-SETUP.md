@@ -3,20 +3,19 @@
 Use scaffolding/SCAFFOLD-FRONTEND.md for this route and scaffolding/_preamble.md for shared scaffold guidance.
 
 ## Step 1: Project setup and types
-Read: #1; #7; #2; scaffolding/_preamble.md § Convention-mapping rule; scaffolding/RED-FLAGS.md § 7. Env validation at runtime, not startup; scaffolding/RED-FLAGS.md § 16. Env-inlining breaks runtime env mutation in tests; scaffolding/RED-FLAGS.md § 13. Package versions pinned with expirable specifics
-Produces: the project skeleton, the validated environment module, the type setup, the linter, the formatter, the pre-commit hook, and the commands recorded in References.md § Commands
-Check: run project: typecheck, lint; evidence: what was seen when this was tried: the install, a commit firing the pre-commit hook, and the start failing with a required environment value removed
+Read: #1; #7; #2; #15; scaffolding/_preamble.md § Convention-mapping rule; scaffolding/RED-FLAGS.md § 7. Env validation at runtime, not startup; scaffolding/RED-FLAGS.md § 16. Env-inlining breaks runtime env mutation in tests; scaffolding/RED-FLAGS.md § 13. Package versions pinned with expirable specifics
+Produces: the project skeleton, the configuration owner that validates required values at startup, the type setup, the formatter and linter, where the checks run before merge, the commands recorded in References.md § Commands, and the configuration line in References.md § Boundaries
+Check: run project: typecheck, lint; evidence: what was seen when this was tried: the install, the recorded checks running where they are recorded to run, and the start failing with a required environment value removed
 
-Build:
-- Language/runtime version pinned, package manager chosen + lockfile committed.
-- Type checker in strict mode, including the language's strictest available flags (e.g. unchecked indexed access, implicit override, unused locals).
-- Linter + formatter configs. **Real rules, not stubs** - one linter config per language scope, extending the framework's recommended set. See "Selected-boundary enforcement" below.
-- `.gitignore`, **pre-commit hooks that install automatically on fresh clone** so downstream forks inherit them without manual setup. Research current idiomatic tools for the chosen runtime.
-- Environment validation AT STARTUP (`loadEnv()` equivalent on app entry). See `bootstrap/RED-FLAGS.md` "Env validation at runtime."
-- Shared types directory, branded IDs, validation library wired in (one schema = type + validator).
-- **Build script pattern:** typecheck and bundle run as separate steps. Never combine emit-to-disk with typecheck-only flags.
-- **Monorepo template projects:** root package manifest uses the chosen tool's workspace protocol for cross-package deps. Publishing via the tool's publish command (or tarball packing for local testing). For local consumer-site testing of transitive deps, use the tool's resolution-override mechanism to redirect scoped-package resolutions to local tarballs — otherwise transitive deps try to resolve from a public registry that doesn't know your scope yet.
+Apply the setup the bootstrap recorded, researching current practice for the chosen stack where the record is silent:
+- The runtime and package manager pinned, with the lock file committed.
+- Type checking at the strongest level the project will keep passing, recorded (#7).
+- A formatter and a linter with real rules for the mistakes this project must not make (#15, #25), not empty configurations.
+- Where the checks run before work reaches the main line, chosen for the stage: a hook that installs itself on every fresh clone, a pipeline, or both (#2, #15). Record it in References.md.
+- Configuration's one owner: it reads the environment, validates every required value at startup, and hands values to the rest of the code (#1). Record `` - Configuration: `<pattern that reads the environment>` only in `<its path>` `` in References.md § Boundaries.
+- The shared data shapes and the one validation approach for outside data (#7).
+- Typecheck and bundling as separate steps, so a check never writes build output.
 
-**Selected-boundary enforcement** - Convention #22 requires the project to record its interface boundary. If the project selects adapters, wrappers, or another restricted import surface, enforce that boundary with the current toolchain and test the rule. If direct native or library use is selected, do not manufacture a restricted-import rule that contradicts it.
+Where the project selected a restricted import boundary for its interface (#22), enforce it with the toolchain and test the rule. Where direct use was selected, do not add a restriction that contradicts it.
 
-**Verify:** install succeeds, typechecker + linter run clean, pre-commit fires on commit (runs at least linter + formatter on staged source), deleting a required env var throws on start.
+**Verify:** the install succeeds; the type check and the linter run clean; the checks run where the project recorded them; removing a required environment value makes the start fail with a message naming it.

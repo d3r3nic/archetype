@@ -8,4 +8,4 @@ Produces: the safe-identifier check at the boundary of every value that reaches 
 Check: run project: typecheck, lint, test, build; evidence: what was seen when this was tried: an unexpected character sent to that boundary
 Skip when: nothing in the product starts a subprocess or a shell command
 
-Every value that reaches `spawn()`, `exec()`, or any shell-like API **must pass a safe-ident regex first.** Reject at the API boundary, not at use site. Even when using argv (no shell), fail closed on unexpected characters — it's a second line of defense that costs almost nothing.
+Every value that reaches a call that starts a process or runs a shell command passes a safe-identifier check first, at the API boundary, not where it is used. Even when arguments are passed as a list with no shell, fail closed on unexpected characters: a second line of defense that costs almost nothing.
