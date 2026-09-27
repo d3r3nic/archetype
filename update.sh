@@ -996,5 +996,30 @@ echo "  - protocols/ (project-specific)"
 echo "  - catalogs/ (project-specific)"
 echo "  - docs/ (project-specific)"
 echo "  - todo/ (project-specific)"
+# What changed: the entries of development/CHANGES.md this project had not seen. They run from the
+# newest down to the one whose Follows line names the revision VERSION-LOG.md recorded before this
+# update, or are all of them when none does (an older install, or no revision recorded). Nothing
+# is new when the project already had this revision.
+CHANGES_FILE="$ARCHETYPE_DIR/development/CHANGES.md"
+if [ -f "$CHANGES_FILE" ] && ! { [ "${#RECORDED}" -ge 7 ] && case "$LATEST_HASH" in "$RECORDED"*) true ;; *) false ;; esac; }; then
+  CHANGES_OUT="$(tr -d '\r' < "$CHANGES_FILE" | awk -v rec="$RECORDED" '
+    { line[NR] = $0 }
+    /^## / { n++; start[n] = NR }
+    /^Follows: [0-9a-f]/ && n > 0 && !stop && length(rec) >= 7 && index($2, rec) == 1 { stop = n }
+    END {
+      if (n == 0) exit
+      last = stop ? stop : n
+      finish = (last < n) ? start[last + 1] - 1 : NR
+      while (finish > start[1] && line[finish] ~ /^ *$/) finish--
+      for (i = start[1]; i <= finish; i++) print line[i]
+    }')"
+  if [ -n "$CHANGES_OUT" ]; then
+    echo ""
+    echo "What changed since this project's previous framework revision (${ENGINE_REL}development/CHANGES.md), newest first:"
+    echo ""
+    printf '%s\n' "$CHANGES_OUT" | sed 's/^./  &/'
+  fi
+fi
+
 echo ""
-echo "Next: follow ${ENGINE_REL}development/UPDATE.md, section After (audit what the update added to CLAUDE.md.additions, run the checks, commit as one change)."
+echo "Next: follow ${ENGINE_REL}development/UPDATE.md, section After (act on what changed, audit what the update added to CLAUDE.md.additions, run the checks, commit as one change)."

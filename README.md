@@ -53,7 +53,7 @@ Bootstrap and the frontend scaffold declare automated step routes. Backend, mobi
 
 Run the installed update.sh to fetch current shared rules. It is a manual latest-source updater, not an immutable release manager or automatic fleet controller. Full-clone installations at their own Git root and injected engines with parent CLAUDE.md/VERSION-LOG.md resolve automatically. For an unpacked or ambiguous layout, use `bash update.sh --project-root /absolute/project/path`; the directory must be the engine itself or its direct parent. Review the reported Project and Engine paths.
 
-**Updating:** development/UPDATE.md says who owns which file and what a session does before and after. Root AGENTS.md holds the rules and root CLAUDE.md imports it; both are replaced by each update, and lines a project added to them are carried into CLAUDE.md.additions for audit, never deleted. An old injected updater first replaces itself: run it twice. For an old full-clone installation, use the current updater with an explicit verified root instead of running the legacy root-detection code.
+**Updating:** development/UPDATE.md says who owns which file and what a session does before and after. development/CHANGES.md says what each release changed, for the session and for the project, newest first; the updater prints the entries a project has not seen. Root AGENTS.md holds the rules and root CLAUDE.md imports it; both are replaced by each update, and lines a project added to them are carried into CLAUDE.md.additions for audit, never deleted. An old injected updater first replaces itself: run it twice. For an old full-clone installation, use the current updater with an explicit verified root instead of running the legacy root-detection code.
 
 **Peer coding:** two AI assistants, each in its own chat, can take turns on a branch: the one holding the writing turn implements, the other reviews every change and can repair what it finds and hand it back for another review. The owner passes one short line between the chats at each hand-over. The framework owns the rules; each project tailors them in one settings file, `peer-coding/SETTINGS.md` (which two assistants, who writes new work, the checks before each hand-over, branch naming, push and merge, extra project rules), and each branch keeps its hand-over record in `peer-coding/<branch>/`, committed with the branch and renamed `<branch>--done` when it closes for its merge. Setup asks whether a second assistant will work on the project. See [development/PEER-CODING.md](development/PEER-CODING.md); `python3 scripts/test-peer-coding.py` exercises the helper script.
 
@@ -100,7 +100,9 @@ Phase 4: MAINTAIN  → audit feature tree, update docs, evolve conventions
 ├── development/
 │   ├── DEVELOP.md             # Phase 3: feature development workflow
 │   ├── MAINTAIN.md            # Phase 4: audit, tech debt, convention evolution
-│   └── PEER-CODING.md         # Two AI assistants taking turns on a branch
+│   ├── PEER-CODING.md         # Two AI assistants taking turns on a branch
+│   ├── UPDATE.md              # Pulling a newer framework into a project
+│   └── CHANGES.md             # What each release changed, newest first
 │
 └── templates/
     ├── references-frontend.md  # Project context template (frontend)
