@@ -401,11 +401,11 @@ if [ "$RUN_4B" -eq 1 ]; then
     # Signs of a store that lives only in memory: its name, or a list the entries are pushed into.
     if grep -rqE '(InMemoryAuditStore|MemoryAuditStore|inMemoryStore|this\.records[[:space:]]*=[[:space:]]*\[\]|records:[[:space:]]*Array|push\(record\))' "$AUDIT_DIR" 2>/dev/null; then
       # A production store beside it: the pattern References.md § Compliance records on its Audit store
-      # line, or another store the code names ...AuditStore, or an append-only or write-once store.
-      # The name is read after any lowercase prefix (createXAuditStore, makeXAuditStore); an interface
-      # (IAuditStore) is not a store; and a name with a word that starts memory, fake, test, mock, stub,
-      # dummy, noop or spy, or the words "no op", is a test double. Words, not letters: Attestation
-      # and Latest are not "test".
+      # line, or a store the code names ...AuditStore, or an append-only or write-once store. A name is
+      # read by its words, its lowercase prefix included: a word that starts memory, fake, test, mock,
+      # stub, dummy, noop or spy, or the words "no op", mark a test double (fakeLedgerAuditStore),
+      # while Attestation and Latest are not "test". An interface (IAuditStore) is not a store, and
+      # neither is the bare name once a prefix such as create or make is set aside.
       AUDIT_STORE_PATTERN="$(tr -d '\r' < "$REFS" | awk '
         /^## / { inside = ($0 ~ /^## Compliance[ \t]*$/); next }
         inside && /^- Audit store:/ { v = $0; sub(/^- Audit store:[ \t]*/, "", v)
@@ -413,11 +413,10 @@ if [ "$RUN_4B" -eq 1 ]; then
       DURABLE=0
       if [ -n "$AUDIT_STORE_PATTERN" ] && grep -rqE -e "$AUDIT_STORE_PATTERN" "$AUDIT_DIR" 2>/dev/null; then
         DURABLE=1
-      elif grep -rhoE '[A-Za-z0-9_]*AuditStore' "$AUDIT_DIR" 2>/dev/null | sed -E 's/^[a-z0-9_]*//' | grep -vE '^I[A-Z]' | grep -vE '^AuditStore$' \
-          | sed -E 's/([a-z0-9])([A-Z])/\1 \2/g' | tr '_' ' ' | tr '[:upper:]' '[:lower:]' \
-          | grep -vE '(^| )(inmemory|memory|fake|test|mock|stub|dummy|noop|spy)|(^| )no op( |$)' | grep -q .; then
-        DURABLE=1
-      elif grep -rqE '(AppendOnlyStore|WormStore|WORMStore)' "$AUDIT_DIR" 2>/dev/null; then
+      elif grep -rhoE '[A-Za-z0-9_]*(AuditStore|AppendOnlyStore|WormStore|WORMStore)' "$AUDIT_DIR" 2>/dev/null \
+          | grep -vE '^[a-z0-9_]*I[A-Z][a-z]' | sed -E 's/([a-z0-9])([A-Z])/\1 \2/g' | tr '_' ' ' \
+          | grep -viE '(^| )(inmemory|memory|fake|test|mock|stub|dummy|noop|spy)|(^| )no op( |$)' \
+          | sed -E 's/^([a-z0-9]+ )+//' | grep -vE '^Audit ?Store$' | grep -q .; then
         DURABLE=1
       fi
       if [ "$DURABLE" -eq 1 ]; then
@@ -504,7 +503,7 @@ EOF
   if [ -n "$BOUNDED" ]; then
     pass "the migration command is bounded in § Boundaries ($BOUNDED)"
   elif [ "$HAS_BOUNDARIES" -eq 0 ]; then
-    warn "References.md records the migration command \`$MIGRATE_CMD\` but no § Boundaries section: record the path that may apply it to production, so it cannot run anywhere else (B1)"
+    warn "References.md records the migration command \`$MIGRATE_CMD\` but no recorded § Boundaries line: record the line that bounds it to the path that may apply it to production, so it cannot run anywhere else (B1)"
   else
     fail "References.md records the migration command \`$MIGRATE_CMD\`, and no § Boundaries line bounds it to its production path: add one whose pattern matches the command (B1)"
   fi

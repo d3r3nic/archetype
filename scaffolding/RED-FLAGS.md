@@ -71,7 +71,7 @@ References.md says public or device clients call an API that lets clients compos
 
 B1 keeps production migrations behind a manual or gated path. Many pipeline templates run the migration command on every push to the main branch, so a bad migration reaches production before anyone reviews it.
 
-**Defense:** SCAFFOLD-BACKEND records the migration command in References.md § Commands and bounds it to its production path in § Boundaries. Once § Boundaries exists, validate-scaffold.sh fails a recorded migration command no line bounds, and the boundary check fails the command anywhere else; while the section is absent the gate warns, and validate-develop.sh requires the section.
+**Defense:** SCAFFOLD-BACKEND records the migration command in References.md § Commands and bounds it to its production path in § Boundaries. Once § Boundaries holds a line in the recorded form, validate-scaffold.sh fails a recorded migration command no line bounds, and the boundary check fails the command anywhere else. While the section is absent or holds no such line yet (the template's placeholders, an older project's own prose), the gate warns, and validate-develop.sh requires the section.
 
 ## 11. Scaffold-complete without integration proof
 

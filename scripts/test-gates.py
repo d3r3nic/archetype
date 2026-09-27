@@ -588,7 +588,7 @@ class ScaffoldRecords(unittest.TestCase):
         commands = '## Commands\n\n- migrate: `tool migrate apply`\n'
         code, out = self.check(commands)
         self.assertEqual(code, 0, out)
-        self.assertIn('no § Boundaries section: record the path that may apply it to production', out)
+        self.assertIn('but no recorded § Boundaries line: record the line that bounds it', out)
         code, out = self.check(commands + '\n## Boundaries\n\n- none: a single local store\n')
         self.assertEqual(code, 1, out)
         self.assertIn('no § Boundaries line bounds it to its production path', out)
@@ -638,6 +638,8 @@ class ScaffoldRecords(unittest.TestCase):
                 code, out = self.check(commands + prose)
                 self.assertEqual(code, 0, out)
                 self.assertNotIn('FAIL', out)
+                if '`' in commands:
+                    self.assertIn('but no recorded § Boundaries line', out)
 
     def test_a_migration_command_this_check_cannot_read_is_not_none(self):
         unreadable = '## Commands\n\n- migrate: tool run migrate\n'
@@ -827,7 +829,9 @@ class RegulatedDataGate(unittest.TestCase):
         for extra in ('class SpyAuditStore {}', 'func NewInMemoryAuditStore() *InMemoryAuditStore { return &InMemoryAuditStore{} }',
                       'const inMemoryAuditStore = new InMemoryAuditStore()', 'export const store = createInMemoryAuditStore()',
                       'class MockedAuditStore {}', 'class NoOpAuditStore {}', 'func NewNoOpAuditStore() {}',
-                      'class TestDatabaseAuditStore {}'):
+                      'class TestDatabaseAuditStore {}', 'export const fakeLedgerAuditStore = new InMemoryAuditStore()',
+                      'const mockLedgerAuditStore = store', 'const spyWormAuditStore = store', 'const fakeWormStore = store',
+                      'class FakeAppendOnlyStore {}', 'interface IAppendOnlyStore {}', 'const store = createAuditStore()'):
             with self.subTest(extra=extra):
                 (store / 'store.ext').write_text('class InMemoryAuditStore { private records: AuditRecord[] = [] }\n' + extra + '\n')
                 result = self.check()
@@ -843,7 +847,8 @@ class RegulatedDataGate(unittest.TestCase):
         store = self.project / 'src' / 'audit'
         store.mkdir(parents=True)
         for production in ('export class AttestationDatabaseAuditStore {}', 'export class LatestCloudAuditStore {}',
-                           'export const store = createLedgerTableAuditStore(pool)', 'const sink = makeObjectStorageAuditStore(bucket)'):
+                           'export const store = createLedgerTableAuditStore(pool)', 'const sink = makeObjectStorageAuditStore(bucket)',
+                           'const sink = createAppendOnlyStore(table)', 'export class WORMStore {}'):
             with self.subTest(production=production):
                 (store / 'store.ext').write_text('const records: Array<AuditRecord> = []\nbatch.push(record)\n' + production + '\n')
                 result = self.check()
