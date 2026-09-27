@@ -571,8 +571,8 @@ def debt_log(project):
 
 def only_debt_added(project, since):
     """True when every product change since `since` adds lines to the project's TECHNICAL-DEBT.md, a plain file
-    that keeps its mode, and removes none: the debt a closing assistant carries from FINDINGS.md, which needs no
-    further review."""
+    that keeps its mode, removes none and mentions no deferral: the shortcut entries a closing assistant carries
+    from FINDINGS.md, which need no further review. A deferral (#30) is reviewed like any product change."""
     log = debt_log(project)
     scope = ('--', '.', ':(exclude)%s' % RECORD)
     fields = out(project.top, 'diff', '--no-renames', '--raw', '-z', since, 'HEAD', *scope).split('\0')
@@ -590,7 +590,26 @@ def only_debt_added(project, since):
         added, removed, path = (row.split('\t', 2) + ['', ''])[:3]
         if path != log or not added.isdigit() or removed != '0':
             return False
+    if deferral_mentions(project, 'HEAD', log) > deferral_mentions(project, since, log):
+        return False
     return bool(entries) and entries == len(rows)
+
+
+def deferral_mentions(project, rev, path):
+    """The lines of `path` at `rev` that mention deferring, each read the way validate-profile.sh reads one: HTML
+    tags dropped and links read through to their text. Only additions reach this count, so a new line raises it."""
+    shown = subprocess.run(['git', '-C', str(project.top), 'cat-file', 'blob', '%s:%s' % (rev, path)],
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    count = 0
+    for line in (shown.stdout.decode('utf-8', 'replace') if shown.returncode == 0 else '').split('\n'):
+        line = re.sub(r'</?[A-Za-z][^>]*>', '', line)
+        while True:
+            read_through = re.sub(r'\[([^]]*)\]\([^)]*\)', r'\1', line, count=1)
+            if read_through == line:
+                break
+            line = read_through
+        count += 'defer' in line.lower()
+    return count
 
 
 def last_product_commit(project):

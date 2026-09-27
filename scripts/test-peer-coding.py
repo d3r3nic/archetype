@@ -546,6 +546,11 @@ class Close(Reviewed):
         attempt('its mode changed with debt', lambda: (added('\n## TD-002: the axis repeats\n'), log.chmod(0o755)), 1)
         attempt('debt and code', lambda: (added('\n## TD-002: the axis repeats\n'),
                                           (where / 'app.py').write_text('print("changed")\n')), 1)
+        for label, kind in (('a deferral', 'deferral'), ('a deferral behind markup', 'def<b></b>erral'),
+                            ('a deferral split by links', '[de](a)[ferral](b)')):
+            # validate-profile.sh reads each of these as Kind: deferral, which #30 leaves to the review.
+            attempt(label, lambda: added('\n## TD-002: payload checks later\n\n- **Kind:** %s\n- **Control:** #23 '
+                                         'rate limiting\n- **Due-before:** public-access\n' % kind), 1)
         attempt('debt added', lambda: added('\n## TD-002: the axis repeats\n\n- **Status:** open\n'), 0)
 
     def test_a_debt_log_that_links_to_another_file_lets_nothing_through(self):
