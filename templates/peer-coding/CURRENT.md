@@ -24,6 +24,6 @@ When only the owner can answer, the first item reads `NEEDS USER: <the questions
 
 Who writes new work: {{ROLES}} (peer-coding/SETTINGS.md), unless the owner's words below say otherwise for this branch.
 
-A merge needs the other assistant's acceptance of the final product head (apart from lines added to the project's TECHNICAL-DEBT.md that mention no deferral), passing checks, and what SETTINGS.md's Merge line and PROFILE.md's decision authority require. What the decision-authority convention reserves for the owner (new spending, external commitments, live systems including a push or merge that deploys, irreversible destruction of valuable data, a change to what the product is) needs the owner's authorization.
+A merge needs the other assistant's acceptance of the final product head, passing checks, and what SETTINGS.md's Merge line and PROFILE.md's decision authority require. What the decision-authority convention reserves for the owner (new spending, external commitments, live systems including a push or merge that deploys, irreversible destruction of valuable data, a change to what the product is) needs the owner's authorization.
 
 Owner's words for this branch (date, scope): none recorded.

@@ -558,60 +558,6 @@ def uncommitted_product(project):
                                      ':(exclude)%s' % RECORD).stdout.splitlines() if line]
 
 
-def debt_log(project):
-    """The project's TECHNICAL-DEBT.md, beside its References.md, as a path from the repository top; '' when that
-    is outside the repository. Never resolved, so a link of that name does not stand for the file it points to."""
-    root = project.engine if (project.engine / 'References.md').is_file() or project.engine == project.top \
-        else project.engine.parent
-    try:
-        return (root / 'TECHNICAL-DEBT.md').relative_to(project.top).as_posix()
-    except ValueError:
-        return ''
-
-
-def only_debt_added(project, since):
-    """True when every product change since `since` adds lines to the project's TECHNICAL-DEBT.md, a plain file
-    that keeps its mode, removes none and mentions no deferral: the shortcut entries a closing assistant carries
-    from FINDINGS.md, which need no further review. A deferral (#30) is reviewed like any product change."""
-    log = debt_log(project)
-    scope = ('--', '.', ':(exclude)%s' % RECORD)
-    fields = out(project.top, 'diff', '--no-renames', '--raw', '-z', since, 'HEAD', *scope).split('\0')
-    entries = 0
-    while len(fields) >= 2 and fields[0].startswith(':'):
-        meta, path, fields = fields[0][1:].split(), fields[1], fields[2:]
-        old, new, status = (meta[0], meta[1], meta[4]) if len(meta) >= 5 else ('', '', '')
-        if path != log or status not in ('A', 'M') or new not in ('100644', '100755') \
-                or old != ('000000' if status == 'A' else new):
-            return False
-        entries += 1
-    rows = [row for row in out(project.top, 'diff', '--no-renames', '--numstat', '-z', since, 'HEAD', *scope).split('\0')
-            if row]
-    for row in rows:
-        added, removed, path = (row.split('\t', 2) + ['', ''])[:3]
-        if path != log or not added.isdigit() or removed != '0':
-            return False
-    if deferral_mentions(project, 'HEAD', log) > deferral_mentions(project, since, log):
-        return False
-    return bool(entries) and entries == len(rows)
-
-
-def deferral_mentions(project, rev, path):
-    """The lines of `path` at `rev` that mention deferring, each read the way validate-profile.sh reads one: HTML
-    tags dropped and links read through to their text. Only additions reach this count, so a new line raises it."""
-    shown = subprocess.run(['git', '-C', str(project.top), 'cat-file', 'blob', '%s:%s' % (rev, path)],
-                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    count = 0
-    for line in (shown.stdout.decode('utf-8', 'replace') if shown.returncode == 0 else '').split('\n'):
-        line = re.sub(r'</?[A-Za-z][^>]*>', '', line)
-        while True:
-            read_through = re.sub(r'\[([^]]*)\]\([^)]*\)', r'\1', line, count=1)
-            if read_through == line:
-                break
-            line = read_through
-        count += 'defer' in line.lower()
-    return count
-
-
 def last_product_commit(project):
     return out(project.top, 'rev-list', '-1', 'HEAD', '--', '.', ':(exclude)%s' % RECORD)
 
@@ -910,7 +856,7 @@ def check_closed(project, folder, report, peers):
         report.fail('%s: its accepted head %s is not in this branch\'s history' % (name, current['accepted']))
     else:
         changed = product_changes(project, accepted)
-        if changed and not only_debt_added(project, accepted):
+        if changed:
             report.fail('%s: product files changed after the accepted head of the close: %s. Reopen it (close --reopen), '
                         'have the change reviewed, and close again' % (name, listed(changed)))
     dirty = uncommitted_product(project)
@@ -1219,8 +1165,7 @@ def command_cue(project, args):
                       % (remote, tracked, remote, project.branch))
     if current['waiting'] == 'SCOPE CLOSED' and opened and own_product_changes(project, opened):
         accepted = resolve_commit(project, current['accepted']) if current['accepted'] else ''
-        if not accepted or not is_ancestor(project, accepted, 'HEAD') or \
-                (product_changes(project, accepted) and not only_debt_added(project, accepted)):
+        if not accepted or not is_ancestor(project, accepted, 'HEAD') or product_changes(project, accepted):
             raise Refusal('SCOPE CLOSED needs the other assistant\'s acceptance of the product changes: the Accepted '
                           'head must cover the last product commit %s' % last_product_commit(project)[:12])
     if note:
@@ -1355,7 +1300,7 @@ def command_close(project, args):
         if not succeeds(project.top, 'merge-base', '--is-ancestor', accepted, 'HEAD'):
             raise Refusal('the accepted head %s is not in this branch\'s history' % current['accepted'])
         changed = product_changes(project, accepted)
-        if changed and not only_debt_added(project, accepted):
+        if changed:
             raise Refusal('product files changed after the accepted head %s (last product commit %s): that change '
                           'needs the other assistant\'s review first' % (accepted[:12], last[:12]))
         outcome = 'closed for merge via %s' % args.merged
