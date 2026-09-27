@@ -831,7 +831,8 @@ class RegulatedDataGate(unittest.TestCase):
                       'class MockedAuditStore {}', 'class NoOpAuditStore {}', 'func NewNoOpAuditStore() {}',
                       'class TestDatabaseAuditStore {}', 'export const fakeLedgerAuditStore = new InMemoryAuditStore()',
                       'const mockLedgerAuditStore = store', 'const spyWormAuditStore = store', 'const fakeWormStore = store',
-                      'class FakeAppendOnlyStore {}', 'interface IAppendOnlyStore {}', 'const store = createAuditStore()'):
+                      'class FakeAppendOnlyStore {}', 'interface IMemoryAuditStore {}', 'const store = createAuditStore()',
+                      'export interface IAuditStore {}', 'const store = createIAuditStore()'):
             with self.subTest(extra=extra):
                 (store / 'store.ext').write_text('class InMemoryAuditStore { private records: AuditRecord[] = [] }\n' + extra + '\n')
                 result = self.check()
@@ -848,7 +849,9 @@ class RegulatedDataGate(unittest.TestCase):
         store.mkdir(parents=True)
         for production in ('export class AttestationDatabaseAuditStore {}', 'export class LatestCloudAuditStore {}',
                            'export const store = createLedgerTableAuditStore(pool)', 'const sink = makeObjectStorageAuditStore(bucket)',
-                           'const sink = createAppendOnlyStore(table)', 'export class WORMStore {}'):
+                           'const sink = createAppendOnlyStore(table)', 'export class WORMStore {}',
+                           'export class IBMCloudAuditStore {}', 'export interface ICloudAuditStore {}',
+                           'export interface IDatabaseAuditStore {}', 'export interface IAppendOnlyStore {}'):
             with self.subTest(production=production):
                 (store / 'store.ext').write_text('const records: Array<AuditRecord> = []\nbatch.push(record)\n' + production + '\n')
                 result = self.check()

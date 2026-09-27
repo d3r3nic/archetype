@@ -403,9 +403,10 @@ if [ "$RUN_4B" -eq 1 ]; then
       # A production store beside it: the pattern References.md § Compliance records on its Audit store
       # line, or a store the code names ...AuditStore, or an append-only or write-once store. A name is
       # read by its words, its lowercase prefix included: a word that starts memory, fake, test, mock,
-      # stub, dummy, noop or spy, or the words "no op", mark a test double (fakeLedgerAuditStore),
-      # while Attestation and Latest are not "test". An interface (IAuditStore) is not a store, and
-      # neither is the bare name once a prefix such as create or make is set aside.
+      # stub, dummy, noop or spy, after an interface's I or not, or the words "no op", mark a test
+      # double (fakeLedgerAuditStore, IMemoryAuditStore), while Attestation and Latest are not "test".
+      # The bare name, AuditStore or its interface IAuditStore, names no store, once a prefix such as
+      # create or make is set aside; ICloudAuditStore names one, as earlier releases read it.
       AUDIT_STORE_PATTERN="$(tr -d '\r' < "$REFS" | awk '
         /^## / { inside = ($0 ~ /^## Compliance[ \t]*$/); next }
         inside && /^- Audit store:/ { v = $0; sub(/^- Audit store:[ \t]*/, "", v)
@@ -414,9 +415,9 @@ if [ "$RUN_4B" -eq 1 ]; then
       if [ -n "$AUDIT_STORE_PATTERN" ] && grep -rqE -e "$AUDIT_STORE_PATTERN" "$AUDIT_DIR" 2>/dev/null; then
         DURABLE=1
       elif grep -rhoE '[A-Za-z0-9_]*(AuditStore|AppendOnlyStore|WormStore|WORMStore)' "$AUDIT_DIR" 2>/dev/null \
-          | grep -vE '^[a-z0-9_]*I[A-Z][a-z]' | sed -E 's/([a-z0-9])([A-Z])/\1 \2/g' | tr '_' ' ' \
-          | grep -viE '(^| )(inmemory|memory|fake|test|mock|stub|dummy|noop|spy)|(^| )no op( |$)' \
-          | sed -E 's/^([a-z0-9]+ )+//' | grep -vE '^Audit ?Store$' | grep -q .; then
+          | sed -E 's/([a-z0-9])([A-Z])/\1 \2/g' | tr '_' ' ' \
+          | grep -viE '(^| )i?(inmemory|memory|fake|test|mock|stub|dummy|noop|spy)|(^| )no op( |$)' \
+          | sed -E 's/^([a-z0-9]+ )+//' | grep -vE '^I?Audit ?Store$' | grep -q .; then
         DURABLE=1
       fi
       if [ "$DURABLE" -eq 1 ]; then
