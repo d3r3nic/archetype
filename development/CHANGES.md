@@ -4,7 +4,7 @@ Each framework release, newest first: what the session now does differently, and
 
 An entry's `Follows` line names the release before it. The entries a project has not seen run from the top down to the one that follows the revision it had installed, which VERSION-LOG.md records. An install older than the last entry here reads them all; the rules and guides it now has state everything earlier.
 
-## 2026-09-26: Every update says what changed
+## 2026-09-27: Every update says what changed
 Follows: 08bcc1404be21a0f67321fe0f1ff6889ca5e571c
 
 - **Session:** after an update, act on the entries of this file the project has not seen. The updater prints them; after an updater from before this file, development/UPDATE.md, section After, says how to find them. Change how you work as each Session line says, and do what each Project line asks.
