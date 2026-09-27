@@ -482,6 +482,59 @@ class Close(Reviewed):
         self.assertRegex(text, r'- \*\*Status:\*\* DONE, closed for merge via PR 7 \(\d{4}-\d\d-\d\d, claude\)')
         self.assertNotIn('merged via', text)
 
+    def test_debt_carried_to_a_new_debt_log_needs_no_further_review_and_a_renamed_file_does(self):
+        where, folder, product = self.reviewed()
+        self.accept(where, folder, product)
+        accepted = self.git(where, 'rev-parse', 'HEAD')
+        self.git(where, 'mv', 'app.py', 'TECHNICAL-DEBT.md')
+        renamed = self.commit(where, 'rename')
+        self.set_head(folder, 'feature/plots', renamed)
+        self.commit(where, 'record the rename', 'peer-coding')
+        refused = self.pc(where, 'close', '--as', 'codex', '--merged', 'PR 7')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('product files changed after the accepted head', refused.stdout)
+        self.git(where, 'reset', '-q', '--hard', accepted)
+        (where / 'TECHNICAL-DEBT.md').write_text('# Technical Debt Log\n\n## TD-001: the legend overlaps on a narrow '
+                                                 'screen\n\n- **Status:** open\n- **Kind:** shortcut\n')
+        carried = self.commit(where, 'carry the debt', 'TECHNICAL-DEBT.md')
+        self.set_head(folder, 'feature/plots', carried)
+        self.commit(where, 'record the carried debt', 'peer-coding')
+        closed = self.pc(where, 'close', '--as', 'codex', '--merged', 'PR 7')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+        self.git(where, 'commit', '-q', '-m', 'close', '-m', 'Peer: codex', '--', 'peer-coding')
+        check = self.pc(where, 'check')
+        self.assertEqual(check.returncode, 0, check.stdout)
+
+    def test_only_lines_added_to_the_debt_log_pass_without_review(self):
+        where, folder, product = self.reviewed()
+        log = where / 'TECHNICAL-DEBT.md'
+        log.write_text('# Technical Debt Log\n\n## TD-001: the legend overlaps\n\n- **Status:** open\n')
+        logged = self.commit(where, 'debt log', 'TECHNICAL-DEBT.md')
+        self.set_head(folder, 'feature/plots', logged)
+        self.commit(where, 'record', 'peer-coding')
+        self.accept(where, folder, logged)
+        accepted = self.git(where, 'rev-parse', 'HEAD')
+
+        def attempt(label, change, code):
+            self.git(where, 'reset', '-q', '--hard', accepted)
+            change()
+            later = self.commit(where, label)
+            self.set_head(folder, 'feature/plots', later)
+            self.commit(where, 'record ' + label, 'peer-coding')
+            result = self.pc(where, 'close', '--as', 'codex', '--merged', 'PR 7')
+            self.assertEqual(result.returncode, code, '%s: %s' % (label, result.stdout))
+            if code:
+                self.assertIn('product files changed after the accepted head', result.stdout, label)
+
+        def added(text):
+            with open(log, 'a') as handle:
+                handle.write(text)
+
+        attempt('an entry changed', lambda: log.write_text(log.read_text().replace('open', 'fixed')), 1)
+        attempt('debt and code', lambda: (added('\n## TD-002: the axis repeats\n'),
+                                          (where / 'app.py').write_text('print("changed")\n')), 1)
+        attempt('debt added', lambda: added('\n## TD-002: the axis repeats\n\n- **Status:** open\n'), 0)
+
     def test_close_refuses_open_findings_wip_packets_and_uncommitted_changes(self):
         where, folder, product = self.reviewed()
         self.edit(folder / 'CURRENT.md', r'^- \*\*Accepted head:\*\*.*$', '- **Accepted head:** %s by codex' % product)

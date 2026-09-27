@@ -558,6 +558,26 @@ def uncommitted_product(project):
                                      ':(exclude)%s' % RECORD).stdout.splitlines() if line]
 
 
+def debt_log(project):
+    """The project's TECHNICAL-DEBT.md, beside its References.md, as a path from the repository top."""
+    root = project.engine if (project.engine / 'References.md').is_file() or project.engine == project.top \
+        else project.engine.parent
+    return display(project, root / 'TECHNICAL-DEBT.md')
+
+
+def only_debt_added(project, since):
+    """True when every product change since `since` adds lines to the project's TECHNICAL-DEBT.md and removes
+    none: the debt a closing assistant carries from FINDINGS.md, which needs no further review."""
+    log = debt_log(project)
+    rows = [row for row in out(project.top, 'diff', '--no-renames', '--numstat', '-z', since, 'HEAD', '--', '.',
+                               ':(exclude)%s' % RECORD).split('\0') if row]
+    for row in rows:
+        added, removed, path = (row.split('\t', 2) + ['', ''])[:3]
+        if path != log or not added.isdigit() or removed != '0':
+            return False
+    return bool(rows)
+
+
 def last_product_commit(project):
     return out(project.top, 'rev-list', '-1', 'HEAD', '--', '.', ':(exclude)%s' % RECORD)
 
@@ -856,7 +876,7 @@ def check_closed(project, folder, report, peers):
         report.fail('%s: its accepted head %s is not in this branch\'s history' % (name, current['accepted']))
     else:
         changed = product_changes(project, accepted)
-        if changed:
+        if changed and not only_debt_added(project, accepted):
             report.fail('%s: product files changed after the accepted head of the close: %s. Reopen it (close --reopen), '
                         'have the change reviewed, and close again' % (name, listed(changed)))
     dirty = uncommitted_product(project)
@@ -1300,7 +1320,7 @@ def command_close(project, args):
         if not succeeds(project.top, 'merge-base', '--is-ancestor', accepted, 'HEAD'):
             raise Refusal('the accepted head %s is not in this branch\'s history' % current['accepted'])
         changed = product_changes(project, accepted)
-        if changed:
+        if changed and not only_debt_added(project, accepted):
             raise Refusal('product files changed after the accepted head %s (last product commit %s): that change '
                           'needs the other assistant\'s review first' % (accepted[:12], last[:12]))
         outcome = 'closed for merge via %s' % args.merged

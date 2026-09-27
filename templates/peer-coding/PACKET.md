@@ -2,18 +2,23 @@
 
 Status: WIP. Remove this line when the packet is ready to hand over.
 
+## Goal check
+
+- Goal: <the outcome this branch exists for, from ALIGNMENT.md §1, in one line>
+- This turn: <how each change served the goal or repaired a blocking finding, and the findings written down as debt: IDs, or none>
+
 ## Incoming review
 
 - Incoming packet: {{INCOMING}}
 - Reviewed range and worktree state: <base..head on `{{BRANCH}}`, and clean or what is uncommitted>. The product changes alone: `git diff <base> <head> -- . ':(exclude)peer-coding'`
 - Verdict: <ACCEPTED | CHANGES REQUESTED | BLOCKED, for this exact range; or none, when there was nothing to review>
-- Findings: <ID (R<round>-F<number>), severity, location, triggering case, wrong result, evidence; or no findings>
+- Findings: <ID (R<round>-F<number>), blocking or debt, location, triggering case, wrong result, evidence; or no findings>
 - What the evidence establishes, and its limits: <...>
 
 ## New commits
 
 - Range awaiting review: <base..head, or none>
-- Changes and reasons: <each supported finding with its repair, and the scope implemented>
+- Changes and reasons: <each blocking finding with its repair, and the scope implemented>
 - Self-review: <what was checked, what was corrected, what still concerns you>
 
 ## Evidence
