@@ -1323,7 +1323,7 @@ class ChangesForm(unittest.TestCase):
     def test_the_shipped_file_is_in_form(self):
         code, out = self.check(self.original)
         self.assertEqual(code, 0, out)
-        self.assertIn('every entry is dated, newest first, and names the release it follows', out)
+        self.assertIn('every entry is dated, newest first, with one full Follows revision', out)
 
     def test_each_malformed_entry_is_named(self):
         first = self.original.index('\n## ') + 1
@@ -1340,6 +1340,8 @@ class ChangesForm(unittest.TestCase):
             ('no Project line', re.sub(r'(?m)^- \*\*Project:\*\*.*\n', '', top), 'has no Project line'),
             ('no Session line', re.sub(r'(?m)^- \*\*Session:\*\*.*\n', '', top), 'has no Session line'),
             ('a heading without a date', re.sub(r'^## \S+: ', '## Latest: ', top), 'is not <date>: <title>'),
+            ('a top heading with no space after the marks', top.replace('## 2026-', '##2026-', 1), 'comes before the first entry heading'),
+            ('a top heading with three marks', top.replace('## 2026-', '### 2026-', 1), 'comes before the first entry heading'),
         )
         for name, changed, message in cases:
             with self.subTest(name):

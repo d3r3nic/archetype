@@ -7,7 +7,7 @@ An entry's `Follows` line names the release before it. The entries a project has
 ## 2026-09-26: Every update says what changed
 Follows: 08bcc1404be21a0f67321fe0f1ff6889ca5e571c
 
-- **Session:** after an update, act on the entries of this file the project has not seen. The updater prints them. Change how you work as each Session line says, and do what each Project line asks (development/UPDATE.md, section After).
+- **Session:** after an update, act on the entries of this file the project has not seen. The updater prints them; after an updater from before this file, development/UPDATE.md, section After, says how to find them. Change how you work as each Session line says, and do what each Project line asks.
 - **Project:** nothing to record.
 
 ## 2026-09-26: Guidance and checks by how the application works
@@ -37,6 +37,7 @@ Follows: e72ed261e0358e490c979ef87bda81c9ffb164f6
   - Report it upstream when it would get in the way of other projects (development/FEEDBACK.md). The owner approves before anything is sent.
   - A set-aside is never a pass. It never covers the owner's decisions, the floor (#30) or honesty, and a step that holds the owner's words is set aside only with them.
 - **Session:** the destructive-command guard blocks every force-push form it names and lets `--force-with-lease` through; use that form when a force push is needed.
+- **Session:** when the guard blocks a command, never reword it to get past the guard. Use the safer form its message names, or ask the owner (bootstrap/hooks/README.md).
 - **Project:** nothing to record.
 
 ## 2026-09-25: Text read the same on every system
@@ -49,9 +50,10 @@ Follows: 2b9e92f4bf81583cb4a3a94fe5799bac806ac48d
 Follows: 486c95237eb3ec51d1591281483986bbe8dd53f2
 
 - **Session:** in peer coding (development/PEER-CODING.md):
-  - commit as the turn moves and push at each checkpoint;
+  - commit as the turn moves, and push at each checkpoint when the settings say `Push: yes`;
   - leave nothing uncommitted however a turn ends;
   - every commit on a peer branch names its assistant with a `Peer:` line.
+- **Project:** `Push: no` in `peer-coding/SETTINGS.md` needs its reason: a push to a work branch would itself start a deploy or release build, or the project has no remote. `scripts/peer-coding.py` refuses a bare `Push: no`; otherwise set `Push: yes`.
 - **Project:** for a peer-coding branch opened under an earlier release whose pushed commits carry no `Peer:` line, the next hand-over's packet names each one: `Commit <id> made by <name>`. `scripts/peer-coding.py check` lists them.
 
 ## 2026-09-25: Peer coding, two AI assistants taking turns on a branch
@@ -76,6 +78,7 @@ Follows: 1538b8c28d9bced68266c3c87fe2d84bbd804739
 
   Change only those entries of the project's settings.
 - **Project:** a unit that handles regulated data records where its audit trail lives on the Audit log line of References.md § Compliance; the scaffold check reads it there.
+- **Project:** a frontend project records how people use it on a phone on the `Mobile mode` line of References.md § Project (templates/references-frontend.md); the frontend scaffold reads it.
 
 ## 2026-09-23: Fixes a fresh project meets on day one; rules load by import
 Follows: cefbec9d9ebac48bc3edbce3fc70a6e779856b02
@@ -83,6 +86,7 @@ Follows: cefbec9d9ebac48bc3edbce3fc70a6e779856b02
 - **Session:** root CLAUDE.md imports AGENTS.md, so the rules load under either name.
 - **Session:** work blocked on the owner is recorded as blocked, with the owner's action (#29), never as a deferral.
 - **Project:** remove any feature-tree.md row that still holds the template's placeholder; the checks fail it.
+- **Project:** a pulse monitor built under an earlier release keeps its snapshot and UI outside every folder the production build or deployment copies. Its route is registered only when the environment explicitly says development (#26, templates/pulse-monitor-spec.md). Move them, then list the production build's files, hidden ones included, to confirm neither is there.
 
 ## 2026-09-21: Updates carry a project's own rules forward; AGENTS.md holds the rules
 Follows: cf15e2117af1733b2360470fe2458bc4af6b4385

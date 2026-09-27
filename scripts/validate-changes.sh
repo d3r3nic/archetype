@@ -38,6 +38,9 @@ PROBLEMS="$(tr -d '\r' < "$FILE" | awk '
     previous = date; dated = 1
     next
   }
+  # An entry whose heading is not "## " falls before the first heading, where the updater never
+  # reads it: its lines there are reported.
+  n == 0 && /^(Follows:|- [*][*](Session|Project):[*][*])/ { print "line " NR " comes before the first entry heading \"## <date>: <title>\": " $0; next }
   /^Follows:/ {
     follows++; value = $0; sub(/^Follows: /, "", value)
     if (value !~ /^[0-9a-f]+$/ || length(value) != 40) print "entry \"" title "\" Follows line is not a full revision: " value
@@ -54,5 +57,5 @@ if [ -n "$PROBLEMS" ]; then
   printf '%s\n' "$PROBLEMS" | while IFS= read -r line; do printf "${RED}FAIL${NC}: development/CHANGES.md: %s\n" "$line"; done
   exit 1
 fi
-printf "${GREEN}OK${NC}: development/CHANGES.md: every entry is dated, newest first, and names the release it follows\n"
+printf "${GREEN}OK${NC}: development/CHANGES.md: every entry is dated, newest first, with one full Follows revision\n"
 exit 0

@@ -1017,9 +1017,9 @@ if [ -f "$CHANGES_FILE" ] && ! { [ "${#RECORDED}" -ge 7 ] && case "$LATEST_HASH"
     echo ""
     echo "What changed since this project's previous framework revision (${ENGINE_REL}development/CHANGES.md), newest first:"
     echo ""
-    printf '%s\n' "$CHANGES_OUT" | sed 's/^/  /'
+    printf '%s\n' "$CHANGES_OUT" | sed 's/^./  &/'
   fi
 fi
 
 echo ""
-echo "Next: follow ${ENGINE_REL}development/UPDATE.md, section After (audit what the update added to CLAUDE.md.additions, run the checks, commit as one change)."
+echo "Next: follow ${ENGINE_REL}development/UPDATE.md, section After (act on what changed, audit what the update added to CLAUDE.md.additions, run the checks, commit as one change)."

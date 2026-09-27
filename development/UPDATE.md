@@ -42,7 +42,7 @@ Never restore a root entry file from version control after an update: that puts 
 
 ## After
 
-1. Act on what changed. The updater printed the entries of development/CHANGES.md this project had not seen, newest first. Change how you work as each entry's Session lines say, and do what its Project lines ask. An updater from before that file prints none. Then read development/CHANGES.md yourself: from the top down to the entry whose `Follows` line names the revision in the VERSION-LOG.md entry before this update's, or all of it when none does.
+1. Act on what changed. The updater printed the entries of development/CHANGES.md this project had not seen, newest first. Change how you work as each entry's Session lines say, and do what its Project lines ask. An updater from before that file prints none. Then read development/CHANGES.md yourself. Start at the top, and go down to the entry whose `Follows` line names the revision on the last `Commit:` line VERSION-LOG.md held before this update (before the first run, when an older updater ran twice). Read all of it when no entry names that revision.
 2. Review what the update added to `CLAUDE.md.additions`.
    - For each carried line: keep it there, move it to `References.md` or `conventions/overrides/`, or retire it because the current rules cover it, and record the reason for a retirement at the decision location.
    - For a kept reshaped file: decide whether what the project removed or reordered still matters, and record it the same way.
@@ -50,7 +50,7 @@ Never restore a root entry file from version control after an update: that puts 
    - Remove each dated heading when done, and delete a `.pre-update` copy once nothing in it is still needed.
    - In a full clone, bring the project's text back from a kept `README.md` copy.
    - Read a dated heading the update added to `VERSION-LOG.md` and any kept `FRAMEWORK-SOURCE.md` copy, and keep what the project's history needs.
-3. Run the engine's `scripts/validate-framework.sh`, `scripts/validate-profile.sh`, and for a project with a screen `scripts/validate-design.sh`. A newer release can add lines a project record must carry, and the check names them. A project that installed the framework's hook guard also runs `scripts/check-hooks.py` and changes only the entries of the project's settings it names.
+3. Run the engine's `scripts/validate-framework.sh`, `scripts/validate-profile.sh`, and for a project with a screen `scripts/validate-design.sh`. A newer release can add lines a project record must carry, and the check names them. A release can change how a project record is written, and the check that reads it names the change. A project that installed the framework's hook guard also runs `scripts/check-hooks.py` and changes only the entries of the project's settings it names.
 4. Run the project's own verification commands. Commit the update as one change, with the installed revision from `VERSION-LOG.md` in the message.
 
 ## Older installs
