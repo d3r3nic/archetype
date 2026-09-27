@@ -29,7 +29,7 @@ The owner's lines change only on the owner's decision. The other lines are techn
 
 Both assistants can implement, review, repair and hand back. The settings' Who writes line says who writes new work: one writes and the other reviews, they take turns, or the owner names the writer each time. The owner can change it for any piece of work by saying so; record those words in the branch folder's CURRENT.md before acting on them.
 
-The loop: the writer implements and hands over. The reviewer audits that exact range, repairs the supported findings within scope itself unless the owner's preference says otherwise, and hands the repairs back for review. This repeats until a review accepts with no new commits, which closes that scope. The next scope starts with the writer the preference names.
+The loop: the writer implements and hands over. The reviewer audits that exact range, repairs the blocking findings within scope itself unless the owner's preference says otherwise, writes the rest down as debt (Stay on the goal, below), and hands the repairs back for review. This repeats until a review accepts with no new commits, which closes that scope. The next scope starts with the writer the preference names.
 
 ## The record
 
@@ -74,10 +74,29 @@ Go to the worktree the line names (or your own checkout of its branch) and read 
 
 1. Having resumed as above, read the incoming packet, and only the findings and evidence it links. Read the project's rules files before editing.
 2. `packet` opens your packet for this turn, marked WIP, and names your evidence folder.
-3. Review the incoming range: each finding with severity, location, the case that triggers it, the wrong result and the evidence. Give the verdict for that exact range: ACCEPTED, CHANGES REQUESTED, or BLOCKED with the reason. Self-review is not independent review. Accepted work stays closed unless new evidence contradicts it, and no number of rounds turns an unresolved finding into acceptance.
-4. Repair the supported findings and implement the agreed scope, keeping agreed behavior. Widening the scope needs the owner's words recorded in CURRENT.md. Commit as you go: each coherent step is its own commit with your Peer line, and with Push: yes push the branch at each checkpoint, so the history shows what you did in this turn. Run `check` before each push, while a commit can still be reworded. After your final edit, run the settings' Checks each turn and anything the change calls for, save the exact commands, exit codes and output in your evidence folder, in files the repository does not ignore, and commit.
-5. Fill your packet: the verdict, the new commits awaiting review, the evidence and its limits, the next action. In CURRENT.md record the last product commit, the latest round, and the accepted head when you accepted the other's final range with no new commits of your own. Update only the affected rows of FINDINGS.md: it holds what stays unresolved at the hand-over; a finding you repaired this turn is in your packet, with its repair awaiting review.
+3. Review the incoming range: each finding, blocking or debt (Stay on the goal, below), with its location, the case that triggers it, the wrong result and the evidence. Give the verdict for that exact range: ACCEPTED, CHANGES REQUESTED, or BLOCKED with the reason; only a blocking finding holds back acceptance. Self-review is not independent review. Accepted work stays closed unless new evidence contradicts it, and no number of rounds turns an unresolved blocking finding into acceptance.
+4. Repair the blocking findings and implement the agreed scope, keeping agreed behavior, and nothing else: debt is written down, not worked on. Widening the scope needs the owner's words recorded in CURRENT.md. Commit as you go: each coherent step is its own commit with your Peer line, and with Push: yes push the branch at each checkpoint, so the history shows what you did in this turn. Run `check` before each push, while a commit can still be reworded. After your final edit, run the settings' Checks each turn and anything the change calls for, save the exact commands, exit codes and output in your evidence folder, in files the repository does not ignore, and commit.
+5. Fill your packet: the goal check, the verdict, the new commits awaiting review, the evidence and its limits, the next action. In CURRENT.md record the last product commit, the latest round, and the accepted head when you accepted the other's final range with no new commits of your own. Update only the affected rows of FINDINGS.md: it holds what stays unresolved at the hand-over, the debt included; a finding you repaired this turn is in your packet, with its repair awaiting review.
 6. Hand over, unless the branch is ready: your verdict accepted the final range with no new commits of your own and nothing more is in scope. Then, instead of handing over, remove the WIP line, run Hand over steps 2 and 3 (checks, commit and push the record), and close and merge the branch yourself (Closing the branch) when the settings' Merge line and PROFILE.md let you merge without asking; otherwise wait on the owner with NEEDS USER, asking for the merge. Never invent a change to keep the loop going.
+
+## Stay on the goal
+
+The branch exists for the goal and scope in ALIGNMENT.md §1 and the round's acceptance checks. Every turn works toward them, and every finding is weighed against them:
+
+- **Blocking:** a real problem in what this branch changed, or one that stops its goal. That is:
+  - a wrong result on an input the product will meet;
+  - a security hole, or data lost or damaged;
+  - a floor item of the operating profile (#30) that the branch's change leaves unmet;
+  - a check that passes when it should fail, or a required check that fails;
+  - a record or document that claims what the code does not do;
+  - agreed behavior broken, or the acceptance checks not passing;
+  - drift (#19): a change outside the agreed scope or against the owner's recorded words, even when it works. Its repair takes the change out.
+
+  Blocking findings are repaired in this branch, and only they hold back acceptance.
+- **Debt:** everything else. That is polish (style, naming, restructuring, nicer messages, more tests than the acceptance checks need, cases no real input reaches), ideas, and problems that were there before this branch and do not stop its goal. Write each as one FINDINGS.md row with Severity `debt` and what would make it matter, and do not work on it in this branch. A range whose findings are all debt is ACCEPTED.
+- A review of repairs reads only the repairs: whether each fixed its finding without breaking anything, not the whole branch again.
+- A serious problem this branch did not cause, such as a security hole or data at risk, is written down as debt and also named to the owner at the hand-over. The owner decides whether this branch takes it on, and their words go in CURRENT.md.
+- The goal check, every turn: before each change, ask whether it serves the goal or repairs a blocking finding; when it does neither, write it down as debt instead of making it. Before you hand over, your packet's Goal check says how the turn served the goal and what went to debt.
 
 ## Hand over
 
@@ -98,10 +117,10 @@ After every alignment move and every turn:
 ## Closing the branch
 
 - A merge needs the other assistant's ACCEPTED verdict on the final product head, recorded on CURRENT.md's Accepted head line; passing checks; what the settings' Merge line requires; and the authorization PROFILE.md and #29 require (the owner's when it deploys or touches a live environment).
-- Carry every unresolved finding to the project's own records first (the canonical task source development/TASKS.md names, or TECHNICAL-DEBT.md) and note in your packet where each went; the folder closes only with FINDINGS.md empty.
+- Carry every unresolved finding to the project's own records first (the canonical task source development/TASKS.md names, or TECHNICAL-DEBT.md) and note in your packet where each went; the folder closes only with FINDINGS.md empty. A debt row carried to TECHNICAL-DEBT.md becomes an entry in the form templates/technical-debt.md gives, `Kind: shortcut`, saying what would make it matter. Those entries are a product change like any other: hand them over for review instead of closing. That review checks only that the range appends those entries to the log and changes nothing else, and that each entry records its row; the reviewing assistant then goes on as Each turn, step 6, says.
 - The merging assistant is the one whose review accepted the final range, unless the owner names the other. It runs `close --merged <pull request or ref>`: the folder becomes `<branch>--done`, marked closed for that merge. Commit it as the branch's last change, push, and merge the way the project merges (its pull request, or a merge into the default branch and a push, as References.md and #2 record; never a force-push). Prefer a merge that keeps each turn's commits in the default branch's history (a merge commit or a rebase merge) over a squash, unless the settings' Merge line records otherwise. Tell the owner in one line that the branch merged; no relay line is needed. The record says "closed for merge", never that the merge happened.
 - If the merge then does not happen (a check fails, the merge is refused), `close --reopen "<reason>"` renames the folder back, and the work continues. A branch that merged stays closed.
-- Work the owner abandons: `close --abandoned "<reason>"`.
+- Work the owner abandons: `close --abandoned "<reason>"`. Its TECHNICAL-DEBT.md never merges, so empty FINDINGS.md first this way: rows about the abandoned change go with it, and the others go to the task source when the project runs one, otherwise to the owner, one line each, for the default branch's debt log.
 - A folder left open by a merge: `check` reports one whose branch was merged by a merge commit or no longer exists. After a merge that squashed the branch's commits, delete the branch, here and on the remote, and the next `check` names the folder. Close it from the branch at hand with `close --folder <folder> --merged <ref>` (or `--abandoned`) and commit that.
 
 ## Rules for every turn
