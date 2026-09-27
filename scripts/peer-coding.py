@@ -559,23 +559,38 @@ def uncommitted_product(project):
 
 
 def debt_log(project):
-    """The project's TECHNICAL-DEBT.md, beside its References.md, as a path from the repository top."""
+    """The project's TECHNICAL-DEBT.md, beside its References.md, as a path from the repository top; '' when that
+    is outside the repository. Never resolved, so a link of that name does not stand for the file it points to."""
     root = project.engine if (project.engine / 'References.md').is_file() or project.engine == project.top \
         else project.engine.parent
-    return display(project, root / 'TECHNICAL-DEBT.md')
+    try:
+        return (root / 'TECHNICAL-DEBT.md').relative_to(project.top).as_posix()
+    except ValueError:
+        return ''
 
 
 def only_debt_added(project, since):
-    """True when every product change since `since` adds lines to the project's TECHNICAL-DEBT.md and removes
-    none: the debt a closing assistant carries from FINDINGS.md, which needs no further review."""
+    """True when every product change since `since` adds lines to the project's TECHNICAL-DEBT.md, a plain file
+    that keeps its mode, and removes none: the debt a closing assistant carries from FINDINGS.md, which needs no
+    further review."""
     log = debt_log(project)
-    rows = [row for row in out(project.top, 'diff', '--no-renames', '--numstat', '-z', since, 'HEAD', '--', '.',
-                               ':(exclude)%s' % RECORD).split('\0') if row]
+    scope = ('--', '.', ':(exclude)%s' % RECORD)
+    fields = out(project.top, 'diff', '--no-renames', '--raw', '-z', since, 'HEAD', *scope).split('\0')
+    entries = 0
+    while len(fields) >= 2 and fields[0].startswith(':'):
+        meta, path, fields = fields[0][1:].split(), fields[1], fields[2:]
+        old, new, status = (meta[0], meta[1], meta[4]) if len(meta) >= 5 else ('', '', '')
+        if path != log or status not in ('A', 'M') or new not in ('100644', '100755') \
+                or old != ('000000' if status == 'A' else new):
+            return False
+        entries += 1
+    rows = [row for row in out(project.top, 'diff', '--no-renames', '--numstat', '-z', since, 'HEAD', *scope).split('\0')
+            if row]
     for row in rows:
         added, removed, path = (row.split('\t', 2) + ['', ''])[:3]
         if path != log or not added.isdigit() or removed != '0':
             return False
-    return bool(rows)
+    return bool(entries) and entries == len(rows)
 
 
 def last_product_commit(project):
@@ -1185,7 +1200,8 @@ def command_cue(project, args):
                       % (remote, tracked, remote, project.branch))
     if current['waiting'] == 'SCOPE CLOSED' and opened and own_product_changes(project, opened):
         accepted = resolve_commit(project, current['accepted']) if current['accepted'] else ''
-        if not accepted or not is_ancestor(project, accepted, 'HEAD') or product_changes(project, accepted):
+        if not accepted or not is_ancestor(project, accepted, 'HEAD') or \
+                (product_changes(project, accepted) and not only_debt_added(project, accepted)):
             raise Refusal('SCOPE CLOSED needs the other assistant\'s acceptance of the product changes: the Accepted '
                           'head must cover the last product commit %s' % last_product_commit(project)[:12])
     if note:

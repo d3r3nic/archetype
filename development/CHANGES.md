@@ -7,9 +7,9 @@ An entry's `Follows` line names the release before it. The entries a project has
 ## 2026-09-27: Peer coding stays on the goal
 Follows: 60dee6353653fff781ae4815fe8f91eb21fe87d3
 
-- **Session:** in peer coding, weigh every review finding against the branch's goal. A blocking finding is a real problem in what the branch changed, or one that stops its goal; only blocking findings are repaired in the branch, and only they hold back acceptance. Everything else is debt: one FINDINGS.md row with Severity `debt`, not worked on in the branch (development/PEER-CODING.md, Stay on the goal).
+- **Session:** in peer coding, weigh every review finding against the branch's goal. A blocking finding is a real problem in what the branch changed, a floor item of the operating profile (#30) left unmet among them, or one that stops its goal; only blocking findings are repaired in the branch, and only they hold back acceptance. Everything else is debt: one FINDINGS.md row with Severity `debt`, not worked on in the branch (development/PEER-CODING.md, Stay on the goal).
 - **Session:** at every turn, before each change, check that it serves the goal or repairs a blocking finding, and write anything else down as debt instead. The packet's Goal check says how the turn served the goal and what went to debt.
-- **Session:** at close, carry the debt rows to TECHNICAL-DEBT.md as `Kind: shortcut` entries. `close` takes that addition after the accepted head without another review.
+- **Session:** when a branch closes for its merge, carry the debt rows to the project's records: the task source, or TECHNICAL-DEBT.md as `Kind: shortcut` entries, which `close` takes after the accepted head without another review. Before an abandoned close, rows about problems that were there before the branch go to the task source or to the owner.
 - **Project:** in a branch folder already open, mark each FINDINGS.md row's Severity `blocking` or `debt` at your next turn.
 
 ## 2026-09-27: Hand-over commits stay plain
