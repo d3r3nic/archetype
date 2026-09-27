@@ -26,7 +26,7 @@ A project with regulated data needs two logging systems. A session writes audit 
 **Defense:**
 - SCAFFOLD-BACKEND builds the audit trail as its own step, separate from the application logger.
 - B4 opens with the two systems; #23 points to it.
-- validate-scaffold.sh checks, wherever the unit handles regulated data (PROFILE.md, or the unit's References.md), that an audit log exists at the location References.md § Compliance records on its Audit log line and is not a memory-only store. That it is separate from the application logger is the review's to read.
+- validate-scaffold.sh checks, wherever the unit handles regulated data (PROFILE.md, or the unit's References.md), that an audit log exists at the location References.md § Compliance records on its Audit log line and is not a memory-only store: beside a store that lives in memory it needs the production store, the one the Audit store line's pattern names, or one whose name does not mark a test double (memory, fake, mock, stub, dummy, no-op or spy in the name, or a word starting with test). A test double named in other words, and whether the trail is separate from the application logger, are the review's to read.
 
 ## 4. Middleware pipeline in wrong order
 

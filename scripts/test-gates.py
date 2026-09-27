@@ -832,7 +832,10 @@ class RegulatedDataGate(unittest.TestCase):
                       'class TestDatabaseAuditStore {}', 'export const fakeLedgerAuditStore = new InMemoryAuditStore()',
                       'const mockLedgerAuditStore = store', 'const spyWormAuditStore = store', 'const fakeWormStore = store',
                       'class FakeAppendOnlyStore {}', 'interface IMemoryAuditStore {}', 'const store = createAuditStore()',
-                      'export interface IAuditStore {}', 'const store = createIAuditStore()'):
+                      'export interface IAuditStore {}', 'const store = createIAuditStore()',
+                      'class KVMemoryAuditStore {}', 'class DBMockAuditStore {}', 'class HTTPFakeAuditStore {}',
+                      'class APIStubAuditStore {}', 'class SQLTestAuditStore {}', 'class IOSpyAuditStore {}',
+                      'class ITestAuditStore {}'):
             with self.subTest(extra=extra):
                 (store / 'store.ext').write_text('class InMemoryAuditStore { private records: AuditRecord[] = [] }\n' + extra + '\n')
                 result = self.check()

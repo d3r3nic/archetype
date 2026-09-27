@@ -229,7 +229,7 @@ Always. Build one minimal feature that goes through every shared system that was
 
 Run `scripts/validate-scaffold.sh` and fix what it reports before committing. It checks the records against the project:
 - every foundational system in feature-tree.md has its page;
-- when the unit handles regulated data: an audit trail at the location References.md § Compliance records, and not a memory-only store (that it is separate from the application log is the review's to read);
+- when the unit handles regulated data: an audit trail at the location References.md § Compliance records, and not a memory-only store, as the store names or the Audit store line show (`scaffolding/RED-FLAGS.md`, section 3; a test double named in other words, and that the trail is separate from the application log, are the review's to read);
 - a recorded migration command is bounded in § Boundaries (once the section holds a line in the recorded form; until then the gate warns), and the § Boundaries lines that exist hold;
 - a recorded location for the checks, and a recorded query allow-list, exist;
 - the smoke-test feature and the VERSION-LOG.md scaffold entry.
