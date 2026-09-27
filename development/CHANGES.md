@@ -7,8 +7,8 @@ An entry's `Follows` line names the release before it. The entries a project has
 ## 2026-09-27: Hand-over commits stay plain
 Follows: 8577abdf3bcb466a4d687a850a57077a9152b153
 
-- **Session:** in peer coding, every hand-over commits what is still uncommitted, then the record, and pushes when the settings say `Push: yes`.
-- **Session:** keep each commit plain: a one-line message and your Peer line. Do not reshape the turn's history at a hand-over or write long message bodies, since the packet carries the detail (development/PEER-CODING.md).
+- **Session:** in peer coding, every hand-over commits the record, plainly, and pushes when the settings say `Push: yes`; product work is committed on the writing turn as it goes.
+- **Session:** keep each commit plain: a one-line message and your Peer line, plus only what the project's commit convention requires. Do not reshape the turn's history at a hand-over or write long message bodies, since the packet carries the detail (development/PEER-CODING.md).
 - **Project:** nothing to record.
 
 ## 2026-09-27: Every update says what changed
