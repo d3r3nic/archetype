@@ -26,4 +26,4 @@ Keep out the project's name, the names of its owner and its customers, its data,
 
 The framework's source is the Source line in VERSION-LOG.md. Draft the report as an issue or a pull request there and show it to the owner. Send it only with the owner's approval, because it publishes outside the project (#29). If the owner declines, keep the draft with the project's records and mention it in the session summary.
 
-A report does not change this project's obligations. Keep working to the decision you recorded; the framework's answer arrives through development/UPDATE.md.
+A report does not change this project's obligations. Keep working to the decision you recorded; the framework's answer arrives with an update, and development/CHANGES.md says what it changed.

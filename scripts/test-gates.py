@@ -1304,6 +1304,50 @@ class OneRowRule(unittest.TestCase):
         self.assertIn('feature row 06 has no name', gate.stdout)
 
 
+class ChangesForm(unittest.TestCase):
+    """scripts/validate-changes.sh (validate-framework.sh group 14): development/CHANGES.md stays
+    in the form update.sh reads."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='archetype-changes-')
+        self.addCleanup(self.temp.cleanup)
+        self.file = Path(self.temp.name) / 'CHANGES.md'
+        self.original = (SOURCE / 'development' / 'CHANGES.md').read_text()
+
+    def check(self, text):
+        self.file.write_text(text)
+        result = subprocess.run([BASH, str(SOURCE / 'scripts' / 'validate-changes.sh'), str(self.file)],
+                                text=True, capture_output=True)
+        return result.returncode, ANSI.sub('', result.stdout)
+
+    def test_the_shipped_file_is_in_form(self):
+        code, out = self.check(self.original)
+        self.assertEqual(code, 0, out)
+        self.assertIn('every entry is dated, newest first, and names the release it follows', out)
+
+    def test_each_malformed_entry_is_named(self):
+        first = self.original.index('\n## ') + 1
+        head, body = self.original[:first], self.original[first:]
+        top = body[:body.index('\n## ') + 1]
+        follows = re.search(r'(?m)^Follows: ([0-9a-f]{40})$', top).group(1)
+        second = re.search(r'(?m)^Follows: ([0-9a-f]{40})$', body[len(top):]).group(1)
+        cases = (
+            ('no Follows line', top.replace('Follows: ' + follows + '\n', ''), 'has 0 Follows lines'),
+            ('two Follows lines', top.replace('Follows: ' + follows, 'Follows: ' + follows + '\nFollows: ' + follows), 'has 2 Follows lines'),
+            ('a short revision', top.replace(follows, follows[:7]), 'Follows line is not a full revision'),
+            ('a revision another entry follows', top.replace(follows, second), 'follows the same revision as'),
+            ('an entry newer than the one above it', top.replace('## 2026-', '## 2025-', 1), 'is newer than the one above it'),
+            ('no Project line', re.sub(r'(?m)^- \*\*Project:\*\*.*\n', '', top), 'has no Project line'),
+            ('no Session line', re.sub(r'(?m)^- \*\*Session:\*\*.*\n', '', top), 'has no Session line'),
+            ('a heading without a date', re.sub(r'^## \S+: ', '## Latest: ', top), 'is not <date>: <title>'),
+        )
+        for name, changed, message in cases:
+            with self.subTest(name):
+                code, out = self.check(head + changed + body[len(top):])
+                self.assertEqual(code, 1, out)
+                self.assertIn(message, out)
+
+
 class NameCheck(unittest.TestCase):
     """validate-timeless.sh: no named technology anywhere, in documents or in checks."""
 

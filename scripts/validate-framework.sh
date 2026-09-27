@@ -20,6 +20,8 @@
 #      templates and convention #30 name
 #  13. Stepped playbooks: every playbook that declares a step ledger is well
 #      formed (delegates to scripts/next-step.sh --lint; development/STEPS.md)
+#  14. What changed: development/CHANGES.md is in the form the updater reads
+#      (delegates to scripts/validate-changes.sh)
 # Exit 0 on pass, 1 on any error. Warnings do not fail the check.
 
 # Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
@@ -371,6 +373,20 @@ if [ -f "$SCRIPT_DIR/next-step.sh" ]; then
     printf '%s\n' "$STEPS_OUT" | grep 'FAIL' | while IFS= read -r l; do printf '  %s\n' "$l"; done
     fail "stepped playbooks are malformed (see lines above)"
   fi
+fi
+
+# ----------------------------------------------------------------------
+group 14 "What changed (development/CHANGES.md in the form the updater reads)"
+# ----------------------------------------------------------------------
+if [ -f "$SCRIPT_DIR/validate-changes.sh" ]; then
+  if CHANGES_OUT="$(bash "$SCRIPT_DIR/validate-changes.sh" 2>&1)"; then
+    pass "$(printf '%s' "$CHANGES_OUT" | sed 's/\x1b\[[0-9;]*m//g; s/^OK: //')"
+  else
+    printf '%s\n' "$CHANGES_OUT" | sed 's/\x1b\[[0-9;]*m//g' | grep 'FAIL' | while IFS= read -r l; do printf '  %s\n' "$l"; done
+    fail "development/CHANGES.md is not in the form the updater reads (see lines above)"
+  fi
+else
+  fail "scripts/validate-changes.sh missing"
 fi
 
 # ----------------------------------------------------------------------

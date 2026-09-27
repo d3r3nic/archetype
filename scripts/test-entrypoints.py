@@ -829,6 +829,42 @@ class Entrypoints(unittest.TestCase):
     def update_in(self, project, env, answer='y\n'):
         return self.run_command(['bash', str(project / 'archetype/update.sh')], input=answer, env=env, cwd=project)
 
+    def test_update_prints_what_changed_since_the_projects_previous_revision(self):
+        remote, env = self.update_source()
+        entries = re.findall(r'(?m)^## (\d{4}-\d{2}-\d{2}: .+)\nFollows: ([0-9a-f]{40})$',
+                             (SOURCE / 'development/CHANGES.md').read_text())
+        self.assertGreaterEqual(len(entries), 3)
+        titles = [title for title, _ in entries]
+        # The recorded revision before the update, and the entries the project has not seen.
+        cases = (
+            ('the revision the second entry follows', entries[1][1], titles[:2]),
+            ('its short form', entries[1][1][:7], titles[:2]),
+            ('a revision no entry follows', '0' * 40, titles),
+            ('no revision recorded', None, titles),
+        )
+        for name, recorded, shown in cases:
+            with self.subTest(name):
+                project = self.installed_project('changes ' + name)
+                log = project / 'VERSION-LOG.md'
+                if recorded is None:
+                    log.write_text(re.sub(r'(?m)^Commit: .*\n', '', log.read_text()))
+                else:
+                    log.write_text(log.read_text() + '\n## Updates\n' + update_entry('2026-09-26', recorded))
+                result = self.update_in(project, env)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("What changed since this project's previous framework revision "
+                              "(archetype/development/CHANGES.md), newest first:", result.stdout)
+                for title in titles:
+                    (self.assertIn if title in shown else self.assertNotIn)('  ## ' + title + '\n', result.stdout)
+                self.assertLess(result.stdout.index('What changed since'), result.stdout.index('Next: follow'))
+        # Nothing is new when the project already had the revision it updates to.
+        project = self.installed_project('changes current')
+        log = project / 'VERSION-LOG.md'
+        log.write_text(log.read_text() + '\n## Updates\n' + update_entry('2026-09-26', self.head(remote)))
+        result = self.update_in(project, env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('What changed since', result.stdout)
+
     def test_update_puts_an_updates_heading_before_entries_that_end_another_section(self):
         remote, env = self.update_source()
         head = self.head(remote)

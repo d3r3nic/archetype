@@ -1,0 +1,93 @@
+# What changed
+
+Each framework release, newest first: what the session now does differently, and what an installed project records once. The updater prints the entries a project has not seen, and development/UPDATE.md, section After, says to act on them.
+
+An entry's `Follows` line names the release before it. The entries a project has not seen run from the top down to the one that follows the revision it had installed, which VERSION-LOG.md records. An install older than the last entry here reads them all; the rules and guides it now has state everything earlier.
+
+## 2026-09-26: Every update says what changed
+Follows: 08bcc1404be21a0f67321fe0f1ff6889ca5e571c
+
+- **Session:** after an update, act on the entries of this file the project has not seen. The updater prints them. Change how you work as each Session line says, and do what each Project line asks (development/UPDATE.md, section After).
+- **Project:** nothing to record.
+
+## 2026-09-26: Guidance and checks by how the application works
+Follows: f6b13b40b87298e9ebaea9dd8b5d182c130dedf3
+
+- **Session:** each convention says when it applies, by how the application works, and holds its standard firm:
+  - build once and reuse, with separation as the recorded exception;
+  - one owner per concern, and no duplicated logic or components;
+  - safe boundaries, and correct, consistent API contracts;
+  - no bloat, and speed and cost sized to real usage.
+
+  Where a rule applies, choose the form, record it in the project's files, and let the checks enforce the record.
+- **Session:** the framework names no technology. Choose the stack from the use case and record it in the project's files.
+- **Project:** add a `## Boundaries` section to References.md.
+  - It holds each shared system's one owner and what only it may use, one line per concern: `` - <concern>: `<pattern>` only in `<path>`, `<path>` ``. Copy the section's explanation from the matching References template in `templates/`.
+  - `scripts/validate-develop.sh` requires it. Record `- none: <reason>` when the project has nothing to guard.
+  - Record the lines from how the code already works, and treat a place that already goes around an owner as a finding to fix.
+- **Project:** add a `Checks run:` line saying where the checks run before work reaches the main line; the scaffold check warns without it.
+- **Project:** a migration command recorded as `migrate:` (or `db:migrate:`, as an earlier backend template had it) in § Commands is bounded to its production path in § Boundaries.
+- **Project:** a feature record may carry a `Tests:` line naming its tests. Without one, the develop check looks for test files in the feature's location as before.
+
+## 2026-09-26: The session's final word, and the force-push guard
+Follows: e72ed261e0358e490c979ef87bda81c9ffb164f6
+
+- **Session:** the framework's guidance, steps and checks are reminders; the session has the final word on fit, within the decision authority in PROFILE.md.
+  - When one does not fit how this application works, set it aside and record what, why and what you did instead. For a step, use `scripts/next-step.sh --set-aside` (development/STEPS.md).
+  - Report it upstream when it would get in the way of other projects (development/FEEDBACK.md). The owner approves before anything is sent.
+  - A set-aside is never a pass. It never covers the owner's decisions, the floor (#30) or honesty, and a step that holds the owner's words is set aside only with them.
+- **Session:** the destructive-command guard blocks every force-push form it names and lets `--force-with-lease` through; use that form when a force push is needed.
+- **Project:** nothing to record.
+
+## 2026-09-25: Text read the same on every system
+Follows: 2b9e92f4bf81583cb4a3a94fe5799bac806ac48d
+
+- **Session:** the checks read text as bytes and give the same answer on every system, and a parser that stops early fails instead of passing. Nothing changes in how you work.
+- **Project:** nothing to record.
+
+## 2026-09-25: Every peer turn committed as it moves, every commit names its assistant
+Follows: 486c95237eb3ec51d1591281483986bbe8dd53f2
+
+- **Session:** in peer coding (development/PEER-CODING.md):
+  - commit as the turn moves and push at each checkpoint;
+  - leave nothing uncommitted however a turn ends;
+  - every commit on a peer branch names its assistant with a `Peer:` line.
+- **Project:** for a peer-coding branch opened under an earlier release whose pushed commits carry no `Peer:` line, the next hand-over's packet names each one: `Commit <id> made by <name>`. `scripts/peer-coding.py check` lists them.
+
+## 2026-09-25: Peer coding, two AI assistants taking turns on a branch
+Follows: fb03dacf255c5e7371dc0837b44bd1e6802d0102
+
+- **Session:** two AI assistants can take alternating turns on a branch, each reviewing the other's work (development/PEER-CODING.md). A project's own settings live in `peer-coding/SETTINGS.md`.
+- **Project:** when References.md § Project has no `Peer coding` line:
+  - ask the owner the two peer-coding questions of bootstrap/ONBOARD-2.6-CARE-AND-AUTHORITY.md;
+  - record `none`, or set peer coding up (development/PEER-CODING.md, Setting it up);
+  - until the owner answers, record `none (asked, awaiting the owner)`. The bootstrap checks the step runner repeats read this line, and other work continues.
+- **Project:** a `peer-coding/` folder that holds `README.md`, `PROTOCOL.md` or `templates/` from an earlier copy of the peer-coding rules: remove them in a change of their own, keeping every branch folder. `scripts/peer-coding.py check` names them.
+
+## 2026-09-24: Honest checks, a working guard, a log that survives updates
+Follows: 1538b8c28d9bced68266c3c87fe2d84bbd804739
+
+- **Session:** References.md § Commands holds each command in backticks. The step runner refuses an unmarked value and says how to write it.
+- **Project:** write each recorded command in backticks.
+- **Project:** a project that installed the framework's hook guard runs `scripts/check-hooks.py`. It names:
+  - a guard command that no longer starts (quote its path placeholder as the settings templates do);
+  - a registration of the retired turn-end reminder (remove it);
+  - a settings file git ignores.
+
+  Change only those entries of the project's settings.
+- **Project:** a unit that handles regulated data records where its audit trail lives on the Audit log line of References.md § Compliance; the scaffold check reads it there.
+
+## 2026-09-23: Fixes a fresh project meets on day one; rules load by import
+Follows: cefbec9d9ebac48bc3edbce3fc70a6e779856b02
+
+- **Session:** root CLAUDE.md imports AGENTS.md, so the rules load under either name.
+- **Session:** work blocked on the owner is recorded as blocked, with the owner's action (#29), never as a deferral.
+- **Project:** remove any feature-tree.md row that still holds the template's placeholder; the checks fail it.
+
+## 2026-09-21: Updates carry a project's own rules forward; AGENTS.md holds the rules
+Follows: cf15e2117af1733b2360470fe2458bc4af6b4385
+
+- **Session:** root AGENTS.md holds the framework's rules and is replaced by every update. The project's own rules live in CLAUDE.md.additions, which AGENTS.md sends every session to first.
+  - Never put a project rule in a root entry file.
+  - Never restore a root entry file from version control after an update.
+- **Project:** review what the update carried into CLAUDE.md.additions (development/UPDATE.md, section After).
