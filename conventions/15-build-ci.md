@@ -1,57 +1,42 @@
 # Convention #15: Build, CI/CD & Code Quality
 
+## Applies when
+
+Every project that builds, checks or ships code. What varies is the stage (#30): an isolated experiment may run its checks through the step runner on one machine; a product others use runs them automatically before every merge and ships with a way back. Where the product ships (a server, an app store, a package registry, a device) shapes the release path.
+
 ## Principle
 
-Quality is enforced automatically, not by convention alone. Linters catch style issues, type checkers catch type errors, tests catch logic errors, and the CI pipeline blocks merging code that fails any check. The pipeline is the final authority. Lint rules catch categories of mistakes AI agents make most often; the specific rule IDs are language-dependent.
+The project's checks decide what merges: code that fails them does not reach the main line. The checks are the ones this project needs, automated as soon as more than one person or one session depends on them, and they keep the codebase free of bloat. Anything people depend on ships with a way back.
 
 ## Reusable System
 
-Create a quality enforcement pipeline that establishes:
-- A linting configuration with rules catching the AI-prone categories: untyped escape hatches (the language's equivalent of `any` or `Any`), console-level output left in production code, direct imports from third-party UI libraries (bypassing project wrappers), unsafe casts / non-null assertions, empty catch / except blocks
-- A formatting configuration applied automatically on save and verified in CI
-- A CI pipeline that runs in a predictable sequence: lint, type-check, unit test, build, integration test, end-to-end test, deploy
-- Bundle size budgets (for client bundles) or equivalent size/perf budgets that fail the build if exceeded
-- Feature flag tooling with a cleanup discipline: flags default to off, and flag code is removed after full rollout
-- Preview deployments that create a unique URL for every pull request so changes can be visually reviewed before merging
-- Instant rollback capability so any deployment can be reversed immediately
+The project's pipeline: the checks it runs (formatting, linting, types, tests, build, and any size or performance budget the product needs), where they run (a hook, a pipeline, or the step runner), what a merge requires, how a release happens, and how it is undone. References.md records each, with the commands in § Commands.
 
 ## Rules
 
-- The CI pipeline is the merge gate. Code that fails any check does not merge.
-- Lint rules target AI-prone categories (listed above). The specific rule IDs depend on the language's linter — research current rule IDs for the chosen stack at bootstrap time.
-- Formatting is automated. Never manually format code. Configure format-on-save and verify in CI.
-- Feature flags default to off. When a feature is fully rolled out, remove the flag and all conditional code immediately. Stale flags accumulate dead code paths.
-- Dead code detection runs periodically. Remove unused exports, files, and dependencies.
-- Every deployment can be rolled back instantly. Never deploy without a rollback path.
-- Bundle size (or equivalent output size) is monitored. If a change causes the bundle to exceed the budget, the build fails.
+- Merge only what passes the project's recorded checks.
+- Automate the checks once more than one person or one session works on the code, or once others depend on the result. Before that, run them through the step runner or by hand, and say so.
+- Where the stack has a formatter, formatting is automated and checked, never argued over.
+- Configure lint rules for the mistakes this project has actually made or is likely to make, and record why a rule exists. Rules that only add noise are removed.
+- Remove dead code, unused dependencies and finished feature flags. A flag exists only while a rollout needs it.
+- Add a size or performance budget where a regression would matter to the product (#13), measured the same way every time.
+- A release that people depend on can be undone quickly, and the way back is known before the release.
+- Know which push or merge releases, and follow the owner's authority for anything that spends money or reaches people (#29).
 
 ## Violations
 
-- Merging code that fails CI checks
-- No type-checking in the CI pipeline (only linting)
-- Stale feature flags left in code after full rollout
-- No rollback capability for deployments
-- Empty catch blocks (error silently swallowed with no logging or handling)
-- Console-level debug output left in production code
-- No AI-targeted lint rules (the default linting config doesn't catch AI-specific mistakes)
-- Bundle growing unchecked with no budget enforcement
+- A failing change merged.
+- Checks that exist but that nothing runs.
+- Formatting disputes in review that a formatter would settle.
+- Dead code, unused dependencies or finished flags left in place.
+- A release people depend on with no way back.
 
 ## Wrong vs Right
 
-- WRONG: CI only runs tests. Code with type errors, lint violations, and oversized bundles merges freely. Quality degrades over time.
-- RIGHT: CI runs lint, type-check, test, build, and bundle size check in sequence. Any failure blocks the merge. Quality is enforced mechanically.
-- WRONG: a feature flag is created for a new feature. The feature ships, everyone uses it, but the flag code stays in the codebase. Six months later, twenty stale flags with dead code paths.
-- RIGHT: when a feature is fully rolled out, the flag is removed and all conditional code is cleaned up in the same sprint.
-- WRONG: the linting config uses default rules only. AI generates code with untyped escape hatches, console-level output, direct UI library imports, unsafe casts. None are caught.
-- RIGHT: lint rules configured for the AI-prone categories catch these before commit. Research the specific rule IDs for the language's linter at scaffold time.
+- WRONG: every project copies one fixed pipeline, preview environments and all, whatever its stage. RIGHT: the pipeline carries the checks this project needs now and grows when the facts change.
+- WRONG: a shipped feature's flag and both code paths stay for months. RIGHT: when the rollout is done, the flag and the dead path go in the same change.
+- WRONG: the default lint rules only, while the same mistake keeps reaching review. RIGHT: a rule that catches that mistake, recorded with its reason.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention, research current tooling for the chosen language/stack:
-- Native linter + formatter. Configure rules for the AI-prone categories (untyped escape hatches, console-level output, direct third-party UI imports, unsafe casts, empty catch/except). Specific rule IDs are language-specific — research at scaffold time.
-- CI platform for the deployment target. Full sequence: lint → type-check → test → build → size check → deploy.
-- Feature-flag, bundle/output-size budget, and dead-code detection tooling.
-
-Document the pipeline config, lint rules (with rule IDs), size budgets, and deployment process in References.md. Mark which rules cover AI-prone categories vs general style so review intent is clear.
+Research the chosen stack's formatter, linter, type checker and test runner, the pipeline options for where the project is hosted, and the release and rollback mechanisms of the platforms it ships to. Record the checks, where they run, the budgets and the release path in References.md.

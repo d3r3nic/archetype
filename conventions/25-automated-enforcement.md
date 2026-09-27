@@ -1,67 +1,45 @@
 # Convention #25: Automated Enforcement
 
+## Applies when
+
+Every project with recorded rules that code can break. What varies: the stack's checking tools, where checks run (#15), and how many people and sessions work on the code.
+
 ## Principle
 
-Automate observable checks when their reliability and prevention value justify their maintenance and execution cost. Linters, formatters and hooks can enforce a project's accepted contracts; they cannot establish that every decision is appropriate. Use review and evidence for judgments a script cannot make.
+A rule that a machine can check reliably is checked by a machine, not left to memory. Automate the checks whose reliability and prevention value justify their cost: the formatter, lint rules, type checks, and the project's § Boundaries lines, which `scripts/validate-develop.sh` enforces. A check that fails blocks; a warning that nobody acts on is noise, so it becomes a failure or it goes. What no script can judge stays with review and evidence.
 
 ## Reusable System
 
-Apply #0: configure enforcement once at the project level, apply everywhere.
-- Linter config: single source of truth, extended by file type
-- Formatter config: single source, one formatter per language
-- Pre-commit hooks: run linter + formatter + type check before commit lands
-- CI gates: block PRs that fail enforcement; merge is impossible with red checks
-- Editor integration: format on save, show lint errors inline
+The project's enforcement set, configured once for the whole project: which recorded contracts are checked automatically and by what, where each check runs, and which rules remain review-only. References.md records the set and the gap list, the rules that rely on review alone.
 
 ## Rules
 
-- Select checks for real recurring risks or accepted project contracts. A rule being expressible as a heuristic does not establish that the heuristic is accurate or worth maintaining.
-- Lint rules block commit, not just warn. Warnings get ignored at scale.
-- Format on save AND format pre-commit. Do not debate style in code review.
-- Pre-commit hooks must be fast enough that nobody is tempted to bypass them; the project sets the budget in References.md. Slow checks run in CI.
-- Never bypass hooks with --no-verify except for documented emergencies with a follow-up fix.
-- Required CI checks must pass before merge. A pass establishes only what those checks exercised; verify the intended behavior and review gaps independently. Investigate an incorrect check against the accepted contract rather than bypassing it.
-- When review finds a defect, assess whether a regression test, static check, clearer guidance or another correction best prevents recurrence. Add a custom rule only when it can check the condition reliably at justified cost.
-- Lint-suppression directives require an inline comment explaining why. CI fails if the count grows beyond a documented baseline.
+- Automate checks for real recurring risks and for the project's recorded contracts. A rule that can be written as a heuristic is not thereby accurate or worth keeping.
+- Record each one-owner rule as a § Boundaries line, so the check enforces it and nobody has to remember it.
+- Make each check fail or remove it. Warnings that pile up teach everyone to ignore checks.
+- Keep checks that run before each commit fast enough that nobody is tempted to skip them; slower checks run before merge.
+- Never bypass a check to get work through. Fix the cause, or set the check aside openly through the route in AGENTS.md.
+- A suppression carries its reason on the same line, and the project watches whether suppressions grow.
+- When review finds a defect, choose the prevention that fits: a test, a check, clearer guidance or a design change. Add a custom rule only when it can detect the condition reliably at a justified cost.
+- A passing check proves only what it exercised. Verify the intended behavior and review what no check covers.
 
 ## Violations
 
-- A recurring observable failure left without a justified prevention or detection approach
-- Lint config set to warn-only (developers ignore warnings at scale)
-- Format disagreements in code review (should be auto-fixed by formatter)
-- Pre-commit hooks so slow that developers bypass them
-- CI green but local broken (environment drift, missing checks)
-- Scattered suppression comments with no explanation
-- Manual style enforcement ("the linter doesn't catch it but please use camelCase")
+- A rule the project relies on that exists only in prose while a check could enforce it.
+- A check that warns forever and blocks nothing.
+- Style argued in review that a formatter would settle.
+- A check skipped to get a commit through.
+- Suppressions with no stated reason.
 
 ## Wrong vs Right
 
-- WRONG: "Remember to import from the API layer, not the HTTP client directly" (rule in docs only)
-- RIGHT: Custom lint rule flags direct HTTP-client imports, blocks commit
-- WRONG: Team debates variable naming in PR reviews
-- RIGHT: Linter enforces naming, review focuses on logic and design
-- WRONG: suppression directives scattered through the codebase with no context
-- RIGHT: Disables require an explanatory comment; CI fails if disables exceed a threshold
-- WRONG: "We have a style guide" (PDF or wiki only, never enforced)
-- RIGHT: The selected style contract has reliable automated checks; judgment-dependent guidance remains explicit and reviewed.
+- WRONG: "remember to call the service through the API client" is written in the docs, and features keep calling the network directly. RIGHT: a § Boundaries line says the network may be used only in the client's folder, and the check fails the first feature that goes around it.
+- WRONG: naming is debated in every review. RIGHT: the linter enforces the naming rules, and review looks at logic and design.
+- WRONG: suppressions accumulate with no context. RIGHT: each one says why, and growth is visible.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention, research:
-- The native linter for the language, whether it supports custom rules (most do), and its plugin API
-- A pre-commit hook framework for the language, or a language-agnostic one
-- Format-on-save editor configuration
-- The CI platform's ability to block merges on lint/test failure (required status checks, merge queues, or equivalent)
-- Existing community rule sets for security and accessibility in the language's ecosystem
-- Which conventions from this framework map to enforceable rules for the chosen language — and which ones remain doc-only (note the gap in References.md)
-
-Document in References.md:
-- Which linter(s) are configured and where their config lives
-- Which conventions are automated vs doc-only (the gap list is valuable — it shows what relies on AI compliance alone)
-- How to add a new custom lint rule (the workflow, not a tutorial)
-- Which CI check gates merges and how to run it locally
+Research the chosen stack's linter, formatter, type checker and their custom-rule support, the options for running checks before commit and before merge, and which of the project's recorded rules can be enforced reliably and which stay review-only. Record the enforcement set, where it runs, how to add a rule, and the gap list in References.md.
 
 ## Project Overrides
 

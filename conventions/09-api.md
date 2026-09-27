@@ -1,78 +1,50 @@
 # Convention #9: API Integration & Data Fetching
 
-**Scope:** this convention covers CLIENT-SIDE API consumption — the project calls external APIs and needs a reusable layer for that. For server-side API design (the project IS the API — REST endpoints, GraphQL schemas, response shapes, pagination, versioning), see `backend/conventions/B2-api-design.md`. For GraphQL server specifically, B2 includes routing to GraphQL patterns (schema design, query-complexity limits, field-level authorization, batched data loading) — research current GraphQL tooling for the chosen language at bootstrap time.
+## Applies when
 
-If the project is backend-only (no client), this convention mostly does not apply — mark it as "not needed" in feature-tree.md and focus on B2.
+The project's code calls a service over a network: its own server, another team's service, an outside provider, a live stream of updates. A program that calls nothing remote skips this convention. Building the API that others call is backend/conventions/B2-api-design.md.
 
 ## Principle
 
-All client-side communication with external services goes through one centralized API layer. Features never make direct HTTP calls. The layer handles authentication headers, request and response transformation, caching, deduplication, error normalization, and retry logic. Features declare what data they need, the layer handles everything else.
+Each remote service is reached through one owner in the code: the client for that service. It holds the address, the caller's identity, the translation between the service's shapes and the project's, error normalization, and the retry and caching policy. Features ask it for what they need by domain action; they never assemble requests themselves. Every call goes to an endpoint the service's contract defines, never a guessed one.
 
 ## Reusable System
 
-Create an API layer that establishes:
-- A configured HTTP client with base URL, authentication header injection, and request/response interceptors. Configured once, used everywhere.
-- Automatic data transformation at the boundary. If the API uses different naming conventions than the project (snake_case vs camelCase), the transformation happens in the layer, not in features.
-- Automatic date parsing at the boundary. Features receive date objects, not strings.
-- Integration with the server-state library for caching, deduplication, and revalidation (see convention #5)
-- A consistent response format across all endpoints. Every API call returns data in the same structure.
-- Retry logic for transient failures built into the layer
-- Real-time data handling (websockets, server-sent events) through the same centralized layer if the project needs it
+The API client for each service, or one layer that serves several, recorded in References.md with how features use it. § Boundaries records that only the client's location may use the network directly, so the checks keep features from going around it.
 
 ## Rules
 
-- Never make direct HTTP calls in feature code. Always go through the API layer.
-- All API functions live in a dedicated API directory or in the feature's API file. Not scattered in components.
-- Name API functions by domain action: getUser, createOrder, updateProfile. Not generic names like fetchData or makeRequest.
-- Transform data at the boundary. If the API returns snake_case and the project uses camelCase, the API layer converts it. Features never see the raw API format.
-- Type every request and response. No untyped API calls.
-- Cache strategy is configured once in the layer. Only invalidate cache manually when the user stays on the same page and expects an instant update. If the user navigates after a change, the next page load auto-refetches.
+- Features never call the network directly. They call the client by domain action (load the order, cancel the booking), never through a generic "send request".
+- Endpoints, methods and shapes come from the service's contract (#10) or its current documentation. Verify that an endpoint exists before building on it.
+- Translate at the boundary. The service's naming, dates and nesting become the project's shapes inside the client, and responses are validated there (#7). Features never see the raw format.
+- Attach identity in one place. Secrets never reach code that people can inspect (#11, #23).
+- Decide caching, refresh and invalidation once per kind of data, from how fresh it must be (#5), in the client or the chosen data layer.
+- Retry only failures that are transient and safe to repeat (#8).
+- Live update channels go through the same owner, which decides reconnection and ordering.
 
 ## Violations
 
-- Direct HTTP calls in feature components (the platform's fetch primitive or an HTTP client called directly)
-- Different authentication header logic in different features
-- Raw API response format leaking into feature code (features parsing nested API structures)
-- Manual cache management (storing API data in local state or global store) instead of using the server-state library
-- Untyped API responses
-- API functions with generic names that don't describe what they do
+- A feature building its own request, headers or error handling.
+- Two features reaching the same service through two different paths.
+- A call to an endpoint the contract does not define.
+- The service's raw response format spread through feature code.
+- Responses used without validation.
+- Cached data with no rule for when it is stale.
 
 ## Wrong vs Right
 
-- WRONG: a feature component directly calls the HTTP library with manually constructed headers, manually handles errors, and manually caches the result in component state. Ten features doing this means ten slightly different implementations.
-- RIGHT: the API layer is configured once with authentication, error handling, and caching. A feature just declares "I need the users list" and gets back typed data with loading, error, and refresh states handled automatically.
-- WRONG: the API returns data in a deeply nested format. Feature components traverse the nesting (response.data.attributes.profile.displayName) throughout their code. The API shape is embedded everywhere.
-- RIGHT: the API layer transforms the response into a clean, flat shape at the boundary. Feature components receive simple objects (user.name). If the API format changes, only the transformation layer changes.
-- WRONG: after creating a user, the feature manually invalidates the cache, refetches the user list, updates the store, and navigates away. Complex manual orchestration.
-- RIGHT: after creating a user, the feature navigates to the user list page. The server-state library automatically refetches fresh data on mount. No manual invalidation needed.
+- WRONG: ten features each call the service with hand-built headers and their own error handling. RIGHT: the client is configured once; a feature asks it for "the user's orders" and gets validated data and a clear error.
+- WRONG: components dig through the service's nested response in many places. RIGHT: the client turns it into a flat shape at the boundary; a change in the service's format changes one place.
+- WRONG: after creating a record, a feature refetches, patches three caches and navigates by hand. RIGHT: the data layer's recorded invalidation rule refreshes what depends on the change.
 
 ## File Upload & Download
 
-File operations follow the same reusability principle as everything else. One file management service handles all uploads and downloads across the entire project. Features never implement their own file handling.
-
-Create a reusable file management service that:
-- Uploads files using presigned URLs or the platform's equivalent. Files go directly from the client to storage, never proxied through the application server.
-- Tracks upload progress and displays it in a unified progress indicator (not per-feature custom progress bars).
-- Validates files on the client side before uploading (type, size, dimensions). Re-validates on the server side after upload (never trust client-side validation alone).
-- Handles uploads in the background. The UI that initiated the upload closes immediately. The user sees upload progress in a global indicator. Upload does not block the user.
-- Limits concurrent uploads to prevent overwhelming the server.
-- Provides a reusable file viewing component that any feature can use to display files for any entity type.
-
-Rules:
-- Never proxy file content through application servers. Use presigned URLs or direct storage upload.
-- Never block the UI waiting for an upload to complete. Upload in background, close the form.
-- Never create a custom file uploader per feature. Use the shared file management service.
-- Validate file type and size on client AND server.
+Files follow the same rule: one file service handles transfers for every feature.
+- Check type and size on the client for fast feedback, and again on the server, which reads the content, not the declared type (B6).
+- Choose the path from the files and the storage: straight to storage when files are large and the storage supports it; through the server when the server must inspect or transform them, or when they are small.
+- Do not block the person on a transfer unless they need its result to continue. Show progress where the product keeps it visible.
+- One viewing component shows files to every feature that needs to.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention:
-- Research the framework's recommended HTTP client and how to configure it with interceptors for auth tokens and data transformation
-- Research the framework's recommended server-state and data fetching library. Find how it handles caching, deduplication, background refetching, and optimistic updates.
-- Research real-time data patterns for the framework if the project needs live updates (websockets, server-sent events, reconnection strategies)
-- Research the framework's patterns for data transformation at the API boundary (snake_case to camelCase, date string parsing)
-- Research the platform's file upload patterns: presigned URLs, direct storage upload, progress tracking, background upload
-- Research the framework's patterns for file viewing and download (previews, galleries, document viewers)
-- Document the API layer location, client configuration, data fetching patterns, cache strategy, and file management service in References.md
+Research the chosen stack's client and data-fetching options: how each handles identity, translation, caching, cancellation, retry and live updates, and the storage options for file transfer. Record the client's location, its usage, the cache rules and the file service in References.md, and the network boundary in § Boundaries.

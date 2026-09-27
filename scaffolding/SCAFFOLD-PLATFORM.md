@@ -29,7 +29,7 @@ Follow the baseline sections of the References.md Configuration Checklist:
 - Account created with owner email.
 - 2FA enabled on owner account.
 - Billing setup with the chosen plan.
-- Custom domain connected and SSL verified.
+- Custom domain connected and its certificate verified.
 - Legal pages published (privacy, terms, cookie consent as applicable).
 
 Document every decision in the Decisions & Configuration Log section of References.md with the date.
@@ -113,7 +113,7 @@ Write a project-owned `docs/runbook.md` covering the common admin tasks a non-de
 - **[COMMERCE]**: test order flow — add a cheap test product, place an order through the platform's test-mode payment gateway, verify confirmation email + order record, fulfill with test shipping, verify refund.
 - **[BOOKING]**: test appointment — book a test service, verify confirmation email + reminder schedule, test cancellation flow.
 - **[HEALTHCARE]**: test patient flow — invite a test patient (use a staff email), complete intake form, share a test document, record a session note, verify BAA is signed + audit log records the access.
-- **[CONTENT/BLOG]**: test post — publish a draft, verify appearance on custom domain (DNS + SSL working), verify SEO metadata + social preview.
+- **[CONTENT/BLOG]**: test post — publish a draft, verify it appears on the custom domain (the domain and its certificate working), verify SEO metadata + social preview.
 
 **Owner executes live.** Owner logs the smoke-test date, pass/fail per step, and any issues in `References.md § Decisions & Configuration Log`. Scaffold is NOT complete until the owner confirms at least Launch-milestone smoke-test items passed.
 

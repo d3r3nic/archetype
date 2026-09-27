@@ -88,7 +88,7 @@ The discipline above is stack-agnostic; only the file names change. Whatever fra
 - Source and content directories the framework expects are mirrored into the fork, never symlinked out of it.
 - Pre-commit, CI, lockfile, and compiler config do NOT reach upward into a monorepo.
 
-- Dated example: a Next.js fork needs `output: 'standalone'` for container hosting such as Cloud Run, its security headers in `next.config.ts`, and no `extends` in its tsconfig; a SvelteKit fork needs a standalone `svelte.config.js` and a per-deploy-target adapter; an Astro fork needs its integrations declared per app.
+- Each web framework has its own settings for standalone output (container hosting), security headers, and configuration it inherits from a parent folder; a fork records its own in its References.md and inherits none from the monorepo.
 
 ## Common pitfalls (the patch list)
 

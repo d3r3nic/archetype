@@ -1,113 +1,67 @@
 # Phase 4: Maintain
 
-Audit, update, and evolve the project. Runs for the life of the project, on specific triggers.
+Keep the project's records true and its debt honest for the life of the project. Maintenance follows change, not the calendar: look again whenever something changes that the records describe. Carry the work in the implementer plan (development/TASKS.md); completing another route does not close it.
 
-Choose the maintenance mode from its trigger. Carry the selected work in the existing implementer plan under development/TASKS.md; completing a different automated route does not close this work.
+## When to look again
 
-## Mode 1 — Routine audit (scheduled)
+- Before a framework update, and after it.
+- After a feature or a shared system changes.
+- When a fact in PROFILE.md changes, and before any action that increases exposure (#30).
+- After an incident, a failed release, a flaky suite, or a session that went notably wrong.
+- When review keeps finding the same kind of problem.
+- When the owner asks.
 
-**When:** after every N commits (project-specific threshold, typically 50-100), OR every 2-4 calendar weeks, OR before any `update.sh` pull from the framework.
+A project that people depend on may also set a regular review in References.md; its facts and pace decide how often, not a number from this file.
 
-**What to audit:**
-- Feature tree accuracy (code vs `feature-tree.md` match)
-- Doc freshness (`docs/features/*.md`, `docs/systems/*.md`, `References.md` vs current code)
-- Convention violations in features/
-- Tech-debt log pruning (entries to escalate, fix, or close)
-- Framework version currency (run `./archetype/update.sh` status)
-- Artifact-versus-code drift (`References.md § Design Artifact`): code follows the recorded styling source and adoption policy, every implemented screen has its artifact entry, under `repository-first` the published view is not older than the source, and under `workspace-first` the styling source and committed working files are not older than the artifact's current revision (#27); the capture sets match the shipped screens (#27)
-- Interface discovery hygiene: components and interaction patterns remain discoverable through the project's selected method, catalog entries have a consumer or recorded reason, and every deprecated shared contract has a removal trigger (#22)
-- Vocabulary drift: the words in navigation, headings, buttons, and messages match the vocabulary file (#31)
+## What to check
 
-**How:**
-1. Run the automated gates first: `scripts/validate-develop.sh` + `scripts/validate-maintain.sh` + `scripts/validate-profile.sh` + `scripts/validate-design.sh` + `scripts/validate-framework.sh`. For a project with a screen, run the design gate as `scripts/validate-design.sh --required known-screen` so an absent section cannot be mistaken for a back end or platform.
-2. For anything they don't catch (judgment calls, doc narrative drift, architecture fit), manually audit per the checklist below.
-3. Log findings in `TECHNICAL-DEBT.md` using `templates/technical-debt.md` format.
-4. Append a row to `feature-tree.md` § Audit Log with date, scope, findings count, and pointer to the tech-debt entries.
+Check what applies to this project:
+- **The map.** feature-tree.md matches the code: every row's location exists, every system and feature that exists has a row, and every status is true. `scripts/validate-maintain.sh` reads the rows against the project.
+- **The records.** Feature records, system pages and References.md describe the current code. The § Boundaries lines still name the real owners, and `scripts/validate-develop.sh` shows they hold.
+- **The debt.** TECHNICAL-DEBT.md is current. Triggered deferrals are fixed: run `scripts/validate-profile.sh`, with `--strict` for an operational project and before exposure grows. An entry that nobody will act on is closed with its reason rather than kept as noise.
+- **The design**, for a project with screens: code follows the recorded styling source; every implemented screen has its artifact entry; the published view or the working files are not behind the source of truth; the capture sets match the shipped screens; the interface's words match the vocabulary (#27, #31). Run `scripts/validate-design.sh --required known-screen`.
+- **Discovery.** Shared components stay discoverable through the project's chosen method, and every deprecated shared contract has its removal trigger (#22).
+- **Standing choices.** Convention departures and critical lessons in References.md still apply.
+- **The framework's consistency**, before pulling an update: `./archetype/scripts/validate-framework.sh`.
 
-**Audit checklist:**
-- [ ] `scripts/validate-develop.sh` — 0 errors
-- [ ] `scripts/validate-maintain.sh` — 0 errors
-- [ ] `scripts/validate-profile.sh` — 0 errors (once PROFILE.md exists, `--strict` for operational projects; until then, create it from templates/profile.md); every DEFERRED line still has a future trigger; every UNVERIFIED fact has a plan to learn it
-- [ ] `scripts/validate-design.sh --required known-screen`: 0 errors for a project with a screen: exactly one live Design Artifact section, every contract line present once and filled. A project without a screen uses `scripts/validate-design.sh` without the required mode. After a framework update that adds a label, the failure names the lines to add; fill them from the owner's recorded answers, never from a guess (#27)
-- [ ] `scripts/validate-framework.sh` — 0 errors (framework itself OK)
-- [ ] The project's test command (`References.md § Commands`) — all green
-- [ ] Every feature directory has matching `feature-tree.md` row and `docs/features/{name}.md` entry (names align)
-- [ ] Every doc's referenced types still exist in source
-- [ ] Convention Overrides in `References.md` still apply
-- [ ] Critical Lessons in `References.md` still apply
-- [ ] Artifact-versus-code drift: code follows the `Tokens source` and recorded adoption policy, every implemented screen has its artifact entry, under `repository-first` the published view is not older than the source, and under `workspace-first` the styling source and committed working files are not older than the artifact's current revision (#27)
-- [ ] Capture sets match the shipped screens (#27)
-- [ ] Interface discovery hygiene: selected discovery surface current, catalog entries used or their reason recorded, every deprecated shared contract with a removal trigger (#22)
-- [ ] Vocabulary drift: interface words match the vocabulary file (#31)
-- [ ] Tech-debt entries older than threshold: escalated OR force-fixed OR explicitly continue-deferred with fresh reason
+Record what the look found where the project records it: TECHNICAL-DEBT.md for what stays open, the decision location for changed decisions, and a line in feature-tree.md's Audit Log when the project keeps one. A failing check is fixed, or set aside openly with its reason (AGENTS.md); it is never left failing unremarked.
 
-## Mode 2 — Incident response (event-triggered)
+## Incidents
 
-**When:** after a failed deploy, flaky test suite, production bug traced to a convention violation, or any session where something went notably wrong.
+After a failed release, a production defect traced to a broken rule, or a session that went notably wrong:
+1. Fill in `templates/session-review.md` and save it as `docs/reviews/YYYY-MM-DD-topic.md`.
+2. Decide whether the cause is the project's or the framework's.
+3. The project's: fix it now, or log it in TECHNICAL-DEBT.md with its severity.
+4. The framework's: report it upstream (development/FEEDBACK.md), written out rather than linked to a project file. The loop closes when an update brings the fix and a later session review confirms it.
 
-**What to do:**
-1. Open `templates/session-review.md` and fill it out. Save to `docs/reviews/YYYY-MM-DD-topic.md`.
-2. Identify whether the root cause is project-local (fix in project + log in tech-debt) or framework-wide (fix in framework + promote to a framework issue).
-3. If project-local: log as a tech-debt entry with appropriate severity; plan fix for current or next cycle.
-4. If framework-wide: report it upstream (development/FEEDBACK.md), written out rather than linked to a project file. The loop closes when `update.sh` pulls the fix and a follow-up session review confirms.
+**Never** fix a framework problem silently in the project without also reporting it (development/MAINTAIN-RED-FLAGS.md, section 3).
 
-**Never:** silently fix a framework drift in-project without also reporting it to the framework. That's the "convention evolution never promoted" silent-failure pattern (see `development/MAINTAIN-RED-FLAGS.md` #3).
+## Convention evolution
 
-## Mode 3 — Convention evolution (signal-triggered)
+When session reviews name the same gap again and again, or a review proposes a change to the guidance:
+1. Read the reviews' "Suggested Convention Improvements" and "Where did the framework get in the way?" together.
+2. Report the pattern upstream (development/FEEDBACK.md) with the change you propose: guidance to add, soften, merge or remove, a red flag, or a check. Guidance that got in the way counts as much as a gap.
+3. After an update brings the change, confirm in a later session review that the pattern is gone.
 
-**When:** when accumulated session reviews surface a recurring pattern (3+ reviews name the same gap), OR when a session review explicitly proposes a convention edit.
+## Debt
 
-**What to do:**
-1. Review the accumulated session reviews — look for repeated "Suggested Convention Improvements."
-2. If a pattern is clear, report it upstream (development/FEEDBACK.md) with the change you propose: a convention to add, soften, merge or remove, a red flag, or a check. Guidance that got in the way counts as much as a gap.
-3. Close the loop: after `update.sh` brings the change, run a follow-up session review to confirm the pattern is addressed.
+- An open entry is revisited when its area changes or its cost does. An entry that has sat unchanged through several looks gets a decision: fix it, raise its severity, or close it as won't-fix with the reason. The project may record in References.md how long an entry may wait before that decision.
+- Deferrals (`Kind: deferral`, #30) follow their trigger, not an age: when the facts in PROFILE.md make the `Due-before` trigger true, the entry blocks, and `scripts/validate-profile.sh` fails until it is fixed. Renewing a date, relabeling the stage or won't-fix does not clear it. A deferral whose review date passes without its trigger firing gets a fresh review and a new date, with the reason.
 
-## Tech-debt pruning policy
+## Keeping documents current
 
-Applied during Mode 1 audits. Per entry in `open` status:
+- When a feature's behavior, contract, errors or key decisions change, update its record.
+- When a shared system changes, update its page in `docs/systems/`.
+- When the structure changes (a new top-level folder, a new override or protocol), update References.md.
+- Keep feature-tree.md's rows true: the systems each feature uses, its entry points and its status.
 
-- Age < threshold: leave alone unless severity changed.
-- Age ≥ threshold AND no severity change since logged: ESCALATE severity one tier OR force-fix OR mark `won't-fix` with rationale. Do not silently re-leave at the same state — that's the "tech-debt log grows forever" silent-failure pattern (see MAINTAIN-RED-FLAGS.md #2).
-- Age ≥ 2× threshold: MUST be force-fixed or marked `won't-fix`. No more deferral.
+The checks confirm that records exist and that their paths are real. They do not read whether a record's content is still true; the session and the review do.
 
-Threshold is project-specific — 180 days is a reasonable default for mid-velocity projects. `scripts/validate-maintain.sh` flags stale entries.
+## The checks
 
-Deferrals (`Kind: deferral`, #30) follow their trigger, not the age threshold: when the facts in PROFILE.md make the `Due-before` trigger true, the entry is blocking and `scripts/validate-profile.sh` fails until it is fixed. Renewing `Review-by`, relabeling the stage, or `won't-fix` does not clear a triggered deferral. A deferral whose `Review-by` has passed without the trigger firing gets a fresh review and a new date, with the reason written down.
-
-## Documentation Maintenance
-
-What the agent is accountable for (no hooks rely on this):
-
-- After a feature's code changes, update `docs/features/{name}.md` if behavior, API shape, errors, or key decisions changed.
-- After a shared system's code changes, update `docs/systems/{name}.md`.
-- After any top-level structural change (new folder, new conventions override, new protocol), update `References.md § Folder Structure`.
-- `feature-tree.md` rows stay accurate — `systems used` column reflects the actual imports, `routes` column reflects the real routes, `status` column reflects reality.
-
-The `post-task-verify.sh` hook (if installed) reminds to update docs after a task — but it's advisory. The validator gates (`validate-develop.sh` group 4) check that docs exist but do NOT check content freshness beyond coarse type-reference presence (see `validate-maintain.sh` group 5). Content drift is on the agent + human review.
-
-## Convention Evolution signal-collection
-
-During the life of the project, session reviews accumulate in `docs/reviews/`. Quarterly (or at the project's audit cadence), scan the `## Suggested Convention Improvements` section across all recent reviews. Count repeat themes. Any theme appearing in 3+ reviews is a promotion candidate (Mode 3).
-
-If the project is team-sized, maintain a `docs/convention-evolution-log.md` that aggregates these signals. Solo projects can skip this — the `grep Suggested Convention Improvements docs/reviews/*.md` one-liner does the job.
-
-## Framework Self-Test
-
-Run `./archetype/scripts/validate-framework.sh` before pulling framework updates via `update.sh`. Catches framework-internal drift (file paths broken, convention count out of sync with actual files, etc.). If this fails, either the framework was pulled mid-edit or a local modification was made that violates the framework's own consistency rules.
-
-Run `./archetype/scripts/validate-maintain.sh` during Mode 1 routine audits. Catches Phase 4 artifacts drift (missing tech-debt log, missing audit log entry, feature-directory-name drift, stale open entries).
-
-Run `./archetype/scripts/validate-develop.sh` during Mode 1 and before every commit. Catches Phase 3 feature-code drift.
-
-Run `./archetype/scripts/validate-scaffold.sh` only if you added or materially changed foundational systems post-scaffold.
-
-## Final gate for Mode 1 audit
-
-Before closing an audit cycle, verify:
-- All 4 validators (framework, develop, maintain, scaffold-as-needed) exit 0.
-- `feature-tree.md` § Audit Log has a new row for this cycle.
-- Any new tech-debt entries are logged with severity + proposed fix.
-- Any escalated or closed tech-debt entries have updated Status.
-- If the cycle found framework drift or noise: reported upstream (development/FEEDBACK.md), not just logged in-project.
-
-The audit is NOT complete until these all pass. Don't leave a cycle half-done — that's the "audit done once then forgotten" silent-failure pattern.
+- `./archetype/scripts/validate-framework.sh`, before pulling a framework update.
+- `./archetype/scripts/validate-maintain.sh`, during a look: the map and the debt log against the project.
+- `./archetype/scripts/validate-develop.sh`, before merging feature work: the boundaries and the feature records.
+- `./archetype/scripts/validate-profile.sh`, as #30 says.
+- `./archetype/scripts/validate-scaffold.sh`, after adding or materially changing a foundational system.
+- `./archetype/scripts/validate-design.sh --required known-screen`, for a project with screens.

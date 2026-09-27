@@ -1,5 +1,7 @@
 # {Feature Name}
 
+Tests: [where this feature's tests are, each path in backticks from the project root, such as `src/orders/orders.test.ext` or `tests/orders/`; or none, with the reason. `scripts/validate-develop.sh` checks that each path exists.]
+
 ## What It Does
 [Purpose and the behavior the owner expects. Keep this brief when the feature is simple.]
 

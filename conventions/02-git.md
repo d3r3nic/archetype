@@ -1,52 +1,45 @@
 # Convention #2: Git & Version Control
 
+## Applies when
+
+Every project. What varies: one contributor or several, whether a push to some branch deploys or releases, how work reaches the main line, and whether two assistants take turns (development/PEER-CODING.md).
+
 ## Principle
 
-Commits are save points. Each commit represents one verified change that passes all checks. In AI development, commit more frequently than traditional development - after every successful, verified edit. This enables instant rollback when the next change introduces a bug. Commit messages describe what changed and why, serving as history that both humans and AI can trace.
+History is the project's recovery point and its record. Every change is committed with what changed and why. Work in progress is committed and pushed at checkpoints, so nothing finished lives only on one machine. The main line receives only work that passes the project's checks. Shared history is never rewritten.
 
 ## Reusable System
 
-Create a version control setup that establishes:
-- A commit message convention the entire team follows (conventional commits or project standard)
-- A branching strategy with clear rules for when to branch and how to name branches
-- Pre-commit hooks that automatically run linting, formatting, and type-checking on staged files before every commit
-- A pull request template with standard sections so every PR is described consistently
+References.md records the commit message convention, the branch model, where the project's checks run before work reaches the main line (a hook, a pipeline, both, or none with the reason), and what a push to each branch triggers, naming any push that deploys or releases.
 
 ## Rules
 
-- Commit after every successful, verified change. Commits are save points you can rollback to.
-- Each commit must pass all checks (lint, type-check, tests). Never commit broken code.
-- Commit messages follow the project's convention and describe WHAT changed and WHY.
-- Never commit secrets, environment files, or credentials.
-- Never force push to the main branch.
-- Never skip pre-commit hooks. If a hook fails, fix the issue, don't bypass it.
-- Fix files in place. Never create variant files like utils-v2 or helper-new. If something is broken, fix the original file.
+- Commit each coherent change with a message that says what changed and why. Keep unrelated changes in separate commits.
+- Commit work in progress at checkpoints and push it to its own branch. A checkpoint commit on a working branch may still fail a check; the main line never receives one that does.
+- Merge into the main line only what passes the project's recorded checks.
+- Never commit secrets, credentials or environment files.
+- Never rewrite history that others have: no force push to a shared branch, no amending or rebasing commits others build on.
+- Never bypass a failing check to get a commit or merge through. Fix the cause, or set the check aside openly through the route in AGENTS.md; a skipped hook or a disabled check is neither.
+- Fix code in place. Keep no second copy of a file or function beside the first, except a recorded, temporary migration of a shared interface (#19) that ends by removing the old one.
+- Know what a push triggers. A push that deploys, releases or reaches people follows the owner's authority (#29).
 
 ## Violations
 
-- Giant commits titled "AI changes" or "update code" covering multiple unrelated changes
-- Committing without running verification first
-- Committing secrets, .env files, or API keys
-- Long-lived branches that drift far from main
-- Creating variant files (utils-v2.ts, helper-new.ts) instead of fixing the original
-- Using --no-verify to skip failing pre-commit hooks instead of fixing the underlying issue
-- Amending published commits that other people are working on
+- One commit mixing unrelated changes under a message like "update code".
+- Finished work left uncommitted or only on a local machine.
+- A failing change merged into the main line.
+- Secrets, credentials or environment files in history.
+- A force push over commits someone else has.
+- A hook skipped or a check disabled to get a commit through.
+- A second version of a file kept beside the first with no migration that removes it.
 
 ## Wrong vs Right
 
-- WRONG: one commit with 800 changed lines titled "AI changes." Impossible to rollback, impossible to understand.
-- RIGHT: ten small commits, each with a descriptive message. Each one a rollback point.
-- WRONG: pre-commit hook fails because of a lint error. Developer runs commit with --no-verify to skip it.
-- RIGHT: pre-commit hook fails. Developer fixes the lint error, stages the fix, commits cleanly.
-- WRONG: a function is broken. AI creates utils-v2.ts with the fixed version. Old file stays. Now two files do the same thing.
-- RIGHT: a function is broken. AI fixes the function in the original file. One file, one source of truth.
+- WRONG: one commit of 800 changed lines titled "changes". RIGHT: small commits, each saying what and why, each a point to return to.
+- WRONG: a hook fails, so the commit skips it. RIGHT: fix what the hook found, or record why it is set aside, then commit.
+- WRONG: a function is broken, so a fixed copy is added beside it and both stay. RIGHT: fix the function where it lives; one source of truth.
+- WRONG: a long task ends for the day with its work only in the working folder. RIGHT: commit and push the work in progress to its branch.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention:
-- Research the framework's recommended commit conventions and any tooling that enforces them (commit linting, changelog generation)
-- Research pre-commit hook tooling for the project's language and package manager
-- Set up the branching strategy and document it in References.md
-- Configure pre-commit hooks to run the project's lint, format, and type-check commands
+Research the commit and branch conventions the team or ecosystem already uses, and the tooling that runs the project's checks before a commit or a merge in the chosen stack. Record the choices in References.md, including which pushes deploy.

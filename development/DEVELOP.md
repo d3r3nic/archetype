@@ -10,7 +10,7 @@ Build or change the behavior the owner needs using the project's researched foun
 
 ## Relevant context
 
-Use the root routing in AGENTS.md. Read the task's relevant project facts, contracts, conventions and development/RED-FLAGS.md sections; reuse unchanged context from this session. Tracked work also follows development/TASKS.md, development/FRESHNESS.md and the project-root protocols/task-context.md binding when present. Backend work consults backend/Conventions.md. This playbook currently uses the implementer-plan procedure in development/TASKS.md for sequencing and manual dependency review.
+Use the root routing in AGENTS.md. Read the task's relevant project facts, contracts, conventions and development/RED-FLAGS.md sections; reuse unchanged context from this session. A project that runs a task service also follows the second part of development/TASKS.md and development/FRESHNESS.md, through its protocols/task-context.md. Backend work consults backend/Conventions.md. This playbook currently uses the implementer-plan procedure in development/TASKS.md for sequencing and manual dependency review.
 
 ## Feature Development Workflow
 
@@ -42,7 +42,7 @@ Use the project's test layout and isolation strategy. Shared test data must not 
 
 Run the applicable verification commands in References.md, including the required tests and build checks. Run scripts/validate-profile.sh from the project root. Before increasing exposure, refresh the profile facts and use --strict; an unknown fact or triggered deferral cannot be silently treated as satisfied (#30).
 
-For a screen, run the recorded capture command and retain a capture per applicable state, committed scheme and context. Open the captures and exercise the relevant interactions. Obtain independent review against the current artifact and decision basis (#27, #29). A screenshot alone cannot establish keyboard behavior, timing or task completion.
+For a screen, run the recorded capture command for the states that changed, in the schemes and contexts they affect. Open the captures and exercise the relevant interactions. Obtain independent review against the current artifact and decision basis (#27, #29). A screenshot alone cannot establish keyboard behavior, timing or task completion.
 
 When the project uses peer coding (References.md § Project, Peer coding), the other AI assistant reviews each change before merge, turn by turn (development/PEER-CODING.md).
 
@@ -50,7 +50,7 @@ Investigate failures and warnings. Fix a real defect rather than suppressing the
 
 ### Step 7: Keep authoritative records current
 
-Use templates/feature-doc-template.md as the single feature format. A new feature gets its record at docs/features/{feature-name}.md and a feature-tree row with its location, status and record link. Keep the record brief when there are few non-obvious facts; update an existing record rather than creating another document for each edit. Link contracts, decisions and evidence instead of duplicating them (#16).
+Use templates/feature-doc-template.md as the single feature format. A new feature gets its record at docs/features/{feature-name}.md, or where its feature-tree row's Docs column says, with a Tests line naming where its tests are, and a feature-tree row with its location, status and record link. When the feature creates a shared owner, add its § Boundaries line to References.md (#0). Keep the record brief when there are few non-obvious facts; update an existing record rather than creating another document for each edit. Link contracts, decisions and evidence instead of duplicating them (#16).
 
 Update References.md when a project command, system entry point or accepted convention changes. Keep the reason at the existing decision location. Historical logs identify what was verified at that revision; they do not become another current inventory.
 
@@ -60,4 +60,4 @@ Within the granted repository authorization, commit a coherent verified change w
 
 ## Final gate: automated validator
 
-Run scripts/validate-develop.sh before claiming the phase complete. It currently checks fixed shared-client patterns, console output in source feature folders, test-file presence and feature-document links. It warns on raw error construction. Those heuristics cover particular layouts and cannot establish all architectural or testing choices. Review each diagnostic against the project's actual contract; unresolved failures remain visible until corrected. Passing this validator does not replace behavioral evidence or independent review.
+Run scripts/validate-develop.sh before merging feature work. It enforces the project's recorded choices: every § Boundaries line holds (no file outside an owner's paths uses what only that owner may use), every feature row has its record, and every record's tests exist. It requires no folder layout and names no library; where the project recorded nothing, it falls back to docs/features/{name}.md for a record and to a test file in the feature's location. Its reach is what the project recorded. Review each diagnostic against the project's actual contract: fix a real violation, and correct a line that is wrong, saying why. Passing it does not replace behavioral evidence or independent review.

@@ -1,70 +1,44 @@
 # Convention #8: Error Handling, Recovery & Async
 
+## Applies when
+
+Every project. What varies is who meets an error and how: a person looking at a screen, a program calling an API, an operator reading a command's output, a job running unattended. Waiting states apply where people wait for work that takes time.
+
 ## Principle
 
-All errors flow through one centralized system. Features never catch, display, or recover from errors on their own. The system classifies errors, logs them, reports them, shows user-friendly messages, and provides retry capability. Async operations always have explicit loading, error, and success states.
+No error is swallowed: each one is either handled where something useful can be done about it, or passed to the one error system that classifies, records and reports it. People see words they can act on; the details go to the logs. Every wait has a visible state, and an empty result is not an error.
 
 ## Reusable System
 
-Create a reusable error service that:
-- Catches all errors from any source (API calls, runtime exceptions, user input validation)
-- Classifies errors by type: network errors, validation errors, authentication errors, not-found errors, server errors
-- Logs errors with context: what operation was happening, what data was involved, who was affected
-- Reports errors to a monitoring service for tracking and alerting
-- Displays user-friendly messages to the user. Never show stack traces or technical details in the UI. Technical details go to logs only.
-- Provides automatic retry with exponential backoff for transient failures (network errors, server errors). Never retries client errors except rate limiting.
-- Cancels pending operations when the user navigates away or the component unmounts
-
-Create unified state components that all features share:
-- A loading component for full-screen loading (app initialization, page loads)
-- A loading component for inline loading (data fetching within a page, form submissions)
-- A skeleton component for content-shaped placeholders while data loads
-- An error state component that shows a friendly message and a retry button
-- An empty state component that shows when data loads successfully but there are no results
-- An offline state component for when the network is unavailable
-
-Features declare what data they need. The data layer and error system handle everything else.
+One error system per boundary where errors surface: the place that classifies errors, records them with their context, reports them where the project watches, and turns them into what the person or caller sees. Where people wait, the shared waiting, error, empty and offline states are components every screen reuses (#4). References.md records the error system's location and how features use it; § Boundaries keeps features from inventing their own reporting.
 
 ## Rules
 
-- Create one error service. Always use it. Never handle errors per feature.
-- Create unified loading, error, empty, and offline components. Reuse them everywhere. Never build a custom spinner or error message for a single feature.
-- User-facing error messages must be friendly and actionable. Tell the user what happened and what they can do. "We couldn't load your data. Please try again." not "Error: ECONNREFUSED."
-- Every async operation must handle three states: loading, error, and success. No operation should leave the user staring at a blank screen.
-- Empty state is different from error state. "No results found" is not an error.
-- Retry transient errors automatically with exponential backoff. Stop after a reasonable limit and show the error state with a manual retry option.
-- Never swallow errors. Every error must be logged, reported, or handled meaningfully. A catch block with only a console.log is a violation.
-- Cancel pending operations when the user navigates away. Stale responses arriving after navigation cause bugs.
-- Custom error classes must survive the build target. Some compilation or transpilation targets silently break runtime type checks (the language's instanceof equivalent) on subclassed errors. Verify with a test on the real target and record any required constructor fix in References.md.
+- A feature handles the errors it can do something about, such as a field error or a conflict, and passes everything else to the error system. It never invents its own reporting, wording or retry.
+- Never swallow an error. A catch that only prints is not handling it.
+- Tell people what happened and what they can do, in the product's words (#31). Keep stack traces, codes and internal details out of what people see.
+- Every operation people wait for shows its waiting, error and success states; nobody is left looking at nothing.
+- Keep empty distinct from failed: "no results" is not an error.
+- Retry only what is transient and safe to repeat, with a limit, then show the error with a way to try again. Never retry an operation that may have taken effect unless it is idempotent (B5).
+- Cancel or ignore work whose result nobody will see, so a late result cannot overwrite current state.
+- Verify that the project's error types behave on the real build target; some targets break type checks on custom error classes. Record any fix in References.md.
 
 ## Violations
 
-- try/catch scattered across features with different error handling in each
-- A feature with its own custom loading spinner instead of the shared one
-- catch blocks that only contain console.log (silently swallowed errors)
-- Technical error messages shown to users (stack traces, error codes, connection strings)
-- Async operations with no loading state (blank screen while fetching)
-- No distinction between empty state and error state
-- Missing retry capability on transient failures
-- Pending operations not cancelled on navigation (stale data arriving late)
+- Each feature handling, wording and reporting errors its own way.
+- A screen with its own spinner or error message instead of the shared states.
+- An error caught and only printed.
+- Stack traces or internal codes shown to people.
+- A wait with no visible state.
+- An empty result shown as a failure, or a failure shown as empty.
+- A payment or message retried blindly after a timeout.
 
 ## Wrong vs Right
 
-- WRONG: Feature A catches errors with an alert, Feature B logs to console, Feature C sets a boolean. Three features, three different approaches.
-- RIGHT: All features use the same error system. The system decides how to classify, log, display, and retry. Features don't think about errors at all.
-- WRONG: a generic spinner for every loading state across the app, or worse, each feature builds its own spinner.
-- RIGHT: content-shaped skeleton placeholders that match the layout of the data being loaded. One set of unified loading components, configured per context.
-- WRONG: server returns a validation error, feature shows a generic "Something went wrong" toast.
-- RIGHT: server returns field-specific validation errors, the error system maps them back to the specific form fields that caused them.
+- WRONG: three features show errors three ways: an alert, a printed line, a silent flag. RIGHT: all three pass errors to the one error system; each handles only what it can fix.
+- WRONG: a validation error from the server becomes "Something went wrong". RIGHT: the error system maps it back to the field that caused it.
+- WRONG: a skeleton, a spinner and a blank area for the same kind of wait on three screens. RIGHT: one set of shared waiting states, configured per context.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention:
-- Research the framework's latest error handling patterns and error boundary equivalents. Understand how the framework recommends catching errors at different levels (app-wide, per-route, per-feature).
-- Research the framework's async state management. Find how the framework handles loading, error, and success states for data fetching operations. Look for patterns where the framework manages these states automatically rather than manually.
-- Research cancellation patterns for the framework. How do you cancel pending operations when a user navigates away?
-- Research error reporting and monitoring services that integrate well with the framework. Find the recommended way to capture errors with context and send them to a monitoring dashboard.
-- Research retry patterns. Find the framework's recommended approach for automatic retry with exponential backoff on transient failures.
-- Document the error service, error types, unified components, and usage pattern in References.md.
+Research how the chosen stack catches errors at each level (the whole application, a route or screen, a single operation), how it cancels work, how it represents waiting states, and which reporting service fits the project's scale and cost. Record the error system, its classes and how features use it in References.md.

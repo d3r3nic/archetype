@@ -2,8 +2,10 @@
 """Exercise scripts/next-step.sh against a small engine and project built in a temporary folder."""
 
 from pathlib import Path
+import hashlib
 import importlib.util
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -1150,6 +1152,53 @@ class Steps(unittest.TestCase):
         self.assertEqual(stale.returncode, 1, stale.stdout)
         self.assertIn('declared decision or input basis changed', stale.stdout)
 
+    def test_a_malformed_decision_elsewhere_blocks_no_step(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions required\nCheck:'))
+        self.ledger('boot'); self.decisions()
+        decisions = self.project / 'DECISIONS.md'
+        decisions.write_text(decisions.read_text() + '\n### DEC-007: Half written\nStatus: maybe\nDepends on: soon\n')
+        closed = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+        self.assertEqual(self.run_tool().returncode, 0, self.run_tool().stdout)
+        cited = self.run_tool('--reopen', 'boot.1', '--reason', 'test')
+        self.assertEqual(cited.returncode, 0, cited.stdout)
+        refused = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-007')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('DEC-007', refused.stdout)
+
+    def test_a_decision_is_read_in_common_written_forms(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions required\nCheck:'))
+        self.ledger('boot')
+        (self.project / 'References.md').write_text('# References\n\n- Decision location: DECISIONS.md\n')
+        (self.project / 'DECISIONS.md').write_text(
+            '# Decisions\n\n### DEC-001: Direction\n- **Status:** Accepted\n- **Decision:** blue\n'
+            '- **Reason:** the owner picked it\n- **Authority:** owner\n')
+        closed = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+
+    def test_a_malformed_decision_the_cited_one_depends_on_blocks(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions required\nCheck:'))
+        self.ledger('boot'); self.decisions()
+        decisions = self.project / 'DECISIONS.md'
+        decisions.write_text(decisions.read_text().replace('Depends on: none', 'Depends on: DEC-002')
+                             + '\n### DEC-002: Parent\nStatus: someday\nDecision: web\nReason: x\nAuthority: owner\n')
+        refused = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('DEC-002 has unsupported Status', refused.stdout)
+
+    def test_labelled_lines_under_history_do_not_count_as_fields(self):
+        path = self.engine / 'bootstrap' / 'BOOT.md'
+        path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions required\nCheck:'))
+        self.ledger('boot'); self.decisions()
+        decisions = self.project / 'DECISIONS.md'
+        decisions.write_text(decisions.read_text() + '- Date: 2026-09-15, retained after the first review\n- Reason: still fits the owner\'s purpose\n')
+        closed = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+        self.assertEqual(self.run_tool().returncode, 0, self.run_tool().stdout)
+
     def test_markdown_input_cannot_claim_a_different_decision_basis(self):
         path = self.engine / 'bootstrap' / 'BOOT.md'
         path.write_text(path.read_text().replace('Produces: the project folder\nCheck:', 'Produces: the project folder\nBasis: decisions and inputs required\nCheck:'))
@@ -1223,6 +1272,90 @@ class Steps(unittest.TestCase):
         newer = old.replace('DEC-001', 'DEC-002').replace('Decision: blue', 'Decision: green').replace('Supersedes: none', 'Supersedes: DEC-001')
         (self.project / 'DECISIONS.md').write_text(old + '\n' + newer)
         self.assertIn('basis changed', self.run_tool().stdout)
+
+    def basis_of(self, *decisions):
+        args = ['python3', str(self.engine / 'scripts' / 'step-recovery.py'), 'basis',
+                '--project', str(self.project), '--cwd', str(self.project)]
+        for value in decisions:
+            args += ['--decision', value]
+        return subprocess.run(args, text=True, capture_output=True)
+
+    def test_a_superseding_decision_is_read_in_any_wording(self):
+        for wording, extra in (('DEC-001 (sessions replace tokens)', ''), ('[DEC-001](#dec-001)', ''),
+                               ('DEC-001 and DEC-003', '\n### DEC-003: Other\nStatus: proposed\n')):
+            with self.subTest(wording=wording):
+                self.setUp(); self.ledger('boot'); self.decisions()
+                self.assertEqual(self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001').returncode, 0)
+                old = (self.project / 'DECISIONS.md').read_text()
+                newer = (old[old.index('### DEC-001'):].replace('DEC-001', 'DEC-002')
+                         .replace('Decision: blue', 'Decision: green').replace('Supersedes: none', 'Supersedes: ' + wording))
+                (self.project / 'DECISIONS.md').write_text(old + '\n' + newer + extra)
+                self.assertIn('basis changed', self.run_tool().stdout)
+                refused = self.basis_of('DEC-001')
+                self.assertEqual(refused.returncode, 1, refused.stdout)
+                self.assertIn('superseded', refused.stdout)
+
+    def test_the_fingerprint_is_the_one_earlier_releases_recorded(self):
+        # DEC-004 depends on DEC-001, which DEC-003 supersedes; DEC-003 depends on DEC-002. Earlier
+        # releases fingerprinted DEC-004 over DEC-001, DEC-003 and DEC-004: the decisions a
+        # superseding one depends on were not part of it, and a step closed then stays closed.
+        self.ledger('boot')
+        (self.project / 'References.md').write_text('# References\n\n- Decision location: DECISIONS.md\n')
+        def block(number, depends='none', supersedes='none'):
+            return ('### DEC-%03d: Choice %d\nDate: 2026-09-19\nStatus: accepted\nDecision: option %d\nReason: fits\n'
+                    'Authority: owner\nDepends on: %s\nSupersedes: %s\n' % (number, number, number, depends, supersedes))
+        text = ('# Decisions\n\n' + block(1) + '\n' + block(2) + '\n' + block(3, depends='DEC-002', supersedes='DEC-001')
+                + '\n' + block(4, depends='DEC-001'))
+        (self.project / 'DECISIONS.md').write_text(text)
+        closed = self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-004')
+        self.assertEqual(closed.returncode, 0, closed.stdout)
+        headings = list(re.finditer(r'(?m)^###[ \t]+(DEC-[0-9]{3,})(?:[ \t]*[: -].*)?$', text))
+        blocks = {}
+        for index, heading in enumerate(headings):
+            end = headings[index + 1].start() if index + 1 < len(headings) else len(text)
+            blocks[heading.group(1)] = (text[heading.start():end].strip() + '\n').encode()
+        earlier = hashlib.sha256(b''.join(key.encode() + b'\0' + blocks[key] for key in ('DEC-001', 'DEC-003', 'DEC-004'))).hexdigest()
+        self.assertIn('DEC-004@sha256:' + earlier, (self.project / 'PROGRESS.md').read_text())
+        self.assertEqual(self.run_tool().returncode, 0, self.run_tool().stdout)
+
+    def test_a_status_naming_two_states_is_not_read_as_accepted(self):
+        for status in ('~~accepted~~ retired', 'accepted, superseded by DEC-002'):
+            with self.subTest(status=status):
+                self.setUp(); self.decisions()
+                path = self.project / 'DECISIONS.md'
+                path.write_text(path.read_text().replace('Status: accepted', 'Status: ' + status))
+                refused = self.basis_of('DEC-001')
+                self.assertEqual(refused.returncode, 1, refused.stdout)
+                self.assertIn('more than one state', refused.stdout)
+
+    def test_a_duplicate_block_that_supersedes_the_cited_decision_stops_it(self):
+        self.ledger('boot'); self.decisions()
+        path = self.project / 'DECISIONS.md'
+        old = path.read_text()
+        other = old[old.index('### DEC-001'):].replace('DEC-001', 'DEC-002').replace('Decision: blue', 'Decision: web')
+        path.write_text(old + '\n' + other)
+        self.assertEqual(self.run_tool('--close', 'boot.1', '--evidence', 'x', '--basis', 'DEC-001').returncode, 0)
+        duplicate = other.replace('Decision: web', 'Decision: green').replace('Supersedes: none', 'Supersedes: DEC-001')
+        path.write_text(old + '\n' + other + '\n' + duplicate)
+        self.assertIn('basis changed', self.run_tool().stdout)
+        refused = self.basis_of('DEC-001')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('duplicate decision id: DEC-002', refused.stdout)
+
+    def test_a_supersedes_line_that_names_no_decision_stops_every_basis_until_it_does(self):
+        self.decisions()
+        path = self.project / 'DECISIONS.md'
+        old = path.read_text()
+        newer = (old[old.index('### DEC-001'):].replace('DEC-001', 'DEC-002')
+                 .replace('Supersedes: none', 'Supersedes: the token decision'))
+        path.write_text(old + '\n' + newer)
+        refused = self.basis_of('DEC-001')
+        self.assertEqual(refused.returncode, 1, refused.stdout)
+        self.assertIn('DEC-002 Supersedes names no decision id', refused.stdout)
+        path.write_text(old + '\n' + newer.replace('Status: accepted', 'Status: retired'))
+        self.assertEqual(self.basis_of('DEC-001').returncode, 0)
+        path.write_text(old + '\n' + newer.replace('Supersedes: the token decision', 'Supersedes: none (the first of its kind)'))
+        self.assertEqual(self.basis_of('DEC-001').returncode, 0)
 
     def test_appending_an_unrelated_decision_does_not_stale_the_previous_last_record(self):
         self.ledger('boot'); self.decisions()

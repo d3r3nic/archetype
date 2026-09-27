@@ -1,5 +1,9 @@
 # Convention #6: Styling, Theming & Responsive Design
 
+## Applies when
+
+The product has a visual interface. What varies: the medium (a phone app, a web page, a desktop tool, a game), the committed schemes and contexts, and whether the project is a template that downstream products restyle.
+
 ## Principle
 
 Visual implementation follows the accepted design commitments and the needs of the medium. Research the platform's current styling and theming mechanisms, then choose a source of truth that keeps repeated decisions coherent without forcing an unnecessary token architecture. Values used in code must be traceable to the accepted artifact or the recorded styling decision. Once the project selects a token, theme, native-style, or other contract, code follows it consistently.
@@ -50,8 +54,6 @@ Establish a styling system fitted to the project:
 A template records the styling boundary and ships neutral, replaceable values appropriate to its medium. It does not prescribe a downstream product's palette, role names, density, typography, or number of schemes. A product adopts its accepted brand and interaction decisions into that boundary. If the downstream product changes the boundary, it records the reason and migrates consumers rather than maintaining two silent sources of truth.
 
 ## Research Notes
-
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options when scaffolding the styling system.
 
 - Research the chosen runtime's styling, theming, adaptation, user-preference, and accessibility mechanisms.
 - Inspect the accepted artifact, actual content, interaction patterns, committed contexts, and existing project styles before proposing scales or roles.

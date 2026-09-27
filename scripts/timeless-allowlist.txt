@@ -7,4 +7,13 @@
 # validation (it is a placeholder). Keep this file short: the allowlist is
 # for names the framework cannot avoid, not for names it prefers.
 
-templates/hooks-spec.md	Claude Code	The two shipped hook configs (templates/claude-settings.*.json) are written in this host's settings format; the section that names it is marked dated.
+templates/hooks-spec.md	Claude Code	Plumbing: the two shipped hook configs (templates/claude-settings.*.json) are written in this host's settings format.
+bootstrap/hooks/README.md	Claude Code	Plumbing: the shipped hook settings are written for this host's hook events.
+bootstrap/hooks/pre-destructive-warn.sh	Claude Code	Plumbing: the guard reads this host's hook event format.
+inject.sh	Claude Code	Plumbing: the root entry file CLAUDE.md is named for this host, which loads it automatically.
+scripts/check-hooks.py	JavaScript	Plumbing: the host evaluates hook matchers as regular expressions in this language, so the checker refuses constructs it reads differently.
+scripts/check-hooks.py	Python	Plumbing: this checker is written in this language and compares its own regular expressions with the host's.
+scripts/pulse-inspect.sh	Mermaid	Plumbing: the optional dev-only monitor draws its architecture diagram with this library.
+templates/pulse-ui/index.html	Mermaid	Plumbing: the optional dev-only monitor loads this diagram library.
+templates/pulse-ui/index.html	npm	Plumbing: part of the public address the monitor loads its diagram library from.
+templates/pulse-ui/app.js	Mermaid	Plumbing: the optional dev-only monitor draws its architecture diagram with this library.

@@ -1,6 +1,6 @@
 # Decisions
 
-Keep this as the project's only decision record unless References.md names an existing architecture decision record location. IDs never change or get reused. Use `none` or `unknown` instead of leaving a field empty.
+Keep this as the project's only decision record unless References.md names an existing architecture decision record location. IDs never change or get reused. Use `none` or `unknown` instead of leaving a field empty. When a step cites a decision as its basis (development/STEPS.md), the step runner reads that decision's `Status`, `Decision`, `Reason` and `Authority` lines, and its `Depends on` and `Supersedes` lines when present (#16). A decision that is not proposed, superseded or retired, and whose `Supersedes` line names neither decision IDs nor `none` (`unknown` included), stops every basis until that line names the IDs or `none`. The other fields are the project's to use.
 
 ### DEC-001: [short title]
 Date: [YYYY-MM-DD]

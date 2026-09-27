@@ -4,13 +4,10 @@ Use scaffolding/SCAFFOLD-FRONTEND.md for this route and scaffolding/_preamble.md
 
 ## Step 5: State management
 Read: #5; #9; scaffolding/_preamble.md § Convention-mapping rule
-Produces: the client-state and server-state setup the conventions describe
-Check: run project: typecheck, lint, build; evidence: what was seen when this was tried: a test slice dispatching and reading, and a server-state fetch caching and deduplicating
+Produces: the state responsibilities this product needs, recorded in References.md, and only the shared state and data caching they call for
+Check: run project: typecheck, lint, build; evidence: what was seen when this was tried: each shared piece of state updated and seen by its consumers, and a remote read cached and refreshed by its recorded rule
+Skip when: no state is shared beyond a single screen and no remote data needs caching on the client
 
-Build:
-- Global store configured (for global-state needs — auth, theme, app-level UI state).
-- Server-state library configured (a caching query client for the chosen stack — research current options).
-- Slice/module pattern per feature (each feature owns its store slice).
-- Pattern for syncing server state with cache invalidation.
+Apply #5: record which part of the product owns each fact that several screens use, and how remote data is cached and refreshed (#9). Build only what those responsibilities need, researching the chosen stack's options where the record is silent. A product whose screens keep their own state and read remote data through Step 6 adds no shared store; one whose screens share session, preferences or remote data gets one owner for each, never competing copies.
 
-**Verify:** a test slice dispatches and reads correctly. Server-state fetch caches and dedupes.
+**Verify:** each shared piece of state, updated in one place, is seen by every consumer; a remote read is cached, deduplicated and refreshed by the rule the project recorded.

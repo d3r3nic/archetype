@@ -1,48 +1,37 @@
 # Convention #10: Frontend-Backend Contract
 
+## Applies when
+
+Two separately built parts exchange data: a client and its server, two services, an application and a library it publishes. It applies whether they live in one repository or several. A program with no such boundary skips this convention.
+
 ## Principle
 
-Frontend and backend agree on data shapes through a single source of truth. This contract is enforced through generated clients, shared schemas, or type-safe communication. Changes to the contract are detected automatically before they reach production. Types are never manually duplicated between frontend and backend.
+Both sides of a boundary use one source of truth for the shapes they exchange, and a breaking change is caught before any consumer meets it. The API's responses follow one format, chosen once, for data, errors and paging alike. A shape written by hand on both sides will drift.
 
 ## Reusable System
 
-Create a contract system that establishes:
-- A single source of truth for API data shapes (API specification, shared schema package, or type-safe RPC layer)
-- Generated type definitions from the contract so frontend types always match backend types without manual synchronization
-- A consistent response format across all endpoints (same envelope structure for data, metadata, and errors)
-- Breaking change detection that catches contract violations in CI before they ship
+The contract: one definition of the exchanged shapes, the form of which the project chooses (a specification, a shared schema package, a typed call layer, or generation from one side), recorded in References.md. It also records how each side gets its types from it, the one response format, and the check that detects a breaking change before merge.
 
 ## Rules
 
-- One source of truth for API types. Never manually write the same type in both frontend and backend.
-- Generate type definitions from the contract whenever possible. Manual type synchronization always drifts.
-- Response format is consistent across all endpoints. Same structure for data, metadata, and errors everywhere.
-- Transform data at the API boundary. Components never traverse raw API response structures. The API layer provides clean, flat shapes.
-- Breaking changes to the contract must be detected before deployment. Set up schema diffing or contract testing in CI.
+- Define exchanged shapes once. Never write the same shape by hand on both sides.
+- Derive each side's types from the contract, by generation or sharing. Where neither is possible, a check compares the two.
+- Use one response format across the API, for success, errors and paging, and record it. Every endpoint keeps to it.
+- Detect breaking changes in the project's checks before merge, and handle them through #19 when others depend on the interface.
+- Translate at the boundary (#9): consumers work with clean shapes, not the raw response structure.
 
 ## Violations
 
-- Manually writing the same type definition in both frontend and backend code
-- No mechanism for detecting breaking API changes before deployment
-- Different response formats across different endpoints (one returns {data, error}, another returns {result, message})
-- Raw API response shape leaking through to UI components
-- API contract changes deployed without frontend awareness
+- The same shape written by hand on both sides.
+- A breaking change that no check catches before release.
+- Endpoints that each return a differently shaped result or error.
+- A contract change released without its consumers updated.
 
 ## Wrong vs Right
 
-- WRONG: a User type defined in the backend and separately defined in the frontend with the same fields. A field is added on the backend. The frontend type is not updated. Data arrives that the frontend doesn't expect.
-- RIGHT: one schema definition (API spec, shared package, or type-safe RPC). Types are generated or shared automatically. Backend adds a field, frontend types update through the generation pipeline.
-- WRONG: one endpoint returns {users, total}, another returns {data, count}, another returns {results, pagination}. Every feature parses a different format.
-- RIGHT: every endpoint returns {data, meta}. One parsing pattern across the entire project.
-- WRONG: a component accesses response.data.attributes.profile.displayName deep in its render logic. The API restructures the response. The component breaks.
-- RIGHT: the API layer transforms the response at the boundary. The component receives a flat user.name. API changes only affect the transformation layer.
+- WRONG: the server adds a field to a shape that the client wrote separately; the client breaks on data it did not expect. RIGHT: one definition; both sides get the change through generation or sharing, and the check shows what changed.
+- WRONG: one endpoint returns a list and a total, another a result and a count, another something else again. RIGHT: one recorded response format; one way to read every endpoint.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention:
-- Research contract definition options for the project's stack: API specification formats, shared schema packages, type-safe RPC layers, or code generation tools that produce typed clients from API definitions
-- Research breaking change detection tools that can be integrated into the CI pipeline
-- Research the framework's patterns for generating typed API clients from contracts (code generation from OpenAPI, GraphQL codegen, or equivalent for the language)
-- Establish the response envelope format and document it in References.md
+Research the contract options for the chosen stack: specification formats, shared schema packages, typed call layers, generators, and tools that compare two versions of a contract. Record the contract's location, the response format and the breaking-change check in References.md.

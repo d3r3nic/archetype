@@ -1,52 +1,41 @@
 # Convention #24: Authorization
 
-Authentication (#11) answers: who is this user?
-Authorization (this convention) answers: can this user do this action on this resource?
+Authentication (#11) answers "who is this?". Authorization, this convention, answers "may they do this, to this?".
+
+## Applies when
+
+Any access is restricted: some people may see or change what others may not. What varies: the permission model the domain needs (roles, ownership, organizations, attributes of the record), and whether one deployment serves several customers. A product whose every user may do everything skips this convention, and records that.
 
 ## Principle
 
-Authorization is enforced at the service layer, not the UI layer. A hidden button is not security — the service must verify permission before executing. Every resource access checks that the requesting user owns or has permission to access that specific resource. Authorization logic is centralized in a permission system, not scattered across handlers.
+Every access to a restricted action or record is checked where the action happens, on the server or the owning service, against that specific record, not only its kind. Hiding a button is not security. Permissions are defined in one place and checked through one owner; they are never scattered across handlers.
 
 ## Reusable System
 
-Create an authorization foundation that establishes:
-- A permission model (RBAC, ABAC, or hybrid) with roles and permissions defined centrally
-- An authorization service that handlers and services call to check permissions
-- Object-level access checks: verify the user owns or has access to the specific resource being requested (not just the resource TYPE but the specific INSTANCE)
-- Middleware or decorators that enforce role requirements on routes/endpoints
+The authorization owner: the permission model, defined once, and the service that every handler and service calls to check it, including the object-level check that the caller may act on this particular record. References.md records the model, the owner's location, and how a handler asks it.
 
 ## Rules
 
-- Authorization checks happen at the service layer, not just the UI. A hidden button does not prevent a direct API call. The service must independently verify that the requesting user has permission for the specific action on the specific resource.
-- Every resource access includes an object-level access check. A user should not be able to access another user's data by guessing an ID in the URL. The service verifies ownership or explicit permission grant.
-- Define roles and permissions centrally in one place. Not scattered across 50 handlers with inline permission strings.
-- Use the least privilege principle. Users get the minimum permissions needed for their role. New roles start with zero permissions and add only what's needed.
-- Separate authentication from authorization. Authentication (who are you?) runs first in the middleware pipeline. Authorization (can you do this?) runs in the service layer where the business logic and resource context are available.
-- Log authorization denials. Every time a user is denied access, log: who, what resource, what action, when, and the denial reason. This is critical for security auditing and detecting unauthorized access attempts.
+- Check permission where the action runs, before it runs. An interface that hides an option does not stop a direct call.
+- Check the specific record. A caller must not reach someone else's data by changing an identifier.
+- Define roles and permissions once. Never write permission checks inline in many handlers.
+- Grant the least privilege a role needs. A new role starts with nothing and gains only what it must.
+- Identify first, then authorize: authentication runs before the handler; authorization runs in the service or domain layer, where the record and its context are known.
+- Deny recognizably, never with an empty success, and log each denial: who, what, which record, when and why.
 
 ## Violations
 
-- Authorization check only in the UI: admin button hidden with CSS, but the API endpoint has no permission check. Any user who finds the endpoint can call it.
-- User A accesses /api/users/456/profile and gets User B's profile because the handler returns the requested user without checking if User A has permission to view User B's data.
-- Permission strings hardcoded across 30 different handlers: handler A checks role === 'admin', handler B checks role !== 'viewer', handler C checks isAdmin. No central permission model.
-- Authorization denial returns 200 with empty data instead of 403. The user doesn't know they're denied, and the audit log has no denial record.
+- A permission enforced only in the interface.
+- A handler that returns any record whose identifier it is given.
+- Permission checks written differently in different handlers.
+- A denial returned as an empty success, with nothing logged.
 
 ## Wrong vs Right
 
-- WRONG: UI hides the "Delete User" button for non-admins. A non-admin opens browser dev tools, finds the API endpoint, calls DELETE /api/users/123, and the user is deleted because the handler has no permission check.
-- RIGHT: UI hides the button AND the handler calls authorizationService.canDelete(requestingUser, 'users', userId). If the user doesn't have delete permission on users, the service throws a ForbiddenError. Both layers enforce.
-- WRONG: GET /api/patients/456 returns patient 456's data to any authenticated user. User A (who should only see their own patients) can view any patient by changing the ID.
-- RIGHT: GET /api/patients/456 calls authorizationService.canAccess(requestingUser, 'patient', 456). The service checks: does this user own this patient, or do they have a facility-level role that grants access? If not, 403.
-- WRONG: permissions scattered: handler checks `if (user.role === 'admin')`, another checks `if (user.permissions.includes('manage_users'))`, another checks `if (user.type !== 'viewer')`. Three different approaches, inconsistent enforcement.
-- RIGHT: one permission model: roles have permissions, permissions are checked through one service. authorizationService.hasPermission(user, 'users.delete') works the same everywhere.
+- WRONG: the interface hides "Delete user" from non-administrators, but the delete call has no check, and anyone who finds it can use it. RIGHT: the interface hides it, and the service asks the authorization owner whether this caller may delete this user before acting.
+- WRONG: any signed-in person can read any patient's record by changing the number in the request. RIGHT: the service checks that this caller treats this patient, or holds a role that grants access, and denies otherwise.
+- WRONG: one handler checks a role name, another a permission list, another a user type. RIGHT: one permission model, checked the same way everywhere through one owner.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention:
-- Research authorization models suitable for the project (RBAC for most apps, ABAC for complex multi-tenant). Research the framework's recommended authorization libraries.
-- Research the framework's patterns for middleware/decorator-based route protection (role requirements on endpoints).
-- Research object-level access check patterns for the ORM (scoped queries, policy-based access).
-- Research row-level security features in the database if applicable.
-- Document the permission model, authorization service location, role definitions, and access check patterns in References.md.
+Research the permission models that fit the domain, the chosen stack's options for checking permissions in one place, how its data access can scope queries to what a caller may see, and whether the storage offers row-level protection worth using. Record the model, the owner and the check pattern in References.md.

@@ -1,54 +1,42 @@
 # Convention #20: Forms & User Input
 
+## Applies when
+
+The product collects input from people: sign-up, settings, checkout, data entry, search with options. What varies: the platform's input controls, how long the forms are, and whether a draft can be kept. A product that takes no input skips this convention.
+
 ## Principle
 
-Forms are handled through one reusable form system. Validation is schema-based: one schema definition produces both the type and the validation rules. Error messages are accessible and mapped to specific fields. Complex forms use a multi-step pattern with per-step validation. The form system is built once during scaffolding and used by every feature that collects user input.
+Every form uses the project's one form system: its fields, validation, error display and submission. People never lose what they typed, always know which field needs attention and why, and can fix it with any input method. Validation rules are defined once, with the data's shape (#7).
 
 ## Reusable System
 
-Create a form system that establishes:
-- Integration with a form handling library configured with project defaults
-- Schema-based validation where one schema definition produces both the type and the runtime validation. Never maintain a separate type definition and a separate validation schema for the same form data.
-- Form field components with built-in error message display, label association, and accessibility. Every field shows its error inline, associated with the field for screen readers.
-- A multi-step wizard pattern with per-step validation for complex forms that would be overwhelming as a single page
-- Unsaved changes detection that warns users when navigating away from a form with modified data
-- Server error mapping that takes field-specific validation errors from the server and displays them on the correct form fields
+The form system: field components with their labels and errors tied to them, validation from the one shape definition, the mapping of server errors onto fields, the submission and waiting states, and the draft or leave-warning behavior. References.md records where it lives and how features build a form with it.
 
 ## Rules
 
-- One schema = types + validation. Define the schema once, derive the type from it. Never write a separate type definition and a separate validation schema for the same form.
-- Validate a field when the person leaves it, never while they are still typing a first entry; once a field has been marked invalid, re-validate it on change so the error clears as soon as it is fixed. Validate the whole form on submit and move focus to the first error. Field errors follow #31 "Words".
-- Error messages are displayed inline below the field and are programmatically associated with the field for screen readers.
-- Server-side validation errors must be mapped back to specific form fields, not shown as a generic toast or alert.
-- Keep a draft where the product can (autosave, a recoverable draft); where it cannot, warn before leaving a form with unsaved changes, and the warning names what would be lost.
-- Always provide explicit default values for all form fields. Missing defaults cause framework warnings and inconsistent behavior.
+- Build every form with the shared form system; never hand-write validation and error display in a feature.
+- Define validation once with the data's shape (#7); the form, the server and the type all use that definition, or one generated from it.
+- Do not show an error for a field the person is still filling in for the first time. Clear an error as soon as it is fixed. On submit, check everything and take the person to the first problem.
+- Show each error at its field, in words that say how to fix it (#31), and tie it to the field for assistive technology (#14).
+- Map validation errors from the server onto the fields they concern, never a generic failure message.
+- Keep a draft where the product can; otherwise warn before leaving a form with unsaved input, and say what would be lost.
+- Split a long form into steps when that helps people, validating each step before the next.
 
 ## Violations
 
-- Manual validation logic (checking each field with if statements) instead of schema-based validation
-- Separate type definition AND validation schema for the same form (they drift apart when one is updated)
-- Error messages shown as a generic toast instead of mapped to specific fields
-- No draft and no leave warning on a form with user input
-- Missing default values on form fields
-- Error messages not associated with their fields for screen readers (accessibility violation)
+- Validation written by hand, field by field, in a feature.
+- The same rules defined separately for the form and for the data.
+- A server's field error shown as a generic failure.
+- Errors shown while the person is still typing a first entry, or left showing after they are fixed.
+- An error that assistive technology cannot connect to its field.
+- Input lost on an accidental navigation.
 
 ## Wrong vs Right
 
-- WRONG: a submit handler that checks each field with if statements: if email is empty, set error. If email doesn't contain @, set error. If password is short, set error. Manual, repetitive, and the type definition is maintained separately.
-- RIGHT: a validation schema that defines email must be valid, password must be minimum length. The type is derived from the schema automatically. The form library runs the schema on submit and maps errors to fields automatically.
-- WRONG: the server returns a validation error saying the email is already taken. The feature shows a generic "Something went wrong" toast. The user doesn't know which field to fix.
-- RIGHT: the server returns field-specific errors. The form system maps "email: already taken" to the email field, showing the error inline below the email input.
-- WRONG: user fills out half a long form. Accidentally clicks a link. Navigates away. All form data is lost. User is frustrated.
-- RIGHT: user fills out half a form. Clicks a link. A prompt asks "You have unsaved changes. Leave without saving?" User stays and finishes the form.
+- WRONG: a submit handler checks each field with its own conditions, and the data's shape is defined again elsewhere. RIGHT: one definition validates the form; the form system runs it and shows each error at its field.
+- WRONG: the server says the email is taken and the person sees "Something went wrong". RIGHT: "This email already has an account" appears at the email field.
+- WRONG: half a long form is lost to a mistaken tap on a link. RIGHT: the draft is kept, or the person is warned and stays.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-When bootstrapping this convention:
-- Research the framework's recommended form handling library. Find one that integrates with schema-based validation where schemas produce both types and validation.
-- Research validation schema libraries that work with the form library and produce type-safe form types
-- Research accessible form error patterns for the framework (how to associate error messages with fields programmatically)
-- Research the framework's patterns for dirty/unsaved changes detection and navigation guards
-- Research multi-step form wizard patterns for the framework
-- Document the form library, validation approach, field components, and patterns in References.md
+Research the chosen stack's form handling options, how they share one validation definition with the data's shape, accessible error patterns on the product's platforms, and draft or unsaved-change handling. Record the form system and its usage in References.md.

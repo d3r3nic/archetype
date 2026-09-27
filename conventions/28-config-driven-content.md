@@ -2,118 +2,57 @@
 
 ## Applies when
 
-The project is a template that serves many customers or brands from one
-codebase, or a product whose brand and content must change without code
-edits (white-label, multi-tenant, reseller). A single-purpose product with
-one brand and no customer variation marks #28 not applicable in
-feature-tree.md with a one-line reason; the never-hardcode rules of #1
-(environment values) and #6 (visual values) still apply to it.
+The project is a template that serves many customers or brands from one codebase, or a product whose brand and content must change without code edits (white-label, multi-tenant, reseller). A single-purpose product with one brand and no customer variation marks #28 not applicable in feature-tree.md with a one-line reason; the configuration rule of #1 and the styling source of #6 still apply to it.
 
 ## Principle
 
-A template ships once and serves many customers. Every value that
-varies between customers — copy, labels, colors, contact details,
-nav structure, integration keys — lives in a single config surface
-the customer edits without touching view code. This convention keeps the
-template reusable; the test at the end of this document is how a
-reviewer checks it, and no script does.
-
-The contract is: **edit JSON, never edit view code** to change a
-customer's brand, content, or wiring. If you find yourself writing
-a brand name, an email, a hero headline, or a section title into a
-component, you are violating this convention.
+A template ships once and serves many customers. Every value that varies between customers (copy, labels, colors, contact details, navigation, integration keys) lives in one configuration surface, validated against a schema and read through one accessor. Changing a customer's brand, content or wiring never requires editing view code. A brand name, an email, a headline or a section title written into a component violates this convention.
 
 ## Reusable System
 
-Establish a single config surface:
+One configuration surface:
+- a typed schema for every value that varies by customer: branding, theme, typography, navigation, contact, social, content per page shape, commerce, compliance, integrations, search metadata, operational settings;
+- a resolution order chosen for the deployment model, such as a value injected in production, a local file in development, and neutral defaults for a demo;
+- one accessor, with one name across the codebase, that returns the parsed and validated configuration wherever the code runs;
+- one document that lists every configurable field and shows a customer's configuration.
 
-- A typed schema that defines every brand-shaped value: branding,
-  theme, typography, nav, contact, social, content (per page-shape),
-  commerce, compliance, integrations, SEO, operational settings.
-- A three-layer resolver: environment-supplied config blob → on-disk
-  fallback file (gitignored) → typed defaults. Production injects the
-  blob; local dev uses the file; defaults render a neutral demo.
-- A universal getter with one name across the codebase that runs on
-  both server and client surfaces and returns the parsed, validated
-  config.
-- One canonical doc (e.g. `docs/CONFIG.md`) that lists every
-  configurable field and shows the JSON shape for a customer.
-
-Components read from the config getter and fall back to a sensible
-default for the demo. Defaults live in the schema package's defaults
-constant or in colocated content modules — never inlined into render
-output.
-
-The delivery mechanism's specific names (the environment variable,
-the fallback file path) and the getter's name are template-local and
-documented in the template's References.md — not part of this
-convention.
+Components read from the accessor and fall back to a neutral default. Defaults live with the schema or in content modules beside it, never inlined into rendered output. The delivery details (the variable name, the file path, the accessor's name) are the template's own and are recorded in its References.md.
 
 ## Rules
 
-- Never hardcode customer-facing copy in view code. Read from the
-  cfg with a default fallback.
-- Never hardcode contact info, social handles, brand names, or
-  emails. They live in `cfg.contact`, `cfg.social`, `cfg.branding`.
-- Never hardcode colors, fonts, or theme values. They live in
-  `cfg.theme` and apply via the theme system (see Convention #6).
-- Never hardcode integration keys (payment publishable key,
-  analytics project id, etc). They live in `cfg.integrations`.
-  Secrets stay in regular server-only env vars.
-- Never assume an industry. If a string is industry-specific
-  ("Residential / Commercial / Interior") it must be configurable.
-- Never pin a customer-specific identifier in template code (cache
-  tags, IDs, brand-named exports). Derive at runtime from
-  `cfg.operational.customerId` or equivalent.
-- Schema validation runs at trust boundaries (env parse, server-
-  action input). Bad config fails loud with a clear error, not at
-  render time.
-- A new feature with brand-shaped values extends the schema BEFORE
-  the component reads them. Component authors and schema authors
-  are the same person — keep them in sync.
-- Customer site spawn = clone template + write the config blob.
-  Anything else is a leak.
+- Never write customer-facing copy into view code. Read it from the configuration, with a default.
+- Never write contact details, social handles, brand names or emails into code. They live in the configuration's contact and branding fields.
+- Colors, fonts and theme values come from the configuration and reach the interface through the theme system (#6).
+- Public integration keys live in the configuration; secrets stay in server-only environment values.
+- Never assume an industry. An industry-specific string is configurable.
+- Never pin a customer-specific identifier in template code (cache tags, identifiers, brand-named exports). Derive it at run time from the configuration.
+- Validate the configuration where it enters. Bad configuration fails loudly, with a clear error, before anything renders.
+- A feature with customer-shaped values extends the schema before its component reads them.
+- Making a customer's product from the template means copying the template and writing the configuration. Any other change needed is a leak to fix in the template.
 
 ## Acceptable hardcoding
 
-These do NOT need to be in the config:
+These do not need to be in the configuration:
+- **State markers:** "Out of stock", "Loading", error messages from the network layer. They describe run-time state, not brand voice.
+- **Infrastructure:** route responses, internal redirects, internal cookie names, internal identifiers.
+- **Structural marks** that are part of the template's identity, such as an active-page marker. Document them in the configuration document so they are explicitly endorsed.
+- **The order of sections** on composed pages: order is structural identity, not brand voice.
 
-- **State markers**: "Out of stock", "Loading…", "Pick options",
-  error messages from the network layer. These describe runtime
-  state, not brand voice.
-- **Framework infrastructure**: route-handler responses, redirect
-  URLs internal to the app, internal cookie names, internal IDs.
-- **Structural glyphs / brand-language marks** that are part of
-  the template's identity (e.g. an active-page marker, copyright
-  glyph). Document these in the template's config doc so they're
-  explicitly endorsed.
-- **Page section ORDER** on composed pages — order is structural
-  identity, not brand voice. Customer sites override copy, not
-  layout.
-
-When in doubt: ask "would a customer in a different industry need
-to change this?" If yes, configure it.
+When in doubt, ask whether a customer in a different industry would need to change it. If yes, configure it.
 
 ## Violations
 
-- Brand text inlined in views (use `cfg.branding.name`)
-- Contact email pinned in a `mailto:` (use `cfg.contact.email`)
-- Industry-specific labels in a select / radio options array
-  (use `cfg.content.forms.<form>.options`)
-- Customer-named cache tags or identifiers exported from template
-  modules
-- A schema field exists but isn't threaded into the component that
-  uses the value (declared-but-unused config is the same as no
-  config)
-- Component that reads cfg AND a feature-local constants module
-  for the same value — pick one source of truth
-- Duplicate copy in 2+ files. Extract to a single cfg field; all
-  call sites read it.
+- Brand text written into views.
+- A contact email pinned in a link.
+- Industry-specific options in a list written into a form.
+- Customer-named identifiers exported from template modules.
+- A schema field that exists but that the component never reads: declared but unused configuration is the same as none.
+- A component that reads the configuration and a local constant for the same value.
+- The same copy in two or more files instead of one configuration field.
 
-## Wrong vs Right (illustrative — exact syntax depends on stack)
+## Wrong vs Right (illustrative; the syntax depends on the stack)
 
-The getter name below is the example project's choice, not a
-prescription.
+The accessor's name below is an example project's choice, not a prescription.
 
 **Wrong:**
 
@@ -122,7 +61,7 @@ function ContactCTA() {
   return view`
     <h2>Start a conversation.</h2>
     <p>Tell us about the project.</p>
-    <a href="mailto:hello@designtank.studio">hello@designtank.studio</a>
+    <a href="mailto:hello@example.com">hello@example.com</a>
   `;
 }
 ```
@@ -143,23 +82,17 @@ function ContactCTA() {
 }
 ```
 
-The customer changes any of these by editing the config blob. The
-component code never moves.
+The customer changes any of these by editing the configuration; the component never changes.
 
 ## Test
 
-Before committing a component that displays text, an image, a URL,
-a number, or any user-visible value, ask:
-
+Before committing a component that shows text, an image, an address, a number or any other visible value, ask:
 1. Could a different customer want this changed?
-2. If yes, is it read from cfg?
-3. If no, is it documented as code-pinned (state marker, brand-
-   language glyph, structural)?
+2. If yes, is it read from the configuration?
+3. If no, is it documented as fixed (a state marker, a structural mark)?
 
-If you can't answer all three, the component isn't ready.
+If any answer is missing, the component is not ready. A reviewer applies this test; no script does.
 
 ## Research Notes
 
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current options at bootstrap.
-
-Choose config delivery for the project's deployment model. Verify which values reach client bundles, when updates take effect, and how schema validation fails. Public content belongs in public configuration; credentials require a separate protected store. Keep the accessor stable when delivery changes.
+Research configuration delivery for the project's deployment model: which values reach code that people can inspect, when an update takes effect, and how schema validation fails. Public content belongs in public configuration; credentials need a separate protected store. Keep the accessor stable when the delivery changes, and record the delivery details in References.md.

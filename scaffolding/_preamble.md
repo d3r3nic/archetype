@@ -13,13 +13,17 @@ When you scaffold, record the actual researched choice and its reason in project
 
 ## Zero-stale rule (framework only)
 
-Every tool, SDK, version, linter rule, or vendor named in the framework is a reference. Verify changing facts that matter to the current choice; reuse evidence that is still current. Research Notes in each convention list the CATEGORY of tooling ("a structured logger for the language", "a SAML-capable enterprise auth broker"). Resolve to a specific current choice at scaffold time, not from training-data memory. The specifics land in project artifacts, not in framework edits. Where a framework file keeps one concrete illustration, it sits on a line beginning `Dated example:`; read those as expired until re-verified, never as a prescription.
+The framework names no technology: no framework, library, language, API style, service or vendor. Each convention's Research Notes name the category to research ("a structured logger for the language", "an enterprise single-sign-on broker"). Resolve it to a specific current choice at scaffold time, from current sources rather than memory, and record the choice in the project's files, never in framework edits. Verify changing facts that matter to the choice, and reuse evidence that is still current.
 
 ## Convention-mapping rule
 
 Every step in the shape-specific playbooks names the conventions it implements (e.g., "build per convention #8 + B3"). Read those convention docs before building the step — they carry the principles, rules, and research triggers. Do not scaffold by enforcement-rule memory alone.
 
 Read the relevant concern when making the decision it informs. Research uncertain or changing practice for the selected runtime and consider evidence against the initial choice. If research access is unavailable, say which facts remain unverified. Put the selected implementation and entry point in References.md; keep its consequential reason at the existing decision location. Reuse unchanged material already read in this session.
+
+## Boundaries rule
+
+Each shared system the scaffold builds records its `## Boundaries` line in References.md (#0, #25): what only that system may use, as `` - <concern>: `<pattern>` only in `<path>`, `<path>` ``, the pattern being a regular expression for the project's own tool, which only the listed paths may contain. `scripts/validate-scaffold.sh` checks the lines that exist and `scripts/validate-develop.sh` requires the section, so a feature that goes around a shared system fails a check instead of relying on memory. A project with no shared concern to guard records `- none: <reason>`.
 
 ## Handoff-check rule (Step 0 of every playbook)
 
@@ -52,8 +56,8 @@ Keep coherent verified recovery points under convention #2 and the repository au
 
 ## Red-flags rule
 
-For a stepped playbook, read the sections of `scaffolding/RED-FLAGS.md` named by the current step. An unconverted playbook reads the catalogue before scaffolding. If a red flag fires, STOP and resolve before continuing.
+For a stepped playbook, read the sections of `scaffolding/RED-FLAGS.md` named by the current step. An unconverted playbook reads the catalogue before scaffolding. If a red flag fires, resolve it before the step closes, or record why it does not fit this application, as the catalogue's "Handling a fired red flag" says.
 
 ## Machine-verifiable exit gate
 
-Run `scripts/validate-scaffold.sh` at the end and investigate its diagnostics. It includes layout and source-pattern heuristics; a mismatch can require a correction to a check or a supported project mapping, not a forced architecture. A real failure remains blocking. Never suppress evidence, misstate applicability or report an unsupported approach as verified. Record the limitation if no truthful supported check is available.
+Run `scripts/validate-scaffold.sh` at the end and investigate its diagnostics. It checks the project's records against the project: every system's page, the audit trail when data is regulated, the § Boundaries lines, and the recorded migration path, check location and query allow-list. A mismatch between a check and a justified project choice calls for a correction to the check or a recorded set-aside, never a forced architecture. A real failure remains blocking. Never suppress evidence, misstate applicability or report an unsupported approach as verified.

@@ -18,11 +18,8 @@ Files generated:
 - References.md ([word count] words)
 - PROFILE.md ([operating stage], [number of facts still unknown] unknown)
 - feature-tree.md ([number of systems] systems, [number of features] features)
-- [for existing projects] conventions/overrides/ ([number] files)
-- [for existing projects] protocols/ ([number] files)
-- [for existing projects] catalogs/ ([number] files)
-- [for existing projects] docs/migrated/ ([number] files copied)
-- [for existing projects] docs/audit/ ([number] audits, [summary: clean/minor/major/stale])
+- [for existing projects] MIGRATION-NOTES.md ([number] originals mapped)
+- [for existing projects] CLAUDE.md.additions, and the override and protocol files rules moved into ([number] files)
 Conventions read during bootstrap: [list which convention docs were read]
 Discovery: [PROGRESS.md steps 2.1 to 2.7 hold the questions and the owner's answers in their words; name here only what is still unknown or declined]
 Key decisions made: [links to the canonical decisions, not copied reasons]

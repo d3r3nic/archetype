@@ -35,31 +35,13 @@ Risk of noise: fires constantly during feature work where doc updates come at th
 
 ### After creating a feature directory
 
-Trigger: after creating `src/features/{name}/`.
+Trigger: after creating a new folder where the project keeps its features.
 Action: remind to add the feature to `feature-tree.md`.
-Risk of noise: low, but rare trigger; the develop gate already fails a feature folder with no row.
+Risk of noise: low, but a rare trigger; `scripts/validate-maintain.sh` already warns about a folder beside the features that has no row.
 
 ### Feature tree audit (standalone)
 
-Not a host hook — run manually or on a schedule (e.g., a weekly CI job).
-
-```bash
-#!/bin/bash
-# Compare src/features/ directories against feature-tree.md and docs/features/
-echo "=== Feature Tree Audit ==="
-FEATURES_DIR="src/features"
-TREE_FILE="feature-tree.md"
-for dir in "$FEATURES_DIR"/*/; do
-  feature=$(basename "$dir")
-  if ! grep -q "$feature" "$TREE_FILE" 2>/dev/null; then
-    echo "MISSING from tree: $feature"
-  fi
-  if [ ! -f "docs/features/$feature.md" ]; then
-    echo "UNDOCUMENTED: $feature"
-  fi
-done
-echo "=== Audit Complete ==="
-```
+Not a host hook: run `scripts/validate-maintain.sh` by hand or on a schedule. It compares every row of `feature-tree.md` with the project and warns about folders beside the features that have no row, so no separate audit script is needed.
 
 ### Session start: bootstrap gate
 

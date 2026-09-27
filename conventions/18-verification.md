@@ -1,5 +1,9 @@
 # Convention #18: Verification-Driven Development
 
+## Applies when
+
+Every change that claims an outcome. What varies is the evidence the outcome needs: tests for behavior, captures and interaction for a screen, a measurement for performance, a source check for prose.
+
 ## Principle
 
 Completion requires evidence for the behavior being claimed. Define the expected outcome independently of the implementation, select checks that can expose a wrong result, and verify while changes remain understandable. Test-first development is useful when a behavioral specification can be made executable before implementation; test timing alone does not establish correctness.
@@ -35,7 +39,5 @@ Use the project's test infrastructure (#12) and record its verification commands
 - WRONG: a test copies the function's formula and agrees with the same mistake. RIGHT: derive expected cases from the domain contract, including a case that exposes the suspected mistake.
 
 ## Research Notes
-
-Dated notes: anything named in this section is an example from the time of writing and expires. Verify current evidence when the verification approach changes.
 
 Investigate tools and techniques for the project's runtime and risks. Prefer maintained test infrastructure, representative environments and observable outcomes. Revisit the test strategy when behavior, exposure or an uncovered failure changes its assumptions. Keep required commands and their purpose in References.md.

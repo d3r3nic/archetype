@@ -1,6 +1,6 @@
 # Project task context
 
-Project-owned output template. Copy to the project root at protocols/task-context.md and fill from verified project facts. Framework updates preserve this output; it must never become a second copy of the global rulebook.
+Project-owned output template, only for a project that runs a task service (development/TASKS.md, second part). Copy to the project root at protocols/task-context.md and fill from verified project facts. Framework updates preserve this output; it must never become a second copy of the global rulebook.
 
 ## Authority and scope
 

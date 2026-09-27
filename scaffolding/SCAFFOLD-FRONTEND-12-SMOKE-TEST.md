@@ -10,14 +10,14 @@ Depends on: scaffold-frontend.4; scaffold-frontend.8; scaffold-frontend.9; scaff
 Basis: decisions and inputs required
 Skip by: owner
 
-Build a minimal feature that exercises EVERY shared system. Typical choice: a `/profile` or `/settings` page that:
-- Auth-protected (Step 7)
-- Fetches from API (Step 6)
-- Uses state management (Step 5)
-- Renders through the component foundation (Step 4)
-- Has a form (Step 9 if present)
-- Has an integration test (Step 10)
-- Passes a11y checks
+Build a minimal feature that goes through every shared system that was built. A profile or settings screen is a common choice. It:
+- sits behind the guard (Step 7, when built);
+- reads through the API layer (Step 6, when built);
+- uses the shared state (Step 5, when built);
+- renders through the component foundation (Step 4);
+- has a form (Step 9, when built);
+- has an integration test through the shared setup (Step 10);
+- passes the accessibility check.
 
 This is end-to-end integration proof. Without it, scaffold can be "complete" with misconfigured wiring. See `scaffolding/RED-FLAGS.md` "Scaffold-complete without integration proof."
 
