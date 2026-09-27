@@ -1,6 +1,6 @@
 # Peer coding
 
-Two AI assistants, each in its own chat, work on a branch of this project in turns. The one holding the writing turn implements or repairs within the agreed scope; the other reviews every new change independently, apart from the debt the close adds to the project's debt log. The owner passes one short line between the two chats at each hand-over. This playbook is the rule for both assistants. The owner's instructions and the decision authority in PROFILE.md still govern (#29).
+Two AI assistants, each in its own chat, work on a branch of this project in turns. The one holding the writing turn implements or repairs within the agreed scope; the other reviews every new change independently, apart from lines added to the project's TECHNICAL-DEBT.md. The owner passes one short line between the two chats at each hand-over. This playbook is the rule for both assistants. The owner's instructions and the decision authority in PROFILE.md still govern (#29).
 
 The framework owns these rules: an assistant working in a project never edits them. A project tailors them in one settings file, `peer-coding/SETTINGS.md`, and a defect in the rules goes upstream to the framework as a proposal, like any shared change.
 
@@ -83,7 +83,16 @@ Go to the worktree the line names (or your own checkout of its branch) and read 
 
 The branch exists for the goal and scope in ALIGNMENT.md §1 and the round's acceptance checks. Every turn works toward them, and every finding is weighed against them:
 
-- **Blocking:** a real problem in what this branch changed, or one that stops its goal. That is a wrong result on an input the product will meet, a security hole, data lost or damaged, a floor item of the operating profile left unmet (#30), a check that passes when it should fail or a required check that fails, a record or document that claims what the code does not do, agreed behavior broken, or the acceptance checks not passing. Blocking findings are repaired in this branch, and only they hold back acceptance.
+- **Blocking:** a real problem in what this branch changed, or one that stops its goal. That is:
+  - a wrong result on an input the product will meet;
+  - a security hole, or data lost or damaged;
+  - a floor item of the operating profile (#30) that the branch's change leaves unmet;
+  - a check that passes when it should fail, or a required check that fails;
+  - a record or document that claims what the code does not do;
+  - agreed behavior broken, or the acceptance checks not passing;
+  - drift (#19): a change outside the agreed scope or against the owner's recorded words, even when it works. Its repair takes the change out.
+
+  Blocking findings are repaired in this branch, and only they hold back acceptance.
 - **Debt:** everything else. That is polish (style, naming, restructuring, nicer messages, more tests than the acceptance checks need, cases no real input reaches), ideas, and problems that were there before this branch and do not stop its goal. Write each as one FINDINGS.md row with Severity `debt` and what would make it matter, and do not work on it in this branch. A range whose findings are all debt is ACCEPTED.
 - A review of repairs reads only the repairs: whether each fixed its finding without breaking anything, not the whole branch again.
 - A serious problem this branch did not cause, such as a security hole or data at risk, is written down as debt and also named to the owner at the hand-over. The owner decides whether this branch takes it on, and their words go in CURRENT.md.
@@ -101,17 +110,17 @@ After every alignment move and every turn:
 ## Waiting on the owner
 
 - NEEDS USER: a question only the owner can answer blocks the next move. Write it in Next action as `NEEDS USER: <the questions>`, then hand over steps 2 and 3, and `cue` prints `NEEDS USER · <folder> · <branch>@<commit>`. Give the owner that line and the numbered questions, one line each.
-- SCOPE CLOSED: the scope closed with nothing waiting to merge, or the owner keeps the branch open for a later scope. Write `SCOPE CLOSED: awaiting the owner` in Next action, commit and push the same way, and `cue` prints the line; product changes on the branch must be accepted first.
+- SCOPE CLOSED: the scope closed with nothing waiting to merge, or the owner keeps the branch open for a later scope. Write `SCOPE CLOSED: awaiting the owner` in Next action, commit and push the same way, and `cue` prints the line; product changes on the branch must be accepted first, apart from lines added to the project's TECHNICAL-DEBT.md.
 - A NEEDS USER or SCOPE CLOSED line that reaches you without the owner's answer: repeat the questions, or the closure, to the owner and wait.
 - Whichever assistant receives the owner's answer records it as `[decision: owner, date]` (in ALIGNMENT.md §2 for a brief, otherwise in CURRENT.md with the owner's words), replaces the Next action, and continues when the move is its own; otherwise it hands the move back. Returning the move this way needs no packet: a packet goes with a turn that reviewed or changed product work. An answer about work outside this branch goes to the decision location in the next writing turn; until then CURRENT.md holds the owner's words.
 
 ## Closing the branch
 
-- A merge needs the other assistant's ACCEPTED verdict on the final product head, recorded on CURRENT.md's Accepted head line (apart from the debt carried at close, next item); passing checks; what the settings' Merge line requires; and the authorization PROFILE.md and #29 require (the owner's when it deploys or touches a live environment).
-- Carry every unresolved finding to the project's own records first (the canonical task source development/TASKS.md names, or TECHNICAL-DEBT.md) and note in your packet where each went; the folder closes only with FINDINGS.md empty. A debt row carried to TECHNICAL-DEBT.md becomes an entry in the form templates/technical-debt.md gives, `Kind: shortcut`, saying what would make it matter. Commit the entries and record that commit as the last product commit in CURRENT.md: it needs no further review, since `close` accepts a change after the accepted head that only adds lines to the project's TECHNICAL-DEBT.md.
+- A merge needs the other assistant's ACCEPTED verdict on the final product head, recorded on CURRENT.md's Accepted head line (apart from lines added to the project's TECHNICAL-DEBT.md, next item); passing checks; what the settings' Merge line requires; and the authorization PROFILE.md and #29 require (the owner's when it deploys or touches a live environment).
+- Carry every unresolved finding to the project's own records first (the canonical task source development/TASKS.md names, or TECHNICAL-DEBT.md) and note in your packet where each went; the folder closes only with FINDINGS.md empty. A debt row carried to TECHNICAL-DEBT.md becomes an entry in the form templates/technical-debt.md gives, `Kind: shortcut`, saying what would make it matter. Commit the entries and record that commit as the last product commit in CURRENT.md. Lines added to the project's TECHNICAL-DEBT.md are the one product change that needs no review: `close`, `check` and `cue` accept them after the accepted head.
 - The merging assistant is the one whose review accepted the final range, unless the owner names the other. It runs `close --merged <pull request or ref>`: the folder becomes `<branch>--done`, marked closed for that merge. Commit it as the branch's last change, push, and merge the way the project merges (its pull request, or a merge into the default branch and a push, as References.md and #2 record; never a force-push). Prefer a merge that keeps each turn's commits in the default branch's history (a merge commit or a rebase merge) over a squash, unless the settings' Merge line records otherwise. Tell the owner in one line that the branch merged; no relay line is needed. The record says "closed for merge", never that the merge happened.
 - If the merge then does not happen (a check fails, the merge is refused), `close --reopen "<reason>"` renames the folder back, and the work continues. A branch that merged stays closed.
-- Work the owner abandons: `close --abandoned "<reason>"`. Its TECHNICAL-DEBT.md never merges, so empty FINDINGS.md first this way: debt rows about the abandoned change go with it, and rows about problems that were there before this branch go to the task source when the project runs one, otherwise to the owner, one line each, for the default branch's debt log.
+- Work the owner abandons: `close --abandoned "<reason>"`. Its TECHNICAL-DEBT.md never merges, so empty FINDINGS.md first this way: rows about the abandoned change go with it, and the others go to the task source when the project runs one, otherwise to the owner, one line each, for the default branch's debt log.
 - A folder left open by a merge: `check` reports one whose branch was merged by a merge commit or no longer exists. After a merge that squashed the branch's commits, delete the branch, here and on the remote, and the next `check` names the folder. Close it from the branch at hand with `close --folder <folder> --merged <ref>` (or `--abandoned`) and commit that.
 
 ## Rules for every turn
