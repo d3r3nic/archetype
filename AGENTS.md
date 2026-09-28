@@ -24,6 +24,10 @@ Respect the active instruction hierarchy, permissions and the decision authority
 - When the repository has peer-coding/SETTINGS.md (References.md § Project, Peer coding), two AI assistants take turns on its branches under development/PEER-CODING.md: read your branch's folder under peer-coding/ first, and change product files only on your own writing turn; the other assistant's review is the independent review. Keep to the branch's goal: only blocking findings are repaired in the branch, and the rest is written down as debt (development/PEER-CODING.md, Stay on the goal). A relayed line beginning READY FOR, NEEDS USER or SCOPE CLOSED is a peer-coding cue.
 - When the project runs a task service (a project-root protocols/task-context.md names it), tracked work also follows the second part of development/TASKS.md and development/FRESHNESS.md, which govern ownership and freshness, including non-code work. Every project keeps TASKS.md's first part.
 
+## When the framework itself goes wrong
+
+Never work around a framework problem silently. When a script or check fails or answers wrongly, an update breaks or loses something, an instruction is unclear or contradicts another, or the framework does something other than what its files say, report it upstream as development/FEEDBACK.md says: an issue or a pull request for the framework's repository, stating what should have happened and what did. It goes out with the owner's approval, or under a standing instruction the owner gave, and the owner gets its link. The maintainers fix what real projects report.
+
 ## Before claiming completion
 
 Use the project's verification commands and the applicable framework gate. A failure needs investigation; a justified alternative needs a truthful check of its own contract, not a false pass or a weakened assertion. A source heuristic is not proof of correctness. Follow conventions/18-verification.md and obtain independent review under conventions/29-decision-authority.md.
