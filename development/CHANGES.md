@@ -14,7 +14,7 @@ An entry's `Follows` line names the release before it. The entries a project has
 Follows: d447f226b09d1c9e3eb71587fcd00bb87a68eeb0
 
 - **Session:** each entry now also says which steps a project that already did them reopens and does again (Reopen), and which of its files to check against a changed rule or template (Audit). Act on them as development/UPDATE.md, section After, says.
-- **Project:** once, because this release added Reopen and Audit lines to earlier entries, which a project already past them is never shown. Read development/CHANGES.md from the entry below this one down to the entry whose `Follows` line names the revision on the first `Commit:` line of VERSION-LOG.md, or to the end when none does, and do the Reopen and Audit lines this project has not done.
+- **Project:** once, because this release added Reopen and Audit lines to earlier entries, which a project already past them is never shown. Read development/CHANGES.md from this entry down to the entry whose `Follows` line names the revision on the first `Commit:` line of VERSION-LOG.md, or to the end when none does, and do the Project, Reopen and Audit lines this project has not done.
 - **Reopen:** none.
 - **Audit:** none.
 
@@ -66,6 +66,7 @@ Follows: f6b13b40b87298e9ebaea9dd8b5d182c130dedf3
 - **Reopen:** none.
 - **Audit:** References.md against the current References template for the project's kind (templates/references-<kind>.md): bring in each section and line it lacks, recorded from how the code already works. For a frontend that includes the state responsibilities (scaffold-frontend step 5) and the checks, budgets, build and rollback path (step 11). A decision the code does not show is made as PROFILE.md's decision authority says, then recorded.
 - **Audit:** feature-tree.md: a foundational-system row still `not started` for a system the project's facts do not call for (each convention's Applies when) came from the older template's fixed list; remove it.
+- **Audit:** the test setup of a web front end or device app (scaffold-frontend steps 8 and 10, scaffolding/RED-FLAGS.md section 14): tests render through the app's own root composition, reused, not a copy of its order. Where they copy it, make both use the one composition.
 
 ## 2026-09-26: The session's final word, and the force-push guard
 Follows: e72ed261e0358e490c979ef87bda81c9ffb164f6
@@ -126,7 +127,7 @@ Follows: 1538b8c28d9bced68266c3c87fe2d84bbd804739
 - **Project:** a unit that handles regulated data records where its audit trail lives on the Audit log line of References.md § Compliance; the scaffold check reads it there.
 - **Project:** a frontend project records how people use it on a phone on the `Mobile mode` line of References.md § Project (templates/references-frontend.md); the frontend scaffold reads it.
 - **Reopen:** none.
-- **Audit:** none.
+- **Audit:** PROGRESS.md: a closed `bootstrap.3` whose evidence is only that no objection came by a stated time. Ask the owner to authorize the build approach (#29), and record their words at the decision location.
 
 ## 2026-09-23: Fixes a fresh project meets on day one; rules load by import
 Follows: cefbec9d9ebac48bc3edbce3fc70a6e779856b02

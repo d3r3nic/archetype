@@ -27,7 +27,11 @@ fi
 
 # The steps a Reopen line may name, as next-step.sh --reopen reads them. Empty when they cannot be
 # read, and then every step a Reopen line names fails.
-STEPS="$(python3 "$SCRIPT_DIR/step-recovery.py" steps --engine "$SCRIPT_DIR/.." 2>/dev/null | tr '\n' ' ')"
+if STEPS="$(python3 "$SCRIPT_DIR/step-recovery.py" steps --engine "$SCRIPT_DIR/.." 2>/dev/null)"; then
+  STEPS="$(printf '%s\n' "$STEPS" | tr '\n' ' ')"
+else
+  STEPS=""
+fi
 
 PROBLEMS="$(tr -d '\r' < "$FILE" | awk -v steps="$STEPS" '
   BEGIN { m = split(steps, list, " "); for (i = 1; i <= m; i++) known[list[i]] = 1 }
@@ -61,12 +65,12 @@ PROBLEMS="$(tr -d '\r' < "$FILE" | awk -v steps="$STEPS" '
   /^- [*][*]Project:[*][*]/ { project = 1 }
   /^- [*][*]Reopen:[*][*]/ {
     reopen = 1; v = $0; sub(/^- [*][*]Reopen:[*][*] */, "", v)
-    if (v ~ /^none([^a-z]|$)/) next
+    if (v ~ /^none([^a-z]|$)/ && index(v, "`") == 0) next
     named = 0
     while (match(v, /`[^`]*`/)) {
       id = substr(v, RSTART + 1, RLENGTH - 2); v = substr(v, RSTART + RLENGTH); named = 1
       if (!(id in known)) {
-        if (m == 0) print "entry \"" title "\" Reopen line names `" id "`, and the declared steps could not be read (python3 scripts/step-recovery.py steps)"
+        if (m == 0) print "entry \"" title "\" Reopen line names `" id "`, and the declared steps could not be read (from the engine: python3 scripts/step-recovery.py steps --engine .)"
         else print "entry \"" title "\" Reopen line names `" id "`, which no playbook declares as a step"
       }
     }

@@ -1350,6 +1350,9 @@ class ChangesForm(unittest.TestCase):
             ('a Reopen line naming a step no playbook declares',
              re.sub(r'(?m)^- \*\*Reopen:\*\*.*$', '- **Reopen:** `bootstrap.4.4`, `bootstrap.9`: redo them', top),
              'names `bootstrap.9`, which no playbook declares as a step'),
+            ('a Reopen line that opens with none and still names a step',
+             re.sub(r'(?m)^- \*\*Reopen:\*\*.*$', '- **Reopen:** none, but redo `bootstrap.99`', top),
+             'names `bootstrap.99`, which no playbook declares as a step'),
         )
         for name, changed, message in cases:
             with self.subTest(name):
@@ -1370,8 +1373,13 @@ class ChangesForm(unittest.TestCase):
         alone.mkdir(parents=True)
         shutil.copy(SOURCE / 'scripts' / 'validate-changes.sh', alone / 'validate-changes.sh')
         first = self.original.index('\n## ') + 1
-        for reopen, expected in (('none.', 0), ('`bootstrap.4.4`: its guidance changed', 1)):
-            with self.subTest(reopen):
+        # A step runner that prints the step but then fails is not read either.
+        failing = 'import sys\nprint("bootstrap.4.4")\nsys.exit(1)\n'
+        for runner, reopen, expected in ((None, 'none.', 0), (None, '`bootstrap.4.4`: its guidance changed', 1),
+                                         (failing, '`bootstrap.4.4`: its guidance changed', 1)):
+            if runner:
+                (alone / 'step-recovery.py').write_text(runner)
+            with self.subTest(reopen=reopen, runner=bool(runner)):
                 text = self.original[:first] + re.sub(r'(?m)^- \*\*Reopen:\*\*.*$', '- **Reopen:** ' + reopen,
                                                      self.original[first:], count=1)
                 self.file.write_text(text)
