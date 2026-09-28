@@ -10,6 +10,14 @@ So a project catches up without running its setup again. The updater prints the 
 
 An entry's `Follows` line names the release before it. The entries a project has not seen run from the top down to the one that follows the revision it had installed, which VERSION-LOG.md records. An install older than the last entry here reads them all; the rules and guides it now has state everything earlier.
 
+## 2026-09-28: Projects report what goes wrong
+Follows: 8584ba794b69065de6f89447a299e628b4f434bd
+
+- **Session:** when the framework itself goes wrong here (a script or check fails or answers wrongly, an update breaks or loses something, an instruction is unclear or contradicts another, or the framework does something other than what its files say), never work around it silently. Draft an issue or pull request for the framework's repository as development/FEEDBACK.md says, stating what should have happened and what did, and send it with the owner's approval or under their standing instruction.
+- **Project:** nothing to record. An owner who wants reports sent without being asked each time records that standing instruction, with its bounds, at the decision location.
+- **Reopen:** none.
+- **Audit:** none.
+
 ## 2026-09-28: Every update says what to redo
 Follows: d447f226b09d1c9e3eb71587fcd00bb87a68eeb0
 
