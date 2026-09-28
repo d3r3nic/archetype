@@ -1342,12 +1342,52 @@ class ChangesForm(unittest.TestCase):
             ('a heading without a date', re.sub(r'^## \S+: ', '## Latest: ', top), 'is not <date>: <title>'),
             ('a top heading with no space after the marks', top.replace('## 2026-', '##2026-', 1), 'comes before the first entry heading'),
             ('a top heading with three marks', top.replace('## 2026-', '### 2026-', 1), 'comes before the first entry heading'),
+            ('no Reopen line', re.sub(r'(?m)^- \*\*Reopen:\*\*.*\n', '', top), 'has no Reopen line'),
+            ('no Audit line', re.sub(r'(?m)^- \*\*Audit:\*\*.*\n', '', top), 'has no Audit line'),
+            ('an empty Audit line', re.sub(r'(?m)^- \*\*Audit:\*\*.*$', '- **Audit:**', top), 'has an empty Audit line'),
+            ('a Reopen line naming no step', re.sub(r'(?m)^- \*\*Reopen:\*\*.*$', '- **Reopen:** the design interview', top),
+             'is neither none nor steps in backticks'),
+            ('a Reopen line naming a step no playbook declares',
+             re.sub(r'(?m)^- \*\*Reopen:\*\*.*$', '- **Reopen:** `bootstrap.4.4`, `bootstrap.9`: redo them', top),
+             'names `bootstrap.9`, which no playbook declares as a step'),
+            ('a Reopen line that opens with none and still names a step',
+             re.sub(r'(?m)^- \*\*Reopen:\*\*.*$', '- **Reopen:** none, but redo `bootstrap.99`', top),
+             'names `bootstrap.99`, which no playbook declares as a step'),
         )
         for name, changed, message in cases:
             with self.subTest(name):
                 code, out = self.check(head + changed + body[len(top):])
                 self.assertEqual(code, 1, out)
                 self.assertIn(message, out)
+
+    def test_a_reopen_line_names_steps_the_playbooks_declare(self):
+        first = self.original.index('\n## ') + 1
+        reopened = re.sub(r'(?m)^- \*\*Reopen:\*\*.*$', '- **Reopen:** `bootstrap.4.4`, `scaffold-frontend.10b`: their '
+                          'guidance changed', self.original[first:], count=1)
+        code, out = self.check(self.original[:first] + reopened)
+        self.assertEqual(code, 0, out)
+
+    def test_a_reopen_line_fails_when_the_declared_steps_cannot_be_read(self):
+        # A copy of the check with no step runner beside it cannot read the declared steps.
+        alone = Path(self.temp.name) / 'engine' / 'scripts'
+        alone.mkdir(parents=True)
+        shutil.copy(SOURCE / 'scripts' / 'validate-changes.sh', alone / 'validate-changes.sh')
+        first = self.original.index('\n## ') + 1
+        # A step runner that prints the step but then fails is not read either.
+        failing = 'import sys\nprint("bootstrap.4.4")\nsys.exit(1)\n'
+        for runner, reopen, expected in ((None, 'none.', 0), (None, '`bootstrap.4.4`: its guidance changed', 1),
+                                         (failing, '`bootstrap.4.4`: its guidance changed', 1)):
+            if runner:
+                (alone / 'step-recovery.py').write_text(runner)
+            with self.subTest(reopen=reopen, runner=bool(runner)):
+                text = self.original[:first] + re.sub(r'(?m)^- \*\*Reopen:\*\*.*$', '- **Reopen:** ' + reopen,
+                                                     self.original[first:], count=1)
+                self.file.write_text(text)
+                result = subprocess.run([BASH, str(alone / 'validate-changes.sh'), str(self.file)], text=True,
+                                        capture_output=True)
+                self.assertEqual(result.returncode, expected, result.stdout)
+                if expected:
+                    self.assertIn('the declared steps could not be read', ANSI.sub('', result.stdout))
 
 
 class NameCheck(unittest.TestCase):
