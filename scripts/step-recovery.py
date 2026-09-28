@@ -542,6 +542,7 @@ def main() -> int:
     validate_parser = sub.add_parser("validate-decisions")
     validate_parser.add_argument("--project", required=True); validate_parser.add_argument("--cwd")
     graph_parser = sub.add_parser("validate-graph"); graph_parser.add_argument("--engine", required=True)
+    steps_parser = sub.add_parser("steps"); steps_parser.add_argument("--engine", required=True)
     requirement_parser = sub.add_parser("requirement"); requirement_parser.add_argument("--engine", required=True); requirement_parser.add_argument("--step", required=True)
     prerequisites_parser = sub.add_parser("prerequisites"); prerequisites_parser.add_argument("--engine", required=True); prerequisites_parser.add_argument("--ledger", required=True); prerequisites_parser.add_argument("--step", required=True); prerequisites_parser.add_argument("--unit", default="")
     dependencies_parser = sub.add_parser("dependencies"); dependencies_parser.add_argument("--engine", required=True); dependencies_parser.add_argument("--step", required=True)
@@ -574,6 +575,8 @@ def main() -> int:
             print(f"OK: {sum(len(value) for value in graph.values())} declared step dependency edge(s) are acyclic")
         elif args.command == "prerequisites":
             validate_prerequisites(Path(args.engine), Path(args.ledger), args.step, args.unit)
+        elif args.command == "steps":
+            print("\n".join(sorted(parse_steps(Path(args.engine))[1])))
         elif args.command == "dependencies":
             graph, _ = parse_steps(Path(args.engine)); print("; ".join(graph.get(args.step, [])) or "none")
         elif args.command == "append-reopen":
