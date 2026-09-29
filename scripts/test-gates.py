@@ -203,6 +203,22 @@ class DevelopGate(unittest.TestCase):
         self.assertIn('Store: src/features/orders.ext uses', out)
         self.assertIn('Network: src/features/orders.ext uses', out)
 
+    def test_saved_peer_coding_evidence_is_not_read(self):
+        self.git()
+        (self.project / 'References.md').write_text(
+            '# References\n\n## Boundaries\n\n- Network: `callRemote\\(` only in `src/shared/api/`\n')
+        for folder, name in (('feat-x', 'claude/run.txt'), ('feat-y--done', 'codex/out.json')):
+            evidence = self.project / 'peer-coding' / folder / 'rounds' / 'R1' / 'evidence' / name
+            evidence.parent.mkdir(parents=True)
+            evidence.write_text('FAIL: callRemote("/x") returned 500\n')
+        clean = self.check(features_tree([]))
+        self.assertEqual(clean.returncode, 0, clean.stdout)
+        self.assertIn('OK: Network: only its recorded paths use', ANSI.sub('', clean.stdout))
+        (self.project / 'peer-coding' / 'feat-x' / 'helper.ext').write_text('callRemote("/x")\n')
+        (self.project / 'src' / 'features' / 'orders.ext').write_text('callRemote("/orders")\n')
+        out = ANSI.sub('', self.check(features_tree([])).stdout)
+        self.assertIn('Network: peer-coding/feat-x/helper.ext, src/features/orders.ext use', out)
+
     def test_a_section_with_no_line_in_the_recorded_form_fails_here(self):
         (self.project / 'References.md').write_text('# References\n\n## Boundaries\n\nThe API layer owns every network call.\n')
         result = self.check(features_tree([]))
@@ -701,6 +717,25 @@ class BoundaryLayouts(unittest.TestCase):
         scaffold, develop = self.gates()
         self.assertIn('Store: src/features/orders.ext uses', '\n'.join(scaffold))
         self.assertIn('Store: src/features/orders.ext uses', '\n'.join(develop))
+
+    def evidence(self, folder):
+        saved = folder / 'peer-coding' / 'feat-x' / 'rounds' / 'R1' / 'evidence' / 'claude' / 'run.txt'
+        saved.parent.mkdir(parents=True)
+        saved.write_text('connectStore() timed out\n')
+
+    def test_saved_peer_evidence_at_the_repository_top_is_left_out(self):
+        self.unit(self.root)
+        self.evidence(self.root)
+        scaffold, develop = self.gates()
+        self.assertIn('OK: Store: only its recorded paths use', '\n'.join(scaffold))
+        self.assertIn('OK: Store: only its recorded paths use', '\n'.join(develop))
+
+    def test_a_project_folder_reads_a_peer_coding_folder_of_its_own(self):
+        self.unit(self.root / 'project')
+        self.evidence(self.root / 'project')
+        scaffold, develop = self.gates()
+        self.assertIn('Store: peer-coding/feat-x/rounds/R1/evidence/claude/run.txt uses', '\n'.join(scaffold))
+        self.assertIn('Store: peer-coding/feat-x/rounds/R1/evidence/claude/run.txt uses', '\n'.join(develop))
 
     def test_an_installed_engine_run_by_a_relative_path_checks_the_project_and_not_itself(self):
         self.unit(self.root)

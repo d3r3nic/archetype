@@ -17,8 +17,9 @@
 # (such as `*.test.*`, where "*" also crosses "/"), from the unit's root: the folder that holds
 # References.md, or the project root when an older install keeps References.md in the engine folder.
 # The check lists the unit's files through git (tracked and untracked, not ignored), leaves out
-# Markdown files and the installed framework folder, and fails when a file outside a rule's
-# paths contains its pattern. A line it cannot read fails; a line still holding the template's
+# Markdown files, the installed framework folder and, when the unit's root is the repository's
+# top, the command output peer coding saves there (peer-coding/<folder>/rounds/<round>/evidence/,
+# development/PEER-CODING.md), and fails when a file outside a rule's paths contains its pattern. A line it cannot read fails; a line still holding the template's
 # bracketed placeholder fails. A section with no line in either recorded form is not recorded yet:
 # a warning, or a failure with --required. Nothing it cannot read counts as a pass.
 # Exit 0 when every rule holds, 1 on any failure, 2 on a usage error.
@@ -184,17 +185,24 @@ if [ -n "$NONE_REASON" ] && [ -s "$RULES" ]; then
 fi
 
 if [ -s "$RULES" ]; then
-  # The unit's files, through git. The installed framework folder and Markdown are left out.
+  # The unit's files, through git. The installed framework folder, Markdown and saved peer-coding
+  # evidence are left out.
   if ! git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     fail "the unit is not inside a git repository, so its files cannot be listed; the boundary check reads the files git tracks and the untracked ones it does not ignore"
   else
     ENGINE_REL=""
     case "$ENGINE_DIR/" in "$ROOT/"?*) ENGINE_REL="${ENGINE_DIR#"$ROOT"/}/" ;; esac
+    # Peer coding keeps its record at the repository's top and saves command output in it, which
+    # quotes what it ran; output is not source, so it is left out when the unit's root is that top.
+    PEER_TOP=0
+    TOP="$(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null)"
+    if [ -n "$TOP" ] && [ "$(cd "$TOP" 2>/dev/null && pwd -P)" = "$ROOT" ]; then PEER_TOP=1; fi
     # NUL-separated throughout, so no file name can split into two.
     : > "$LIST"
     while IFS= read -r -d '' f; do
       [ -n "$f" ] || continue
       if [ -n "$ENGINE_REL" ]; then case "$f" in "$ENGINE_REL"*) continue ;; esac; fi
+      if [ "$PEER_TOP" = 1 ]; then case "$f" in peer-coding/*/rounds/*/evidence/*) continue ;; esac; fi
       case "$f" in *.md|*.MD|*.Md|*.mD) continue ;; esac
       printf '%s\0' "$f" >> "$LIST"
     done < <(cd "$ROOT" && git ls-files -z --cached --others --exclude-standard)
