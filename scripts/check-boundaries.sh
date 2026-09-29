@@ -16,11 +16,13 @@
 # (grep -E) for the project's own tool. A path is a folder ending in "/", a file, or a shell glob
 # (such as `*.test.*`, where "*" also crosses "/"), from the unit's root: the folder that holds
 # References.md, or the project root when an older install keeps References.md in the engine folder.
-# The check lists the unit's files through git (tracked and untracked, not ignored), leaves out
-# Markdown files and the installed framework folder, and fails when a file outside a rule's
-# paths contains its pattern. A line it cannot read fails; a line still holding the template's
-# bracketed placeholder fails. A section with no line in either recorded form is not recorded yet:
-# a warning, or a failure with --required. Nothing it cannot read counts as a pass.
+# The check lists the unit's files through git (tracked and untracked, not ignored) and fails
+# when a file outside a rule's paths contains its pattern. It leaves out Markdown files, the
+# installed framework folder and, when the unit's root is the repository's top, the command output
+# peer coding saves there (peer-coding/<folder>/rounds/R<n>/evidence/, development/PEER-CODING.md).
+# A line it cannot read fails; a line still holding the template's bracketed placeholder fails.
+# A section with no line in either recorded form is not recorded yet: a warning, or a failure with
+# --required. Nothing it cannot read counts as a pass.
 # Exit 0 when every rule holds, 1 on any failure, 2 on a usage error.
 
 # Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
@@ -37,7 +39,7 @@ while [ "$#" -gt 0 ]; do
     --references)
       [ "$#" -ge 2 ] && [ -n "$2" ] || { echo "--references needs the path of a References.md"; exit 2; }
       REFS_ARG="$2"; shift 2 ;;
-    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown argument: $1 (accepted: --required, --rules, --references <file>)"; exit 2 ;;
   esac
 done
@@ -184,17 +186,25 @@ if [ -n "$NONE_REASON" ] && [ -s "$RULES" ]; then
 fi
 
 if [ -s "$RULES" ]; then
-  # The unit's files, through git. The installed framework folder and Markdown are left out.
+  # The unit's files, through git. The installed framework folder, Markdown and saved peer-coding
+  # evidence are left out.
   if ! git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     fail "the unit is not inside a git repository, so its files cannot be listed; the boundary check reads the files git tracks and the untracked ones it does not ignore"
   else
     ENGINE_REL=""
     case "$ENGINE_DIR/" in "$ROOT/"?*) ENGINE_REL="${ENGINE_DIR#"$ROOT"/}/" ;; esac
+    # Peer coding keeps its record at the repository's top and saves command output in it, which
+    # quotes what it ran; output is not source, so it is left out when the unit's root is that top.
+    # git says whether it is, however the path was spelled; when git cannot say, nothing is left out.
+    PEER_TOP=0
+    PEER_EVIDENCE='^peer-coding/[^/]+/rounds/R[0-9]+/evidence/'
+    PREFIX="$(git -C "$ROOT" rev-parse --show-prefix 2>/dev/null)" && [ -z "$PREFIX" ] && PEER_TOP=1
     # NUL-separated throughout, so no file name can split into two.
     : > "$LIST"
     while IFS= read -r -d '' f; do
       [ -n "$f" ] || continue
       if [ -n "$ENGINE_REL" ]; then case "$f" in "$ENGINE_REL"*) continue ;; esac; fi
+      if [ "$PEER_TOP" = 1 ] && [[ $f =~ $PEER_EVIDENCE ]]; then continue; fi
       case "$f" in *.md|*.MD|*.Md|*.mD) continue ;; esac
       printf '%s\0' "$f" >> "$LIST"
     done < <(cd "$ROOT" && git ls-files -z --cached --others --exclude-standard)

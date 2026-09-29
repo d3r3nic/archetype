@@ -203,6 +203,31 @@ class DevelopGate(unittest.TestCase):
         self.assertIn('Store: src/features/orders.ext uses', out)
         self.assertIn('Network: src/features/orders.ext uses', out)
 
+    def test_saved_peer_coding_evidence_is_not_read(self):
+        self.git()
+        (self.project / 'References.md').write_text(
+            '# References\n\n## Boundaries\n\n- Network: `callRemote\\(` only in `src/shared/api/`\n')
+        for saved in ('feat-x/rounds/R1/evidence/alpha/run.txt', 'feat-y--done/rounds/R12/evidence/beta/out.json'):
+            evidence = self.project / 'peer-coding' / saved
+            evidence.parent.mkdir(parents=True)
+            evidence.write_text('FAIL: callRemote("/x") returned 500\n')
+        clean = self.check(features_tree([]))
+        self.assertEqual(clean.returncode, 0, clean.stdout)
+        self.assertIn('OK: Network: only its recorded paths use', ANSI.sub('', clean.stdout))
+        # Beside the evidence folders, and paths that only look like them, everything is read.
+        read = ['peer-coding/feat-x/helper.ext', 'peer-coding/feat-x/src/rounds/R1/evidence/client.ext',
+                'peer-coding/feat-x/rounds/R1/notes/evidence/client.ext', 'peer-coding/a/b/rounds/R1/evidence/x.ext',
+                'peer-coding/feat-x/rounds/v1/evidence/x.ext', 'src/features/orders.ext']
+        for name in read:
+            (self.project / name).parent.mkdir(parents=True, exist_ok=True)
+            (self.project / name).write_text('callRemote("/x")\n')
+        result = self.check(features_tree([]))
+        self.assertEqual(result.returncode, 1, result.stdout)
+        out = ANSI.sub('', result.stdout)
+        for name in read:
+            self.assertIn(name, out)
+        self.assertNotIn('evidence/alpha/run.txt', out)
+
     def test_a_section_with_no_line_in_the_recorded_form_fails_here(self):
         (self.project / 'References.md').write_text('# References\n\n## Boundaries\n\nThe API layer owns every network call.\n')
         result = self.check(features_tree([]))
@@ -701,6 +726,47 @@ class BoundaryLayouts(unittest.TestCase):
         scaffold, develop = self.gates()
         self.assertIn('Store: src/features/orders.ext uses', '\n'.join(scaffold))
         self.assertIn('Store: src/features/orders.ext uses', '\n'.join(develop))
+
+    def evidence(self, folder):
+        saved = folder / 'peer-coding' / 'feat-x' / 'rounds' / 'R1' / 'evidence' / 'alpha' / 'run.txt'
+        saved.parent.mkdir(parents=True)
+        saved.write_text('connectStore() timed out\n')
+
+    def test_saved_peer_evidence_at_the_repository_top_is_left_out(self):
+        self.unit(self.root)
+        self.evidence(self.root)
+        scaffold, develop = self.gates()
+        self.assertIn('OK: Store: only its recorded paths use', '\n'.join(scaffold))
+        self.assertIn('OK: Store: only its recorded paths use', '\n'.join(develop))
+
+    def test_a_project_folder_reads_a_peer_coding_folder_of_its_own(self):
+        self.unit(self.root / 'project')
+        self.evidence(self.root / 'project')
+        scaffold, develop = self.gates()
+        self.assertIn('Store: peer-coding/feat-x/rounds/R1/evidence/alpha/run.txt uses', '\n'.join(scaffold))
+        self.assertIn('Store: peer-coding/feat-x/rounds/R1/evidence/alpha/run.txt uses', '\n'.join(develop))
+
+    def test_a_project_folder_linked_to_a_repository_is_that_repository_s_top(self):
+        other = Path(tempfile.mkdtemp(prefix='archetype-linked-')).resolve()
+        self.addCleanup(shutil.rmtree, other, True)
+        subprocess.run(['git', 'init', '-q'], cwd=other, check=True)
+        self.unit(other)
+        self.evidence(other)
+        (self.root / 'project').symlink_to(other)
+        scaffold, develop = self.gates()
+        self.assertIn('OK: Store: only its recorded paths use', '\n'.join(scaffold))
+        self.assertIn('OK: Store: only its recorded paths use', '\n'.join(develop))
+
+    def test_the_repository_top_is_found_however_its_path_is_spelled(self):
+        self.unit(self.root)
+        self.evidence(self.root)
+        spelled = self.root.parent / self.root.name.upper()
+        if not spelled.exists() or not os.path.samefile(spelled, self.root):
+            self.skipTest('this file system tells names apart by case')
+        env = dict(os.environ, PWD=str(spelled))
+        for gate, gid in ((SCAFFOLD, '2'), (DEVELOP, '1')):
+            run = subprocess.run([BASH, str(gate)], cwd=spelled, env=env, text=True, capture_output=True)
+            self.assertIn('OK: Store: only its recorded paths use', '\n'.join(group(run.stdout, gid)), run.stdout)
 
     def test_an_installed_engine_run_by_a_relative_path_checks_the_project_and_not_itself(self):
         self.unit(self.root)
