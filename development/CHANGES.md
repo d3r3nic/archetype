@@ -13,7 +13,7 @@ An entry's `Follows` line names the release before it. The entries a project has
 ## 2026-09-29: Saved peer-coding output passes the boundary check
 Follows: b20c18f3ab8346f03e145328c7ccaba737dabc5b
 
-- **Session:** the boundary check (References.md § Boundaries) no longer reads the command output peer coding saves in its record at the repository's top, `peer-coding/<folder>/rounds/<round>/evidence/`: output that quotes a guarded pattern is not source going around its owner. Every other file is read as before, the rest of `peer-coding/` included.
+- **Session:** the boundary check (References.md § Boundaries) no longer reads the command output peer coding saves in its record at the repository's top, `peer-coding/<folder>/rounds/R<n>/evidence/`: output that quotes a guarded pattern is not source going around its owner. Every other file is read as before, the rest of `peer-coding/` included.
 - **Project:** nothing to record.
 - **Reopen:** none.
 - **Audit:** References.md § Boundaries: remove a path a line lists only so that saved peer-coding output would pass, such as `peer-coding/*/evidence/*`.
