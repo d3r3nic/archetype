@@ -913,8 +913,11 @@ VERSION_LOG="$PROJECT_ROOT/VERSION-LOG.md"
 LATEST_HASH=$(git -C "$TEMP_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
 # A revision is recorded once. A run that installs the revision the log already records adds no
 # entry; when an older updater recorded it by a short id, that line takes the full id instead.
+# The log compared is the one written below (log.before), wherever the update found it.
+LOGGED=""
+if [ -n "$LOG_PLANNED" ]; then LOGGED=$(sed -n 's/^Commit: *\([0-9a-f]\{7,40\}\).*/\1/p' "$CARRY_DIR/log.before" | tail -1); fi
 SAME_REVISION=no
-if [ "${#RECORDED}" -ge 7 ]; then case "$LATEST_HASH" in "$RECORDED"*) SAME_REVISION=yes ;; esac; fi
+if [ "${#LOGGED}" -ge 7 ]; then case "$LATEST_HASH" in "$LOGGED"*) SAME_REVISION=yes ;; esac; fi
 {
   echo ""
   echo "### $(date +%Y-%m-%d)"
@@ -931,7 +934,7 @@ if [ -n "$LOG_PLANNED" ]; then
   cmp -s "$VERSION_LOG" "$CARRY_DIR/log.before" || \
     log_not_written "VERSION-LOG.md changed while the update ran, so the update left it as it was."
   if [ "$SAME_REVISION" = yes ]; then
-    awk -v short="$RECORDED" -v full="$LATEST_HASH" '
+    awk -v short="$LOGGED" -v full="$LATEST_HASH" '
       { line[NR] = $0; if ($0 ~ ("^Commit: *" short)) last = NR }
       END { for (i = 1; i <= NR; i++) { if (i == last && length(short) < 40) sub("Commit: *" short, "Commit: " full, line[i]); print line[i] } }' \
       "$CARRY_DIR/log.after" > "$CARRY_DIR/log.new" || log_not_written "Could not prepare VERSION-LOG.md."

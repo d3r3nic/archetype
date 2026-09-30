@@ -199,8 +199,10 @@ class NoCompiledFiles(unittest.TestCase):
             (project / 'peer-coding' / 'SETTINGS.md').write_text('# Peer coding settings\n')
             env = dict(os.environ)
             env.pop('PYTHONDONTWRITEBYTECODE', None)
-            subprocess.run([sys.executable, str(scripts / 'validate-bootstrap.py'), 'peer'], cwd=project, env=env,
-                           capture_output=True)
+            result = subprocess.run([sys.executable, str(scripts / 'validate-bootstrap.py'), 'peer'], cwd=project,
+                                    env=env, capture_output=True, text=True)
+            # The check read the settings through peer-coding.py, so the script was loaded.
+            self.assertIn('the Peers line is not filled in', result.stdout)
             self.assertFalse((scripts / '__pycache__').exists())
 
 

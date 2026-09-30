@@ -1479,6 +1479,7 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
         self.assertNotIn('ADD:', again.stdout)
         self.assertTrue(log.read_text().startswith(repaired))
+        self.assertRegex(log.read_text()[len(repaired):], new_entry(self.head(remote)))
         check = self.check_log()
         self.assertEqual(check.returncode, 0, check.stdout)
 
