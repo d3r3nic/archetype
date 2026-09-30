@@ -55,7 +55,7 @@ Go to the worktree the line names (or your own checkout of its branch) and read 
 
 ## Start a branch
 
-1. Work on a branch of its own, never the default branch, named as the settings say; a separate worktree per branch, kept where #2 says, keeps parallel work apart.
+1. Work on a branch of its own, never the default branch, named as the settings say; a separate worktree per branch keeps parallel work apart. Keep it beside the main checkout in `<repo>-worktrees/<branch>`, never in a temporary folder the system cleans (#2).
 2. `start` creates the folder and records the commit the branch stands at and the framework revision it follows. It refuses the default branch, a branch whose folder is open (resume it) or closed, a repository without complete settings, and a location the repository's ignore rules would keep out of commits.
 3. Decide honestly whether you hold the context for this work. You hold it only if you can state with evidence, from this conversation or files you read: what the product is and who it serves; the goal and scope of this work; the decisions already made and why; the constraints and holds. Code shows where things stand, not intent, decisions or holds; never infer those from code. The project's records (References.md, PROFILE.md, feature-tree.md, the decision location, PROGRESS.md) are evidence when current: the brief links them and covers only what they do not hold for this piece of work.
    - You hold it: you are the Context holder, and you brief (next section).

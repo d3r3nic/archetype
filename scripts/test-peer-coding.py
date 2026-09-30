@@ -186,6 +186,8 @@ class Start(Base):
         result = self.pc(self.project, 'start', '--as', 'claude')
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn('main is the default branch', result.stdout)
+        self.assertIn('git worktree add "%s-worktrees/<branch, each / as ->" -b <branch>'
+                      % (self.project.resolve().parent / self.project.resolve().name), result.stdout)
 
     def test_start_opens_the_branch_folder_once(self):
         where, folder = self.started('feature/plots')

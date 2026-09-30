@@ -986,8 +986,10 @@ def command_start(project, args):
     if not project.branch:
         raise Refusal('detached HEAD: check out the branch for this work')
     if project.default and project.branch == project.default:
-        raise Refusal('%s is the default branch. Peer work runs on a branch of its own, for example in a new '
-                      'worktree: git worktree add ../<folder> -b <branch>' % project.branch)
+        home = project.top.parent / (project.top.name + '-worktrees')
+        raise Refusal('%s is the default branch. Peer work runs on a branch of its own, in a worktree beside the '
+                      'main checkout (conventions/02-git.md): git worktree add "%s/<branch, each / as ->" -b <branch>'
+                      % (project.branch, home))
     if not project.default:
         print('WARN: the default branch could not be determined (no origin HEAD, main or master); '
               'make sure %s is not the branch releases come from' % project.branch)
