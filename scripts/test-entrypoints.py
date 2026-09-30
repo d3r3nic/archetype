@@ -175,6 +175,12 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual((self.project / 'References.md').read_bytes(), self.local['References.md'])
         self.assertEqual((self.project / 'CLAUDE.md.additions').read_text(), 'Project-only rules\n')
 
+    def later_release(self, remote):
+        """A new revision of the local update source, as the next release would be."""
+        readme = remote / 'README.md'
+        readme.write_text(readme.read_text() + '\nA later release.\n')
+        self.commit(remote, 'later release')
+
     def run_update(self, env):
         return self.run_command(['bash', str(self.project / 'archetype/update.sh')], input='y\n', env=env, cwd=self.project)
 
@@ -1438,6 +1444,7 @@ class Entrypoints(unittest.TestCase):
             # A previous release whose updater already heads a trailing Bootstrap section's entries
             # with Updates: the log was never damaged, and later updates keep that shape.
             self.assertEqual(live_headings(damaged), ['## Bootstrap', '## Updates', '## Bootstrap', '## Updates'])
+            self.later_release(remote)
             again = self.run_command(command, input='y\n', env=env, cwd=self.project)
             self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
             self.assertEqual(live_headings(log.read_text()), ['## Bootstrap', '## Updates', '## Bootstrap', '## Updates'])
@@ -1449,7 +1456,8 @@ class Entrypoints(unittest.TestCase):
         check = self.check_log()
         self.assertEqual(check.returncode, 1, check.stdout)
         self.assertIn('duplicate field: Commit', check.stdout)
-        # The new updater puts an Updates heading before them, moves nothing, and adds its own entry last.
+        # The new updater puts an Updates heading before them and moves nothing. It installs the revision
+        # the last entry records, so it adds no entry of its own; a short id there becomes the full id.
         result = self.run_command(command, input='y\n', env=env, cwd=self.project)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         kept = damaged[:-len(''.join(entries))]
@@ -1457,16 +1465,16 @@ class Entrypoints(unittest.TestCase):
                       'its Bootstrap section (nothing moves)' % (kept.count('\n') + 2), result.stdout)
         repaired = log.read_text()
         self.assertEqual(repaired[:len(kept)], kept)
-        headed = '\n## Updates\n' + ''.join(entries)
-        self.assertEqual(repaired[len(kept):len(kept) + len(headed)], headed)
-        self.assertRegex(repaired[len(kept) + len(headed):], new_entry(self.head(remote)))
+        last = re.sub(r'Commit: [0-9a-f]+', 'Commit: ' + self.head(remote), entries[-1])
+        self.assertEqual(repaired[len(kept):], '\n## Updates\n' + ''.join(entries[:-1]) + last)
         self.assertEqual(live_headings(repaired), ['## Bootstrap', '## Updates', '## Bootstrap', '## Updates'])
         commits = [line for line in repaired.splitlines() if line.startswith('Commit: ')]
-        self.assertEqual(commits, [line for line in damaged.splitlines() if line.startswith('Commit: ')] +
+        self.assertEqual(commits, [line for line in damaged.splitlines() if line.startswith('Commit: ')][:-1] +
                          ['Commit: ' + self.head(remote)])
         check = self.check_log()
         self.assertEqual(check.returncode, 0, check.stdout)
         # A later update has no heading to add and adds its entry under Updates.
+        self.later_release(remote)
         again = self.run_command(command, input='y\n', env=env, cwd=self.project)
         self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
         self.assertNotIn('ADD:', again.stdout)
