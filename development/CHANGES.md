@@ -13,7 +13,7 @@ An entry's `Follows` line names the release before it. The entries a project has
 ## 2026-09-29: Worktrees sit beside the main checkout
 Follows: 3899e16992504f7118908993fb6494e8e6d43524
 
-- **Session:** keep each worktree beside the main checkout, in `<repo>-worktrees/<branch>` (named after the main checkout's folder, with each `/` in the branch name turned into `-`), and never in a temporary folder the system cleans, which deletes files a checkout still needs (conventions/02-git.md). Move one that sits in such a folder between turns as #2 says: repair its link if git lost it, restore the tracked files the cleaner deleted, then move it, or where git refuses, commit and push, remove it and add it again in its place.
+- **Session:** keep each worktree beside the main checkout, in `<repo>-worktrees/<branch>` (named after the main checkout's folder, with each `/` in the branch name turned into `-`), and never in a temporary folder the system cleans, which deletes files a checkout still needs (conventions/02-git.md). Move one that sits in such a folder between turns as #2 says: repair its link if git lost it, restore the tracked files the cleaner deleted, then move it. If git refuses, leave it where it is, commit and push its work, and tell the owner.
 - **Project:** nothing to record.
 - **Reopen:** none.
 - **Audit:** protocols/task-context.md: a Branch/worktree line that places worktrees in a temporary folder names `<repo>-worktrees/<branch>` beside the main checkout instead.

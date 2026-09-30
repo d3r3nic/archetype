@@ -25,7 +25,7 @@ References.md records the commit message convention, the branch model, where the
 - Keep each worktree, the extra checkout of a branch, beside the main checkout, in one folder per repository named after the main checkout's folder: `<repo>-worktrees/<branch>`, with each `/` in the branch name turned into `-`. Never keep one in a temporary folder the system cleans: it deletes files a checkout still needs, uncommitted work included. Move one that sits there between turns:
   1. If git no longer recognizes it because its link was deleted, run `git worktree repair` from the main checkout.
   2. Restore each tracked file the cleaner deleted (`git status` lists it as deleted; `git restore <path>`), so no commit records the loss.
-  3. Create the new parent folder, then run `git worktree move <old path> <new path>`; uncommitted files move with it. Where git refuses, as across file systems or with submodules, commit and push the work, run `git worktree remove <old path>` (with `--force` only when nothing in it is uncommitted), then `git worktree add <new path> <branch>`.
+  3. Create the new parent folder, then run `git worktree move <old path> <new path>`; uncommitted files move with it. If git refuses, as across file systems or with submodules, leave the worktree where it is, commit and push its work, and tell the owner: removing it could lose files git does not keep, such as ignored ones.
 
 ## Violations
 
