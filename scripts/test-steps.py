@@ -13,6 +13,9 @@ import tempfile
 import unittest
 from unittest import mock
 
+# Loading another script must not write compiled files into the engine folder.
+sys.dont_write_bytecode = True
+
 
 SOURCE = Path(__file__).resolve().parents[1]
 

@@ -8,8 +8,12 @@ import re
 import shlex
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
+
+# Loading another script must not write compiled files into the engine folder.
+sys.dont_write_bytecode = True
 
 
 SOURCE = Path(__file__).resolve().parents[1]
@@ -530,6 +534,25 @@ class Entrypoints(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn('could not list every file in scripts/', result.stdout)
         self.assertEqual(self.snapshot(clone), before)
+
+    def test_a_revision_is_logged_once(self):
+        self.inject()
+        remote, env = self.update_source()
+        revision = self.run_command(['git', '-C', str(remote), 'rev-parse', 'HEAD']).stdout.strip()
+        log = self.project / 'VERSION-LOG.md'
+        first = self.run_update(env)
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        logged = log.read_text()
+        self.assertEqual(logged.count('Commit: ' + revision), 1)
+        again = self.run_update(env)
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertIn('unchanged: VERSION-LOG.md already records ' + revision, again.stdout)
+        self.assertEqual(log.read_text(), logged)
+        # An older updater recorded the same revision by a short id: that line takes the full id.
+        log.write_text(logged.replace('Commit: ' + revision, 'Commit: ' + revision[:7]))
+        short = self.run_update(env)
+        self.assertEqual(short.returncode, 0, short.stdout + short.stderr)
+        self.assertEqual(log.read_text(), logged)
 
     def test_update_finds_added_lines_from_the_recorded_revision_without_an_engine_copy(self):
         self.inject()

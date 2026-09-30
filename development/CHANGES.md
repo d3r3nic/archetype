@@ -10,10 +10,18 @@ So a project catches up without running its setup again. The updater prints the 
 
 An entry's `Follows` line names the release before it. The entries a project has not seen run from the top down to the one that follows the revision it had installed, which VERSION-LOG.md records. An install older than the last entry here reads them all; the rules and guides it now has state everything earlier.
 
+## 2026-09-29: Each revision logged once, and checks leave the engine as installed
+Follows: cb8c8a5e436126ef6f156fe7df8f787cfaaf75e5
+
+- **Session:** the updater records a revision once. A run that installs the revision VERSION-LOG.md already records adds no entry, and a short id an older updater wrote for it becomes the full id. The framework's checks no longer write compiled files into the engine folder, and this update removes any they left there.
+- **Project:** nothing to record.
+- **Reopen:** none.
+- **Audit:** none.
+
 ## 2026-09-29: Worktrees sit beside the main checkout
 Follows: 3899e16992504f7118908993fb6494e8e6d43524
 
-- **Session:** keep each worktree beside the main checkout, in `<repo>-worktrees/<branch>` (named after the main checkout's folder, with each `/` in the branch name turned into `-`), and never in a temporary folder the system cleans, which deletes files a checkout still needs (conventions/02-git.md). Move one that sits in such a folder between turns as #2 says: repair its link if git lost it, restore the tracked files the cleaner deleted, then move it. If git refuses, leave it where it is, commit and push its work, and tell the owner.
+- **Session:** keep each worktree beside the main checkout, in `<repo>-worktrees/<branch>` (named after the main checkout's folder, with each `/` in the branch name turned into `-`), and never in a temporary folder the system cleans, which deletes files a checkout still needs (conventions/02-git.md). Move one that sits in such a folder between turns: if git lost its link, run `git worktree repair` from the main checkout; before any commit, restore the tracked files the cleaner deleted (`git restore <path>`); then create the new parent folder and run `git worktree move <old path> <new path>`. If git refuses, leave it where it is, commit and push its work, and tell the owner.
 - **Project:** nothing to record.
 - **Reopen:** none.
 - **Audit:** protocols/task-context.md: a Branch/worktree line that places worktrees in a temporary folder names `<repo>-worktrees/<branch>` beside the main checkout instead.

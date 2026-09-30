@@ -4,9 +4,13 @@ import importlib.util
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+# Loading another script must not write compiled files into the engine folder.
+sys.dont_write_bytecode = True
 
 ENGINE = Path(__file__).resolve().parent.parent
 SPEC = importlib.util.spec_from_file_location('peer_coding', str(ENGINE / 'scripts' / 'peer-coding.py'))
@@ -179,6 +183,25 @@ class Setup(Base):
         result = self.pc(where, 'setup')
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("excluded by the repository's ignore rules (.gitignore:1:", result.stdout)
+
+
+class NoCompiledFiles(unittest.TestCase):
+    def test_the_bootstrap_check_writes_no_compiled_files_into_the_engine(self):
+        with tempfile.TemporaryDirectory() as temp:
+            scripts = Path(temp) / 'engine' / 'scripts'
+            scripts.mkdir(parents=True)
+            for name in ('validate-bootstrap.py', 'peer-coding.py'):
+                (scripts / name).write_bytes((ENGINE / 'scripts' / name).read_bytes())
+            project = Path(temp) / 'project'
+            (project / 'peer-coding').mkdir(parents=True)
+            subprocess.run(['git', 'init', '-q'], cwd=project, check=True)
+            (project / 'References.md').write_text('# References\n\n## Project\n\n- Peer coding: peer-coding/SETTINGS.md\n')
+            (project / 'peer-coding' / 'SETTINGS.md').write_text('# Peer coding settings\n')
+            env = dict(os.environ)
+            env.pop('PYTHONDONTWRITEBYTECODE', None)
+            subprocess.run([sys.executable, str(scripts / 'validate-bootstrap.py'), 'peer'], cwd=project, env=env,
+                           capture_output=True)
+            self.assertFalse((scripts / '__pycache__').exists())
 
 
 class Start(Base):

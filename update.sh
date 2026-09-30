@@ -911,6 +911,10 @@ VERSION_LOG="$PROJECT_ROOT/VERSION-LOG.md"
 
 # Get the latest commit hash from the cloned repo
 LATEST_HASH=$(git -C "$TEMP_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
+# A revision is recorded once. A run that installs the revision the log already records adds no
+# entry; when an older updater recorded it by a short id, that line takes the full id instead.
+SAME_REVISION=no
+if [ "${#RECORDED}" -ge 7 ]; then case "$LATEST_HASH" in "$RECORDED"*) SAME_REVISION=yes ;; esac; fi
 {
   echo ""
   echo "### $(date +%Y-%m-%d)"
@@ -926,8 +930,15 @@ log_not_written() {
 if [ -n "$LOG_PLANNED" ]; then
   cmp -s "$VERSION_LOG" "$CARRY_DIR/log.before" || \
     log_not_written "VERSION-LOG.md changed while the update ran, so the update left it as it was."
-  { cat "$CARRY_DIR/log.after" && if [ "$LOG_HEADING" = yes ]; then printf '\n## Updates\n'; fi && \
-    cat "$CARRY_DIR/log.entry"; } > "$CARRY_DIR/log.new" || log_not_written "Could not prepare VERSION-LOG.md."
+  if [ "$SAME_REVISION" = yes ]; then
+    awk -v short="$RECORDED" -v full="$LATEST_HASH" '
+      { line[NR] = $0; if ($0 ~ ("^Commit: *" short)) last = NR }
+      END { for (i = 1; i <= NR; i++) { if (i == last && length(short) < 40) sub("Commit: *" short, "Commit: " full, line[i]); print line[i] } }' \
+      "$CARRY_DIR/log.after" > "$CARRY_DIR/log.new" || log_not_written "Could not prepare VERSION-LOG.md."
+  else
+    { cat "$CARRY_DIR/log.after" && if [ "$LOG_HEADING" = yes ]; then printf '\n## Updates\n'; fi && \
+      cat "$CARRY_DIR/log.entry"; } > "$CARRY_DIR/log.new" || log_not_written "Could not prepare VERSION-LOG.md."
+  fi
 else
   [ ! -e "$VERSION_LOG" ] || log_not_written "VERSION-LOG.md appeared while the update ran, so the update left it as it was."
   { cat << VEOF
@@ -946,17 +957,21 @@ VEOF
 fi
 # A new log gets the mode the project's file-creation mask gives; an existing one keeps its own.
 NEXT_LOG=""
-if ! NEXT_LOG=$(mktemp "$PROJECT_ROOT/.VERSION-LOG.md.XXXXXX") || \
-   ! { if [ -f "$VERSION_LOG" ]; then cp -p "$VERSION_LOG" "$NEXT_LOG"; else chmod "$(printf '%o' $(( 0666 & ~0$(umask) )))" "$NEXT_LOG"; fi; } || \
-   ! cat "$CARRY_DIR/log.new" > "$NEXT_LOG" || ! mv -f "$NEXT_LOG" "$VERSION_LOG"; then
-  if [ -n "$NEXT_LOG" ]; then rm -f "$NEXT_LOG"; fi
-  log_not_written "Could not write VERSION-LOG.md."
+if [ "$SAME_REVISION" = yes ] && cmp -s "$CARRY_DIR/log.new" "$VERSION_LOG"; then
+  echo "  unchanged: VERSION-LOG.md already records $LATEST_HASH"
+else
+  if ! NEXT_LOG=$(mktemp "$PROJECT_ROOT/.VERSION-LOG.md.XXXXXX") || \
+     ! { if [ -f "$VERSION_LOG" ]; then cp -p "$VERSION_LOG" "$NEXT_LOG"; else chmod "$(printf '%o' $(( 0666 & ~0$(umask) )))" "$NEXT_LOG"; fi; } || \
+     ! cat "$CARRY_DIR/log.new" > "$NEXT_LOG" || ! mv -f "$NEXT_LOG" "$VERSION_LOG"; then
+    if [ -n "$NEXT_LOG" ]; then rm -f "$NEXT_LOG"; fi
+    log_not_written "Could not write VERSION-LOG.md."
+  fi
+  case "$LOG_INSERTS" in
+    0) echo "  updated: VERSION-LOG.md (project root)" ;;
+    1) echo "  updated: VERSION-LOG.md (project root), with the Updates heading the preview named" ;;
+    *) echo "  updated: VERSION-LOG.md (project root), with the $LOG_INSERTS Updates headings the preview named" ;;
+  esac
 fi
-case "$LOG_INSERTS" in
-  0) echo "  updated: VERSION-LOG.md (project root)" ;;
-  1) echo "  updated: VERSION-LOG.md (project root), with the Updates heading the preview named" ;;
-  *) echo "  updated: VERSION-LOG.md (project root), with the $LOG_INSERTS Updates headings the preview named" ;;
-esac
 
 # Step 9: Atomic self-replace of update.sh (LAST, after all other work)
 # cp + mv keeps the running bash safe: mv is a rename, so the old inode stays
