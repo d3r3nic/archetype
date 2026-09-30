@@ -8,6 +8,9 @@ import re
 import subprocess
 import sys
 
+# Loading another script must not write compiled files into the engine folder.
+sys.dont_write_bytecode = True
+
 
 def peer_settings_problems(path):
     # One reading of the settings file, shared with the peer-coding script.

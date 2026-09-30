@@ -22,10 +22,7 @@ References.md records the commit message convention, the branch model, where the
 - Never bypass a failing check to get a commit or merge through. Fix the cause, or set the check aside openly through the route in AGENTS.md; a skipped hook or a disabled check is neither.
 - Fix code in place. Keep no second copy of a file or function beside the first, except a recorded, temporary migration of a shared interface (#19) that ends by removing the old one.
 - Know what a push triggers. A push that deploys, releases or reaches people follows the owner's authority (#29).
-- Keep each worktree, the extra checkout of a branch, beside the main checkout, in one folder per repository named after the main checkout's folder: `<repo>-worktrees/<branch>`, with each `/` in the branch name turned into `-`. Never keep one in a temporary folder the system cleans: it deletes files a checkout still needs, uncommitted work included. Move one that sits there between turns:
-  1. If git no longer recognizes it because its link was deleted, run `git worktree repair` from the main checkout.
-  2. Restore each tracked file the cleaner deleted (`git status` lists it as deleted; `git restore <path>`), so no commit records the loss.
-  3. Create the new parent folder, then run `git worktree move <old path> <new path>`; uncommitted files move with it. If git refuses, as across file systems or with submodules, leave the worktree where it is, commit and push its work, and tell the owner: removing it could lose files git does not keep, such as ignored ones.
+- Keep each worktree, the extra checkout of a branch, beside the main checkout, in one folder per repository named after the main checkout's folder: `<repo>-worktrees/<branch>`, with each `/` in the branch name turned into `-`. Never keep one in a temporary folder the system cleans, which deletes files a checkout still needs.
 
 ## Violations
 
@@ -36,7 +33,6 @@ References.md records the commit message convention, the branch model, where the
 - A force push over commits someone else has.
 - A hook skipped or a check disabled to get a commit through.
 - A second version of a file kept beside the first with no migration that removes it.
-- A worktree kept in a temporary folder the system cleans.
 
 ## Wrong vs Right
 
@@ -44,7 +40,6 @@ References.md records the commit message convention, the branch model, where the
 - WRONG: a hook fails, so the commit skips it. RIGHT: fix what the hook found, or record why it is set aside, then commit.
 - WRONG: a function is broken, so a fixed copy is added beside it and both stay. RIGHT: fix the function where it lives; one source of truth.
 - WRONG: a long task ends for the day with its work only in the working folder. RIGHT: commit and push the work in progress to its branch.
-- WRONG: a branch's worktree in the system's temporary folder, where files left untouched are deleted. RIGHT: `<repo>-worktrees/<branch>` beside the main checkout.
 
 ## Research Notes
 
