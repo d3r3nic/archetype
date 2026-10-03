@@ -16,7 +16,7 @@ Follows: da2dc720912f7181360ad1d4e8467400b6a4a76e
 - **Session:** each concern's one owner is where a change is made once and reaches every use, and a look is a concern too: a primary button's shape is changed once, in the button (AGENTS.md, #0). The frontend and mobile References templates name a Styling line in § Boundaries: where a style written where it is used, or a raw visual value, may appear, which is in the styling source and the shared components. With that line recorded, the boundary check fails a feature that writes its own styles in place instead of using the shared components and the styling source (#4, #6, #22).
 - **Project:** nothing to record.
 - **Reopen:** none.
-- **Audit:** References.md § Boundaries, in a project with an interface: add the Styling line from where its styling source and shared components live. Code that already writes its own styles in place is moved into shared components, or written down as development/UPDATE.md, section After, says.
+- **Audit:** References.md § Boundaries, in a project with an interface: record a Styling line that covers both styles written where they are used and raw visual values, adding it or widening a line that covers only colors. Code that already writes its own styles in place moves into shared components; a file that waits is listed on the line's paths and written down as development/UPDATE.md, section After, says, and comes off the line when it moves.
 
 ## 2026-09-29: Each revision logged once, and checks leave the engine as installed
 Follows: cb8c8a5e436126ef6f156fe7df8f787cfaaf75e5
