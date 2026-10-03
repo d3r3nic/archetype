@@ -10,6 +10,14 @@ So a project catches up without running its setup again. The updater prints the 
 
 An entry's `Follows` line names the release before it. The entries a project has not seen run from the top down to the one that follows the revision it had installed, which VERSION-LOG.md records. An install older than the last entry here reads them all; the rules and guides it now has state everything earlier.
 
+## 2026-10-03: Features use the shared components, not their own styles
+Follows: da2dc720912f7181360ad1d4e8467400b6a4a76e
+
+- **Session:** the frontend and mobile References templates name a Styling line in § Boundaries: where a style written where it is used, or a raw visual value, may appear, which is in the styling source and the shared components. With that line recorded, the boundary check fails a feature that writes its own styles in place instead of using the shared components and the styling source (#4, #6, #22).
+- **Project:** nothing to record.
+- **Reopen:** none.
+- **Audit:** References.md § Boundaries, in a project with an interface: add the Styling line from where its styling source and shared components live. Code that already writes its own styles in place is moved into shared components, or written down as development/UPDATE.md, section After, says.
+
 ## 2026-09-29: Each revision logged once, and checks leave the engine as installed
 Follows: cb8c8a5e436126ef6f156fe7df8f787cfaaf75e5
 
