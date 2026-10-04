@@ -49,6 +49,7 @@ What only each shared system may use, one line per concern (#0, #25): `` - <conc
 
 - [Configuration: `<the pattern that reads the environment>` only in `<the configuration owner's path>`]
 - [Network: `<the network call pattern>` only in `<the API client's path>`]
+- [Styling: `<the pattern of a style written where it is used, and of a raw visual value>` only in `<the paths of the styling source and the shared components>`]
 
 ## Compliance
 

@@ -7,7 +7,7 @@ Every project. Which concerns are shared depends on how the application works: a
 ## Principle
 
 Build each capability once and reuse it. This is the standard the other conventions apply to their own concerns:
-- **One owner per concern.** One place holds each rule, contract, component and integration, and everything else uses it.
+- **One owner per concern.** One place holds each rule, contract, component, look and integration, and everything else uses it, so a change made there reaches every use: a primary button's shape is changed once, in the button, for every screen.
 - **No duplicated logic, components or contracts.** When the same shape is needed in a second place, it moves to one owner instead of being copied.
 - **No bloat.** Build what the product needs now: no layer, option or abstraction without a present consumer.
 - **Sized to real usage.** Speed, capacity and cost follow the workload the project's facts describe, measured rather than guessed (#13).
