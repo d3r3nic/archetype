@@ -8,7 +8,7 @@ Silent failure in maintenance has no failing test or broken build to surface it.
 
 A session checks the map and the debt once and moves on. Months later nobody has looked again: the debt log is stale, the map has drifted, and the records describe code that no longer exists.
 
-**Defense:** MAINTAIN.md ties each look to a change: a framework update, a changed feature or system, a changed fact in PROFILE.md, an incident, a repeated review finding. The map does not wait for a look: `scripts/validate-develop.sh` checks it against the unit's files on every merge (`scripts/check-map.sh`). The judgment the script cannot make is the session's.
+**Defense:** MAINTAIN.md ties each look to a change: a framework update, a changed feature or system, a changed fact in PROFILE.md, an incident, a repeated review finding. The map does not wait for a look: the project's merge checks run `scripts/validate-develop.sh`, which checks it against the unit's files (`scripts/check-map.sh`). The judgment the script cannot make is the session's.
 
 ## 2. The debt log grows forever
 

@@ -37,11 +37,11 @@ Risk of noise: fires constantly during feature work where doc updates come at th
 
 Trigger: after creating a new folder where the project keeps its features.
 Action: remind to add the feature to `feature-tree.md`.
-Risk of noise: low, but a rare trigger; the merge check (`scripts/validate-develop.sh`) already fails a folder beside the features that has no row.
+Risk of noise: low, but a rare trigger; the merge check (`scripts/validate-develop.sh`) already fails a folder that no row names beside ones the map names.
 
 ### Feature tree audit (standalone)
 
-Not a host hook: the project's merge checks run `scripts/validate-develop.sh`, which compares every row of `feature-tree.md` with the unit's files and fails a file or folder beside the ones the map names that has no row, so no separate audit script is needed.
+Not a host hook: the project's merge checks run `scripts/validate-develop.sh`, which compares every row of `feature-tree.md` with the unit's files and fails a file or folder that no row names beside ones the map names, so no separate audit script is needed.
 
 ### Session start: bootstrap gate
 
