@@ -39,6 +39,7 @@ build:     [command to build]
 test:      [command to run tests]
 typecheck: [command to run type checker]
 lint:      [command to lint]
+check:     `./archetype/scripts/validate-develop.sh` the framework's merge check, run from this folder with the project's own checks on every merge (#15); write the engine folder's path as it is from here
 deploy:    [command to deploy]
 migrate:   [command that applies migrations, or none]
 logs:      [command to view logs]
