@@ -5,16 +5,18 @@
 #
 # Checks:
 #   1. TECHNICAL-DEBT.md exists, or References.md says why there is none (warning)
-#   2. Every feature and system row points at a location that exists
-#   3. When the feature rows share one parent folder, every folder in it has a row (warning)
-#   4. Every TECHNICAL-DEBT.md entry has a Status (warning)
-#   5. Every feature record's backticked type names still appear in the feature's location
+#   2. The map follows the code (scripts/check-map.sh, which the develop gate also runs): every
+#      location a row names exists, and where the map names a folder's entries one by one, it
+#      names them all
+#   3. Every TECHNICAL-DEBT.md entry has a Status (warning)
+#   4. Every feature record's backticked type names still appear in the feature's location
 #      (a coarse drift warning)
 
 # Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
 # character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
 export LC_ALL=C
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 PROJECT_ROOT="$(pwd)"
 TREE="$PROJECT_ROOT/feature-tree.md"
 REFS="$PROJECT_ROOT/References.md"
@@ -75,50 +77,17 @@ else
 fi
 
 # ----------------------------------------------------------------------
-group 2 "Every row points at a location that exists"
+group 2 "The map follows the code (feature-tree.md)"
 # ----------------------------------------------------------------------
-MISSING=0
-FEATURE_PARENTS=""
-while IFS='|' read -r table num name location status; do
-  [ -n "$table" ] || continue
-  loc="$(printf '%s' "$location" | tr -d '`')"; loc="${loc#./}"; loc="${loc%/}"
-  case "$loc" in ''|'['*|none|n/a|-) continue ;; esac
-  status_lc="$(printf '%s' "$status" | tr '[:upper:]' '[:lower:]')"
-  case "$status_lc" in *'not started'*|*deferred*|*blocked*|*'not applicable'*) continue ;; esac
-  if ! plain_path "$loc"; then continue; fi
-  if [ ! -e "$PROJECT_ROOT/$loc" ]; then
-    fail "$table row $num ($name) names $loc, which does not exist; correct the row or restore what it names"
-    MISSING=$((MISSING + 1))
-  elif [ "$table" = feature ]; then
-    FEATURE_PARENTS="$FEATURE_PARENTS
-$(dirname "$loc")"
-  fi
-done <<EOF
-$ROWS
-EOF
-[ "$MISSING" -eq 0 ] && pass "every row with a location points at one that exists"
-
-# ----------------------------------------------------------------------
-group 3 "Folders beside the features have rows"
-# ----------------------------------------------------------------------
-PARENTS="$(printf '%s\n' "$FEATURE_PARENTS" | grep -v '^$' | sort -u)"
-if [ -n "$PARENTS" ] && [ "$(printf '%s\n' "$PARENTS" | wc -l | tr -d ' ')" -eq 1 ] && [ "$PARENTS" != "." ]; then
-  UNLISTED=0
-  for dir in "$PROJECT_ROOT/$PARENTS"/*/; do
-    [ -d "$dir" ] || continue
-    rel="$PARENTS/$(basename "$dir")"
-    if ! printf '%s\n' "$ROWS" | awk -F'|' -v r="$rel" '{ l = $4; gsub(/`/, "", l); sub(/^\.\//, "", l); sub(/\/$/, "", l); if (l == r) found = 1 } END { exit found ? 0 : 1 }'; then
-      warn "$rel sits beside the features in $PARENTS/ but has no row in feature-tree.md; add its row, or note why it is not a feature"
-      UNLISTED=$((UNLISTED + 1))
-    fi
-  done
-  [ "$UNLISTED" -eq 0 ] && pass "every folder in $PARENTS/ has a row"
+if ! MAP_OUT="$(cd "$PROJECT_ROOT" && bash "$SCRIPT_DIR/check-map.sh" 2>&1)"; then
+  printf '%s\n' "$MAP_OUT" | sed 's/^/  /'
+  fail "feature-tree.md: see the lines above"
 else
-  pass "the feature rows share no single parent folder; nothing to compare"
+  printf '%s\n' "$MAP_OUT" | sed 's/^/  /'
 fi
 
 # ----------------------------------------------------------------------
-group 4 "TECHNICAL-DEBT.md entries have a Status"
+group 3 "TECHNICAL-DEBT.md entries have a Status"
 # ----------------------------------------------------------------------
 if [ -f "$TD" ]; then
   NO_STATUS="$(tr -d '\r' < "$TD" | awk '
@@ -138,7 +107,7 @@ if [ -f "$TD" ]; then
 fi
 
 # ----------------------------------------------------------------------
-group 5 "Feature records still name types their features define"
+group 4 "Feature records still name types their features define"
 # ----------------------------------------------------------------------
 # For each feature row with a record and a location: type-like names in backticks in the record
 # (ending Schema, Input, Output, Request, Response or Entry) should still appear in the location.
