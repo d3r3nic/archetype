@@ -10,7 +10,7 @@ The project's checks decide what merges: code that fails them does not reach the
 
 ## Reusable System
 
-The project's pipeline: the checks it runs (formatting, linting, types, tests, build, and any size or performance budget the product needs), where they run (a hook, a pipeline, or the step runner), what a merge requires, how a release happens, and how it is undone. References.md records each, with the commands in § Commands.
+The project's pipeline: the checks it runs (formatting, linting, types, tests, build, the framework's merge check `scripts/validate-develop.sh` from each unit's root, and any size or performance budget the product needs), where they run (a hook, a pipeline, or the step runner), what a merge requires, how a release happens, and how it is undone. References.md records each, with the commands in § Commands.
 
 ## Rules
 

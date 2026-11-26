@@ -15,6 +15,7 @@ The shared systems this project builds, one row each. Add a row for each system 
 | 01 | [system name] | [#N] | [path] | not started | docs/systems/[name].md |
 
 Notes:
+- A Location cell, in both tables, holds one or more paths separated by commas, each from this folder, or from the repository's top for something outside the unit; a note belongs in the record, not in the cell. `scripts/check-map.sh` reads every cell whenever the merge check runs: a path that does not exist fails, unless its row's Status says it is not built yet, and in a folder where rows name files or subfolders one by one, one that no row names fails. Name a folder as a whole when it is one thing.
 - Number the rows in order (01, 02, ...), and use `—` in the Convention column when no framework convention applies.
 - Keep the numbers in the `#` column plain, not bold, in both tables.
 - A system the operating stage defers (#30) keeps its row with Status `deferred (TD-N)` and a docs/systems/ page that says what is deferred and until which trigger.

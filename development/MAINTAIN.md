@@ -16,7 +16,7 @@ A project that people depend on may also set a regular review in References.md; 
 ## What to check
 
 Check what applies to this project:
-- **The map.** feature-tree.md matches the code: every row's location exists, every system and feature that exists has a row, and every status is true. `scripts/validate-maintain.sh` reads the rows against the project.
+- **The map.** feature-tree.md matches the code: every row's location exists, every system and feature that exists has a row, and every status is true. `scripts/check-map.sh` reads the rows against the unit's files whenever the merge check runs (`scripts/validate-develop.sh`); whether a status is true, and whether a folder the map names as a whole is still one thing, is the session's to read.
 - **The records.** Feature records, system pages and References.md describe the current code. The § Boundaries lines still name the real owners, and `scripts/validate-develop.sh` shows they hold.
 - **The debt.** TECHNICAL-DEBT.md is current. Triggered deferrals are fixed: run `scripts/validate-profile.sh`, with `--strict` for an operational project and before exposure grows. An entry that nobody will act on is closed with its reason rather than kept as noise.
 - **The design**, for a project with screens: code follows the recorded styling source; every implemented screen has its artifact entry; the published view or the working files are not behind the source of truth; the capture sets match the shipped screens; the interface's words match the vocabulary (#27, #31). Run `scripts/validate-design.sh --required known-screen`.
@@ -60,8 +60,8 @@ The checks confirm that records exist and that their paths are real. They do not
 ## The checks
 
 - `./archetype/scripts/validate-framework.sh`, before pulling a framework update.
-- `./archetype/scripts/validate-maintain.sh`, during a look: the map and the debt log against the project.
-- `./archetype/scripts/validate-develop.sh`, before merging feature work: the boundaries and the feature records.
+- `./archetype/scripts/validate-develop.sh`, on every merge, from each unit's root: the boundaries, the feature records and the map against the code.
+- `./archetype/scripts/validate-maintain.sh`, during a look: the same map check, and the debt log.
 - `./archetype/scripts/validate-profile.sh`, as #30 says.
 - `./archetype/scripts/validate-scaffold.sh`, after adding or materially changing a foundational system.
 - `./archetype/scripts/validate-design.sh --required known-screen`, for a project with screens.

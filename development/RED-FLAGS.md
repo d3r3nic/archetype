@@ -26,7 +26,7 @@ A playbook that says only "run tests after every significant change" leaves the 
 
 The feature record comes late in the workflow (DEVELOP.md Step 7), and a session racing to finish decides "docs can come later". The code ships, the record never does, and the next session has no feature-level context.
 
-**Defense:** DEVELOP.md Step 7 makes the record part of completion. `scripts/validate-develop.sh` checks every feature row in feature-tree.md: its record (the path in its Docs column, or `docs/features/{name}.md`) must exist. A feature that never reached the feature tree is caught by neither, so the feature-tree row is part of the same completion.
+**Defense:** DEVELOP.md Step 7 makes the record part of completion. `scripts/validate-develop.sh` checks every feature row in feature-tree.md: its record (the path in its Docs column, or `docs/features/{name}.md`) must exist. A feature that never reached the feature tree fails the same gate once its files sit beside ones the map names (`scripts/check-map.sh`); in a folder the map names as a whole it is caught by neither, so the feature-tree row is part of the same completion.
 
 ## 5. Skip the References.md update when new top-level paths emerge
 

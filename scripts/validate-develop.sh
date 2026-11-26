@@ -10,7 +10,11 @@
 #      docs/features/<name>.md (a feature is a row of the Features table whose first cell is a
 #      number; a row with an empty or placeholder name fails; the smoke-test feature is exempt)
 #   3. Every feature record's Tests line names tests that exist, or says none with the reason; a
-#      record with no Tests line passes when the feature's location holds a test file
+#      record with no Tests line passes when the feature's location holds a test file. A test path
+#      is read from the unit's root, or from the repository's top for tests kept outside the unit:
+#      the top is read only for a path whose first part the unit's root does not hold
+#   4. The map follows the code (scripts/check-map.sh): every location a row names exists, and
+#      where the map names a folder's entries one by one, it names them all
 
 # Text is read as bytes, the same on every system: in a UTF-8 locale the macOS awk exits on a
 # character that substr cut in two, and the macOS grep, sed and tr fail on bytes that are not UTF-8.
@@ -34,6 +38,9 @@ warn()  { printf "${YELLOW}WARN${NC}: %s\n" "$1"; WARNINGS=$((WARNINGS + 1)); }
 pass()  { printf "${GREEN}OK${NC}: %s\n" "$1"; }
 group() { printf "\n[%s] %s\n" "$1" "$2"; }
 
+# The repository's top, when there is one: tests a unit keeps outside its own folder are named from it.
+REPO_TOP="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel 2>/dev/null)"
+
 RECORDS="${TMPDIR:-/tmp}/archetype-develop-$$.records"
 : > "$RECORDS"
 trap 'rm -f "$RECORDS"' EXIT HUP INT TERM
@@ -51,6 +58,14 @@ else
   printf '%s\n' "$BOUNDARY_OUT" | sed 's/^/  /'
   pass "every recorded boundary holds"
 fi
+
+# True when the path, which may be a shell glob, names something under the folder given.
+exists_from() {
+  case "$2" in
+    *'*'*|*'?'*|*'['*) for g in "$1"/$2; do [ -e "$g" ] && return 0; done; return 1 ;;
+    *) [ -e "$1/$2" ] ;;
+  esac
+}
 
 # A Docs or Tests value names a path only as a plain local path; anything else gets a
 # diagnostic, not a guess.
@@ -182,12 +197,19 @@ if [ -s "$RECORDS" ]; then
           /*|'~'*|*..*) fail "feature '$name': the test path \`$tp\` in $record must be inside the project, from its root"; BAD=$((BAD + 1)); continue ;;
         esac
         found=0
-        case "$tp" in
-          *'*'*|*'?'*|*'['*) for g in "$PROJECT_ROOT"/$tp; do [ -e "$g" ] && { found=1; break; }; done ;;
-          *) [ -e "$PROJECT_ROOT/$tp" ] && found=1 ;;
-        esac
+        if exists_from "$PROJECT_ROOT" "$tp"; then
+          found=1
+        elif [ -n "$REPO_TOP" ] && [ "$REPO_TOP" != "$PROJECT_ROOT" ]; then
+          # The top is read only for a path whose first part the unit does not hold, so a test
+          # missing from the unit is never found in another unit's folder of the same name.
+          first="${tp%%/*}"
+          case "$first" in
+            *'*'*|*'?'*|*'['*) ;;
+            *) [ ! -e "$PROJECT_ROOT/$first" ] && exists_from "$REPO_TOP" "$tp" && found=1 ;;
+          esac
+        fi
         if [ "$found" -eq 0 ]; then
-          fail "feature '$name': its record names tests at \`$tp\`, which does not exist"
+          fail "feature '$name': its record names tests at \`$tp\`, which does not exist (read from the unit's root, or from the repository's top when the unit does not hold its first part)"
           BAD=$((BAD + 1))
         fi
       done <<EOF
@@ -213,6 +235,16 @@ elif [ -f "$TREE" ]; then
   pass "no feature records to read"
 fi
 [ -n "$SKIPPED_SMOKE" ] && echo "  (the smoke-test feature is exempt:$SKIPPED_SMOKE)"
+
+# ----------------------------------------------------------------------
+group 4 "The map follows the code (feature-tree.md)"
+# ----------------------------------------------------------------------
+if ! MAP_OUT="$(cd "$PROJECT_ROOT" && bash "$SCRIPT_DIR/check-map.sh" 2>&1)"; then
+  printf '%s\n' "$MAP_OUT" | sed 's/^/  /'
+  fail "feature-tree.md: see the lines above"
+else
+  printf '%s\n' "$MAP_OUT" | sed 's/^/  /'
+fi
 
 # ----------------------------------------------------------------------
 echo ""

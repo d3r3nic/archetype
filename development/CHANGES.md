@@ -10,6 +10,14 @@ So a project catches up without running its setup again. The updater prints the 
 
 An entry's `Follows` line names the release before it. The entries a project has not seen run from the top down to the one that follows the revision it had installed, which VERSION-LOG.md records. An install older than the last entry here reads them all; the rules and guides it now has state everything earlier.
 
+## 2026-11-25: The map follows the code, checked on every merge
+Follows: d29ded46c465935fad7af3bac25a968c537e7bc4
+
+- **Session:** the framework's merge check is `scripts/validate-develop.sh`, run from each unit's root, and the project's own checks run it on every merge (AGENTS.md, #15). It now also reads the map against the unit's files (`scripts/check-map.sh`): every path a feature-tree.md row names exists, unless the row's Status says it is not built yet, and in a folder where rows name files or subfolders one by one, a file or subfolder that no row names fails. A Location cell holds paths separated by commas, each from the unit's root, or from the repository's top for something outside the unit; a note, a label or a shortened name in the cell fails as a path that does not exist. A feature record's test path, like a Location, is read from the unit's root, or from the repository's top when the unit's root does not hold the path's first part. `scripts/validate-maintain.sh` runs the same map check, so a folder beside the features with no row fails where it used to warn.
+- **Project:** record the merge check on a `check` line of References.md § Commands in each unit, as templates/references-frontend.md, references-backend.md and references-mobile.md now carry it, with the engine folder's path as it is from that unit. Add that command to the checks the project runs on every merge, where the project recorded that they run (#15).
+- **Reopen:** none.
+- **Audit:** feature-tree.md in each unit: run `scripts/check-map.sh` from the unit's root and bring the map up to the code. Write each Location cell as paths separated by commas and move its notes to the record. Give every file or folder the check reports its row, or name its folder as a whole when it is one thing. A unit whose merge check never ran also meets the other groups for the first time, a missing § Boundaries section or a feature without its record among them: fix each as development/UPDATE.md, section After, says.
+
 ## 2026-10-03: Features use the shared components, not their own styles
 Follows: da2dc720912f7181360ad1d4e8467400b6a4a76e
 

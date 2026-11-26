@@ -30,7 +30,7 @@ Never work around a framework problem silently. When a script or check fails or 
 
 ## Before claiming completion
 
-Use the project's verification commands and the applicable framework gate. A failure needs investigation; a justified alternative needs a truthful check of its own contract, not a false pass or a weakened assertion. A source heuristic is not proof of correctness. Follow conventions/18-verification.md and obtain independent review under conventions/29-decision-authority.md.
+Use the project's verification commands and the framework's merge check, `scripts/validate-develop.sh` run from each unit's root, which the project's own checks run on every merge (References.md § Commands, `check`); a playbook's own gate applies with it. A failure needs investigation; a justified alternative needs a truthful check of its own contract, not a false pass or a weakened assertion. A source heuristic is not proof of correctness. Follow conventions/18-verification.md and obtain independent review under conventions/29-decision-authority.md.
 
 For screen work, use References.md's Design Artifact and conventions/27-design-foundation.md. Preserve supplied requirements through delegation. Record the chosen direction and session decisions, inspect current captures and exercise interactions; screenshots alone do not prove behavior. Design tools and other AI outputs are proposals to evaluate against the same brief.
 

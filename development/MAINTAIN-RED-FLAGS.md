@@ -8,7 +8,7 @@ Silent failure in maintenance has no failing test or broken build to surface it.
 
 A session checks the map and the debt once and moves on. Months later nobody has looked again: the debt log is stale, the map has drifted, and the records describe code that no longer exists.
 
-**Defense:** MAINTAIN.md ties each look to a change: a framework update, a changed feature or system, a changed fact in PROFILE.md, an incident, a repeated review finding. `scripts/validate-maintain.sh` checks the map against the project whenever it runs; the judgment the script cannot make is the session's.
+**Defense:** MAINTAIN.md ties each look to a change: a framework update, a changed feature or system, a changed fact in PROFILE.md, an incident, a repeated review finding. The map does not wait for a look: the project's merge checks run `scripts/validate-develop.sh`, which checks it against the unit's files (`scripts/check-map.sh`). The judgment the script cannot make is the session's.
 
 ## 2. The debt log grows forever
 
@@ -33,8 +33,8 @@ The feedback loop is the point. A session review with no way upstream is only a 
 A feature's code changes and its record does not. Both "work"; a later session reads the record, builds against the shape it describes, and meets a different one at run time. No shipped hook checks record content.
 
 **Defense:**
-- `validate-develop.sh` catches the coarse case: a feature row whose record or tests are missing.
-- `validate-maintain.sh` compares the map with the project, and warns when a record names a type its feature no longer defines.
+- `validate-develop.sh` catches the coarse cases: a feature row whose record or tests are missing, a row naming a path that is gone, and a file or folder beside ones the map names that no row names.
+- `validate-maintain.sh` warns when a record names a type its feature no longer defines.
 - Whether a record's narrative is still true is the session's to check when the feature changes (MAINTAIN.md, Keeping documents current).
 
 ## 5. Two checks disagreeing on the same project

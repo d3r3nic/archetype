@@ -116,10 +116,18 @@ class DevelopGate(unittest.TestCase):
         (self.project / 'src' / 'features').mkdir(parents=True)
         (self.project / 'docs' / 'features').mkdir(parents=True)
         (self.project / 'References.md').write_text(self.NONE)
+        # The map check lists the unit's files through git.
+        self.git()
 
     def check(self, tree):
         (self.project / 'feature-tree.md').write_text(tree)
         return subprocess.run([BASH, str(DEVELOP)], cwd=self.project, text=True, capture_output=True)
+
+    def place(self, *folders):
+        """The folders a row names, each holding one file."""
+        for folder in folders:
+            (self.project / folder).mkdir(parents=True, exist_ok=True)
+            (self.project / folder / 'index.ext').write_text('code\n')
 
     def document(self, name, tests=True):
         """A feature record; by default with a Tests line naming a test file that exists."""
@@ -264,6 +272,7 @@ class DevelopGate(unittest.TestCase):
     def test_the_docs_column_names_the_record(self):
         (self.project / 'records').mkdir()
         (self.project / 'records' / 'orders.md').write_text('# orders\n\nTests: none, a static page with no behavior\n')
+        self.place('src/orders')
         result = self.check(features_tree(['| 01 | orders | src/orders | /orders | API | implemented | records/orders.md |']))
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("WARN: feature 'orders' records no tests: a static page with no behavior", ANSI.sub('', result.stdout))
@@ -334,6 +343,7 @@ class DevelopGate(unittest.TestCase):
         rows = ['| %02d | %s | src/features/%s | /%s | Auth | implemented | docs/features/%s.md |' % (i, n, n, n, n)
                 for i, n in enumerate(('health', '_health', 'ping', 'smoke'), 1)]
         rows.append('| 05 | probe | src/probe | /probe | Auth | smoke-test | |')
+        self.place('src/probe', *('src/features/' + n for n in ('health', '_health', 'ping', 'smoke')))
         result = self.check(features_tree(rows))
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(group(result.stdout, '2'), ['OK: no feature rows yet'])
@@ -347,6 +357,7 @@ class DevelopGate(unittest.TestCase):
 
     def test_a_named_test_path_must_exist(self):
         (self.project / 'docs' / 'features' / 'orders.md').write_text('# orders\n\n- **Tests:** `tests/orders/`\n')
+        self.place('src/orders')
         result = self.check(features_tree(['| 01 | orders | src/orders | /orders | API | implemented | docs/features/orders.md |']))
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("feature 'orders': its record names tests at `tests/orders/`, which does not exist", ANSI.sub('', result.stdout))
@@ -365,6 +376,63 @@ class DevelopGate(unittest.TestCase):
         (self.project / 'src' / 'features' / 'orders' / 'test_orders.ext').write_text('test\n')
         result = self.check(tree)
         self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_a_unit_below_the_top_names_tests_from_its_root_or_from_the_top(self):
+        unit = self.project / 'units' / 'server'
+        (unit / 'docs' / 'features').mkdir(parents=True)
+        (unit / 'src' / 'orders').mkdir(parents=True)
+        (unit / 'src' / 'orders' / 'orders.ext').write_text('code\n')
+        (unit / 'test').mkdir()
+        (unit / 'test' / 'orders.test.ext').write_text('test\n')
+        (self.project / 'shared' / 'test').mkdir(parents=True)
+        (self.project / 'shared' / 'test' / 'rules.test.ext').write_text('test\n')
+        (unit / 'References.md').write_text(self.NONE)
+        (unit / 'feature-tree.md').write_text(features_tree(
+            ['| 01 | orders | src/orders | /orders | API | implemented | docs/features/orders.md |']))
+        record = unit / 'docs' / 'features' / 'orders.md'
+
+        def run():
+            return subprocess.run([BASH, str(DEVELOP)], cwd=unit, text=True, capture_output=True)
+
+        record.write_text('# orders\n\nTests: `test/orders.test.ext`, `units/server/test/orders.test.ext`, `shared/test/rules.test.ext`, `shared/test/*.test.ext`\n')
+        result = run()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(group(result.stdout, '3'), ["OK: every feature's tests are where its record says"])
+        record.write_text('# orders\n\nTests: `shared/test/absent.test.ext`\n')
+        result = run()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("its record names tests at `shared/test/absent.test.ext`, which does not exist", ANSI.sub('', result.stdout))
+        # A test missing from the unit is not found in a folder of the same name at the top.
+        (self.project / 'test').mkdir()
+        (self.project / 'test' / 'gone.test.ext').write_text('another unit\'s test\n')
+        for named in ('test/gone.test.ext', 'test/gone.*', '*/gone.test.ext'):
+            record.write_text('# orders\n\nTests: `%s`\n' % named)
+            result = run()
+            self.assertEqual(result.returncode, 1, named + '\n' + result.stdout)
+            self.assertIn('names tests at `%s`, which does not exist' % named, ANSI.sub('', result.stdout))
+
+    # ---- group 4: the map follows the code ------------------------------------------------
+
+    def test_the_map_check_is_part_of_the_gate(self):
+        self.document('orders')
+        self.place('src/features/orders', 'src/features/refunds')
+        tree = features_tree(['| 01 | orders | src/features/orders | /orders | API | implemented | docs/features/orders.md |'])
+        result = self.check(tree)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        lines = group(result.stdout, '4')
+        self.assertIn('  FAIL: src/features/ holds refunds, which no row names', lines)
+        self.assertEqual(lines[-1], 'FAIL: feature-tree.md: see the lines above')
+        self.document('refunds')
+        tree = features_tree([
+            '| 01 | orders | src/features/orders | /orders | API | implemented | docs/features/orders.md |',
+            '| 02 | refunds | src/features/refunds | /refunds | API | implemented | docs/features/refunds.md |',
+        ])
+        result = self.check(tree)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(group(result.stdout, '4'), [
+            '  OK: every location the map names exists',
+            "  OK: where the map names a folder's entries one by one, it names them all (folders compared: 1)",
+        ])
 
     def test_tests_none_needs_a_reason_and_a_placeholder_fails(self):
         tree = features_tree(['| 01 | orders | src/orders | /orders | API | implemented | docs/features/orders.md |'])
@@ -799,6 +867,7 @@ class MaintainGate(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix='archetype-maintain-')
         self.addCleanup(self.temp.cleanup)
         self.project = Path(self.temp.name)
+        subprocess.run(['git', 'init', '-q'], cwd=self.project, check=True)
 
     def check(self, tree, debt=None):
         (self.project / 'feature-tree.md').write_text(tree)
@@ -816,24 +885,277 @@ class MaintainGate(unittest.TestCase):
         ])
         code, out = self.check(tree)
         self.assertEqual(code, 1, out)
-        self.assertIn('feature row 02 (refunds) names app/refunds, which does not exist', out)
+        self.assertIn('feature row 02 (refunds) names `app/refunds`, which does not exist', out)
         self.assertNotIn('app/later', out)
 
-    def test_a_folder_beside_the_features_without_a_row_warns(self):
+    def test_a_folder_beside_the_features_without_a_row_fails(self):
         for name in ('orders', 'refunds', 'orphans'):
             (self.project / 'app' / name).mkdir(parents=True)
+            (self.project / 'app' / name / 'index.ext').write_text('code\n')
         code, out = self.check(features_tree([
             '| 01 | orders | app/orders | /orders | API | implemented | docs/features/orders.md |',
             '| 02 | refunds | app/refunds | /refunds | API | implemented | docs/features/refunds.md |',
         ]))
-        self.assertEqual(code, 0, out)
-        self.assertIn('WARN: app/orphans sits beside the features in app/ but has no row', out)
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: app/ holds orphans, which no row names', out)
+        self.assertIn('FAIL: feature-tree.md: see the lines above', out)
 
     def test_debt_entries_without_a_status_warn(self):
         code, out = self.check(features_tree([]), '# Log\n\n## TD-001 x\n\n- Kind: shortcut\n\n## TD-002 y\n\n- **Status:** open\n')
         self.assertEqual(code, 0, out)
         self.assertIn('entries without a Status: TD-001', out)
         self.assertNotIn('TD-002', out.split('entries without a Status:')[1].split('(')[0])
+
+
+class MapCheck(unittest.TestCase):
+    """check-map.sh: every location a row names exists, and where the map names a folder's entries
+    one by one, it names them all."""
+
+    MAP = SOURCE / 'scripts' / 'check-map.sh'
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='archetype-map-')
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name).resolve()
+        subprocess.run(['git', 'init', '-q'], cwd=self.root, check=True)
+
+    def files(self, *names, under=None):
+        for name in names:
+            target = (under or self.root) / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text('code\n')
+
+    def check(self, features=(), systems=(), at=None, script=None):
+        unit = at or self.root
+        rows = ['| %02d | f%d | %s | /r | API | %s | |' % (i, i, loc, status)
+                for i, (loc, status) in enumerate(((f, 'implemented') if isinstance(f, str) else f for f in features), 1)]
+        system_rows = ['| %02d | s%d | #1 | %s | implemented | |' % (i, i, loc) for i, loc in enumerate(systems, 1)]
+        tree = ('# Feature Tree\n\n## Foundational Systems\n\n' + SYSTEMS_HEADER + '\n|---|---|---|---|---|---|\n'
+                + ''.join(row + '\n' for row in system_rows)
+                + '\n## Features\n\n' + FEATURES_HEADER + '\n|---|---|---|---|---|---|---|\n'
+                + ''.join(row + '\n' for row in rows))
+        (unit / 'feature-tree.md').write_text(tree)
+        result = subprocess.run([BASH, str(script or self.MAP)], cwd=unit, text=True, capture_output=True)
+        return result.returncode, ANSI.sub('', result.stdout + result.stderr)
+
+    # ---- every path a row names exists ----------------------------------------------------
+
+    def test_a_location_that_does_not_exist_fails_and_the_rest_is_read(self):
+        self.files('app/orders/a.ext')
+        code, out = self.check(['app/orders', 'app/refunds'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: feature row 02 (f2) names `app/refunds`, which does not exist', out)
+        self.assertIn('A Location cell holds paths separated by commas', out)
+        self.assertNotIn('app/orders`', out)
+
+    def test_several_paths_in_one_cell_with_or_without_backticks(self):
+        self.files('app/orders/a.ext', 'app/shared/b.ext', 'lib/c.ext')
+        code, out = self.check(['`app/orders/`, `app/shared/b.ext`,lib/c.ext , ./app/orders//a.ext'], systems=['app/shared/'])
+        self.assertEqual(code, 0, out)
+        self.assertIn('OK: every location the map names exists', out)
+
+    def test_a_note_or_a_shortened_name_in_a_cell_fails(self):
+        self.files('app/orders/a.ext', 'app/orders/b.ext')
+        code, out = self.check(['app/orders/a.ext (the list), b.ext'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('names `app/orders/a.ext (the list)`, which does not exist', out)
+        self.assertIn('names `b.ext`, which does not exist', out)
+
+    def test_a_cell_that_names_nothing_and_a_row_not_built_yet_are_not_read(self):
+        self.files('app/orders/a.ext')
+        for cell in ('', '-', 'none', 'N/A', '[location]', '`[path]`'):
+            code, out = self.check([cell, 'app/orders'])
+            self.assertEqual(code, 0, cell + '\n' + out)
+        for status in ('not started', 'deferred (TD-3)', 'blocked (owner: open the account)', 'not applicable'):
+            code, out = self.check([('app/later', status), 'app/orders'])
+            self.assertEqual(code, 0, status + '\n' + out)
+
+    def test_a_row_not_built_yet_still_names_what_exists(self):
+        self.files('app/orders/a.ext', 'app/payments/adapter.ext', 'app/stray/s.ext')
+        waiting = ('app/payments, app/payments/live.ext', 'blocked (owner: open the account)')
+        code, out = self.check(['app/orders', waiting])
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: app/ holds stray, which no row names', out)
+        self.assertNotIn('payments', out)
+        self.assertNotIn('does not exist', out)
+
+    def test_a_linked_or_half_bracketed_cell_is_read_as_a_path(self):
+        self.files('app/orders/a.ext')
+        for cell in ('[app/orders](app/orders)', '[location] and more', '[app/absent], [app/orders]', '[[app/absent]]', '[app/absent'):
+            code, out = self.check([cell])
+            self.assertEqual(code, 1, cell + '\n' + out)
+            self.assertIn('which does not exist', out)
+
+    def test_a_path_outside_the_project_fails(self):
+        self.files('app/orders/a.ext')
+        outside = Path(tempfile.mkdtemp(prefix='archetype-map-outside-')).resolve()
+        self.addCleanup(shutil.rmtree, outside, True)
+        (outside / 'x.ext').write_text('x\n')
+        code, out = self.check([str(outside / 'x.ext'), '../' + outside.name + '/x.ext', 'app/orders/../orders/a.ext', '~/x'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('f1) names `%s`, which is not a path inside the project' % (outside / 'x.ext'), out)
+        self.assertIn('f2) names `../%s/x.ext`, which leaves the project' % outside.name, out)
+        self.assertIn('f3) names `app/orders/../orders/a.ext`, which leaves the project', out)
+        self.assertIn('f4) names `~/x`, which is not a path inside the project', out)
+
+    def test_another_spelling_of_a_real_path_fails(self):
+        self.files('app/Orders/a.ext', 'app/Orders/b.ext')
+        if not (self.root / 'app' / 'orders').exists():
+            self.skipTest('this file system tells names apart by case')
+        code, out = self.check(['app/orders/a.ext'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('names `app/orders/a.ext`, which exists only under another spelling', out)
+        self.assertNotIn('names them all', out)
+
+    # ---- where the map names a folder's entries one by one, it names them all --------------
+
+    def test_files_beside_named_files_must_be_named(self):
+        self.files('lib/screens/a.ext', 'lib/screens/b.ext', 'lib/screens/c.ext', 'lib/screens/parts/p.ext')
+        code, out = self.check(['lib/screens/a.ext'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: lib/screens/ holds b.ext, c.ext, which no row names', out)
+        self.assertNotIn('parts', out)
+        self.assertIn('name the folder as a whole when it is one thing', out)
+        code, out = self.check(['lib/screens/a.ext, lib/screens/c.ext', 'lib/screens/b.ext'])
+        self.assertEqual(code, 0, out)
+        self.assertIn("it names them all (folders compared: 1)", out)
+
+    def test_folders_beside_named_folders_must_be_named_or_hold_something_named(self):
+        self.files('src/orders/a.ext', 'src/refunds/b.ext', 'src/shared/deep/c.ext', 'src/stray/d.ext', 'src/main.ext')
+        code, out = self.check(['src/orders', 'src/shared/deep/c.ext'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: src/ holds refunds, stray, which no row names', out)
+        self.assertNotIn('main.ext', out)
+        self.assertNotIn('shared', out.split('FAIL: src/ holds')[1].splitlines()[0])
+
+    def test_a_folder_named_as_a_whole_is_one_thing(self):
+        self.files('src/ui/a.ext', 'src/ui/b.ext', 'src/ui/parts/p.ext', 'src/ui/parts/q.ext', 'src/ui/more/m.ext')
+        code, out = self.check(['src/ui/a.ext'], systems=['src/ui/'])
+        self.assertEqual(code, 0, out)
+        # Deeper, a folder is compared again once the map names one of its entries.
+        code, out = self.check(['src/ui/parts/p.ext'], systems=['src/ui/'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: src/ui/parts/ holds q.ext, which no row names', out)
+        code, out = self.check(['src/ui/parts/p.ext'], systems=['src/ui/', 'src/ui/parts'])
+        self.assertEqual(code, 0, out)
+
+    def test_the_unit_root_is_not_compared(self):
+        self.files('src/a.ext', 'tools/t.ext', 'config.ext', 'other.ext')
+        code, out = self.check(['src', 'config.ext'])
+        self.assertEqual(code, 0, out)
+        self.assertIn('nothing to compare', out)
+        code, out = self.check(['src/a.ext', 'config.ext'])
+        self.assertEqual(code, 0, out)
+        self.assertIn('(folders compared: 1)', out)
+
+    def test_more_than_ten_unnamed_entries_are_counted(self):
+        self.files(*['lib/s/n%02d.ext' % i for i in range(1, 15)])
+        code, out = self.check(['lib/s/n01.ext'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: lib/s/ holds n02.ext, n03.ext, n04.ext, n05.ext, n06.ext, n07.ext, n08.ext, n09.ext, n10.ext, n11.ext and 3 more, which no row names', out)
+
+    def test_entries_are_what_git_tracks_or_does_not_ignore(self):
+        self.files('lib/s/a.ext', 'lib/s/b.ext', 'lib/s/built.out', 'lib/s/cache/c.out')
+        (self.root / '.gitignore').write_text('*.out\n')
+        subprocess.run(['git', 'add', '-A'], cwd=self.root, check=True)
+        code, out = self.check(['lib/s/a.ext'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: lib/s/ holds b.ext, which no row names', out)
+        # A tracked file deleted and not yet committed is no longer an entry.
+        (self.root / 'lib' / 's' / 'b.ext').unlink()
+        code, out = self.check(['lib/s/a.ext'])
+        self.assertEqual(code, 0, out)
+        # A new file not yet added is one.
+        self.files('lib/s/new.ext')
+        code, out = self.check(['lib/s/a.ext'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: lib/s/ holds new.ext, which no row names', out)
+
+    def test_an_ignored_path_can_be_named_and_is_not_compared(self):
+        self.files('lib/gen/g.out', 'lib/src/a.ext')
+        (self.root / '.gitignore').write_text('*.out\n')
+        code, out = self.check(['lib/src', 'lib/gen/g.out'])
+        self.assertEqual(code, 0, out)
+
+    def test_the_engine_folder_and_another_unit_are_left_out(self):
+        self.files('units/client/a.ext', 'units/server/b.ext', 'units/tools/t.ext')
+        (self.root / 'units' / 'server' / 'feature-tree.md').write_text('# its own map\n')
+        shutil.copytree(SOURCE / 'scripts', self.root / 'units' / 'engine' / 'scripts')
+        installed = self.root / 'units' / 'engine' / 'scripts' / 'check-map.sh'
+        code, out = self.check(['units/client'], script=installed)
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: units/ holds tools, which no row names', out)
+        # The same map read by a copy outside the project sees the engine folder as any other.
+        code, out = self.check(['units/client'])
+        self.assertIn('FAIL: units/ holds engine, tools, which no row names', out)
+
+    def test_a_unit_below_the_top_reads_paths_from_its_root_or_from_the_top(self):
+        unit = self.root / 'units' / 'server'
+        self.files('src/mod/a.ext', 'src/mod/b.ext', 'src/other/c.ext', under=unit)
+        self.files('shared/rules/r.ext', 'shared/rules/s.ext')
+        # Written from the top, a path inside the unit is compared like any other.
+        code, out = self.check(['units/server/src/mod/a.ext', 'shared/rules/r.ext'], at=unit)
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: src/mod/ holds b.ext, which no row names', out)
+        # Outside the unit a named path only has to exist: its folder is another map's to cover.
+        self.assertNotIn('s.ext', out)
+        code, out = self.check(['units/server/src/mod', 'src/other', 'units/server/'], at=unit)
+        self.assertEqual(code, 0, out)
+        code, out = self.check(['shared/rules/absent.ext'], at=unit)
+        self.assertEqual(code, 1, out)
+        self.assertIn('names `shared/rules/absent.ext`, which does not exist', out)
+        # A path missing from the unit is not found in a folder of the same name at the top.
+        self.files('src/mod/elsewhere.ext')
+        code, out = self.check(['src/mod/elsewhere.ext'], at=unit)
+        self.assertEqual(code, 1, out)
+        self.assertIn('names `src/mod/elsewhere.ext`, which does not exist', out)
+
+    def test_a_backslash_in_a_folder_name_is_read_as_written(self):
+        self.files('lib/a\\nb/x.ext', 'lib/a\\nb/y.ext', 'lib/c\\td/z.ext')
+        code, out = self.check(['lib/a\\nb/x.ext'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: lib/a\\nb/ holds y.ext, which no row names', out)
+        code, out = self.check(['lib/a\\nb'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: lib/ holds c\\td, which no row names', out)
+
+    def test_outside_a_repository_existence_is_checked_and_a_comparison_fails(self):
+        plain = Path(tempfile.mkdtemp(prefix='archetype-map-plain-')).resolve()
+        self.addCleanup(shutil.rmtree, plain, True)
+        env = dict(os.environ, GIT_CEILING_DIRECTORIES=str(plain.parent))
+        self.files('src/a.ext', 'top.ext', under=plain)
+
+        def run(location):
+            (plain / 'feature-tree.md').write_text(features_tree(['| 01 | f | %s | /r | API | implemented | |' % location]))
+            result = subprocess.run([BASH, str(self.MAP)], cwd=plain, env=env, text=True, capture_output=True)
+            return result.returncode, ANSI.sub('', result.stdout)
+
+        code, out = run('top.ext')
+        self.assertEqual(code, 0, out)
+        code, out = run('src/a.ext')
+        self.assertEqual(code, 1, out)
+        self.assertIn('not inside a git repository', out)
+
+    def test_a_listing_git_cannot_finish_is_a_failure(self):
+        self.files('lib/s/a.ext', 'lib/s/b.ext')
+        subprocess.run(['git', 'add', '-A'], cwd=self.root, check=True)
+        (self.root / '.git' / 'index').write_bytes(b'not an index')
+        code, out = self.check(['lib/s/a.ext', 'lib/s/b.ext'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('could not be listed, so nothing was compared', out)
+
+    def test_no_map_is_a_warning_and_an_unknown_argument_a_usage_error(self):
+        result = subprocess.run([BASH, str(self.MAP)], cwd=self.root, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('WARN: no feature-tree.md', ANSI.sub('', result.stdout))
+        result = subprocess.run([BASH, str(self.MAP), '--quiet'], cwd=self.root, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 2, result.stdout)
+
+    def test_the_shipped_template_names_nothing_yet(self):
+        (self.root / 'feature-tree.md').write_text(TEMPLATE.read_text())
+        result = subprocess.run([BASH, str(self.MAP)], cwd=self.root, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('nothing to compare', ANSI.sub('', result.stdout))
 
 
 class RegulatedDataGate(unittest.TestCase):
