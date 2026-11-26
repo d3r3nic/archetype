@@ -402,6 +402,14 @@ class DevelopGate(unittest.TestCase):
         result = run()
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("its record names tests at `shared/test/absent.test.ext`, which does not exist", ANSI.sub('', result.stdout))
+        # A test missing from the unit is not found in a folder of the same name at the top.
+        (self.project / 'test').mkdir()
+        (self.project / 'test' / 'gone.test.ext').write_text('another unit\'s test\n')
+        for named in ('test/gone.test.ext', 'test/gone.*', '*/gone.test.ext'):
+            record.write_text('# orders\n\nTests: `%s`\n' % named)
+            result = run()
+            self.assertEqual(result.returncode, 1, named + '\n' + result.stdout)
+            self.assertIn('names tests at `%s`, which does not exist' % named, ANSI.sub('', result.stdout))
 
     # ---- group 4: the map follows the code ------------------------------------------------
 
@@ -1087,6 +1095,20 @@ class MapCheck(unittest.TestCase):
         code, out = self.check(['shared/rules/absent.ext'], at=unit)
         self.assertEqual(code, 1, out)
         self.assertIn('names `shared/rules/absent.ext`, which does not exist', out)
+        # A path missing from the unit is not found in a folder of the same name at the top.
+        self.files('src/mod/elsewhere.ext')
+        code, out = self.check(['src/mod/elsewhere.ext'], at=unit)
+        self.assertEqual(code, 1, out)
+        self.assertIn('names `src/mod/elsewhere.ext`, which does not exist', out)
+
+    def test_a_backslash_in_a_folder_name_is_read_as_written(self):
+        self.files('lib/a\\nb/x.ext', 'lib/a\\nb/y.ext', 'lib/c\\td/z.ext')
+        code, out = self.check(['lib/a\\nb/x.ext'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: lib/a\\nb/ holds y.ext, which no row names', out)
+        code, out = self.check(['lib/a\\nb'])
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: lib/ holds c\\td, which no row names', out)
 
     def test_outside_a_repository_existence_is_checked_and_a_comparison_fails(self):
         plain = Path(tempfile.mkdtemp(prefix='archetype-map-plain-')).resolve()

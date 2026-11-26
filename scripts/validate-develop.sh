@@ -11,7 +11,8 @@
 #      number; a row with an empty or placeholder name fails; the smoke-test feature is exempt)
 #   3. Every feature record's Tests line names tests that exist, or says none with the reason; a
 #      record with no Tests line passes when the feature's location holds a test file. A test path
-#      is read from the unit's root, then from the repository's top for tests kept outside the unit
+#      is read from the unit's root, or from the repository's top for tests kept outside the unit:
+#      the top is read only for a path whose first part the unit's root does not hold
 #   4. The map follows the code (scripts/check-map.sh): every location a row names exists, and
 #      where the map names a folder's entries one by one, it names them all
 
@@ -57,6 +58,14 @@ else
   printf '%s\n' "$BOUNDARY_OUT" | sed 's/^/  /'
   pass "every recorded boundary holds"
 fi
+
+# True when the path, which may be a shell glob, names something under the folder given.
+exists_from() {
+  case "$2" in
+    *'*'*|*'?'*|*'['*) for g in "$1"/$2; do [ -e "$g" ] && return 0; done; return 1 ;;
+    *) [ -e "$1/$2" ] ;;
+  esac
+}
 
 # A Docs or Tests value names a path only as a plain local path; anything else gets a
 # diagnostic, not a guess.
@@ -188,16 +197,19 @@ if [ -s "$RECORDS" ]; then
           /*|'~'*|*..*) fail "feature '$name': the test path \`$tp\` in $record must be inside the project, from its root"; BAD=$((BAD + 1)); continue ;;
         esac
         found=0
-        for from in "$PROJECT_ROOT" "$REPO_TOP"; do
-          [ -n "$from" ] || continue
-          case "$tp" in
-            *'*'*|*'?'*|*'['*) for g in "$from"/$tp; do [ -e "$g" ] && { found=1; break; }; done ;;
-            *) [ -e "$from/$tp" ] && found=1 ;;
+        if exists_from "$PROJECT_ROOT" "$tp"; then
+          found=1
+        elif [ -n "$REPO_TOP" ] && [ "$REPO_TOP" != "$PROJECT_ROOT" ]; then
+          # The top is read only for a path whose first part the unit does not hold, so a test
+          # missing from the unit is never found in another unit's folder of the same name.
+          first="${tp%%/*}"
+          case "$first" in
+            *'*'*|*'?'*|*'['*) ;;
+            *) [ ! -e "$PROJECT_ROOT/$first" ] && exists_from "$REPO_TOP" "$tp" && found=1 ;;
           esac
-          [ "$found" -eq 1 ] && break
-        done
+        fi
         if [ "$found" -eq 0 ]; then
-          fail "feature '$name': its record names tests at \`$tp\`, which does not exist (read from the unit's root, then from the repository's top)"
+          fail "feature '$name': its record names tests at \`$tp\`, which does not exist (read from the unit's root, or from the repository's top when the unit does not hold its first part)"
           BAD=$((BAD + 1))
         fi
       done <<EOF

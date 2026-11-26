@@ -5,7 +5,8 @@
 # scripts/validate-develop.sh and scripts/validate-maintain.sh; it can also run on its own.
 #
 # A Location cell holds one or more paths separated by commas, each from the unit's root, or from
-# the repository's top for something outside the unit. Backticks around a path are fine. A cell
+# the repository's top for something outside the unit: the top is read only for a path whose
+# first part the unit's root does not hold. Backticks around a path are fine. A cell
 # that is empty, "-", none, n/a, or still the template's bracketed placeholder names nothing, and
 # a row whose Status is not started, deferred, blocked or not applicable is not read. Anything
 # else in a cell is read as a path, so a note or a shortened name fails as a path that does not
@@ -27,7 +28,7 @@ export LC_ALL=C
 
 case "${1:-}" in
   '') ;;
-  -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   *) echo "unknown argument: $1 (this check takes none)"; exit 2 ;;
 esac
 
@@ -140,7 +141,7 @@ while IFS='|' read -r table num name location status; do
         fail "$table row $num ($name) names \`$shown\`, which exists only under another spelling; spell it as the folder does, capitals included"
         MISSING=$((MISSING + 1))
       fi
-    elif [ -n "$TOP" ] && [ "$TOP" != "$ROOT" ] && [ -e "$TOP/$item" ]; then
+    elif [ -n "$TOP" ] && [ "$TOP" != "$ROOT" ] && [ ! -e "$ROOT/${item%%/*}" ] && [ -e "$TOP/$item" ]; then
       if ! spelled_so "$TOP" "$item"; then
         fail "$table row $num ($name) names \`$shown\`, which exists only under another spelling; spell it as the folder does, capitals included"
         MISSING=$((MISSING + 1))
@@ -181,14 +182,16 @@ else
   ( cd "$ROOT" && git ls-files -z --deleted ) > "$RAW" 2>/dev/null || LISTED=0
   tr '\0' '\n' < "$RAW" > "$GONE"
   ( cd "$ROOT" && git ls-files -z --cached --others --exclude-standard ) > "$RAW" 2>/dev/null || LISTED=0
-  tr '\0' '\n' < "$RAW" | awk -v gone="$GONE" '
-    BEGIN { while ((getline line < gone) > 0) deleted[line] = 1 }
+  # Paths reach awk through the environment: -v would read a backslash in one as an escape.
+  tr '\0' '\n' < "$RAW" | MAP_GONE="$GONE" awk '
+    BEGIN { gone = ENVIRON["MAP_GONE"]; while ((getline line < gone) > 0) deleted[line] = 1 }
     $0 != "" && !($0 in deleted)' > "$FILES"
   sort -u "$NAMED" -o "$NAMED"
-  awk -v engine="$ENGINE_REL" -v named_file="$NAMED" '
+  MAP_ENGINE="$ENGINE_REL" MAP_NAMED="$NAMED" awk '
     function parent(s,   i, k) { k = 0; while ((i = index(substr(s, k + 1), "/")) > 0) k += i; return k ? substr(s, 1, k - 1) : "" }
     function base(s,   p) { p = parent(s); return p == "" ? s : substr(s, length(p) + 2) }
     BEGIN {
+      engine = ENVIRON["MAP_ENGINE"]; named_file = ENVIRON["MAP_NAMED"]
       while ((getline line < named_file) > 0) {
         if (length(line) < 3) continue
         n = substr(line, 3)
