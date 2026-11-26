@@ -970,9 +970,18 @@ class MapCheck(unittest.TestCase):
             code, out = self.check([('app/later', status), 'app/orders'])
             self.assertEqual(code, 0, status + '\n' + out)
 
+    def test_a_row_not_built_yet_still_names_what_exists(self):
+        self.files('app/orders/a.ext', 'app/payments/adapter.ext', 'app/stray/s.ext')
+        waiting = ('app/payments, app/payments/live.ext', 'blocked (owner: open the account)')
+        code, out = self.check(['app/orders', waiting])
+        self.assertEqual(code, 1, out)
+        self.assertIn('FAIL: app/ holds stray, which no row names', out)
+        self.assertNotIn('payments', out)
+        self.assertNotIn('does not exist', out)
+
     def test_a_linked_or_half_bracketed_cell_is_read_as_a_path(self):
         self.files('app/orders/a.ext')
-        for cell in ('[app/orders](app/orders)', '[location] and more'):
+        for cell in ('[app/orders](app/orders)', '[location] and more', '[app/absent], [app/orders]', '[[app/absent]]', '[app/absent'):
             code, out = self.check([cell])
             self.assertEqual(code, 1, cell + '\n' + out)
             self.assertIn('which does not exist', out)

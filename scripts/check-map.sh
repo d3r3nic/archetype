@@ -7,10 +7,11 @@
 # A Location cell holds one or more paths separated by commas, each from the unit's root, or from
 # the repository's top for something outside the unit: the top is read only for a path whose
 # first part the unit's root does not hold. Backticks around a path are fine. A cell
-# that is empty, "-", none, n/a, or still the template's bracketed placeholder names nothing, and
-# a row whose Status is not started, deferred, blocked or not applicable is not read. Anything
-# else in a cell is read as a path, so a note or a shortened name fails as a path that does not
-# exist: nothing the check cannot read counts as a pass.
+# that is empty, "-", none, n/a, or still the template's one bracketed placeholder names nothing.
+# Anything else in a cell is read as a path, so a note or a shortened name fails as a path that
+# does not exist: nothing the check cannot read counts as a pass. A row whose Status says not
+# started, deferred, blocked or not applicable may name a path that is not there yet; what it
+# names that exists counts as named.
 #
 # Checks:
 #   1. Every path a row names exists, spelled as the folder spells it.
@@ -28,7 +29,7 @@ export LC_ALL=C
 
 case "${1:-}" in
   '') ;;
-  -h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   *) echo "unknown argument: $1 (this check takes none)"; exit 2 ;;
 esac
 
@@ -108,11 +109,17 @@ name_it() { if [ -d "$ROOT/$1" ]; then printf 'd %s\n' "$1" >> "$NAMED"; else pr
 MISSING=0
 while IFS='|' read -r table num name location status; do
   [ -n "$table" ] || continue
+  # A row not built yet may name what is not there yet.
   status_lc="$(printf '%s' "$status" | tr '[:upper:]' '[:lower:]')"
-  case "$status_lc" in *'not started'*|*deferred*|*blocked*|*'not applicable'*) continue ;; esac
+  WAITS=0
+  case "$status_lc" in *'not started'*|*deferred*|*blocked*|*'not applicable'*) WAITS=1 ;; esac
   cell="$(printf '%s' "$location" | tr -d '`')"
   cell_lc="$(printf '%s' "$cell" | tr '[:upper:]' '[:lower:]')"
-  case "$cell_lc" in ''|'['*']'|none|n/a|-) continue ;; esac
+  case "$cell_lc" in ''|none|n/a|-) continue ;; esac
+  # The template's placeholder is one bracketed note; brackets around several paths are read.
+  case "$cell" in
+    '['*']') inner="${cell#?}"; inner="${inner%?}"; case "$inner" in *'['*|*']'*|*,*) ;; *) continue ;; esac ;;
+  esac
   rest="$cell"
   while [ -n "$rest" ]; do
     item="${rest%%,*}"
@@ -152,7 +159,7 @@ while IFS='|' read -r table num name location status; do
           "$PREFIX"?*) name_it "${item#"$PREFIX"}" ;;
         esac
       fi
-    else
+    elif [ "$WAITS" -eq 0 ]; then
       fail "$table row $num ($name) names \`$shown\`, which does not exist"
       MISSING=$((MISSING + 1))
     fi
